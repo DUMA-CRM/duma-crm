@@ -100,3 +100,10 @@ export const REFERRAL_STATUS_BADGE: Record<ReferralStatus, 'reference' | 'succes
 
 /** "SAM-7KQ2PX" — how a customer's code will look, for the settings preview. */
 export const sampleReferralCode = (prefix: string) => `${prefix.trim().toUpperCase() || 'SAM'}-7KQ2PX`;
+
+/** The cap as the row shows it: "" → "Unlimited", "1" → "1 reward", "5" → "5 rewards". */
+export function rewardsCapLabel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Unlimited';
+  return `${trimmed} ${trimmed === '1' ? 'reward' : 'rewards'}`;
+}

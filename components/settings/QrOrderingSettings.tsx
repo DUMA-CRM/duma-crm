@@ -182,7 +182,7 @@ export function QrOrderingSettings() {
     },
     onSuccess: (published) => {
       qc.setQueryData(moduleQueryKeys.qrOrdering.key('configuration', locationId), published);
-      toast('success', 'QR menu published.', { critical: true });
+      toast('success', 'QR menu published.');
     },
     onError: (error) => toast('error', error.message || 'The QR menu was not published.'),
   });

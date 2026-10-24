@@ -36,7 +36,7 @@ test('a publishable key is offered only what is safe in a browser', () => {
   const everything = ['settings:write', 'cms.keys:write'];
   assert.deepEqual(grantableScopes('publishable', everything), ['content:read', 'catalog:read']);
   assert.deepEqual(grantableScopes('publishable', [...everything, 'cms:write', 'cms.schema:write']), ['content:read', 'catalog:read']);
-  assert.deepEqual(grantableScopes('secret', [...everything, 'cms:write', 'cms.schema:write']), [...API_KEY_SCOPES]);
+  assert.deepEqual(grantableScopes('secret', [...new Set(Object.values(SCOPES).flatMap((scope) => [...scope.capabilities]))]), [...API_KEY_SCOPES]);
   assert.deepEqual(scopesForKind('publishable', ['content:preview', 'content:read', 'orders:write']), ['content:read']);
 });
 
@@ -86,7 +86,7 @@ test('MCP tools are named once, need real scopes, and write only behind opt-in s
   assert.equal(new Set(names).size, names.length);
   for (const tool of MCP_TOOLS) {
     if (tool.scope) assert.ok(tool.scope in SCOPES, tool.name);
-    assert.doesNotMatch(tool.name, /delete|update|publish|subscribe|record|create_order/, tool.name);
+    assert.doesNotMatch(tool.name, /subscribe|create_order/, tool.name);
     if (tool.writes) assert.ok(tool.scope && SCOPES[tool.scope].optIn && !SCOPES[tool.scope].publishable, tool.name);
     else assert.doesNotMatch(tool.name, /create/, tool.name);
   }
@@ -107,4 +107,14 @@ test('client set-ups point at the MCP URL and carry no key', () => {
     assert.ok(config.code.includes('https://api.duma.test/v1/mcp'), config.label);
     assert.doesNotMatch(config.code, /dk_(pub|sec)_[A-Za-z0-9_-]{20,}/, config.label);
   }
+});
+
+ test('management scopes require explicit opt-in and separate publishing/deletion grants', () => {
+  for (const scope of API_KEY_SCOPES.filter((scope) => SCOPES[scope].api === 'management')) {
+    assert.equal(SCOPES[scope].publishable, false);
+    assert.equal(SCOPES[scope].optIn, true);
+  }
+  assert.ok(mcpToolsFor(['content:manage']).some((tool) => tool.name === 'content_update_entry'));
+  assert.ok(!mcpToolsFor(['content:manage']).some((tool) => tool.name === 'content_delete_entry' || tool.name === 'content_publish_entry'));
+  assert.ok(mcpToolsFor(['content:delete']).some((tool) => tool.name === 'content_delete_entry'));
 });

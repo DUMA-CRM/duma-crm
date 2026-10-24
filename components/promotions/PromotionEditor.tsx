@@ -1,38 +1,46 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { DateTimeField } from '@/components/cms/DateTimeField';
-import { ActionRow, ActionRows, FieldRow, InfoRow, InfoRows, RowTile, SectionInfo } from '@/components/cms/rows';
+import { ActionRow, ActionRows, InfoRow, InfoRows, PickerRow, RowTile, SectionInfo } from '@/components/cms/rows';
 import { copyText } from '@/components/cms/shared';
 import {
   Archive,
   Calendar,
+  CalendarClock,
+  Coins,
   Download,
   Hash,
+  type IconComponent,
+  ListChecks,
   MapPin,
   Monitor,
   Pause,
   Play,
   Plus,
+  Repeat,
   RotateCcw,
   ShoppingBag,
   Sparkles,
+  Tag,
   TicketPercent,
   Type,
+  UserRound,
   Users,
 } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { Switch } from '@/components/settings/controls';
+import { SaveBar, Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { ChoiceCards } from '@/components/shared/FormParts';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { LoadingState } from '@/components/shared/Skeleton';
+import { Bone } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { useCurrencySymbol, useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { CopyButton } from '@/components/ui/action-button';
@@ -58,8 +66,10 @@ import {
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
+import { formatDateTime } from '@/lib/utils/date';
 import {
   CHANNEL_LABELS,
+  KIND_LABELS,
   type PromotionChannel,
   type PromotionDraft,
   type PromotionKind,
@@ -68,32 +78,62 @@ import {
   draftFromPromotion,
   draftToFields,
   emptyPromotionDraft,
+  itemsChosenLabel,
+  moneyLabel,
   normaliseCode,
+  offerAmountLabel,
+  perCustomerLabel,
   promotionConditions,
   promotionDraftProblems,
   promotionStanding,
+  scopeLabel,
   usageLabel,
+  usesLimitLabel,
 } from '@/lib/utils/promotions';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { STANDING_BADGE } from './PromotionsList';
 
-const KINDS: { value: PromotionKind; label: string }[] = [
-  { value: 'percentage', label: '% off' },
-  { value: 'fixed_amount', label: 'Amount off' },
-  { value: 'free_item', label: 'Free item' },
-  { value: 'free_delivery', label: 'Free delivery' },
-];
+const KINDS = (Object.keys(KIND_LABELS) as PromotionKind[]).map((value) => ({ value, label: KIND_LABELS[value] }));
 const CHANNEL_OPTIONS = (Object.keys(CHANNEL_LABELS) as PromotionChannel[]).map((value) => ({ value, label: CHANNEL_LABELS[value] }));
 
-/** Sections rise in one after another, as in the Content editors. */
-const STAGGER = { shown: { transition: { staggerChildren: 0.06 } } };
+type Row =
+  | 'name'
+  | 'code'
+  | 'kind'
+  | 'value'
+  | 'maxDiscount'
+  | 'appliesTo'
+  | 'items'
+  | 'minSubtotal'
+  | 'locations'
+  | 'channels'
+  | 'maxRedemptions'
+  | 'perCustomer'
+  | 'startsAt'
+  | 'endsAt';
+
+/** The row that holds each field, so a failed save can open the first one with a problem. */
+const ROW_OF: Partial<Record<keyof PromotionDraft, Row>> = {
+  name: 'name',
+  code: 'code',
+  value: 'value',
+  maxDiscount: 'maxDiscount',
+  menuItemIds: 'items',
+  minSubtotal: 'minSubtotal',
+  locationIds: 'locations',
+  channels: 'channels',
+  maxRedemptions: 'maxRedemptions',
+  maxRedemptionsPerCustomer: 'perCustomer',
+  endsAt: 'endsAt',
+};
 
 /**
- * One promotion, full page, in the Content editors' shape: the rule in the
- * main column (offer, conditions, limits, dates), and beside it what it reads
- * as, its codes, its uses and its actions. New promotions get their first code
+ * One promotion, full page, laid out like Booking rules: the rule in the main
+ * column (offer, conditions, limits, dates), each one a row that says what
+ * it's set to and opens its control on a tap; beside it what it reads as, its
+ * uses, its codes and where it stands. New promotions get their first code
  * here; more come from the Codes card once it exists.
  */
 export function PromotionEditor({
@@ -117,7 +157,7 @@ export function PromotionEditor({
   if (promotionId && query.isPending)
     return (
       <EditorShell title="Loading promotion" onClose={onClose} icon={<TicketPercent size={20} aria-hidden="true" />}>
-        <LoadingState label="Loading the promotion" />
+        <Bone className="h-96 w-full rounded-lg" />
       </EditorShell>
     );
   if (promotionId && (query.isError || !query.data))
@@ -159,12 +199,15 @@ function PromotionForm({
 }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
   const queryClient = useQueryClient();
+  const reduceMotion = useReducedMotion();
   const symbol = useCurrencySymbol();
   const isNew = promotion === null;
   const initial = useMemo(() => (promotion ? draftFromPromotion(promotion) : emptyPromotionDraft()), [promotion]);
   const [draft, setDraft] = useState<PromotionDraft>(initial);
   const [showProblems, setShowProblems] = useState(false);
   const [archiving, setArchiving] = useState(false);
+  // One rule open at a time; a tap on the open one closes it. A new promotion starts on its name.
+  const [open, setOpen] = useState<Row | null>(isNew ? 'name' : null);
   const patch = (next: Partial<PromotionDraft>) => setDraft((current) => ({ ...current, ...next }));
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
@@ -219,9 +262,12 @@ function PromotionForm({
   });
 
   const attemptSave = () => {
-    if (Object.keys(problems).length) {
+    const fields = Object.keys(problems) as (keyof PromotionDraft)[];
+    if (fields.length) {
       setShowProblems(true);
-      toast('error', Object.values(problems)[0]!);
+      // Open the first row with a problem, so the fix is under the eye.
+      setOpen(ROW_OF[fields[0]!] ?? null);
+      toast('error', problems[fields[0]!]!);
       return;
     }
     save.mutate();
@@ -243,6 +289,47 @@ function PromotionForm({
   const standing = promotion ? promotionStanding(promotion) : null;
   const fields = draftToFields(draft);
   const readOnly = !editable || promotion?.status === 'archived';
+  const amountOff = draft.kind === 'percentage' || draft.kind === 'fixed_amount';
+  const needsItems = draft.kind === 'free_item' || (amountOff && draft.appliesTo === 'items');
+
+  const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
+  /** The row's tile: red for a problem the save found, amber for something required still empty. */
+  const toneOf = (field: keyof PromotionDraft, required = false) =>
+    problemOf(field) ? ('danger' as const) : required && !String(draft[field]).trim() ? ('warning' as const) : undefined;
+  const textRow = (
+    row: Row,
+    field: 'name' | 'code' | 'value' | 'maxDiscount' | 'minSubtotal' | 'maxRedemptions' | 'maxRedemptionsPerCustomer',
+    icon: IconComponent,
+    title: string,
+    shown: string,
+    muted: boolean,
+    control: Omit<React.ComponentProps<typeof Input>, 'value' | 'onChange'> & { clean?: (raw: string) => string },
+    required = false,
+  ) => {
+    const { clean, ...input } = control;
+    return (
+      <PickerRow
+        icon={icon}
+        title={title}
+        value={shown}
+        muted={muted}
+        tone={toneOf(field, required)}
+        open={open === row}
+        onToggle={() => toggle(row)}
+      >
+        <Input
+          aria-label={title}
+          value={draft[field]}
+          onChange={(event) => patch({ [field]: clean ? clean(event.target.value) : event.target.value })}
+          error={problemOf(field)}
+          autoFocus
+          {...input}
+        />
+      </PickerRow>
+    );
+  };
+  const currency = <span className="text-sm text-muted-foreground">{symbol}</span>;
+  const digitsOnly = (raw: string) => raw.replace(/\D/g, '');
 
   return (
     <EditorShell
@@ -252,33 +339,20 @@ function PromotionForm({
       onClose={onClose}
       dirty={dirty && !save.isPending}
       meta={
-        <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          {standing && <Badge variant={STANDING_BADGE[standing]}>{STANDING_LABELS[standing]}</Badge>}
-          {promotion && <span className="tabular-nums">{usageLabel(promotion)}</span>}
-          {(dirty || isNew) && editable && (
-            <span className="inline-flex items-center gap-1 font-medium text-measured">
-              <span className="size-1.5 rounded-full bg-measured" aria-hidden="true" />
-              {isNew ? 'Not created yet' : 'Unsaved changes'}
-            </span>
-          )}
-        </span>
-      }
-      actions={
-        editable && (dirty || isNew) ? (
-          <div className="flex items-center gap-2">
-            <Button variant="ghost" className="h-9" disabled={save.isPending} onClick={isNew ? onClose : () => setDraft(initial)}>
-              Discard
-            </Button>
-            <Tooltip side="top" align="end" label={`${isNew ? 'Create' : 'Save'} (${saveShortcut})`}>
-              <Button className="h-9" disabled={save.isPending} onClick={attemptSave}>
-                {save.isPending ? 'Saving…' : isNew ? 'Create promotion' : 'Save'}
-              </Button>
-            </Tooltip>
-          </div>
+        promotion ? (
+          <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
+            {standing && <Badge variant={STANDING_BADGE[standing]}>{STANDING_LABELS[standing]}</Badge>}
+            <span className="tabular-nums">{usageLabel(promotion)}</span>
+          </span>
         ) : undefined
       }
     >
-      <motion.div initial="hidden" animate="shown" variants={STAGGER}>
+      <motion.div
+        className="w-full"
+        initial={reduceMotion ? false : 'hidden'}
+        animate="shown"
+        variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
+      >
         <SettingsTabBody
           narrowAside
           aside={
@@ -308,248 +382,339 @@ function PromotionForm({
               {promotion && (
                 <CodesSection promotion={promotion} editable={editable && promotion.status !== 'archived'} onChanged={invalidate} />
               )}
-              {promotion && editable && (
-                <SettingsSection bodyClassName="py-3">
-                  <ActionRows>
-                    {promotion.status === 'active' && (
-                      <ActionRow
-                        icon={Pause}
-                        label="Pause — stop it being used"
-                        disabled={setStatus.isPending}
-                        onClick={() => setStatus.mutate('paused')}
-                      />
+              {promotion && standing && (
+                <SettingsSection title="Status" actions={<Badge variant={STANDING_BADGE[standing]}>{STANDING_LABELS[standing]}</Badge>}>
+                  <div className="space-y-3">
+                    {promotion.status === 'archived' && (
+                      <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+                        Its codes no longer work and it can’t be edited. Restore it to use it again.
+                      </p>
                     )}
-                    {promotion.status === 'paused' && (
-                      <ActionRow
-                        icon={Play}
-                        label="Make it live again"
-                        disabled={setStatus.isPending}
-                        onClick={() => setStatus.mutate('active')}
-                      />
+                    {editable && (
+                      <ActionRows>
+                        {promotion.status === 'active' && (
+                          <ActionRow
+                            icon={Pause}
+                            label="Pause — stop it being used"
+                            disabled={setStatus.isPending}
+                            onClick={() => setStatus.mutate('paused')}
+                          />
+                        )}
+                        {promotion.status === 'paused' && (
+                          <ActionRow
+                            icon={Play}
+                            label="Make it live again"
+                            disabled={setStatus.isPending}
+                            onClick={() => setStatus.mutate('active')}
+                          />
+                        )}
+                        {promotion.status === 'archived' ? (
+                          <ActionRow
+                            icon={RotateCcw}
+                            label="Restore, paused"
+                            disabled={setStatus.isPending}
+                            onClick={() => setStatus.mutate('paused')}
+                          />
+                        ) : (
+                          <ActionRow
+                            icon={Archive}
+                            label="Archive"
+                            danger
+                            disabled={setStatus.isPending}
+                            onClick={() => setArchiving(true)}
+                          />
+                        )}
+                      </ActionRows>
                     )}
-                    {promotion.status === 'archived' ? (
-                      <ActionRow
-                        icon={RotateCcw}
-                        label="Restore, paused"
-                        disabled={setStatus.isPending}
-                        onClick={() => setStatus.mutate('paused')}
-                      />
-                    ) : (
-                      <ActionRow icon={Archive} label="Archive" danger disabled={setStatus.isPending} onClick={() => setArchiving(true)} />
-                    )}
-                  </ActionRows>
+                  </div>
                 </SettingsSection>
               )}
             </>
           }
         >
-          {promotion?.status === 'archived' && (
-            <p className="rounded-lg border border-rule/60 bg-band/60 px-4 py-3 text-sm text-muted-foreground">
-              This promotion is archived: its codes no longer work and it can’t be edited. Restore it to use it again.
-            </p>
-          )}
-
-          <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-5">
-            <SettingsSection title="Offer" description="What it takes off, and of what.">
-              <div className="space-y-5">
-                <FieldRow icon={Type} title="Name" htmlFor="promotion-name" note="Shown on receipts">
-                  <Input
-                    id="promotion-name"
-                    value={draft.name}
-                    onChange={(event) => patch({ name: event.target.value })}
-                    placeholder="Summer 10% off"
-                    error={problemOf('name')}
-                    autoFocus={isNew}
-                  />
-                </FieldRow>
-                {isNew && (
-                  <FieldRow icon={Hash} title="Code" htmlFor="promotion-code" note="What customers type">
-                    <Input
-                      id="promotion-code"
-                      value={draft.code}
-                      onChange={(event) => patch({ code: normaliseCode(event.target.value) })}
-                      placeholder="SUMMER10"
-                      className="font-mono uppercase"
-                      error={problemOf('code')}
-                      hint="Letters, numbers and dashes. More codes — or a batch of single-use ones — can be added once it’s created."
-                    />
-                  </FieldRow>
+          <SettingsSection title="Offer">
+            <fieldset disabled={readOnly} className="min-w-0 space-y-3">
+              {textRow(
+                'name',
+                'name',
+                Type,
+                'Name',
+                draft.name.trim() || 'Not named',
+                !draft.name.trim(),
+                {
+                  placeholder: 'Summer 10% off',
+                  hint: 'Shown on receipts.',
+                },
+                true,
+              )}
+              {isNew &&
+                textRow(
+                  'code',
+                  'code',
+                  Hash,
+                  'Code',
+                  normaliseCode(draft.code) || 'Not set',
+                  !draft.code.trim(),
+                  {
+                    placeholder: 'SUMMER10',
+                    className: 'font-mono uppercase',
+                    clean: normaliseCode,
+                    hint: 'What customers type. More codes, or a batch of single-use ones, can be added once it’s created.',
+                  },
+                  true,
                 )}
-                <FieldRow icon={TicketPercent} title="Type">
-                  <SegmentedControl
-                    options={KINDS}
-                    value={draft.kind}
-                    onChange={(kind) => patch({ kind })}
-                    ariaLabel="Promotion type"
-                    className="w-full [&>button]:flex-1"
+              <PickerRow
+                icon={TicketPercent}
+                title="Type"
+                value={KIND_LABELS[draft.kind]}
+                open={open === 'kind'}
+                onToggle={() => toggle('kind')}
+              >
+                <ChoiceCards<PromotionKind> value={draft.kind} onChange={(kind) => patch({ kind })} options={KINDS} appearance="settings" />
+              </PickerRow>
+              {amountOff &&
+                textRow(
+                  'value',
+                  'value',
+                  draft.kind === 'percentage' ? Tag : Coins,
+                  draft.kind === 'percentage' ? 'Percentage off' : 'Amount off',
+                  offerAmountLabel(draft, symbol),
+                  !draft.value.trim(),
+                  {
+                    inputMode: 'decimal',
+                    placeholder: draft.kind === 'percentage' ? '10' : '5.00',
+                    leftIcon: draft.kind === 'fixed_amount' ? currency : undefined,
+                    rightIcon: draft.kind === 'percentage' ? <span className="text-sm text-muted-foreground">%</span> : undefined,
+                    hint: draft.kind === 'percentage' ? 'Up to 100.' : 'Never more than the order itself.',
+                  },
+                  true,
+                )}
+              {draft.kind === 'percentage' &&
+                textRow(
+                  'maxDiscount',
+                  'maxDiscount',
+                  Coins,
+                  'Most it takes off',
+                  moneyLabel(draft.maxDiscount, symbol, 'No cap'),
+                  !draft.maxDiscount.trim(),
+                  {
+                    inputMode: 'decimal',
+                    placeholder: 'No cap',
+                    leftIcon: currency,
+                    hint: 'Caps the percentage on a big order. Leave empty for no cap.',
+                  },
+                )}
+              {amountOff && (
+                <PickerRow
+                  icon={ShoppingBag}
+                  title="Applies to"
+                  value={draft.appliesTo === 'order' ? 'Whole order' : 'Some items'}
+                  open={open === 'appliesTo'}
+                  onToggle={() => toggle('appliesTo')}
+                >
+                  <ChoiceCards<PromotionDraft['appliesTo']>
+                    value={draft.appliesTo}
+                    onChange={(appliesTo) => patch({ appliesTo })}
+                    options={[
+                      { value: 'order', label: 'Whole order' },
+                      { value: 'items', label: 'Some items' },
+                    ]}
+                    appearance="settings"
                   />
-                </FieldRow>
-                {draft.kind === 'free_delivery' && (
-                  <p className="rounded-md border border-rule/55 bg-band/40 px-3 py-2.5 text-sm text-muted-foreground">
-                    Takes the delivery fee off a website order. The till has no delivery, so the code can’t be used there.
+                </PickerRow>
+              )}
+              {needsItems && (
+                <PickerRow
+                  icon={ListChecks}
+                  title={draft.kind === 'free_item' ? 'Items that can be free' : 'Which items'}
+                  value={itemsChosenLabel(draft.categoryIds, draft.menuItemIds)}
+                  muted={!draft.categoryIds.length && !draft.menuItemIds.length && !problemOf('menuItemIds')}
+                  tone={
+                    problemOf('menuItemIds') ? 'danger' : !draft.categoryIds.length && !draft.menuItemIds.length ? 'warning' : undefined
+                  }
+                  open={open === 'items'}
+                  onToggle={() => toggle('items')}
+                >
+                  <div className="grid gap-3 sm:grid-cols-2">
+                    <MultiSelect
+                      value={draft.categoryIds}
+                      onChange={(categoryIds) => patch({ categoryIds })}
+                      options={categoryOptions}
+                      placeholder="No categories"
+                      ariaLabel="Categories"
+                    />
+                    <MultiSelect
+                      value={draft.menuItemIds}
+                      onChange={(menuItemIds) => patch({ menuItemIds })}
+                      options={itemOptions}
+                      placeholder="No single items"
+                      ariaLabel="Items"
+                    />
+                  </div>
+                  <p className={cn('mt-1.5 text-xs', problemOf('menuItemIds') ? 'text-exception' : 'text-muted-foreground')}>
+                    {problemOf('menuItemIds') ??
+                      (draft.kind === 'free_item' ? 'The cheapest one in the order is free.' : 'Anything in a chosen category counts.')}
                   </p>
-                )}
-                {(draft.kind === 'percentage' || draft.kind === 'fixed_amount') && (
-                  <div className={cn('grid gap-3', draft.kind === 'percentage' && 'sm:grid-cols-2')}>
-                    <Input
-                      label={draft.kind === 'percentage' ? 'Percentage off' : 'Amount off'}
-                      inputMode="decimal"
-                      value={draft.value}
-                      onChange={(event) => patch({ value: event.target.value })}
-                      placeholder={draft.kind === 'percentage' ? '10' : '5.00'}
-                      leftIcon={draft.kind === 'fixed_amount' ? <span className="text-sm text-muted-foreground">{symbol}</span> : undefined}
-                      rightIcon={draft.kind === 'percentage' ? <span className="text-sm text-muted-foreground">%</span> : undefined}
-                      error={problemOf('value')}
-                    />
-                    {draft.kind === 'percentage' && (
-                      <Input
-                        label="Up to (optional)"
-                        inputMode="decimal"
-                        value={draft.maxDiscount}
-                        onChange={(event) => patch({ maxDiscount: event.target.value })}
-                        placeholder="No cap"
-                        leftIcon={<span className="text-sm text-muted-foreground">{symbol}</span>}
-                        error={problemOf('maxDiscount')}
-                      />
-                    )}
-                  </div>
-                )}
-                {(draft.kind === 'percentage' || draft.kind === 'fixed_amount') && (
-                  <FieldRow icon={ShoppingBag} title="Applies to">
-                    <SegmentedControl
-                      options={[
-                        { value: 'order' as const, label: 'Whole order' },
-                        { value: 'items' as const, label: 'Some items' },
-                      ]}
-                      value={draft.appliesTo}
-                      onChange={(appliesTo) => patch({ appliesTo })}
-                      ariaLabel="Applies to"
-                      className="w-full [&>button]:flex-1"
-                    />
-                  </FieldRow>
-                )}
-                {(draft.kind === 'free_item' || (draft.kind !== 'free_delivery' && draft.appliesTo === 'items')) && (
-                  <div className="space-y-3">
-                    <p className="text-sm text-muted-foreground">
-                      {draft.kind === 'free_item'
-                        ? 'Which items can be free — the cheapest one in the order is.'
-                        : 'Which items it takes off. Anything in a chosen category counts.'}
-                    </p>
-                    <div className="grid gap-3 sm:grid-cols-2">
-                      <MultiSelect
-                        value={draft.categoryIds}
-                        onChange={(categoryIds) => patch({ categoryIds })}
-                        options={categoryOptions}
-                        placeholder="No categories"
-                        ariaLabel="Categories"
-                      />
-                      <MultiSelect
-                        value={draft.menuItemIds}
-                        onChange={(menuItemIds) => patch({ menuItemIds })}
-                        options={itemOptions}
-                        placeholder="No single items"
-                        ariaLabel="Items"
-                      />
-                    </div>
-                    {problemOf('menuItemIds') && <p className="text-xs text-destructive">{problemOf('menuItemIds')}</p>}
-                  </div>
-                )}
-              </div>
-            </SettingsSection>
+                </PickerRow>
+              )}
+            </fieldset>
+            {draft.kind === 'free_delivery' && (
+              <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+                Takes the delivery fee off a website order. The till has no delivery, so the code can’t be used there.
+              </p>
+            )}
+          </SettingsSection>
 
-            <SettingsSection title="Conditions" description="When an order qualifies.">
-              <div className="space-y-5">
-                <FieldRow icon={ShoppingBag} title="Minimum spend" htmlFor="promotion-min" note="On the whole basket">
-                  <Input
-                    id="promotion-min"
-                    inputMode="decimal"
-                    value={draft.minSubtotal}
-                    onChange={(event) => patch({ minSubtotal: event.target.value })}
-                    placeholder="None"
-                    leftIcon={<span className="text-sm text-muted-foreground">{symbol}</span>}
-                    error={problemOf('minSubtotal')}
-                  />
-                </FieldRow>
-                <ScopeRow
-                  icon={MapPin}
-                  title="Locations"
-                  everyLabel="Every location"
-                  value={draft.locationIds}
-                  onChange={(locationIds) => patch({ locationIds })}
-                  options={locationOptions}
-                  error={problemOf('locationIds')}
-                />
-                <ScopeRow
-                  icon={Monitor}
-                  title="Where it can be used"
-                  everyLabel="Everywhere"
-                  value={draft.channels}
-                  onChange={(channels) => patch({ channels: channels as PromotionChannel[] | null })}
-                  options={CHANNEL_OPTIONS}
-                  error={problemOf('channels')}
-                />
-              </div>
-            </SettingsSection>
-
-            <SettingsSection
-              title="Limits"
-              description="How often it can be used."
-              footnote="Once per customer and first order only need a customer on the sale — the till asks for one when the code is entered."
-            >
-              <div className="space-y-5">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <Input
-                    label="Total uses"
-                    inputMode="numeric"
-                    value={draft.maxRedemptions}
-                    onChange={(event) => patch({ maxRedemptions: event.target.value.replace(/\D/g, '') })}
-                    placeholder="Unlimited"
-                    error={problemOf('maxRedemptions')}
-                  />
-                  <Input
-                    label="Uses per customer"
-                    inputMode="numeric"
-                    value={draft.maxRedemptionsPerCustomer}
-                    onChange={(event) => patch({ maxRedemptionsPerCustomer: event.target.value.replace(/\D/g, '') })}
-                    placeholder="Unlimited"
-                    error={problemOf('maxRedemptionsPerCustomer')}
-                  />
-                </div>
-                <SwitchRow
-                  icon={Users}
-                  title="First order only"
-                  description="For a customer who has never ordered before."
-                  checked={draft.firstOrderOnly}
-                  onChange={(firstOrderOnly) => patch({ firstOrderOnly })}
-                />
-                <SwitchRow
-                  icon={Sparkles}
-                  title="Works with loyalty rewards"
-                  description="Off: an order can use the code or a loyalty reward, not both."
+          <SettingsSection title="Who qualifies">
+            <fieldset disabled={readOnly} className="min-w-0 space-y-3">
+              {textRow(
+                'minSubtotal',
+                'minSubtotal',
+                ShoppingBag,
+                'Minimum spend',
+                moneyLabel(draft.minSubtotal, symbol),
+                !draft.minSubtotal.trim(),
+                {
+                  inputMode: 'decimal',
+                  placeholder: 'None',
+                  leftIcon: currency,
+                  hint: 'Counted on the whole basket.',
+                },
+              )}
+              <ScopeRow
+                icon={MapPin}
+                title="Locations"
+                everyLabel="Every location"
+                value={draft.locationIds}
+                onChange={(locationIds) => patch({ locationIds })}
+                options={locationOptions}
+                error={problemOf('locationIds')}
+                open={open === 'locations'}
+                onToggle={() => toggle('locations')}
+              />
+              <ScopeRow
+                icon={Monitor}
+                title="Where it can be used"
+                everyLabel="Everywhere"
+                value={draft.channels}
+                onChange={(channels) => patch({ channels: channels as PromotionChannel[] | null })}
+                options={CHANNEL_OPTIONS}
+                error={problemOf('channels')}
+                open={open === 'channels'}
+                onToggle={() => toggle('channels')}
+              />
+              <InfoRow icon={Users} title="First order only">
+                <Switch label="First order only" checked={draft.firstOrderOnly} onChange={(firstOrderOnly) => patch({ firstOrderOnly })} />
+              </InfoRow>
+              <InfoRow icon={Sparkles} title="Works with loyalty rewards">
+                <Switch
+                  label="Works with loyalty rewards"
                   checked={draft.combinesWithLoyalty}
                   onChange={(combinesWithLoyalty) => patch({ combinesWithLoyalty })}
                 />
-              </div>
-            </SettingsSection>
+              </InfoRow>
+            </fieldset>
+            {!draft.combinesWithLoyalty && (
+              <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+                An order can use the code or a loyalty reward, not both.
+              </p>
+            )}
+          </SettingsSection>
 
-            <SettingsSection title="When" description="Leave both empty to run until you pause or archive it.">
-              <div className="grid gap-3 sm:grid-cols-2">
-                <DateTimeField label="Starts" value={draft.startsAt} onChange={(startsAt) => patch({ startsAt })} />
-                <DateTimeField label="Ends" value={draft.endsAt} onChange={(endsAt) => patch({ endsAt })} error={problemOf('endsAt')} />
-              </div>
+          <SettingsSection title="How often">
+            <fieldset disabled={readOnly} className="min-w-0 space-y-3">
+              {textRow(
+                'maxRedemptions',
+                'maxRedemptions',
+                Repeat,
+                'Total uses',
+                usesLimitLabel(draft.maxRedemptions),
+                !draft.maxRedemptions.trim(),
+                {
+                  inputMode: 'numeric',
+                  placeholder: 'Unlimited',
+                  clean: digitsOnly,
+                  hint: 'Across every code and customer. Leave empty for no limit.',
+                },
+              )}
+              {textRow(
+                'perCustomer',
+                'maxRedemptionsPerCustomer',
+                UserRound,
+                'Uses per customer',
+                perCustomerLabel(draft.maxRedemptionsPerCustomer),
+                !draft.maxRedemptionsPerCustomer.trim(),
+                {
+                  inputMode: 'numeric',
+                  placeholder: 'Unlimited',
+                  clean: digitsOnly,
+                  hint: 'Leave empty for no limit.',
+                },
+              )}
+            </fieldset>
+            {(draft.firstOrderOnly || draft.maxRedemptionsPerCustomer.trim()) && (
+              <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+                Per-customer limits and first order only need a customer on the sale — the till asks for one when the code is entered.
+              </p>
+            )}
+          </SettingsSection>
+
+          <SettingsSection title="When">
+            <fieldset disabled={readOnly} className="min-w-0 space-y-3">
+              <PickerRow
+                icon={Calendar}
+                title="Starts"
+                value={formatDateTime(draft.startsAt, 'Straight away')}
+                muted={!draft.startsAt}
+                open={open === 'startsAt'}
+                onToggle={() => toggle('startsAt')}
+              >
+                <DateTimeField
+                  label="Starts"
+                  value={draft.startsAt}
+                  onChange={(startsAt) => patch({ startsAt })}
+                  hint="Leave empty to start as soon as it’s live."
+                />
+              </PickerRow>
+              <PickerRow
+                icon={CalendarClock}
+                title="Ends"
+                value={formatDateTime(draft.endsAt, 'Until you stop it')}
+                muted={!draft.endsAt}
+                tone={problemOf('endsAt') ? 'danger' : undefined}
+                open={open === 'endsAt'}
+                onToggle={() => toggle('endsAt')}
+              >
+                <DateTimeField
+                  label="Ends"
+                  value={draft.endsAt}
+                  onChange={(endsAt) => patch({ endsAt })}
+                  error={problemOf('endsAt')}
+                  hint="Leave empty to run until you pause or archive it."
+                />
+              </PickerRow>
               {isNew && (
-                <div className="mt-5">
-                  <SwitchRow
-                    icon={Calendar}
-                    title="Live as soon as it’s created"
-                    description="Off: it starts paused, and you make it live from here."
+                <InfoRow icon={Play} title="Live as soon as it’s created">
+                  <Switch
+                    label="Live as soon as it’s created"
                     checked={draft.status === 'active'}
                     onChange={(live) => patch({ status: live ? 'active' : 'paused' })}
                   />
-                </div>
+                </InfoRow>
               )}
-            </SettingsSection>
-          </fieldset>
+            </fieldset>
+          </SettingsSection>
+
+          {editable && (
+            <SaveBar
+              dirty={dirty || isNew}
+              saving={save.isPending}
+              saveLabel={isNew ? 'Create promotion' : 'Save changes'}
+              message={`${isNew ? 'Not created yet' : 'Unsaved changes'} · ${saveShortcut} ${isNew ? 'creates' : 'saves'}`}
+              onSave={attemptSave}
+              onDiscard={isNew ? onClose : () => setDraft(initial)}
+            />
+          )}
         </SettingsTabBody>
       </motion.div>
 
@@ -581,35 +746,7 @@ function offerSentence(fields: ReturnType<typeof draftToFields>, symbol: string)
   return fields.kind === 'free_item' ? amount : `${amount}${scope}`;
 }
 
-/** A tile-led row with a switch on the right and a sentence under its title. */
-function SwitchRow({
-  icon,
-  title,
-  description,
-  checked,
-  onChange,
-}: {
-  icon: React.ComponentProps<typeof RowTile>['icon'];
-  title: string;
-  description: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-}) {
-  return (
-    <div className="flex items-start justify-between gap-4">
-      <div className="flex min-w-0 items-start gap-3">
-        <RowTile icon={icon} />
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">{title}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{description}</p>
-        </div>
-      </div>
-      <Switch label={title} checked={checked} onChange={onChange} />
-    </div>
-  );
-}
-
-/** "Every …" as a switch; off, a pick-list of the ones it's limited to. */
+/** Locations or channels: the row says which; open, "Every …" as a switch and, off, a pick-list. */
 function ScopeRow({
   icon,
   title,
@@ -618,34 +755,39 @@ function ScopeRow({
   onChange,
   options,
   error,
+  open,
+  onToggle,
 }: {
-  icon: React.ComponentProps<typeof RowTile>['icon'];
+  icon: IconComponent;
   title: string;
   everyLabel: string;
   value: string[] | null;
   onChange: (value: string[] | null) => void;
   options: { value: string; label: string }[];
   error?: string | undefined;
+  open: boolean;
+  onToggle: () => void;
 }) {
   return (
-    <div>
-      <div className="flex items-center justify-between gap-4">
-        <div className="flex min-w-0 items-center gap-3">
-          <RowTile icon={icon} />
-          <p className="truncate text-sm font-semibold text-foreground">{title}</p>
-        </div>
-        <label className="flex shrink-0 items-center gap-2 text-xs text-muted-foreground">
-          {everyLabel}
-          <Switch label={everyLabel} checked={value === null} onChange={(every) => onChange(every ? null : [])} />
-        </label>
-      </div>
+    <PickerRow
+      icon={icon}
+      title={title}
+      value={scopeLabel(value, options, everyLabel)}
+      tone={error ? 'danger' : value?.length === 0 ? 'warning' : undefined}
+      open={open}
+      onToggle={onToggle}
+    >
+      <label className="flex items-center justify-between gap-3 text-sm text-foreground">
+        {everyLabel}
+        <Switch label={everyLabel} checked={value === null} onChange={(every) => onChange(every ? null : [])} />
+      </label>
       {value !== null && (
         <div className="mt-2">
           <MultiSelect value={value} onChange={onChange} options={options} placeholder="Choose…" ariaLabel={title} />
-          {error && <p className="mt-1 text-xs text-destructive">{error}</p>}
         </div>
       )}
-    </div>
+      {error && <p className="mt-1.5 text-xs text-exception">{error}</p>}
+    </PickerRow>
   );
 }
 
@@ -675,15 +817,13 @@ function UsageSection({ promotion }: { promotion: PromotionDetail }) {
           </InfoRow>
         </InfoRows>
         {uses.isPending ? (
-          <p className="text-xs text-muted-foreground">Loading uses…</p>
+          <Bone className="h-24 w-full rounded-md" />
         ) : uses.isError ? (
-          <button type="button" className="text-xs font-medium text-destructive underline" onClick={() => void uses.refetch()}>
-            Couldn’t load the uses — try again
-          </button>
+          <ErrorState className="py-6" title="Couldn’t load the uses" description="" onRetry={() => void uses.refetch()} />
         ) : total === 0 ? (
-          <p className="text-xs text-muted-foreground">No one has used it yet.</p>
+          <p className="text-sm text-muted-foreground">No one has used it yet. Each use appears here, with who and when.</p>
         ) : (
-          <div className="border-t border-rule/40 pt-3">
+          <div>
             <ul className="space-y-2.5">
               {uses.data.data.map((use) => (
                 <li key={use.id} className="flex items-center justify-between gap-3 text-sm">
@@ -792,24 +932,27 @@ function CodesSection({
         {promotion.codes.length === 0 ? (
           <p className="text-sm text-muted-foreground">No codes yet — add one so it can be used.</p>
         ) : (
-          <ul className="space-y-2">
+          <ul className="space-y-3">
             {shown.map((item) => (
               <li key={item.id} className="flex items-center justify-between gap-3">
-                <span className="min-w-0">
-                  <span
-                    className={cn(
-                      'block truncate font-mono text-sm font-semibold',
-                      item.isActive ? 'text-foreground' : 'text-muted-foreground line-through',
-                    )}
-                  >
-                    {item.code}
-                  </span>
-                  <span className="block text-xs tabular-nums text-muted-foreground">
-                    {item.maxRedemptions === 1
-                      ? item.redemptionCount
-                        ? 'Used'
-                        : 'Single use'
-                      : `${item.redemptionCount} ${item.redemptionCount === 1 ? 'use' : 'uses'}${item.maxRedemptions ? ` of ${item.maxRedemptions}` : ''}`}
+                <span className="flex min-w-0 items-center gap-3">
+                  <RowTile icon={Hash} />
+                  <span className="min-w-0">
+                    <span
+                      className={cn(
+                        'block truncate font-mono text-sm font-semibold',
+                        item.isActive ? 'text-foreground' : 'text-muted-foreground line-through',
+                      )}
+                    >
+                      {item.code}
+                    </span>
+                    <span className="block text-xs tabular-nums text-muted-foreground">
+                      {item.maxRedemptions === 1
+                        ? item.redemptionCount
+                          ? 'Used'
+                          : 'Single use'
+                        : `${item.redemptionCount} ${item.redemptionCount === 1 ? 'use' : 'uses'}${item.maxRedemptions ? ` of ${item.maxRedemptions}` : ''}`}
+                    </span>
                   </span>
                 </span>
                 <span className="flex shrink-0 items-center gap-1.5">
@@ -849,18 +992,14 @@ function CodesSection({
         )}
 
         {editable && adding === null && (
-          <div className="flex gap-2 border-t border-rule/40 pt-3">
-            <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => setAdding('code')}>
-              <Plus aria-hidden="true" /> Add a code
-            </Button>
-            <Button variant="outline" size="sm" className="flex-1 gap-1.5" onClick={() => setAdding('batch')}>
-              <Sparkles aria-hidden="true" /> Single-use batch
-            </Button>
-          </div>
+          <ActionRows>
+            <ActionRow icon={Plus} label="Add a code" onClick={() => setAdding('code')} />
+            <ActionRow icon={Sparkles} label="Generate a single-use batch" onClick={() => setAdding('batch')} />
+          </ActionRows>
         )}
         {editable && adding === 'code' && (
           <form
-            className="space-y-2 border-t border-rule/40 pt-3"
+            className="space-y-2"
             onSubmit={(event) => {
               event.preventDefault();
               if (/^[A-Z0-9-]{3,50}$/.test(normaliseCode(code))) add.mutate();
@@ -886,7 +1025,7 @@ function CodesSection({
         )}
         {editable && adding === 'batch' && (
           <form
-            className="space-y-2 border-t border-rule/40 pt-3"
+            className="space-y-2"
             onSubmit={(event) => {
               event.preventDefault();
               if (batchValid) add.mutate();

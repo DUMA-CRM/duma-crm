@@ -77,7 +77,7 @@ function McpSection() {
   return (
     <SettingsSection
       title="Use with AI"
-      description="Connect Claude Code, Cursor or any MCP client with one of these keys. It reads your content and catalogue while it builds, and — with opt-in scopes — adds models and draft entries. It never records orders or publishes."
+      description="Connect Claude Code, Codex or any MCP client. Opt-in secret-key scopes enable CMS create, update, delete and publishing, media uploads, Notes documentation, catalogue and workspace setup."
     >
       <div className="flex items-center gap-2 rounded-md border border-rule/50 bg-background/60 py-1 pl-3 pr-1">
         <Sparkles size={13} className="shrink-0 text-primary" aria-hidden="true" />

@@ -39,9 +39,9 @@ export const STANDING_BADGE: Record<PromotionStanding, 'success' | 'reference' |
 };
 
 /**
- * The promotions, in the Content lists' vocabulary: one card of rows — tile,
- * name and code, what it takes off, where it stands, how much it's been used —
- * and the totals in the aside. "New promotion" lives in the page header.
+ * The promotions, laid out like Booking rules: one section of link rows —
+ * tile, name and code, what it takes off, where it stands, how much it's been
+ * used — and the totals in the aside. "New promotion" lives in the page header.
  */
 export function PromotionsList({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () => void }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -139,7 +139,7 @@ export function PromotionsList({ onOpen, onNew }: { onOpen: (id: string) => void
                     : 'Everything is archived.'}
               </p>
             ) : (
-              <ul className="space-y-2">
+              <ul className="-mx-2 flex flex-col gap-0.5">
                 {shown.map((promotion, index) => (
                   <motion.li
                     key={promotion.id}
@@ -166,7 +166,7 @@ function PromotionRow({ promotion, now, onOpen }: { promotion: PromotionListItem
     <button
       type="button"
       onClick={onOpen}
-      className="group flex w-full items-center gap-3 rounded-lg border border-rule/50 bg-control px-3 py-2.5 text-left transition-colors hover:border-rule focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+      className="group flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
     >
       <RowTile icon={TicketPercent} tone={standing === 'live' ? 'success' : 'default'} />
       <span className="min-w-0 flex-1">

@@ -31,7 +31,7 @@ export function PaymentDueCard({ orderId, amountDue }: { orderId: string; amount
     mutationFn: () => markOrderPaid(orderId, method),
     onSuccess: () => {
       invalidateOrder(qc, orderId);
-      toast('success', `Marked paid by ${RECORDED_PAYMENT_LABEL[method].toLowerCase()}.`, { critical: true });
+      toast('success', `Marked paid by ${RECORDED_PAYMENT_LABEL[method].toLowerCase()}.`);
     },
     onError: (error) => toast('error', error instanceof Error && error.message ? error.message : 'The payment wasn’t recorded. Try again.'),
   });

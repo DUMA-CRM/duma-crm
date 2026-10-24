@@ -74,7 +74,7 @@ export function OfflineOrderSync() {
           }
         }
         if (synced > 0) {
-          toast('success', `${synced} queued ${synced === 1 ? 'order' : 'orders'} synced.`, { critical: true });
+          toast('success', `${synced} queued ${synced === 1 ? 'order' : 'orders'} synced.`);
           const affectedQueries = [
             moduleQueryKeys.ordering.key('orders'),
             moduleQueryKeys.ordering.key('orders-all'),

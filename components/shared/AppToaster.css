@@ -1,0 +1,66 @@
+/* ════════════════════════════════════════════════════════════════
+   Toasts (sileo) — dressed in DUMA tokens from globals.css, so
+   light/dark follow the .dark class like every other surface. sileo
+   injects its stylesheet at runtime, after this one, so each override
+   is one attribute more specific than the rule it replaces.
+   ════════════════════════════════════════════════════════════════ */
+[data-sileo-viewport] {
+  --sileo-state-success: var(--success);
+  --sileo-state-error: var(--destructive);
+  --sileo-state-warning: var(--warning);
+  --sileo-state-info: var(--info);
+  --sileo-state-action: var(--primary);
+  --sileo-state-loading: var(--muted-foreground);
+  font-family: var(--font-sans);
+}
+
+/* The gooey shape is SVG, so the card surface is a fill and the edge is a
+   drop-shadow: a hairline in the rule colour, then the overlay lift. */
+[data-sileo-viewport] [data-sileo-pill],
+[data-sileo-viewport] [data-sileo-body] {
+  fill: var(--card);
+}
+[data-sileo-viewport] [data-sileo-svg] {
+  filter: drop-shadow(0 0 0.75px color-mix(in oklab, var(--rule) 85%, transparent))
+    drop-shadow(0 10px 22px color-mix(in oklab, var(--shadow-tint) 16%, transparent));
+}
+
+[data-sileo-viewport] [data-sileo-title] {
+  color: var(--foreground);
+  font-weight: 600;
+  text-transform: none;
+}
+
+[data-sileo-viewport] [data-sileo-description] {
+  padding-right: 2.75rem;
+  color: var(--muted-foreground);
+  overflow-wrap: anywhere;
+}
+
+[data-sileo-viewport] [data-sileo-button][data-state] {
+  border-radius: var(--radius-sm);
+}
+
+[data-sileo-viewport] [data-sileo-button][data-toast-close] {
+  position: absolute;
+  top: 0.625rem;
+  right: 0.625rem;
+  width: 1.75rem;
+  height: 1.75rem;
+  margin: 0;
+  padding: 0;
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  background-color: transparent;
+  transition:
+    background-color 150ms ease,
+    color 150ms ease;
+}
+[data-sileo-viewport] [data-sileo-button][data-toast-close]:hover {
+  color: var(--foreground);
+  background-color: var(--band);
+}
+[data-sileo-viewport] [data-sileo-button][data-toast-close]:focus-visible {
+  outline: 2px solid var(--ring);
+  outline-offset: 1px;
+}

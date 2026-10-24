@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { draftFromProgram, draftToProgram, emptyReferralDraft, referralDraftProblems, sampleReferralCode } =
+const { draftFromProgram, draftToProgram, emptyReferralDraft, referralDraftProblems, rewardsCapLabel, sampleReferralCode } =
   await import('../lib/utils/referrals.ts');
 
 const complete = { ...emptyReferralDraft(), friendPromotionId: 'friend', referrerPromotionId: 'thanks' };
@@ -37,4 +37,8 @@ test('only the chosen reward’s source is sent, and the form round-trips', () =
 test('the code preview uses the prefix, or a name', () => {
   assert.equal(sampleReferralCode('vip'), 'VIP-7KQ2PX');
   assert.equal(sampleReferralCode(''), 'SAM-7KQ2PX');
+});
+
+test('the reward cap reads in words', () => {
+  assert.deepEqual(['', '1', '5'].map(rewardsCapLabel), ['Unlimited', '1 reward', '5 rewards']);
 });

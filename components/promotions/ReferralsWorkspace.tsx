@@ -1,22 +1,23 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
+import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-import { FieldRow, InfoRow, InfoRows, RowTile, SectionInfo } from '@/components/cms/rows';
-import { ArrowRight, Gift, Hash, Plus, TicketPercent, Users } from '@/components/icons';
+import { InfoRow, InfoRows, PickerRow, RowTile, SectionInfo } from '@/components/cms/rows';
+import { AlertTriangle, ArrowRight, Award, Gift, Hash, Plus, Repeat, TicketPercent, Users } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { Switch } from '@/components/settings/controls';
+import { SaveBar, Switch } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ChoiceCards } from '@/components/shared/FormParts';
 import { RelativeTime } from '@/components/shared/RelativeTime';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { LoadingState } from '@/components/shared/Skeleton';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { Bone } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -35,6 +36,7 @@ import {
   saveReferralProgram,
 } from '@/lib/modules/referrals/client';
 import { toast } from '@/lib/toast';
+import { cn } from '@/lib/utils/cn';
 import {
   REFERRAL_STATUS_BADGE,
   REFERRAL_STATUS_LABELS,
@@ -43,6 +45,7 @@ import {
   draftToProgram,
   emptyReferralDraft,
   referralDraftProblems,
+  rewardsCapLabel,
   sampleReferralCode,
 } from '@/lib/utils/referrals';
 import { useAuthStore } from '@/stores/authStore';
@@ -50,16 +53,24 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { PromotionsTabs } from './PromotionsTabs';
 
-/** Sections rise in one after another, as in the Content editors. */
-const STAGGER = { shown: { transition: { staggerChildren: 0.06 } } };
-
 type Filter = 'all' | ReferralStatus;
+type Row = 'friend' | 'rewardKind' | 'rewardSource' | 'cap' | 'prefix';
+
+/** The row that holds each field, so a failed save can open the first one with a problem. */
+const ROW_OF: Partial<Record<keyof ReferralProgramDraft, Row>> = {
+  friendPromotionId: 'friend',
+  referrerPromotionId: 'rewardSource',
+  referrerLoyaltyProgramId: 'rewardSource',
+  maxRewardsPerReferrer: 'cap',
+  codePrefix: 'prefix',
+};
 
 /**
- * Refer a friend, as a tab of Promotions: the programme in the main column —
- * what the friend gets, what the referrer gets, the limits — then who
- * referred whom; the totals and how it works beside it. Rewards are given by
- * the order itself when a friend's first order is completed.
+ * Refer a friend, as a tab of Promotions, laid out like Booking rules: the
+ * programme in the main column — what the friend gets, what the referrer
+ * gets, the limits — each a row that opens its control, then who referred
+ * whom; the totals and how it works beside it. Rewards are given by the order
+ * itself when a friend's first order is completed.
  */
 export function ReferralsWorkspace() {
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
@@ -74,25 +85,19 @@ export function ReferralsWorkspace() {
     enabled: Boolean(tenantId),
   });
 
-  const shell = (body: React.ReactNode, actions?: React.ReactNode) => (
+  const shell = (body: React.ReactNode) => (
     <EditorShell
       eyebrow="Customer engagement"
       title="Promotions"
       icon={<TicketPercent size={20} aria-hidden="true" />}
       subheader={<PromotionsTabs value="referrals" />}
-      actions={actions}
     >
       {body}
     </EditorShell>
   );
 
-  if (program.isPending) return shell(<LoadingState label="Loading refer a friend" />);
-  if (program.isError)
-    return shell(
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-        <ErrorState title="Refer a friend couldn’t be loaded" onRetry={() => void program.refetch()} />
-      </div>,
-    );
+  if (program.isPending) return shell(<Bone className="h-96 w-full rounded-lg" />);
+  if (program.isError) return shell(<ErrorState title="Refer a friend couldn’t be loaded" onRetry={() => void program.refetch()} />);
 
   return (
     <ReferralsForm
@@ -112,14 +117,17 @@ function ReferralsForm({
 }: {
   program: ReferralProgram | null;
   editable: boolean;
-  shell: (body: React.ReactNode, actions?: React.ReactNode) => React.ReactElement;
+  shell: (body: React.ReactNode) => React.ReactElement;
 }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
   const queryClient = useQueryClient();
   const router = useRouter();
+  const reduceMotion = useReducedMotion();
   const initial = useMemo(() => (program ? draftFromProgram(program) : emptyReferralDraft()), [program]);
   const [draft, setDraft] = useState<ReferralProgramDraft>(initial);
   const [showProblems, setShowProblems] = useState(false);
+  // One rule open at a time; a tap on the open one closes it. Setting up starts on the friend's offer.
+  const [open, setOpen] = useState<Row | null>(program ? null : 'friend');
   const patch = (next: Partial<ReferralProgramDraft>) => setDraft((current) => ({ ...current, ...next }));
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
   const problems = referralDraftProblems(draft);
@@ -141,6 +149,8 @@ function ReferralsForm({
     (programme) => programme.status === 'active' && (programme.earnRule.benefitMode ?? 'rewards') !== 'points',
   );
   const friendOffer = current.find((promotion) => promotion.id === draft.friendPromotionId);
+  const rewardPromotion = current.find((promotion) => promotion.id === draft.referrerPromotionId);
+  const rewardProgramme = rewardProgrammes.find((programme) => programme.id === draft.referrerLoyaltyProgramId);
 
   const save = useMutation({
     mutationFn: () => saveReferralProgram(draftToProgram(draft), tenantId),
@@ -151,9 +161,12 @@ function ReferralsForm({
     onError: (error) => toast('error', error.message),
   });
   const attemptSave = () => {
-    if (Object.keys(problems).length) {
+    const fields = Object.keys(problems) as (keyof ReferralProgramDraft)[];
+    if (fields.length) {
       setShowProblems(true);
-      toast('error', Object.values(problems)[0]!);
+      // Open the first row with a problem, so the fix is under the eye.
+      setOpen(ROW_OF[fields[0]!] ?? null);
+      toast('error', problems[fields[0]!]!);
       return;
     }
     save.mutate();
@@ -184,148 +197,198 @@ function ReferralsForm({
       />,
     );
 
-  const actions =
-    editable && (dirty || !program) ? (
-      <div className="flex items-center gap-2">
-        {program && (
-          <Button variant="ghost" className="h-9" disabled={save.isPending} onClick={() => setDraft(initial)}>
-            Discard
-          </Button>
-        )}
-        <Tooltip side="top" align="end" label={`${program ? 'Save' : 'Set up'} (${saveShortcut})`}>
-          <Button className="h-9" disabled={save.isPending} onClick={attemptSave}>
-            {save.isPending ? 'Saving…' : program ? 'Save' : 'Set up refer a friend'}
-          </Button>
-        </Tooltip>
-      </div>
-    ) : undefined;
+  const toggle = (row: Row) => setOpen((value) => (value === row ? null : row));
+  const rewardSourceProblem = problemOf('referrerPromotionId') ?? problemOf('referrerLoyaltyProgramId');
+  const rewardSourceMissing = draft.referrerRewardKind === 'promo_code' ? !draft.referrerPromotionId : !draft.referrerLoyaltyProgramId;
+  const status = !program ? 'Not set up' : program.status === 'active' ? 'Running' : 'Paused';
 
   return shell(
-    <motion.div initial="hidden" animate="shown" variants={STAGGER}>
+    <motion.div
+      className="w-full"
+      initial={reduceMotion ? false : 'hidden'}
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
+    >
       <SettingsTabBody narrowAside aside={<ReferralsAside program={program} />}>
-        <fieldset disabled={!editable} className="flex min-w-0 flex-col gap-5">
-          <SettingsSection
-            title="Programme"
-            description="Every customer can have their own code. A friend who uses it gets your offer; when the friend’s first order is completed, the customer is rewarded."
-          >
-            <div className="space-y-5">
-              <div className="flex items-start justify-between gap-4">
-                <div className="flex min-w-0 items-start gap-3">
-                  <RowTile icon={Gift} tone={draft.active ? 'success' : 'default'} />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">{draft.active ? 'Running' : 'Paused'}</p>
-                    <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">
-                      Paused: no new codes are given out, and completed referrals earn no reward.
-                    </p>
-                  </div>
-                </div>
-                <Switch label="Refer a friend running" checked={draft.active} onChange={(active) => patch({ active })} />
-              </div>
-
-              <FieldRow icon={Users} title="The friend gets" note="A promotion">
-                <Select
-                  value={draft.friendPromotionId}
-                  onValueChange={(friendPromotionId) => patch({ friendPromotionId })}
-                  options={[{ value: '', label: 'Choose a promotion…' }, ...promotionOptions]}
-                  ariaLabel="The friend’s offer"
-                  className="w-full"
-                />
-                {problemOf('friendPromotionId') && <p className="mt-1 text-xs text-destructive">{problemOf('friendPromotionId')}</p>}
-                <p className="mt-1.5 text-xs leading-relaxed text-muted-foreground">
-                  Every customer’s code is a code of this promotion, so its rules apply to the friend.
-                  {friendOffer && !friendOffer.firstOrderOnly && (
-                    <span className="font-medium text-measured">
-                      {' '}
-                      It isn’t first order only — a friend could use the code more than once.
-                    </span>
-                  )}
-                </p>
-              </FieldRow>
-
-              <FieldRow icon={Gift} title="The customer gets">
-                <SegmentedControl
-                  options={[
-                    { value: 'promo_code' as const, label: 'A promo code' },
-                    { value: 'loyalty_reward' as const, label: 'A loyalty reward' },
-                  ]}
-                  value={draft.referrerRewardKind}
-                  onChange={(referrerRewardKind) => patch({ referrerRewardKind })}
-                  ariaLabel="The referrer’s reward"
-                  className="w-full [&>button]:flex-1"
-                />
-                <div className="mt-2">
-                  {draft.referrerRewardKind === 'promo_code' ? (
-                    <>
-                      <Select
-                        value={draft.referrerPromotionId}
-                        onValueChange={(referrerPromotionId) => patch({ referrerPromotionId })}
-                        options={[{ value: '', label: 'Choose a promotion…' }, ...promotionOptions]}
-                        ariaLabel="The reward promotion"
-                        className="w-full"
-                      />
-                      <p className="mt-1.5 text-xs text-muted-foreground">A single-use code of this promotion, issued to them.</p>
-                    </>
-                  ) : rewardProgrammes.length === 0 ? (
-                    <p className="text-xs text-muted-foreground">
-                      No loyalty programme gives rewards yet — set one up in Customers → Loyalty.
-                    </p>
-                  ) : (
-                    <>
-                      <Select
-                        value={draft.referrerLoyaltyProgramId}
-                        onValueChange={(referrerLoyaltyProgramId) => patch({ referrerLoyaltyProgramId })}
-                        options={[
-                          { value: '', label: 'Choose a loyalty programme…' },
-                          ...rewardProgrammes.map((programme) => ({ value: programme.id, label: programme.name })),
-                        ]}
-                        ariaLabel="The reward’s loyalty programme"
-                        className="w-full"
-                      />
-                      <p className="mt-1.5 text-xs text-muted-foreground">One reward from this programme, straight into their wallet.</p>
-                    </>
-                  )}
-                  {(problemOf('referrerPromotionId') || problemOf('referrerLoyaltyProgramId')) && (
-                    <p className="mt-1 text-xs text-destructive">
-                      {problemOf('referrerPromotionId') ?? problemOf('referrerLoyaltyProgramId')}
-                    </p>
-                  )}
-                </div>
-              </FieldRow>
-
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input
-                  label="Rewards per customer"
-                  inputMode="numeric"
-                  value={draft.maxRewardsPerReferrer}
-                  onChange={(event) => patch({ maxRewardsPerReferrer: event.target.value.replace(/\D/g, '') })}
-                  placeholder="Unlimited"
-                  error={problemOf('maxRewardsPerReferrer')}
-                />
-                <Input
-                  label="Code starts with"
-                  value={draft.codePrefix}
-                  onChange={(event) =>
-                    patch({
-                      codePrefix: event.target.value
-                        .replace(/[^A-Za-z0-9]/g, '')
-                        .toUpperCase()
-                        .slice(0, 12),
-                    })
-                  }
-                  placeholder="Their first name"
-                  className="font-mono uppercase"
-                  error={problemOf('codePrefix')}
-                  hint={`Codes look like ${sampleReferralCode(draft.codePrefix)}`}
-                />
-              </div>
-            </div>
-          </SettingsSection>
-        </fieldset>
+        <SettingsSection
+          title="Programme"
+          description="Every customer can have their own code. A friend who uses it gets your offer; when the friend’s first order is completed, the customer is rewarded."
+          actions={<Badge variant={program?.status === 'active' ? 'success' : 'muted'}>{status}</Badge>}
+        >
+          <fieldset disabled={!editable} className="min-w-0 space-y-3">
+            <InfoRow icon={Gift} title="Give out codes" tone={draft.active ? 'success' : 'default'}>
+              <Switch label="Give out codes" checked={draft.active} onChange={(active) => patch({ active })} />
+            </InfoRow>
+            <PickerRow
+              icon={Users}
+              title="The friend gets"
+              value={friendOffer?.name ?? 'Not chosen'}
+              muted={!friendOffer && !problemOf('friendPromotionId')}
+              tone={problemOf('friendPromotionId') ? 'danger' : !draft.friendPromotionId ? 'warning' : undefined}
+              open={open === 'friend'}
+              onToggle={() => toggle('friend')}
+            >
+              <Select
+                value={draft.friendPromotionId}
+                onValueChange={(friendPromotionId) => patch({ friendPromotionId })}
+                options={[{ value: '', label: 'Choose a promotion…' }, ...promotionOptions]}
+                ariaLabel="The friend’s offer"
+                className="w-full"
+              />
+              <Hint error={problemOf('friendPromotionId')}>
+                Every customer’s code is a code of this promotion, so its rules apply to the friend.
+              </Hint>
+            </PickerRow>
+            <PickerRow
+              icon={Gift}
+              title="The customer gets"
+              value={draft.referrerRewardKind === 'promo_code' ? 'A promo code' : 'A loyalty reward'}
+              open={open === 'rewardKind'}
+              onToggle={() => toggle('rewardKind')}
+            >
+              <ChoiceCards<ReferralProgramDraft['referrerRewardKind']>
+                value={draft.referrerRewardKind}
+                onChange={(referrerRewardKind) => patch({ referrerRewardKind })}
+                options={[
+                  { value: 'promo_code', label: 'A promo code' },
+                  { value: 'loyalty_reward', label: 'A loyalty reward' },
+                ]}
+                appearance="settings"
+              />
+              <Hint>Given when the friend’s first order is completed.</Hint>
+            </PickerRow>
+            <PickerRow
+              icon={draft.referrerRewardKind === 'promo_code' ? TicketPercent : Award}
+              title={draft.referrerRewardKind === 'promo_code' ? 'Reward code from' : 'Reward from'}
+              value={(draft.referrerRewardKind === 'promo_code' ? rewardPromotion?.name : rewardProgramme?.name) ?? 'Not chosen'}
+              muted={rewardSourceMissing && !rewardSourceProblem}
+              tone={rewardSourceProblem ? 'danger' : rewardSourceMissing ? 'warning' : undefined}
+              open={open === 'rewardSource'}
+              onToggle={() => toggle('rewardSource')}
+            >
+              {draft.referrerRewardKind === 'promo_code' ? (
+                <>
+                  <Select
+                    value={draft.referrerPromotionId}
+                    onValueChange={(referrerPromotionId) => patch({ referrerPromotionId })}
+                    options={[{ value: '', label: 'Choose a promotion…' }, ...promotionOptions]}
+                    ariaLabel="The reward promotion"
+                    className="w-full"
+                  />
+                  <Hint error={rewardSourceProblem}>A single-use code of this promotion, issued to them.</Hint>
+                </>
+              ) : (
+                <>
+                  <Select
+                    value={draft.referrerLoyaltyProgramId}
+                    onValueChange={(referrerLoyaltyProgramId) => patch({ referrerLoyaltyProgramId })}
+                    options={[
+                      { value: '', label: 'Choose a loyalty programme…' },
+                      ...rewardProgrammes.map((programme) => ({ value: programme.id, label: programme.name })),
+                    ]}
+                    ariaLabel="The reward’s loyalty programme"
+                    className="w-full"
+                  />
+                  <Hint error={rewardSourceProblem}>One reward from this programme, straight into their wallet.</Hint>
+                </>
+              )}
+            </PickerRow>
+            <PickerRow
+              icon={Repeat}
+              title="Rewards per customer"
+              value={rewardsCapLabel(draft.maxRewardsPerReferrer)}
+              muted={!draft.maxRewardsPerReferrer.trim()}
+              tone={problemOf('maxRewardsPerReferrer') ? 'danger' : undefined}
+              open={open === 'cap'}
+              onToggle={() => toggle('cap')}
+            >
+              <Input
+                aria-label="Rewards per customer"
+                inputMode="numeric"
+                value={draft.maxRewardsPerReferrer}
+                onChange={(event) => patch({ maxRewardsPerReferrer: event.target.value.replace(/\D/g, '') })}
+                placeholder="Unlimited"
+                error={problemOf('maxRewardsPerReferrer')}
+                hint="Referrals past the cap still count, but earn nothing. Leave empty for no limit."
+                autoFocus
+              />
+            </PickerRow>
+            <PickerRow
+              icon={Hash}
+              title="Codes look like"
+              value={sampleReferralCode(draft.codePrefix)}
+              tone={problemOf('codePrefix') ? 'danger' : undefined}
+              open={open === 'prefix'}
+              onToggle={() => toggle('prefix')}
+            >
+              <Input
+                aria-label="Code starts with"
+                value={draft.codePrefix}
+                onChange={(event) =>
+                  patch({
+                    codePrefix: event.target.value
+                      .replace(/[^A-Za-z0-9]/g, '')
+                      .toUpperCase()
+                      .slice(0, 12),
+                  })
+                }
+                placeholder="Their first name"
+                className="font-mono uppercase"
+                error={problemOf('codePrefix')}
+                hint="What every code starts with. Leave empty to use each customer’s first name."
+                autoFocus
+              />
+            </PickerRow>
+          </fieldset>
+          {friendOffer && !friendOffer.firstOrderOnly && (
+            <Warning>
+              {friendOffer.name} isn’t first order only, so a friend could use the code more than once. Turn it on in{' '}
+              <Link href={`/promotions?promotion=${friendOffer.id}`} className="underline underline-offset-2">
+                the promotion
+              </Link>
+              .
+            </Warning>
+          )}
+          {draft.referrerRewardKind === 'loyalty_reward' && loyalty.isSuccess && rewardProgrammes.length === 0 && (
+            <Warning>
+              No loyalty programme gives rewards yet, so there’s nothing to reward the customer with. Set one up in{' '}
+              <Link href="/customers/loyalty" className="underline underline-offset-2">
+                Customers → Loyalty
+              </Link>
+              .
+            </Warning>
+          )}
+        </SettingsSection>
 
         {program && <ReferralsList />}
+
+        {editable && (
+          <SaveBar
+            dirty={dirty || !program}
+            saving={save.isPending}
+            saveLabel={program ? 'Save changes' : 'Set up refer a friend'}
+            message={`${program ? 'Unsaved changes' : 'Not set up yet'} · ${saveShortcut} ${program ? 'saves' : 'sets it up'}`}
+            onSave={attemptSave}
+            onDiscard={() => setDraft(initial)}
+          />
+        )}
       </SettingsTabBody>
     </motion.div>,
-    actions,
+  );
+}
+
+/** The line under an open row: why it matters, or what's wrong with it. */
+function Hint({ error, children }: { error?: string | undefined; children: React.ReactNode }) {
+  return <p className={cn('mt-1.5 text-xs', error ? 'text-exception' : 'text-muted-foreground')}>{error ?? children}</p>;
+}
+
+/** Something that stops the programme working as meant, with where to fix it. */
+function Warning({ children }: { children: React.ReactNode }) {
+  return (
+    <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
+      <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
+      <span>{children}</span>
+    </p>
   );
 }
 
@@ -407,7 +470,7 @@ function ReferralsList() {
       }
     >
       {query.isPending ? (
-        <TilesSkeleton count={3} label="Loading referrals" />
+        <Bone className="h-40 w-full rounded-md" />
       ) : query.isError ? (
         <ErrorState title="Couldn’t load the referrals" onRetry={() => void query.refetch()} />
       ) : query.data.data.length === 0 ? (
@@ -416,9 +479,9 @@ function ReferralsList() {
         </p>
       ) : (
         <div className="space-y-3">
-          <ul className="space-y-2">
+          <ul className="-mx-2 flex flex-col gap-0.5">
             {query.data.data.map((referral) => (
-              <li key={referral.id} className="flex items-center gap-3 rounded-lg border border-rule/50 bg-control px-3 py-2.5">
+              <li key={referral.id} className="flex items-center gap-3 rounded-md px-2 py-1.5">
                 <RowTile icon={Gift} tone={referral.status === 'rewarded' ? 'success' : 'default'} />
                 <span className="min-w-0 flex-1">
                   <span className="flex min-w-0 items-center gap-1.5 text-sm font-semibold text-foreground">

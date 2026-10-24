@@ -1,3 +1,4 @@
+import { MANAGEMENT_REFERENCE } from './management-reference.ts';
 // ---------------------------------------------------------------------------
 // The public APIs a workspace's own website or app calls, in one registry.
 //
@@ -15,7 +16,9 @@
 
 export type ApiKeyKind = 'publishable' | 'secret';
 
+const MANAGEMENT_SCOPE_NAMES = Object.keys(MANAGEMENT_REFERENCE.scopes) as Array<keyof typeof MANAGEMENT_REFERENCE.scopes>;
 export const API_KEY_SCOPES = [
+  ...MANAGEMENT_SCOPE_NAMES,
   'content:read',
   'content:preview',
   'content:write',
@@ -27,9 +30,9 @@ export const API_KEY_SCOPES = [
 ] as const;
 export type ApiKeyScope = (typeof API_KEY_SCOPES)[number];
 
-export type PublicApiId = 'content' | 'manage' | 'store';
+export type PublicApiId = 'content' | 'manage' | 'store' | 'management';
 
-type GrantCapability = 'cms.keys:write' | 'cms:write' | 'cms.schema:write' | 'settings:write';
+type GrantCapability = string;
 
 /**
  * Each scope, who may grant it, and whether a browser-safe key may hold it.
@@ -47,6 +50,7 @@ export const SCOPES: Record<
     optIn?: boolean;
   }
 > = {
+  ...Object.fromEntries(MANAGEMENT_SCOPE_NAMES.map((scope) => [scope, { api: 'management' as const, label: scope.replace(':', ' · '), detail: `Delegated ${scope} access, limited by the key creator’s current permissions`, capabilities: MANAGEMENT_REFERENCE.scopes[scope], publishable: false, optIn: true }])) as unknown as Record<(typeof MANAGEMENT_SCOPE_NAMES)[number], { api: 'management'; label: string; detail: string; capabilities: readonly string[]; publishable: boolean; optIn: boolean }>,
   'content:read': {
     api: 'content',
     label: 'Read content',
@@ -123,11 +127,12 @@ export interface PublicApi {
   basePath: string;
   summary: string;
   /** The workspace module that must be on for the API to answer. */
-  moduleId: 'cms' | 'catalog';
+  moduleId: 'cms' | 'catalog' | 'organization';
   endpoints: readonly ApiEndpoint[];
 }
 
 export const PUBLIC_APIS: readonly PublicApi[] = [
+  { id: 'management', name: 'Workspace Management API', basePath: '/v1/manage', summary: 'Configure CMS, media, Notes, workspace and catalogue with an owner-bound secret key.', moduleId: 'organization', endpoints: MANAGEMENT_REFERENCE.operations.map((op) => ({ method: op.method, path: `/${op.domain}${op.path}`.replace(/:([A-Za-z]+)/g, "{$1}"), summary: op.title, scope: op.scope })) },
   {
     id: 'content',
     name: 'Content API',
@@ -232,6 +237,7 @@ export interface McpTool {
 }
 
 export const MCP_TOOLS: readonly McpTool[] = [
+  ...MANAGEMENT_REFERENCE.operations.map((op) => ({ name: op.name, summary: op.description, scope: op.scope, writes: op.writes })),
   { name: 'workspace_info', summary: 'The key, its scopes, the APIs it opens and their base URLs', scope: null },
   { name: 'content_list_types', summary: 'The models this key can read', scope: 'content:read' },
   { name: 'content_get_type', summary: 'One model’s schema', scope: 'content:read' },
@@ -260,14 +266,19 @@ export function mcpClientConfigs(apiOrigin: string): Array<{ label: string; lang
   const url = mcpUrl(apiOrigin);
   return [
     {
+      label: 'Codex',
+      language: '~/.codex/config.toml',
+      code: `[mcp_servers.duma]\nurl = ${JSON.stringify(url)}\nbearer_token_env_var = "DUMA_API_KEY"`,
+    },
+    {
       label: 'Claude Code',
       language: 'shell',
-      code: `claude mcp add --transport http duma ${url} \\\n  --header "Authorization: Bearer $DUMA_PUBLISHABLE_KEY"`,
+      code: `claude mcp add --transport http duma ${url} \\\n  --header "Authorization: Bearer $DUMA_API_KEY"`,
     },
     {
       label: 'Cursor',
       language: '.cursor/mcp.json',
-      code: JSON.stringify({ mcpServers: { duma: { url, headers: { Authorization: 'Bearer ${env:DUMA_PUBLISHABLE_KEY}' } } } }, null, 2),
+      code: JSON.stringify({ mcpServers: { duma: { url, headers: { Authorization: 'Bearer ${env:DUMA_API_KEY}' } } } }, null, 2),
     },
     {
       label: 'Any client',

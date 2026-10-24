@@ -8903,7 +8903,7 @@
           "MCP"
         ],
         "summary": "MCP server for AI coding assistants",
-        "description": "A remote [Model Context Protocol](https://modelcontextprotocol.io) server — Streamable HTTP, stateless, JSON responses — for an AI coding assistant (Claude Code, Cursor…) building a business's own website on DUMA.\n\nSend JSON-RPC 2.0 messages (`initialize`, `tools/list`, `tools/call`, `ping`) with `Accept: application/json, text/event-stream`. Authenticate with a workspace API key (`Authorization: Bearer dk_…` or `X-Api-Key`); legacy `dcms_…` keys are not accepted.\n\nTools wrap the Content API (`/v1/cms/delivery/*`, scope `content:read`), the content management API (`/v1/cms/manage/*`: `content_create_type` needs `content:models`, `content_create_entry` needs `content:write`) and the Store API (`/v1/store/*`, `catalog:read`; `store_quote_order` needs `orders:write`), and are listed only when the key holds their scope. The two content tools write — a content type, or an entry that is always a draft for an editor to publish — and are audit-logged with the key as the actor; every other tool only reads. None publishes, edits or deletes content, or records an order, a sign-up or a referral.\n\nGET and DELETE answer 405: there are no sessions.",
+        "description": "A remote [Model Context Protocol](https://modelcontextprotocol.io) server — Streamable HTTP, stateless, JSON responses — for an AI coding assistant (Claude Code, Cursor…) building a business's own website on DUMA.\n\nSend JSON-RPC 2.0 messages (`initialize`, `tools/list`, `tools/call`, `ping`) with `Accept: application/json, text/event-stream`. Authenticate with a workspace API key (`Authorization: Bearer dk_…` or `X-Api-Key`); legacy `dcms_…` keys are not accepted.\n\nTools wrap the Content, CMS management, Store and workspace management APIs. Scope-gated management tools support CMS create/update/delete/publish, media upload/import/metadata, Notes documentation, workspace setup and catalogue configuration. New management operations re-check the key creator’s current permissions and audit writes. Existing read and draft-create tools remain compatible.\n\nGET and DELETE answer 405: there are no sessions.",
         "security": [
           {
             "cmsApiKey": []
@@ -8946,6 +8946,5364 @@
             "description": "Too many requests — rate limited"
           }
         }
+      }
+    },
+    "/v1/manage/cms/content-types": {
+      "post": {
+        "operationId": "postV1ManageCmsContentTypes",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content manage create type",
+        "description": " Scope content:configure. POST /v1/manage/cms/content-types. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "name for content manage create type."
+                  },
+                  "description": {
+                    "description": "description for content manage create type.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fields": {
+                    "description": "fields for content manage create type.",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "titleField": {
+                    "description": "titleField for content manage create type.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "previewUrl": {
+                    "description": "previewUrl for content manage create type.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "key": {
+                    "type": "string",
+                    "pattern": "^[a-z][a-z0-9_-]{0,63}$",
+                    "description": "key for content manage create type."
+                  },
+                  "kind": {
+                    "description": "kind for content manage create type.",
+                    "type": "string",
+                    "enum": [
+                      "collection",
+                      "singleton"
+                    ]
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "name",
+                  "key"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "get": {
+        "operationId": "getV1ManageCmsContentTypes",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content manage list types",
+        "description": " Scope content:manage. GET /v1/manage/cms/content-types. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/entries": {
+      "post": {
+        "operationId": "postV1ManageCmsEntries",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content manage create entry",
+        "description": "Create a draft or add a translation to an existing document. Scope content:manage. POST /v1/manage/cms/entries. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "contentTypeId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "locale": {
+                    "description": "locale for content manage create entry.",
+                    "type": "string"
+                  },
+                  "documentId": {
+                    "description": "documentId for content manage create entry.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "data": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {},
+                    "description": "data for content manage create entry."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "contentTypeId",
+                  "data"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "get": {
+        "operationId": "getV1ManageCmsEntries",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content manage list entries",
+        "description": "List drafts and published entries. Scope content:manage. GET /v1/manage/cms/entries. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/content-types/{id}": {
+      "get": {
+        "operationId": "getV1ManageCmsContentTypesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content manage get type",
+        "description": " Scope content:manage. GET /v1/manage/cms/content-types/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1ManageCmsContentTypesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content update type",
+        "description": "Update a model with a version check. Scope content:configure. PATCH /v1/manage/cms/content-types/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "name": {
+                    "description": "name for content update type.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "description": {
+                    "description": "description for content update type.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "fields": {
+                    "description": "fields for content update type.",
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    }
+                  },
+                  "titleField": {
+                    "description": "titleField for content update type.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "previewUrl": {
+                    "description": "previewUrl for content update type.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "expectedSchemaVersion": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "expectedSchemaVersion for content update type."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id",
+                  "expectedSchemaVersion"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ManageCmsContentTypesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content delete type",
+        "description": "Delete an empty model. No forced cascading deletion. Scope content:configure. DELETE /v1/manage/cms/content-types/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/content-types/{id}/impact": {
+      "post": {
+        "operationId": "postV1ManageCmsContentTypesByIdImpact",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content type impact",
+        "description": "Preview field-change impact. Scope content:configure. POST /v1/manage/cms/content-types/:id/impact. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "fields": {
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "propertyNames": {
+                        "type": "string"
+                      },
+                      "additionalProperties": {}
+                    },
+                    "description": "CMS field definitions; read content_manage_get_type for the current schema. All definitions are validated by the CMS."
+                  }
+                },
+                "required": [
+                  "id",
+                  "fields"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/entries/{id}": {
+      "get": {
+        "operationId": "getV1ManageCmsEntriesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content manage get entry",
+        "description": "Read a draft and its version. Scope content:manage. GET /v1/manage/cms/entries/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1ManageCmsEntriesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content update entry",
+        "description": "Save a draft without changing published content. Scope content:manage. PATCH /v1/manage/cms/entries/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "data": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {},
+                    "description": "Complete draft field object; read and merge changes first."
+                  },
+                  "expectedVersion": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "expectedVersion for content update entry."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id",
+                  "data",
+                  "expectedVersion"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ManageCmsEntriesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content delete entry",
+        "description": "Permanently delete one locale entry. Reference protection applies; no force option. Scope content:delete. DELETE /v1/manage/cms/entries/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/entries/{id}/publish": {
+      "post": {
+        "operationId": "postV1ManageCmsEntriesByIdPublish",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content publish entry",
+        "description": "publish an entry. Publishing makes it live. Scope content:publish. POST /v1/manage/cms/entries/:id/publish. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/entries/{id}/unpublish": {
+      "post": {
+        "operationId": "postV1ManageCmsEntriesByIdUnpublish",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content unpublish entry",
+        "description": "unpublish an entry. Publishing makes it live. Scope content:publish. POST /v1/manage/cms/entries/:id/unpublish. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/entries/{id}/archive": {
+      "post": {
+        "operationId": "postV1ManageCmsEntriesByIdArchive",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content archive entry",
+        "description": "archive an entry. Publishing makes it live. Scope content:publish. POST /v1/manage/cms/entries/:id/archive. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/entries/{id}/restore": {
+      "post": {
+        "operationId": "postV1ManageCmsEntriesByIdRestore",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content restore entry",
+        "description": " Scope content:manage. POST /v1/manage/cms/entries/:id/restore. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/entries/{id}/versions": {
+      "get": {
+        "operationId": "getV1ManageCmsEntriesByIdVersions",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content entry versions",
+        "description": " Scope content:manage. GET /v1/manage/cms/entries/:id/versions. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/locales": {
+      "post": {
+        "operationId": "postV1ManageCmsLocales",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content create locale",
+        "description": " Scope content:configure. POST /v1/manage/cms/locales. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "maxLength": 16,
+                    "description": "code for content create locale."
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80,
+                    "description": "name for content create locale."
+                  },
+                  "isDefault": {
+                    "description": "isDefault for content create locale.",
+                    "type": "boolean"
+                  },
+                  "fallbackCode": {
+                    "description": "fallbackCode for content create locale.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "currency": {
+                    "description": "currency for content create locale.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 3
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "code",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/locales/{code}": {
+      "patch": {
+        "operationId": "patchV1ManageCmsLocalesByCode",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content update locale",
+        "description": " Scope content:configure. PATCH /v1/manage/cms/locales/:code. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "maxLength": 16,
+                    "description": "code for content update locale."
+                  },
+                  "name": {
+                    "description": "name for content update locale.",
+                    "type": "string",
+                    "maxLength": 80
+                  },
+                  "isDefault": {
+                    "description": "isDefault for content update locale.",
+                    "type": "boolean"
+                  },
+                  "fallbackCode": {
+                    "description": "fallbackCode for content update locale.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "currency": {
+                    "description": "currency for content update locale.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 3,
+                        "maxLength": 3
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "code"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "code",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ManageCmsLocalesByCode",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "content delete locale",
+        "description": " Scope content:configure. DELETE /v1/manage/cms/locales/:code. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "code",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/assets/upload": {
+      "post": {
+        "operationId": "postV1ManageCmsAssetsUpload",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "media upload",
+        "description": " Scope media:write. POST /v1/manage/cms/assets/upload. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "description": "fileName for media upload."
+                  },
+                  "mimeType": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "description": "mimeType for media upload."
+                  },
+                  "fileBase64": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 35000000,
+                    "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+                    "description": "Base64 bytes for small files (MCP request limit 1 MB). For files up to 25 MB use multipart REST with field file; workspace_info returns upload URLs."
+                  },
+                  "title": {
+                    "description": "title for media upload.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "altText": {
+                    "description": "altText for media upload.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "folder": {
+                    "description": "folder for media upload.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tags": {
+                    "description": "tags for media upload.",
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "fileName",
+                  "mimeType",
+                  "fileBase64"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/assets/{id}/file": {
+      "put": {
+        "operationId": "putV1ManageCmsAssetsByIdFile",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "media replace file",
+        "description": "Replace bytes under the same asset id. Scope media:write. PUT /v1/manage/cms/assets/:id/file. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "fileName": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 255,
+                    "description": "fileName for media replace file."
+                  },
+                  "mimeType": {
+                    "type": "string",
+                    "maxLength": 120,
+                    "description": "mimeType for media replace file."
+                  },
+                  "fileBase64": {
+                    "type": "string",
+                    "minLength": 4,
+                    "maxLength": 35000000,
+                    "pattern": "^(?:[A-Za-z0-9+/]{4})*(?:[A-Za-z0-9+/]{2}==|[A-Za-z0-9+/]{3}=)?$",
+                    "description": "Base64 bytes for small files (MCP request limit 1 MB). For files up to 25 MB use multipart REST with field file; workspace_info returns upload URLs."
+                  },
+                  "title": {
+                    "description": "title for media replace file.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "altText": {
+                    "description": "altText for media replace file.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "folder": {
+                    "description": "folder for media replace file.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tags": {
+                    "description": "tags for media replace file.",
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id",
+                  "fileName",
+                  "mimeType",
+                  "fileBase64"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/assets": {
+      "get": {
+        "operationId": "getV1ManageCmsAssets",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "media list",
+        "description": "Search media. Scope media:read. GET /v1/manage/cms/assets. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/assets/import": {
+      "post": {
+        "operationId": "postV1ManageCmsAssetsImport",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "media import image",
+        "description": "Import a public HTTPS image with existing SSRF, file and quota checks. Scope media:write. POST /v1/manage/cms/assets/import. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "url": {
+                    "type": "string",
+                    "format": "uri",
+                    "description": "url for media import image."
+                  },
+                  "title": {
+                    "description": "title for media import image.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "altText": {
+                    "description": "altText for media import image.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "folder": {
+                    "description": "folder for media import image.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tags": {
+                    "description": "tags for media import image.",
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "url"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/cms/assets/{id}": {
+      "patch": {
+        "operationId": "patchV1ManageCmsAssetsById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "media update",
+        "description": " Scope media:write. PATCH /v1/manage/cms/assets/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "title": {
+                    "description": "title for media update.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "altText": {
+                    "description": "altText for media update.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "folder": {
+                    "description": "folder for media update.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 120
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tags": {
+                    "description": "tags for media update.",
+                    "maxItems": 30,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "fileName": {
+                    "description": "fileName for media update.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ManageCmsAssetsById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "media delete",
+        "description": "Refused while entries use the asset. Scope media:delete. DELETE /v1/manage/cms/assets/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/cms/assets/folders/move": {
+      "post": {
+        "operationId": "postV1ManageCmsAssetsFoldersMove",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "media move folder",
+        "description": "Move/rename a folder. Null moves files to the root. Scope media:write. POST /v1/manage/cms/assets/folders/move. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "from": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "from for media move folder."
+                  },
+                  "to": {
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ],
+                    "description": "to for media move folder."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "from",
+                  "to"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/notes/folders": {
+      "get": {
+        "operationId": "getV1ManageNotesFolders",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes list folders",
+        "description": " Scope notes:read. GET /v1/manage/notes/folders. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1ManageNotesFolders",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes create folder",
+        "description": " Scope notes:write. POST /v1/manage/notes/folders. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "description": "name for notes create folder."
+                  },
+                  "parentId": {
+                    "description": "parentId for notes create folder.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Resource row UUID returned by a management read/create call, not documentId."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/notes/shared-folders": {
+      "post": {
+        "operationId": "postV1ManageNotesSharedFolders",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes create shared folder",
+        "description": " Scope notes:manage. POST /v1/manage/notes/shared-folders. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "description": "name for notes create shared folder."
+                  },
+                  "readerRoles": {
+                    "description": "readerRoles for notes create shared folder.",
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "readerLocationIds": {
+                    "description": "readerLocationIds for notes create shared folder.",
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "format": "uuid",
+                          "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                          "description": "Resource row UUID returned by a management read/create call, not documentId."
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "editorRoles": {
+                    "description": "editorRoles for notes create shared folder.",
+                    "anyOf": [
+                      {
+                        "type": "array",
+                        "items": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        }
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/notes/folders/{id}": {
+      "patch": {
+        "operationId": "patchV1ManageNotesFoldersById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes rename folder",
+        "description": " Scope notes:write. PATCH /v1/manage/notes/folders/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 120,
+                    "description": "name for notes rename folder."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ManageNotesFoldersById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes delete folder",
+        "description": " Scope notes:delete. DELETE /v1/manage/notes/folders/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/notes/": {
+      "get": {
+        "operationId": "getV1ManageNotes",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes list",
+        "description": "Search notes visible to the key owner. Scope notes:read. GET /v1/manage/notes/. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1ManageNotes",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes create",
+        "description": " Scope notes:write. POST /v1/manage/notes/. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 300,
+                    "description": "title for notes create."
+                  },
+                  "markdown": {
+                    "type": "string",
+                    "maxLength": 900000,
+                    "description": "markdown for notes create."
+                  },
+                  "tags": {
+                    "description": "tags for notes create.",
+                    "maxItems": 40,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "folderId": {
+                    "description": "folderId for notes create.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Resource row UUID returned by a management read/create call, not documentId."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "title",
+                  "markdown"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/notes/{id}": {
+      "get": {
+        "operationId": "getV1ManageNotesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes get",
+        "description": " Scope notes:read. GET /v1/manage/notes/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1ManageNotesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes update",
+        "description": "Save with the version returned by notes_get. Scope notes:write. PATCH /v1/manage/notes/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "title": {
+                    "description": "title for notes update.",
+                    "type": "string",
+                    "maxLength": 300
+                  },
+                  "markdown": {
+                    "description": "Markdown documentation. The CRM editor and search are updated together.",
+                    "type": "string",
+                    "maxLength": 900000
+                  },
+                  "tags": {
+                    "description": "tags for notes update.",
+                    "maxItems": 40,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "maxLength": 60
+                    }
+                  },
+                  "folderId": {
+                    "description": "folderId for notes update.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uuid",
+                        "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                        "description": "Resource row UUID returned by a management read/create call, not documentId."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "version": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "version for notes update."
+                  },
+                  "pinned": {
+                    "description": "pinned for notes update.",
+                    "type": "boolean"
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id",
+                  "version"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ManageNotesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes delete",
+        "description": "Move to Recently Deleted. Scope notes:delete. DELETE /v1/manage/notes/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/notes/{id}/restore": {
+      "post": {
+        "operationId": "postV1ManageNotesByIdRestore",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes restore",
+        "description": " Scope notes:write. POST /v1/manage/notes/:id/restore. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/notes/{id}/versions": {
+      "get": {
+        "operationId": "getV1ManageNotesByIdVersions",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes versions",
+        "description": " Scope notes:read. GET /v1/manage/notes/:id/versions. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/notes/{id}/versions/{versionId}/restore": {
+      "post": {
+        "operationId": "postV1ManageNotesByIdVersionsByVersionIdRestore",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "notes restore version",
+        "description": " Scope notes:write. POST /v1/manage/notes/:id/versions/:versionId/restore. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "versionId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id",
+                  "versionId"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "versionId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/workspace/current": {
+      "get": {
+        "operationId": "getV1ManageWorkspaceCurrent",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "workspace get",
+        "description": " Scope workspace:read. GET /v1/manage/workspace/current. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patchV1ManageWorkspaceCurrent",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "workspace update",
+        "description": " Scope workspace:write. PATCH /v1/manage/workspace/current. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "description": "name for workspace update.",
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100
+                  },
+                  "timezone": {
+                    "description": "timezone for workspace update.",
+                    "type": "string"
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/setup/{tenantId}": {
+      "get": {
+        "operationId": "getV1ManageSetupByTenantId",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "workspace setup status",
+        "description": "Compute readiness and refresh derived setup tasks. Scope workspace:read. GET /v1/manage/setup/:tenantId. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/setup/{tenantId}/start": {
+      "post": {
+        "operationId": "postV1ManageSetupByTenantIdStart",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "workspace setup start",
+        "description": " Scope workspace:write. POST /v1/manage/setup/:tenantId/start. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/setup/{tenantId}/complete": {
+      "post": {
+        "operationId": "postV1ManageSetupByTenantIdComplete",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "workspace setup complete",
+        "description": " Scope workspace:write. POST /v1/manage/setup/:tenantId/complete. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/setup/{tenantId}/recommendation": {
+      "post": {
+        "operationId": "postV1ManageSetupByTenantIdRecommendation",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "workspace setup recommend",
+        "description": " Scope workspace:write. POST /v1/manage/setup/:tenantId/recommendation. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "answers": {
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {},
+                    "description": "Onboarding answers validated by the workspace schema."
+                  },
+                  "expectedRecommendationRevision": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "expectedRecommendationRevision for workspace setup recommend."
+                  },
+                  "currentStep": {
+                    "description": "currentStep for workspace setup recommend.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "answers",
+                  "expectedRecommendationRevision"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/setup/{tenantId}/apply": {
+      "post": {
+        "operationId": "postV1ManageSetupByTenantIdApply",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "workspace setup apply",
+        "description": "Apply a reviewed proposal at its current revision. Scope workspace:write. POST /v1/manage/setup/:tenantId/apply. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "expectedRecommendationRevision": {
+                    "type": "integer",
+                    "exclusiveMinimum": 0,
+                    "maximum": 9007199254740991,
+                    "description": "expectedRecommendationRevision for workspace setup apply."
+                  },
+                  "selectedModules": {
+                    "minItems": 1,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "minLength": 1,
+                      "maxLength": 200
+                    },
+                    "description": "selectedModules for workspace setup apply."
+                  },
+                  "reason": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 500,
+                    "description": "reason for workspace setup apply."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "expectedRecommendationRevision",
+                  "selectedModules",
+                  "reason"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/locations/": {
+      "get": {
+        "operationId": "getV1ManageLocations",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "locations list",
+        "description": " Scope locations:manage. GET /v1/manage/locations/. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1ManageLocations",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "locations create",
+        "description": " Scope locations:manage. POST /v1/manage/locations/. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100,
+                    "description": "name for locations create."
+                  },
+                  "timezone": {
+                    "type": "string",
+                    "maxLength": 100,
+                    "description": "timezone for locations create."
+                  },
+                  "address": {
+                    "description": "address for locations create.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "phone": {
+                    "description": "phone for locations create.",
+                    "type": "string",
+                    "maxLength": 30
+                  },
+                  "openingHours": {
+                    "description": "openingHours for locations create.",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "orderFulfilmentMode": {
+                    "description": "orderFulfilmentMode for locations create.",
+                    "type": "string",
+                    "enum": [
+                      "kitchen",
+                      "counter"
+                    ]
+                  },
+                  "dailyRevenueTarget": {
+                    "description": "dailyRevenueTarget for locations create.",
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "isActive": {
+                    "description": "isActive for locations create.",
+                    "type": "boolean"
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "name",
+                  "timezone"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/locations/{id}": {
+      "patch": {
+        "operationId": "patchV1ManageLocationsById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "locations update",
+        "description": " Scope locations:manage. PATCH /v1/manage/locations/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "name": {
+                    "description": "name for locations update.",
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 100
+                  },
+                  "timezone": {
+                    "description": "timezone for locations update.",
+                    "type": "string",
+                    "maxLength": 100
+                  },
+                  "address": {
+                    "description": "address for locations update.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "phone": {
+                    "description": "phone for locations update.",
+                    "type": "string",
+                    "maxLength": 30
+                  },
+                  "openingHours": {
+                    "description": "openingHours for locations update.",
+                    "type": "object",
+                    "propertyNames": {
+                      "type": "string"
+                    },
+                    "additionalProperties": {}
+                  },
+                  "orderFulfilmentMode": {
+                    "description": "orderFulfilmentMode for locations update.",
+                    "type": "string",
+                    "enum": [
+                      "kitchen",
+                      "counter"
+                    ]
+                  },
+                  "dailyRevenueTarget": {
+                    "description": "dailyRevenueTarget for locations update.",
+                    "anyOf": [
+                      {
+                        "type": "number",
+                        "minimum": 0
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "isActive": {
+                    "description": "isActive for locations update.",
+                    "type": "boolean"
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/trading/": {
+      "get": {
+        "operationId": "getV1ManageTrading",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "workspace get trading",
+        "description": " Scope workspace:read. GET /v1/manage/trading/. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1ManageTrading",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "workspace set trading",
+        "description": "Configure trading settings. Payroll controls are not exposed. Scope workspace:write. PUT /v1/manage/trading/. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "currency": {
+                    "type": "string",
+                    "minLength": 3,
+                    "maxLength": 3,
+                    "description": "currency for workspace set trading."
+                  },
+                  "locale": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "locale for workspace set trading."
+                  },
+                  "pricesIncludeTax": {
+                    "type": "boolean",
+                    "description": "pricesIncludeTax for workspace set trading."
+                  },
+                  "vatRegistered": {
+                    "type": "boolean",
+                    "description": "vatRegistered for workspace set trading."
+                  },
+                  "defaultVatRate": {
+                    "type": "number",
+                    "minimum": 0,
+                    "maximum": 100,
+                    "description": "defaultVatRate for workspace set trading."
+                  },
+                  "vatNumber": {
+                    "description": "vatNumber for workspace set trading.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "legalName": {
+                    "description": "legalName for workspace set trading.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "minLength": 1,
+                        "maxLength": 200
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "tradingAddress": {
+                    "description": "tradingAddress for workspace set trading.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "receiptFooter": {
+                    "description": "receiptFooter for workspace set trading.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 1000
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "customVatRates": {
+                    "description": "customVatRates for workspace set trading.",
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "name": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 200
+                        },
+                        "rate": {
+                          "type": "number",
+                          "minimum": 0,
+                          "maximum": 100
+                        }
+                      },
+                      "required": [
+                        "name",
+                        "rate"
+                      ]
+                    }
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "currency",
+                  "locale",
+                  "pricesIncludeTax",
+                  "vatRegistered",
+                  "defaultVatRate"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/categories/": {
+      "get": {
+        "operationId": "getV1ManageCategories",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog list categories",
+        "description": " Scope catalog:manage. GET /v1/manage/categories/. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1ManageCategories",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog create category",
+        "description": " Scope catalog:manage. POST /v1/manage/categories/. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 50,
+                    "description": "name for catalog create category."
+                  },
+                  "description": {
+                    "description": "description for catalog create category.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "imageUrl": {
+                    "description": "imageUrl for catalog create category.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "slug": {
+                    "description": "slug for catalog create category.",
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "isActive": {
+                    "description": "isActive for catalog create category.",
+                    "type": "boolean"
+                  },
+                  "sortOrder": {
+                    "description": "sortOrder for catalog create category.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/categories/{id}": {
+      "patch": {
+        "operationId": "patchV1ManageCategoriesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog update category",
+        "description": " Scope catalog:manage. PATCH /v1/manage/categories/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "name": {
+                    "description": "name for catalog update category.",
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "description": {
+                    "description": "description for catalog update category.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "maxLength": 500
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "imageUrl": {
+                    "description": "imageUrl for catalog update category.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "format": "uri"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "slug": {
+                    "description": "slug for catalog update category.",
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "isActive": {
+                    "description": "isActive for catalog update category.",
+                    "type": "boolean"
+                  },
+                  "sortOrder": {
+                    "description": "sortOrder for catalog update category.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ManageCategoriesById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog delete category",
+        "description": " Scope catalog:manage. DELETE /v1/manage/categories/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/products/": {
+      "get": {
+        "operationId": "getV1ManageProducts",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog list products",
+        "description": " Scope catalog:manage. GET /v1/manage/products/. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1ManageProducts",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog create product",
+        "description": " Scope catalog:manage. POST /v1/manage/products/. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 255,
+                    "description": "name for catalog create product."
+                  },
+                  "categoryId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "price": {
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,2})?$",
+                    "description": "Decimal money string, e.g. \"4.95\"."
+                  },
+                  "description": {
+                    "description": "description for catalog create product.",
+                    "type": "string"
+                  },
+                  "vatRate": {
+                    "description": "vatRate for catalog create product.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d+(\\.\\d{1,2})?$",
+                        "description": "Decimal money string, e.g. \"4.95\"."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "isAvailable": {
+                    "description": "isAvailable for catalog create product.",
+                    "type": "boolean"
+                  },
+                  "imageUrl": {
+                    "description": "imageUrl for catalog create product.",
+                    "type": "string"
+                  },
+                  "slug": {
+                    "description": "slug for catalog create product.",
+                    "type": "string"
+                  },
+                  "sortOrder": {
+                    "description": "sortOrder for catalog create product.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "name",
+                  "categoryId",
+                  "price"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/products/{id}": {
+      "patch": {
+        "operationId": "patchV1ManageProductsById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog update product",
+        "description": " Scope catalog:manage. PATCH /v1/manage/products/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "name": {
+                    "description": "name for catalog update product.",
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 255
+                  },
+                  "categoryId": {
+                    "description": "categoryId for catalog update product.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "price": {
+                    "description": "price for catalog update product.",
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,2})?$"
+                  },
+                  "description": {
+                    "description": "description for catalog update product.",
+                    "type": "string"
+                  },
+                  "vatRate": {
+                    "description": "vatRate for catalog update product.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d+(\\.\\d{1,2})?$",
+                        "description": "Decimal money string, e.g. \"4.95\"."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "isAvailable": {
+                    "description": "isAvailable for catalog update product.",
+                    "type": "boolean"
+                  },
+                  "imageUrl": {
+                    "description": "imageUrl for catalog update product.",
+                    "type": "string"
+                  },
+                  "slug": {
+                    "description": "slug for catalog update product.",
+                    "type": "string"
+                  },
+                  "sortOrder": {
+                    "description": "sortOrder for catalog update product.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ManageProductsById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog delete product",
+        "description": " Scope catalog:manage. DELETE /v1/manage/products/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "get": {
+        "operationId": "getV1ManageProductsById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog get product",
+        "description": " Scope catalog:manage. GET /v1/manage/products/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/catalog/items/{menuItemId}": {
+      "get": {
+        "operationId": "getV1ManageCatalogItemsByMenuItemId",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog get variants",
+        "description": " Scope catalog:manage. GET /v1/manage/catalog/items/:menuItemId. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "menuItemId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/catalog/variants": {
+      "post": {
+        "operationId": "postV1ManageCatalogVariants",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog create variant",
+        "description": " Scope catalog:manage. POST /v1/manage/catalog/variants. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "menuItemId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "name for catalog create variant."
+                  },
+                  "sku": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "sku for catalog create variant."
+                  },
+                  "barcode": {
+                    "description": "barcode for catalog create variant.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "price": {
+                    "description": "price for catalog create variant.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d+(\\.\\d{1,2})?$",
+                        "description": "Decimal money string, e.g. \"4.95\"."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "compareAtPrice": {
+                    "description": "compareAtPrice for catalog create variant.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d+(\\.\\d{1,2})?$",
+                        "description": "Decimal money string, e.g. \"4.95\"."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "isDefault": {
+                    "description": "isDefault for catalog create variant.",
+                    "type": "boolean"
+                  },
+                  "isActive": {
+                    "description": "isActive for catalog create variant.",
+                    "type": "boolean"
+                  },
+                  "sortOrder": {
+                    "description": "sortOrder for catalog create variant.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "optionValueIds": {
+                    "description": "optionValueIds for catalog create variant.",
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "description": "Resource row UUID returned by a management read/create call, not documentId."
+                    }
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "menuItemId",
+                  "name",
+                  "sku"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/catalog/variants/{id}": {
+      "patch": {
+        "operationId": "patchV1ManageCatalogVariantsById",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog update variant",
+        "description": " Scope catalog:manage. PATCH /v1/manage/catalog/variants/:id. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "menuItemId": {
+                    "description": "menuItemId for catalog update variant.",
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "name": {
+                    "description": "name for catalog update variant.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "sku": {
+                    "description": "sku for catalog update variant.",
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200
+                  },
+                  "barcode": {
+                    "description": "barcode for catalog update variant.",
+                    "anyOf": [
+                      {
+                        "type": "string"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "price": {
+                    "description": "price for catalog update variant.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d+(\\.\\d{1,2})?$",
+                        "description": "Decimal money string, e.g. \"4.95\"."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "compareAtPrice": {
+                    "description": "compareAtPrice for catalog update variant.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d+(\\.\\d{1,2})?$",
+                        "description": "Decimal money string, e.g. \"4.95\"."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "isDefault": {
+                    "description": "isDefault for catalog update variant.",
+                    "type": "boolean"
+                  },
+                  "isActive": {
+                    "description": "isActive for catalog update variant.",
+                    "type": "boolean"
+                  },
+                  "sortOrder": {
+                    "description": "sortOrder for catalog update variant.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "optionValueIds": {
+                    "description": "optionValueIds for catalog update variant.",
+                    "maxItems": 20,
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "format": "uuid",
+                      "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                      "description": "Resource row UUID returned by a management read/create call, not documentId."
+                    }
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/catalog/variants/{id}/locations/{locationId}": {
+      "put": {
+        "operationId": "putV1ManageCatalogVariantsByIdLocationsByLocationId",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog set variant location",
+        "description": " Scope catalog:manage. PUT /v1/manage/catalog/variants/:id/locations/:locationId. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "locationId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "price": {
+                    "description": "price for catalog set variant location.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d+(\\.\\d{1,2})?$",
+                        "description": "Decimal money string, e.g. \"4.95\"."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "compareAtPrice": {
+                    "description": "compareAtPrice for catalog set variant location.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^\\d+(\\.\\d{1,2})?$",
+                        "description": "Decimal money string, e.g. \"4.95\"."
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
+                  "isAvailable": {
+                    "type": "boolean",
+                    "description": "isAvailable for catalog set variant location."
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id",
+                  "locationId",
+                  "isAvailable"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "locationId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/manage/catalog/options": {
+      "post": {
+        "operationId": "postV1ManageCatalogOptions",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog create option",
+        "description": " Scope catalog:manage. POST /v1/manage/catalog/options. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "menuItemId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "name for catalog create option."
+                  },
+                  "sortOrder": {
+                    "description": "sortOrder for catalog create option.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "menuItemId",
+                  "name"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/manage/catalog/options/{id}/values": {
+      "post": {
+        "operationId": "postV1ManageCatalogOptionsByIdValues",
+        "tags": [
+          "MCP"
+        ],
+        "summary": "catalog add option value",
+        "description": " Scope catalog:manage. POST /v1/manage/catalog/options/:id/values. Uses the key creator's current permissions within this workspace.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "id": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$",
+                    "description": "Resource row UUID returned by a management read/create call, not documentId."
+                  },
+                  "label": {
+                    "type": "string",
+                    "minLength": 1,
+                    "maxLength": 200,
+                    "description": "label for catalog add option value."
+                  },
+                  "sortOrder": {
+                    "description": "sortOrder for catalog add option value.",
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 9007199254740991
+                  },
+                  "idempotencyKey": {
+                    "description": "Stable unique request identifier. Reuse unchanged on retry. Requires Redis; retained results prevent duplicate writes.",
+                    "type": "string",
+                    "minLength": 8,
+                    "maxLength": 128
+                  }
+                },
+                "required": [
+                  "id",
+                  "label"
+                ],
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Management result"
+          },
+          "201": {
+            "description": "Created"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Scope, owner access, or module denied"
+          },
+          "409": {
+            "description": "Version, reference or retry conflict"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
       }
     },
     "/v1/orders/bulk-status": {

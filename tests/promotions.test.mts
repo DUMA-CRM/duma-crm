@@ -6,10 +6,16 @@ const {
   draftFromPromotion,
   draftToFields,
   emptyPromotionDraft,
+  itemsChosenLabel,
+  moneyLabel,
+  offerAmountLabel,
+  perCustomerLabel,
   promotionConditions,
   promotionDraftProblems,
   promotionStanding,
+  scopeLabel,
   usageLabel,
+  usesLimitLabel,
 } = await import('../lib/utils/promotions.ts');
 
 const draft = (patch = {}) => ({ ...emptyPromotionDraft(), name: 'Summer', value: '10', code: 'summer10', ...patch });
@@ -88,4 +94,25 @@ test('free delivery needs no amount and sends none, nor any items', async () => 
   assert.equal(fields.value, null);
   assert.deepEqual(fields.menuItemIds, []);
   assert.equal(fields.appliesTo, 'order');
+});
+
+test('the editor’s rows say what each rule is set to, in words', () => {
+  assert.equal(moneyLabel('15', '£'), '£15.00');
+  assert.equal(moneyLabel('', '£'), 'None');
+  assert.equal(moneyLabel('1.', '£'), '1.');
+  assert.equal(offerAmountLabel({ kind: 'percentage', value: '10' }, '£'), '10% off');
+  assert.equal(offerAmountLabel({ kind: 'fixed_amount', value: '5' }, '£'), '£5.00 off');
+  assert.equal(offerAmountLabel({ kind: 'fixed_amount', value: ' ' }, '£'), 'Not set');
+  assert.deepEqual(['', '1', '40'].map(usesLimitLabel), ['Unlimited', '1 use', '40 uses']);
+  assert.deepEqual(['', '1', '2', '3'].map(perCustomerLabel), ['Unlimited', 'Once', 'Twice', '3 times']);
+});
+
+test('a scope reads as every, a few names, or the first two and a count', () => {
+  const options = ['A', 'B', 'C', 'D'].map((label) => ({ value: label.toLowerCase(), label }));
+  assert.equal(scopeLabel(null, options, 'Everywhere'), 'Everywhere');
+  assert.equal(scopeLabel([], options, 'Everywhere'), 'None chosen');
+  assert.equal(scopeLabel(['a', 'b'], options, 'Everywhere'), 'A, B');
+  assert.equal(scopeLabel(['a', 'b', 'c', 'd'], options, 'Everywhere'), 'A, B +2 more');
+  assert.equal(itemsChosenLabel(['x', 'y'], ['z']), '2 categories, 1 item');
+  assert.equal(itemsChosenLabel([], []), 'None chosen');
 });

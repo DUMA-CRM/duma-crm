@@ -305,7 +305,7 @@ function LoadedEntryEditor({
       forgetDraft();
       setIssues([]);
       invalidateCms(queryClient);
-      toast('success', `Published${otherLanguages > 0 ? ` in ${entry.locale}` : ''}. It is live on the delivery API.`, { critical: true });
+      toast('success', `Published${otherLanguages > 0 ? ` in ${entry.locale}` : ''}. It is live on the delivery API.`);
     },
     onError: (error) => {
       // A failed publish after a successful save still changed the draft.

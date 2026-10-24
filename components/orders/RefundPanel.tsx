@@ -64,7 +64,7 @@ export function useRefundDraft(order: OrderDetail, refundable: number, active: b
       invalidateOrder(qc, order.id);
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('refund-options', order.id) });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-visits') });
-      toast('success', `${Math.abs(amount - refundable) < 0.001 ? 'Full' : 'Partial'} refund recorded.`, { critical: true });
+      toast('success', `${Math.abs(amount - refundable) < 0.001 ? 'Full' : 'Partial'} refund recorded.`);
       setSelection(null);
       setRestock(new Set());
       setReason(null);

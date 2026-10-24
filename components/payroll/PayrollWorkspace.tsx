@@ -450,7 +450,7 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.payroll.key('payslips-me') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.payroll.key('employee-payslips') });
       setConfirming(false);
-      toast('success', 'Payslips issued. Everyone can see theirs in My HR.', { critical: true });
+      toast('success', 'Payslips issued. Everyone can see theirs in My HR.');
     },
     onError: (error) => toast('error', (error as Error).message || 'The run wasn’t issued. Try again.'),
   });

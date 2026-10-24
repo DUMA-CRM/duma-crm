@@ -421,7 +421,7 @@ function OpenFlow({
     mutationFn: () => openCashUp({ locationId, tradingDate: today, openingFloat: value! / 100 }),
     onSuccess: () => {
       invalidateCashUps(qc);
-      toast('success', 'The day is open. Good trading.', { critical: true });
+      toast('success', 'The day is open. Good trading.');
       onClose();
     },
     onError: (error) => toast('error', error instanceof Error ? error.message : 'The day wasn’t opened. Try again.'),

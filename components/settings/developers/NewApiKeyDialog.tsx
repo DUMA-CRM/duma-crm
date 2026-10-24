@@ -63,7 +63,7 @@ export function NewApiKeyDialog({
   const [done, setDone] = useState(false);
 
   // A content-type limit covers reading and writing entries alike.
-  const limitsTypes = scopes.includes('content:read') || scopes.includes('content:write');
+  const limitsTypes = scopes.some((scope) => scope.startsWith('content:') || scope.startsWith('media:'));
 
   const typesQuery = useQuery({
     queryKey: cmsKeys.contentTypes(tenantId ?? null),

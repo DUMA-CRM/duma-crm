@@ -138,7 +138,7 @@ export function AutomationEditorPage({
   const save = useMutation({
     mutationFn: (publish: boolean) => persist(publish),
     onSuccess: (saved, published) =>
-      toast('success', published ? `“${saved.name}” is live.` : 'Workflow draft saved.', { critical: published }),
+      toast('success', published ? `“${saved.name}” is live.` : 'Workflow draft saved.'),
     onError: (error) => toast('error', error.message),
   });
 

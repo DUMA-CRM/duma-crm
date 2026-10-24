@@ -255,3 +255,65 @@ export function codesCsv(
   const rows = codes.map((code) => [code.code, code.maxRedemptions ?? '', code.redemptionCount, code.isActive ? 'yes' : 'no'].join(','));
   return ['code,max_uses,uses,active', ...rows].join('\n');
 }
+
+// ---------------------------------------------------------------------------
+// The editor's rows show what each rule is set to, in words, while closed.
+// ---------------------------------------------------------------------------
+
+export const KIND_LABELS: Record<PromotionKind, string> = {
+  percentage: 'Percentage off',
+  fixed_amount: 'Amount off',
+  free_item: 'A free item',
+  free_delivery: 'Free delivery',
+};
+
+/** "15" → "£15.00"; empty → the fallback; something half-typed stays as typed. */
+export function moneyLabel(value: string, symbol: string, fallback = 'None'): string {
+  const trimmed = value.trim();
+  if (!trimmed) return fallback;
+  return AMOUNT.test(trimmed) ? `${symbol}${Number(trimmed).toFixed(2)}` : trimmed;
+}
+
+/** "10" → "10% off", "5" → "£5.00 off": the draft's amount as the row shows it. */
+export function offerAmountLabel(draft: Pick<PromotionDraft, 'kind' | 'value'>, symbol: string): string {
+  const trimmed = draft.value.trim();
+  if (!trimmed) return 'Not set';
+  return draft.kind === 'percentage' ? `${trimmed}% off` : `${moneyLabel(trimmed, symbol)} off`;
+}
+
+/** A limit the form holds as text: "" → "Unlimited", "1" → "1 use", "40" → "40 uses". */
+export function usesLimitLabel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Unlimited';
+  return `${trimmed} ${trimmed === '1' ? 'use' : 'uses'}`;
+}
+
+/** Per customer: "" → "Unlimited", "1" → "Once", "2" → "Twice", "3" → "3 times". */
+export function perCustomerLabel(value: string): string {
+  const trimmed = value.trim();
+  if (!trimmed) return 'Unlimited';
+  if (trimmed === '1') return 'Once';
+  if (trimmed === '2') return 'Twice';
+  return `${trimmed} times`;
+}
+
+/** Locations or channels: null → "Every …"; a few by name; many as "A, B +3 more". */
+export function scopeLabel(
+  ids: readonly string[] | null,
+  options: readonly { value: string; label: string }[],
+  everyLabel: string,
+): string {
+  if (ids === null) return everyLabel;
+  if (ids.length === 0) return 'None chosen';
+  const names = ids.map((id) => options.find((option) => option.value === id)?.label ?? 'Unknown');
+  if (names.length <= 2) return names.join(', ');
+  return `${names.slice(0, 2).join(', ')} +${names.length - 2} more`;
+}
+
+/** "2 categories, 1 item"; nothing → "None chosen". */
+export function itemsChosenLabel(categoryIds: readonly string[], menuItemIds: readonly string[]): string {
+  const parts: string[] = [];
+  if (categoryIds.length) parts.push(`${categoryIds.length} ${categoryIds.length === 1 ? 'category' : 'categories'}`);
+  if (menuItemIds.length) parts.push(`${menuItemIds.length} ${menuItemIds.length === 1 ? 'item' : 'items'}`);
+  return parts.length ? parts.join(', ') : 'None chosen';
+}

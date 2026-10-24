@@ -403,7 +403,7 @@ function OrdersPageContent() {
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders-all') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders') });
-      toast('success', `Cash received. Order ${orderCode(order.id)} is in ${words.queue}.`, { critical: true });
+      toast('success', `Cash received. Order ${orderCode(order.id)} is in ${words.queue}.`);
     },
     onError: (error) => toast('error', error instanceof Error ? error.message : 'The cash order couldn’t be approved.'),
   });

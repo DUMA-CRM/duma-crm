@@ -1,19 +1,16 @@
 'use client';
 
-import { useTheme } from 'next-themes';
-import { usePathname } from 'next/navigation';
 import { Toaster } from 'sileo';
 
-import { toastPositionFor } from '@/lib/utils/toast-position';
+import './AppToaster.css';
 
 /**
- * The one sileo viewport, mounted in QueryProvider. Its default position
- * follows the route (`toastPositionFor`); critical toasts override it per call.
- * Theme follows the next-themes class rather than sileo's own `system` lookup,
- * so a user who picked dark in Profile gets dark toasts regardless of their OS.
+ * The one sileo viewport, mounted in QueryProvider. Every toast lands
+ * top-center. There is deliberately no `theme` prop: that would paint sileo's
+ * own black/white fills. The DUMA look, light and dark, comes from the
+ * `[data-sileo-*]` rules in AppToaster.css, which read the same tokens as the rest
+ * of the app.
  */
 export function AppToaster() {
-  const pathname = usePathname();
-  const { resolvedTheme } = useTheme();
-  return <Toaster position={toastPositionFor(pathname)} theme={resolvedTheme === 'dark' ? 'dark' : 'light'} />;
+  return <Toaster position="top-center" />;
 }

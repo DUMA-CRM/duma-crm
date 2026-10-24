@@ -164,7 +164,7 @@ function useAddPaymentConnection() {
       void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-methods') });
       void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('payment-connections') });
       setAdded(true);
-      toast('success', `${displayName.trim()} is ready to take payments.`, { critical: true });
+      toast('success', `${displayName.trim()} is ready to take payments.`);
     },
   });
 
