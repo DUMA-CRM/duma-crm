@@ -90,6 +90,7 @@ export type EmailWorkflowNode =
       };
     }
   | { id: string; type: 'create_task'; name: string; config: { subject: string; body: string; publisherId?: string } }
+  | { id: string; type: 'send_telegram'; name: string; config: { message: string; includeOrderDetails: boolean; publisherId?: string } }
   | { id: string; type: 'send_email'; name: string; config: { templateId: string } }
   | { id: string; type: 'delay'; name: string; config: { amount: number; unit: 'minutes' | 'hours' | 'days' } }
   | {

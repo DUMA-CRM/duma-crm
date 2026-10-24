@@ -59,6 +59,7 @@ export function PublishDialog({
   });
 
   const emails = orderedWorkflowNodes(definition).filter((node) => node.type === 'send_email');
+  const telegram = orderedWorkflowNodes(definition).filter((node) => node.type === 'send_telegram');
   const tasks = orderedWorkflowNodes(definition).filter((node) => node.type === 'create_task');
   const waits = definition.nodes.filter((node) => node.type === 'delay');
   const event = trigger?.type === 'trigger' ? trigger.config.event : undefined;
@@ -89,45 +90,46 @@ export function PublishDialog({
         </Row>
 
         {/* ── Who gets it ──────────────────────────────────────────────── */}
-        {segmentId ? (
-          <Row icon={Tags} label="Audience">
-            {segmentLoading ? (
-              <p className="flex items-center gap-2 text-sm text-muted-foreground">
-                <Loader2 size={13} className="animate-spin" aria-hidden="true" />
-                Counting the segment…
+        {emails.length > 0 &&
+          (segmentId ? (
+            <Row icon={Tags} label="Audience">
+              {segmentLoading ? (
+                <p className="flex items-center gap-2 text-sm text-muted-foreground">
+                  <Loader2 size={13} className="animate-spin" aria-hidden="true" />
+                  Counting the segment…
+                </p>
+              ) : segment ? (
+                <>
+                  <p className="text-sm font-semibold text-foreground">{segment.segment.name}</p>
+                  <p className="mt-1 text-sm text-foreground">
+                    <strong className="tabular-nums">{segment.total.toLocaleString()}</strong> customers match right now,{' '}
+                    <strong className="tabular-nums">{segment.emailReachable.toLocaleString()}</strong> of them reachable by email.
+                  </p>
+                  {/* The single most important sentence in this dialog. */}
+                  <p className="mt-2 rounded-sm border border-momentum/30 bg-momentum/6 px-3 py-2 text-xs text-momentum">
+                    <strong className="font-semibold">None of them will be emailed.</strong> Publishing records everyone already inside the
+                    segment as seen, so only customers who start matching after now are sent to.
+                  </p>
+                </>
+              ) : (
+                <p className="text-sm text-exception">That segment could not be loaded. Check it still exists before publishing.</p>
+              )}
+            </Row>
+          ) : (
+            <Row icon={Tags} label="Audience">
+              <p className="text-sm text-foreground">
+                {staffAudience
+                  ? 'The employee the event belongs to, provided their staff account has an email address.'
+                  : event?.startsWith('reservation_')
+                    ? 'The guest on the booking.'
+                    : 'The customer or order the event belongs to.'}
               </p>
-            ) : segment ? (
-              <>
-                <p className="text-sm font-semibold text-foreground">{segment.segment.name}</p>
-                <p className="mt-1 text-sm text-foreground">
-                  <strong className="tabular-nums">{segment.total.toLocaleString()}</strong> customers match right now,{' '}
-                  <strong className="tabular-nums">{segment.emailReachable.toLocaleString()}</strong> of them reachable by email.
-                </p>
-                {/* The single most important sentence in this dialog. */}
-                <p className="mt-2 rounded-sm border border-momentum/30 bg-momentum/6 px-3 py-2 text-xs text-momentum">
-                  <strong className="font-semibold">None of them will be emailed.</strong> Publishing records everyone already inside the
-                  segment as seen, so only customers who start matching after now are sent to.
-                </p>
-              </>
-            ) : (
-              <p className="text-sm text-exception">That segment could not be loaded. Check it still exists before publishing.</p>
-            )}
-          </Row>
-        ) : (
-          <Row icon={Tags} label="Audience">
-            <p className="text-sm text-foreground">
-              {staffAudience
-                ? 'The employee the event belongs to, provided their staff account has an email address.'
-                : event?.startsWith('reservation_')
-                  ? 'The guest on the booking.'
-                  : 'The customer or order the event belongs to.'}
-            </p>
-            <p className="mt-1 text-xs text-muted-foreground">
-              Volume depends on trading, so there is no honest number to show before it runs. The first runs will appear in this
-              automation&rsquo;s run history.
-            </p>
-          </Row>
-        )}
+              <p className="mt-1 text-xs text-muted-foreground">
+                Volume depends on trading, so there is no honest number to show before it runs. The first runs will appear in this
+                automation&rsquo;s run history.
+              </p>
+            </Row>
+          ))}
 
         {/* ── What they get ────────────────────────────────────────────── */}
         <Row icon={Send} label={`Sends ${emails.length} email${emails.length === 1 ? '' : 's'}`}>
@@ -151,6 +153,19 @@ export function PublishDialog({
           )}
         </Row>
 
+        {telegram.length > 0 && (
+          <Row icon={Send} label={`Sends ${telegram.length} Telegram message${telegram.length === 1 ? '' : 's'}`}>
+            <ul className="space-y-1 text-sm">
+              {telegram.map((node) => (
+                <li key={node.id}>{node.config.message}</li>
+              ))}
+            </ul>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Sent to your workspace’s connected Telegram chat. Paused connections skip messages. Delivery failures appear in run history;
+              check the chat before retrying.
+            </p>
+          </Row>
+        )}
         {tasks.length > 0 && (
           <Row icon={CheckCircle2} label={`Creates ${tasks.length} helpdesk task${tasks.length === 1 ? '' : 's'}`}>
             <ul className="space-y-1 text-sm">

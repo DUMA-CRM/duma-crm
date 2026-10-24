@@ -19,6 +19,7 @@ import { EmailConnectWizard, EmailConnectorPage } from './EmailConnector';
 import { PaymentsConnectWizard, PaymentsConnectorPage } from './PaymentsConnector';
 import { StorageConnectWizard } from './StorageConnector';
 import { StorageConnectorPage } from './StorageConnectorPage';
+import { TelegramConnectWizard, TelegramConnectorPage } from './TelegramConnector';
 import { CONNECTORS_BY_ID, type ConnectorId } from './registry';
 
 const LIST = '/settings/connectors';
@@ -70,6 +71,14 @@ export function ConnectorsRoute() {
           description="Ask a workspace administrator for access, or return to Connections."
         />
       </EditorShell>
+    );
+  }
+
+  if (connector === 'telegram') {
+    return connecting ? (
+      <TelegramConnectWizard onClose={toList} onDone={() => toManage('telegram')} />
+    ) : (
+      <TelegramConnectorPage onClose={toList} onConnect={() => toConnect('telegram')} />
     );
   }
 

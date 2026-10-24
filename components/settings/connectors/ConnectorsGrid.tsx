@@ -20,6 +20,7 @@ import { canAccessConnector } from '@/lib/auth/connector-access';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
 import { getAnalyticsConnection } from '@/lib/modules/analytics/client';
 import { getCmsStorage } from '@/lib/modules/cms/client';
+import { getTelegramConnection, telegramQueryKey } from '@/lib/modules/communications/client';
 import { getEmailConnection } from '@/lib/modules/communications/client';
 import { disconnectGoogleDrive, getGoogleDriveStatus, startGoogleDriveConnect } from '@/lib/modules/notes/client';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
@@ -35,6 +36,7 @@ import { type ConnectorAccount, type ConnectorAction, ConnectorRow } from './Con
 import { emailConnectorState } from './EmailConnector';
 import { PROVIDER_LABELS, paymentsConnectorState } from './PaymentsConnector';
 import { storageConnectorState, storageProviderLabel } from './StorageConnector';
+import { telegramConnectorState } from './TelegramConnector';
 import { CONNECTORS, type ConnectorId, type ConnectorState } from './registry';
 import { relativeTime } from './shared';
 
@@ -59,6 +61,13 @@ export function ConnectorsGrid() {
     staleTime: 30_000,
   });
   const visible = (definition: (typeof CONNECTORS)[number]) => canAccessConnector(capabilities, definition, modules.data?.modules);
+
+  const telegram = useQuery({
+    queryKey: telegramQueryKey(tenantId),
+    queryFn: () => getTelegramConnection(tenantId!),
+    enabled: !!tenantId && visible(CONNECTORS.find((d) => d.id === 'telegram')!),
+    retry: false,
+  });
 
   const { data: emailConnection, isLoading: emailLoading } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
@@ -137,6 +146,23 @@ export function ConnectorsGrid() {
   const cards = CONNECTORS.filter(visible)
     .filter((definition) => definition.id !== 'google-drive' || google?.configured === true)
     .map((definition) => {
+      if (definition.id === 'telegram') {
+        const connection = telegram.data;
+        const state: ConnectorState = telegram.isError ? 'attention' : telegramConnectorState(connection);
+        return {
+          definition,
+          state,
+          accounts: connection ? [{ label: connection.chatTitle, meta: `@${connection.botUsername}` }] : [],
+          action:
+            connection || telegram.isError
+              ? { label: 'Manage', onClick: () => open('telegram') }
+              : { label: 'Connect', onClick: () => open('telegram', 'connect') },
+          alert:
+            state === 'attention'
+              ? { title: telegram.isError ? 'Couldn’t load Telegram' : connection?.lastError || 'Send a test to confirm delivery' }
+              : undefined,
+        };
+      }
       if (definition.id === 'email') {
         const checked = relativeTime(emailConnection?.lastTestedAt);
         const accounts: ConnectorAccount[] = emailConnection
@@ -255,7 +281,7 @@ export function ConnectorsGrid() {
       return { definition, state: 'unavailable' as ConnectorState, accounts: [] };
     });
 
-  if (modules.isPending || emailLoading || paymentsLoading || storageLoading || analyticsLoading || googleLoading) {
+  if (telegram.isLoading || modules.isPending || emailLoading || paymentsLoading || storageLoading || analyticsLoading || googleLoading) {
     return <Bone className="h-96 w-full rounded-lg" />;
   }
   if (modules.isError) return <ErrorState title="Couldn’t load your connections" onRetry={() => void modules.refetch()} />;

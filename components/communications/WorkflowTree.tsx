@@ -29,7 +29,7 @@ import { NODE_META, type TriggerNames, nodeDetail } from './workflowNodes';
  * pretending otherwise is how a flow ends up unreachable from its trigger.
  */
 
-export type InsertType = 'send_email' | 'create_task' | 'delay' | 'condition';
+export type InsertType = 'send_email' | 'send_telegram' | 'create_task' | 'delay' | 'condition';
 
 /** Where a drop would land: after this node, down this branch. */
 interface DropTarget {
@@ -236,6 +236,7 @@ function Connection({
               {(
                 [
                   ['send_email', 'Send email'],
+                  ['send_telegram', 'Send Telegram message'],
                   ['create_task', 'Create helpdesk task'],
                   ['delay', 'Wait'],
                   ['condition', 'Condition'],

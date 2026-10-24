@@ -41,8 +41,8 @@ import { formatDateTime } from '@/lib/utils/date';
 import {
   type ActivityEvent,
   STATUS_EVENT,
+  canEditDelivery,
   canRecordPayment,
-  deliveryEditMode,
   formatGap,
   itemCount,
   nextStep,
@@ -56,7 +56,7 @@ import {
 import { workspaceDateKey, workspaceFormatter } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 
-import { OrderAddressEditor, OrderDeliveryEditor } from './OrderDeliveryEditor';
+import { OrderDeliveryEditor } from './OrderDeliveryEditor';
 import { OrderNote } from './OrderNote';
 import { PaymentDueCard } from './PaymentDueCard';
 import { RefundBody, RefundFooter, useRefundDraft } from './RefundPanel';
@@ -188,7 +188,6 @@ export function OrderDrawer({
   // Refund mode: the same drawer, its body and footer swapped for the refund.
   const refunding = canRefund && showRefund && data.status === 'done' && refundable > 0;
   const discount = Number(data.discountAmount ?? 0);
-  const deliveryMode = deliveryEditMode(data);
   const sendsOut = data.fulfilmentType === 'delivery' || data.fulfilmentType === 'shipping';
   const listOrder = {
     ...data,
@@ -369,9 +368,8 @@ export function OrderDrawer({
             </div>
           </section>
 
-          {/* An order taken by hand: who it's for and how it reaches them, filled in now or later.
-              A website order: only where it's sent, corrected if the shopper got it wrong. */}
-          {deliveryMode && canTakeOrders && (
+          {/* An order taken by hand or from the website: who it's for and how it reaches them, filled in or changed later. */}
+          {canEditDelivery(data) && canTakeOrders && (
             <section aria-labelledby="order-delivery" className="rounded-lg border border-rule/60 bg-control px-3.5 py-3">
               <div className="flex items-center gap-3">
                 <span
@@ -398,7 +396,7 @@ export function OrderDrawer({
                   </p>
                 </div>
                 <Button size="sm" variant="outline" onClick={() => setEditingDelivery(true)}>
-                  {data.customerId || deliveryMode === 'address' ? 'Edit' : 'Add'}
+                  {data.customerId ? 'Edit' : 'Add'}
                 </Button>
               </div>
             </section>
@@ -488,12 +486,7 @@ export function OrderDrawer({
       )}
 
       {showReceipt && <ReceiptModal orderId={data.id} onClose={() => setShowReceipt(false)} />}
-      {editingDelivery &&
-        (deliveryMode === 'address' ? (
-          <OrderAddressEditor order={data} onClose={() => setEditingDelivery(false)} />
-        ) : (
-          <OrderDeliveryEditor order={data} onClose={() => setEditingDelivery(false)} />
-        ))}
+      {editingDelivery && <OrderDeliveryEditor order={data} onClose={() => setEditingDelivery(false)} />}
       {showEmail && data.customerId && (
         <SendEmailModal
           customerId={data.customerId}

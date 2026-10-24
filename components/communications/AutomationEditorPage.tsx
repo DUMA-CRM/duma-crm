@@ -137,8 +137,7 @@ export function AutomationEditorPage({
   };
   const save = useMutation({
     mutationFn: (publish: boolean) => persist(publish),
-    onSuccess: (saved, published) =>
-      toast('success', published ? `“${saved.name}” is live.` : 'Workflow draft saved.'),
+    onSuccess: (saved, published) => toast('success', published ? `“${saved.name}” is live.` : 'Workflow draft saved.'),
     onError: (error) => toast('error', error.message),
   });
 
@@ -344,7 +343,9 @@ export function AutomationEditorPage({
             if (hasChosenTrigger) return;
             setHasChosenTrigger(true);
             // As the old flow did, go on to the first action: what should happen.
-            const firstAction = definition.nodes.find((node) => node.type === 'send_email' || node.type === 'create_task');
+            const firstAction = definition.nodes.find(
+              (node) => node.type === 'send_email' || node.type === 'send_telegram' || node.type === 'create_task',
+            );
             if (firstAction) setSelectedId(firstAction.id);
           }}
         />

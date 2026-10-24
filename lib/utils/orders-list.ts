@@ -109,17 +109,22 @@ export function canRecordPayment(order: Pick<Order, 'source' | 'status' | 'payme
 }
 
 /**
- * What staff can change about who an order is for and where it goes — mirrors
- * the API's `POST /orders/:id/details`. An open order taken by hand: everything
- * (`'full'`). An open website order sent somewhere: only its address, since the
- * shopper chose the customer and the carrier (`'address'`). Otherwise nothing.
+ * True when staff can change who an order is for and how it reaches them —
+ * mirrors the API's `POST /orders/:id/details`: an open order taken by hand or
+ * placed on the website.
  */
-export function deliveryEditMode(order: Pick<Order, 'source' | 'status' | 'fulfilmentType'>): 'full' | 'address' | null {
-  if (['done', 'cancelled', 'expired'].includes(order.status)) return null;
-  if (order.source === 'manual') return 'full';
-  if (order.source === 'web' && (order.fulfilmentType === 'delivery' || order.fulfilmentType === 'shipping')) return 'address';
-  return null;
+export function canEditDelivery(order: Pick<Order, 'source' | 'status'>): boolean {
+  if (['done', 'cancelled', 'expired'].includes(order.status)) return false;
+  return order.source === 'manual' || order.source === 'web';
 }
+
+/**
+ * The fulfilment type to send when the editor says "we deliver it": a website
+ * order sent by the carrier its checkout chose keeps `shipping` (its method and
+ * fee stay too); anything else is a delivery.
+ */
+export const deliveryTypeFor = (order: Pick<Order, 'fulfilmentType'>): 'delivery' | 'shipping' =>
+  order.fulfilmentType === 'shipping' ? 'shipping' : 'delivery';
 
 export type PaymentTone = 'success' | 'warning' | 'exception' | 'muted';
 

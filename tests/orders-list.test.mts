@@ -1,8 +1,18 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-const { canRecordPayment, deliveryEditMode, groupOrdersByDay, itemCount, itemPreview, nextStep, orderCode, paymentSummary, shiftDay } =
-  await import('../lib/utils/orders-list.ts');
+const {
+  canRecordPayment,
+  canEditDelivery,
+  deliveryTypeFor,
+  groupOrdersByDay,
+  itemCount,
+  itemPreview,
+  nextStep,
+  orderCode,
+  paymentSummary,
+  shiftDay,
+} = await import('../lib/utils/orders-list.ts');
 
 const at = (y: number, m: number, d: number, h = 12) => new Date(y, m - 1, d, h).toISOString();
 const order = (createdAt: string, status = 'done', totalAmount = 5) => ({ createdAt, status, totalAmount }) as never;
@@ -207,17 +217,21 @@ test('payment can be recorded for an unpaid manual order or a website order awai
   assert.equal(canRecordPayment(o('qr', 'awaiting_cash_approval')), false);
 });
 
-test('an open manual order edits customer and delivery; an open website order only its address', () => {
-  const o = (source: string, fulfilmentType: string | null, status = 'pending') => ({ source, fulfilmentType, status }) as never;
-  assert.equal(deliveryEditMode(o('manual', null)), 'full');
-  assert.equal(deliveryEditMode(o('manual', 'delivery', 'ready')), 'full');
-  assert.equal(deliveryEditMode(o('web', 'shipping')), 'address');
-  assert.equal(deliveryEditMode(o('web', 'delivery')), 'address');
-  assert.equal(deliveryEditMode(o('web', 'collection')), null);
-  assert.equal(deliveryEditMode(o('web', null)), null);
-  assert.equal(deliveryEditMode(o('pos', null)), null);
+test('an open manual or website order can change its customer and delivery', () => {
+  const o = (source: string, status = 'pending') => ({ source, status }) as never;
+  assert.equal(canEditDelivery(o('manual')), true);
+  assert.equal(canEditDelivery(o('web', 'ready')), true);
+  assert.equal(canEditDelivery(o('pos')), false);
+  assert.equal(canEditDelivery(o('qr_code')), false);
   for (const status of ['done', 'cancelled', 'expired']) {
-    assert.equal(deliveryEditMode(o('manual', 'delivery', status)), null);
-    assert.equal(deliveryEditMode(o('web', 'shipping', status)), null);
+    assert.equal(canEditDelivery(o('manual', status)), false);
+    assert.equal(canEditDelivery(o('web', status)), false);
   }
+});
+
+test('a website order that ships keeps shipping when it is still sent out', () => {
+  assert.equal(deliveryTypeFor({ fulfilmentType: 'shipping' } as never), 'shipping');
+  assert.equal(deliveryTypeFor({ fulfilmentType: 'delivery' } as never), 'delivery');
+  assert.equal(deliveryTypeFor({ fulfilmentType: 'collection' } as never), 'delivery');
+  assert.equal(deliveryTypeFor({ fulfilmentType: null } as never), 'delivery');
 });

@@ -207,3 +207,16 @@ test('triggerOptionsInWords: what narrows or times a trigger, for its canvas ste
   assert.deepEqual(triggerOptionsInWords({ event: 'segment_entered', segmentId: 's1' }, { segment: 'Regulars' }), ['Regulars']);
   assert.deepEqual(triggerOptionsInWords({ event: 'order_placed', locationId: null }), []);
 });
+
+test('Telegram can replace email and remains a valid operational workflow action', () => {
+  let graph = defaultWorkflow({ trigger: 'order_created' });
+  graph = insertWorkflowNode(graph, graph.edges[0].id, 'send_telegram');
+  const email = graph.nodes.find(node => node.type === 'send_email')!;
+  graph = removeWorkflowNode(graph, email.id);
+  assert.deepEqual(workflowErrors(graph), []);
+  assert.deepEqual(orderedWorkflowNodes(graph).map(node => node.type), ['trigger', 'send_telegram', 'end']);
+  const telegram = graph.nodes.find(node => node.type === 'send_telegram')!;
+  if (telegram.type !== 'send_telegram') throw new Error('Missing Telegram step');
+  telegram.config.message = '   ';
+  assert.ok(workflowErrors(graph).some(error => error.includes('message')));
+});

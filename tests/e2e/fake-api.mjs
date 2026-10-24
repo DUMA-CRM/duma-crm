@@ -20,7 +20,7 @@ const moduleIds = [
   'core', 'identity', 'organization', 'customers', 'catalog', 'ordering', 'pos', 'payments', 'inventory',
   'purchasing', 'workforce', 'people', 'payroll', 'communications', 'automation', 'compliance', 'audit', 'analytics', 'agent', 'support', 'cms',
 ];
-const capabilities = ['analytics:read', 'email:read', 'email:write', 'email:publish', 'helpdesk:manage', 'staff:read', 'scheduling:read', 'scheduling:write', 'shifts:read', 'shifts:write', 'hr.sensitive:read'];
+const capabilities = ['settings:write', 'analytics:read', 'email:read', 'email:write', 'email:publish', 'helpdesk:manage', 'staff:read', 'scheduling:read', 'scheduling:write', 'shifts:read', 'shifts:write', 'hr.sensitive:read'];
 const staffProfile = {
   id: 'staff-profile-1',
   userId: user.id,

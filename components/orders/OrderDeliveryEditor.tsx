@@ -18,14 +18,15 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { addressErrors, cleanAddress, emptyAddress, sameAddress } from '@/lib/utils/delivery-address';
-import { shippingAddressLines } from '@/lib/utils/orders-list';
+import { deliveryTypeFor, shippingAddressLines } from '@/lib/utils/orders-list';
 import type { Customer } from '@/types/customers';
 
 import { invalidateOrder } from './StatusMenu';
 
-/* Who an order taken by hand is for, and how it reaches them — set when the
- * order was taken or added afterwards. A delivery needs an address: one the
- * customer has used before, or a new one, which is saved to them for next time. */
+/* Who an order taken by hand or from the website is for, and how it reaches
+ * them — set when the order was placed or changed afterwards. A delivery needs
+ * an address: one the customer has used before, or a new one, which is saved to
+ * them for next time. A website order that ships keeps its carrier. */
 
 const NEW = 'new';
 const fromSaved = (row: CustomerAddress): OrderShippingAddress => ({
@@ -44,7 +45,9 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
   const [customerId, setCustomerId] = useState<string | null>(order.customerId ?? null);
   const [picked, setPicked] = useState<Customer | null>(null);
   const [finding, setFinding] = useState(false);
-  const [type, setType] = useState<'collection' | 'delivery'>(order.fulfilmentType === 'delivery' ? 'delivery' : 'collection');
+  const [type, setType] = useState<'collection' | 'delivery'>(
+    order.fulfilmentType === 'delivery' || order.fulfilmentType === 'shipping' ? 'delivery' : 'collection',
+  );
   // '' until someone picks: the order's own saved address, else the default (see `selection`).
   const [chosen, setChosen] = useState<string>('');
   // Null until someone types: the form then shows what we already know — the
@@ -87,7 +90,7 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
     mutationFn: () =>
       updateOrderDetails(order.id, {
         ...(customerId !== (order.customerId ?? null) ? { customerId } : {}),
-        fulfilment: type === 'delivery' ? { type, address: cleanAddress(finalAddress) } : { type },
+        fulfilment: type === 'delivery' ? { type: deliveryTypeFor(order), address: cleanAddress(finalAddress) } : { type },
       }),
     onSuccess: () => {
       invalidateOrder(qc, order.id);
@@ -185,7 +188,7 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
               onChange={(next) => setType(next as 'collection' | 'delivery')}
               options={[
                 { value: 'collection', label: 'They collect it', icon: Store },
-                { value: 'delivery', label: 'We deliver it', icon: Truck },
+                { value: 'delivery', label: order.fulfilmentType === 'shipping' ? 'We ship it' : 'We deliver it', icon: Truck },
               ]}
             />
           </FormSection>
@@ -280,64 +283,6 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
           }}
         />
       )}
-    </Modal>
-  );
-}
-
-/* A website order's address, corrected after checkout — a wrong branch, a typo.
- * The customer and the carrier stay as the shopper chose; the correction stays
- * on this order and isn't saved to the customer. */
-export function OrderAddressEditor({ order, onClose }: { order: OrderDetail; onClose: () => void }) {
-  const qc = useQueryClient();
-  const home = useHomeCountries()[0]!;
-  const [address, setAddress] = useState<OrderShippingAddress>(
-    () => order.shippingAddress ?? emptyAddress({ name: order.customerName ?? '', phone: null, country: home }),
-  );
-  const [submitted, setSubmitted] = useState(false);
-  const errors = addressErrors(address);
-  const fulfilmentType = order.fulfilmentType === 'shipping' ? 'shipping' : 'delivery';
-
-  const save = useMutation({
-    mutationFn: () => updateOrderDetails(order.id, { fulfilment: { type: fulfilmentType, address: cleanAddress(address) } }),
-    onSuccess: () => {
-      invalidateOrder(qc, order.id);
-      toast('success', 'Address saved.');
-      onClose();
-    },
-    onError: (error) => toast('error', error instanceof Error && error.message ? error.message : 'The address wasn’t saved. Try again.'),
-  });
-
-  return (
-    <Modal
-      title="Delivery address"
-      description="Where this website order is sent. The delivery the shopper chose stays the same."
-      onClose={onClose}
-      size="xl"
-      footer={
-        <div className="flex justify-end gap-2">
-          <Button variant="outline" onClick={onClose} disabled={save.isPending}>
-            Cancel
-          </Button>
-          <Button
-            disabled={save.isPending}
-            onClick={() => {
-              setSubmitted(true);
-              if (Object.keys(errors).length === 0) save.mutate();
-            }}
-          >
-            {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
-            Save
-          </Button>
-        </div>
-      }
-    >
-      <FormSection title="Send to" note="Only this order changes — the customer's saved addresses don't.">
-        <DeliveryAddressFields
-          value={address}
-          onChange={(patch) => setAddress((current) => ({ ...current, ...patch }))}
-          errors={submitted ? errors : undefined}
-        />
-      </FormSection>
     </Modal>
   );
 }

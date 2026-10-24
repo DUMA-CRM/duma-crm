@@ -603,6 +603,36 @@ function StepSettings({
       </Row>
     );
 
+  if (node.type === 'send_telegram')
+    return (
+      <Row id="message" open={open} onToggle={onToggle} icon={FileText} title="Telegram message" value={node.config.message}>
+        <textarea
+          aria-label="Telegram message"
+          value={node.config.message}
+          rows={5}
+          maxLength={3500}
+          className="w-full rounded-md border border-input bg-control p-3 text-sm"
+          onChange={(e) => onChange({ ...node, config: { ...node.config, message: e.target.value } })}
+        />
+        <label className="flex items-start gap-2 text-sm">
+          <input
+            type="checkbox"
+            checked={node.config.includeOrderDetails}
+            onChange={(e) => onChange({ ...node, config: { ...node.config, includeOrderDetails: e.target.checked } })}
+            className="mt-1 size-4 accent-primary"
+          />
+          Include order number, items, total, status and fulfilment when available
+        </label>
+        <p className="text-xs text-muted-foreground">
+          Plain text, sent to this workspace’s Telegram destination. Configure and test it in{' '}
+          <a className="text-primary underline" href="/settings/connectors?connector=telegram" target="_blank" rel="noreferrer">
+            Connections
+          </a>
+          . Paused connections skip this step.
+        </p>
+      </Row>
+    );
+
   if (node.type === 'create_task')
     return (
       <>
@@ -800,6 +830,7 @@ function Row({
 /** Which setting a step opens on: the trigger's event list for a new workflow, else whatever is still empty. */
 function firstOpenRow(node: EmailWorkflowNode, chooseTrigger: boolean): string | null {
   if (node.type === 'trigger') return chooseTrigger ? 'event' : null;
+  if (node.type === 'send_telegram') return node.config.message.trim() ? null : 'message';
   if (node.type === 'send_email') return node.config.templateId ? null : 'template';
   if (node.type === 'create_task') return !node.config.subject.trim() ? 'subject' : !node.config.body.trim() ? 'body' : null;
   if (node.type === 'condition') return String(node.config.value ?? '').trim() ? null : 'if';

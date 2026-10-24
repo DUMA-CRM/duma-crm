@@ -8,6 +8,7 @@ import {
   type IconComponent,
   Mail,
   Printer,
+  Send,
   Tags,
 } from '@/components/icons';
 
@@ -15,6 +16,7 @@ import type { Capability } from '@/lib/auth/capabilities';
 import type { WorkspaceModuleId } from '@/lib/modules/organization/client';
 
 export type ConnectorId =
+  | 'telegram'
   | 'email'
   | 'card-payments'
   | 'media-storage'
@@ -55,6 +57,18 @@ export interface ConnectorDefinition {
 }
 
 export const CONNECTORS: ConnectorDefinition[] = [
+  {
+    id: 'telegram',
+    name: 'Telegram',
+    icon: Send,
+    description: 'Send new-order alerts and other automation notifications to your staff chat.',
+    tags: ['Staff notifications', 'Automations', 'Groups'],
+    tagline: 'Keep your team informed in Telegram.',
+    requirements: ['A bot token from BotFather', 'The ID of your staff chat'],
+    available: true,
+    capability: 'settings:write',
+    moduleId: 'automation',
+  },
   {
     id: 'analytics',
     name: 'Web analytics',

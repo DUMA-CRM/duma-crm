@@ -115,7 +115,7 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
     label: 'Integrations',
     icon: Plug,
     area: 'connections',
-    anyOf: ['email.connections:write', 'payments.connections:write', 'cms.keys:write', 'notes:write'],
+    anyOf: ['settings:write', 'email.connections:write', 'payments.connections:write', 'cms.keys:write', 'notes:write'],
   },
   {
     href: '/settings/security',

@@ -25973,6 +25973,102 @@
           }
         }
       }
+    },
+    "/v1/telegram-connections": {
+      "get": {
+        "operationId": "getV1TelegramConnections",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Get the workspace Telegram connection",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1TelegramConnections",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Verify and save a Telegram bot and destination",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteV1TelegramConnections",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Disconnect Telegram",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/telegram-connections/test": {
+      "post": {
+        "operationId": "postV1TelegramConnectionsTest",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Send a Telegram test message",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/telegram-connections/chats": {
+      "post": {
+        "operationId": "postV1TelegramConnectionsChats",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Find recent chats seen by the Telegram bot",
+        "responses": {
+          "200": {
+            "description": "Chat IDs and names only"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
     }
   }
 }

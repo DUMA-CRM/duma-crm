@@ -79,7 +79,8 @@ export function workflowIssues(definition: EmailWorkflowDefinition): WorkflowIss
   const nodes = new Map(definition.nodes.map((node) => [node.id, node]));
   const trigger = definition.nodes.filter((node) => node.type === 'trigger');
   if (trigger.length !== 1) add('Use exactly one trigger.');
-  if (!definition.nodes.some((node) => node.type === 'send_email' || node.type === 'create_task')) add('Add at least one action.');
+  if (!definition.nodes.some((node) => node.type === 'send_email' || node.type === 'send_telegram' || node.type === 'create_task'))
+    add('Add at least one action.');
   if (!definition.nodes.some((node) => node.type === 'end')) add('Add an end step.');
   // A segment trigger with no segment publishes happily and then never fires.
   // The API refuses it too; catching it here is what lets the editor say so.
@@ -101,6 +102,8 @@ export function workflowIssues(definition: EmailWorkflowDefinition): WorkflowIss
       );
     if (node.type === 'create_task' && (node.config.subject.trim().length < 3 || !node.config.body.trim()))
       add(`Add a subject and description for “${node.name}”.`, node.id);
+    if (node.type === 'send_telegram' && (!node.config.message.trim() || node.config.message.length > 3500))
+      add(`Enter a message of up to 3,500 characters for “${node.name}”.`, node.id);
     if (node.type === 'send_email' && !node.config.templateId) add(`Choose a template for “${node.name}”.`, node.id);
     const outgoing = definition.edges.filter((edge) => edge.source === node.id);
     if (node.type === 'condition') {
@@ -139,13 +142,20 @@ export function workflowErrors(definition: EmailWorkflowDefinition): string[] {
 export function insertWorkflowNode(
   definition: EmailWorkflowDefinition,
   edgeId: string,
-  type: 'send_email' | 'create_task' | 'delay' | 'condition',
+  type: 'send_email' | 'send_telegram' | 'create_task' | 'delay' | 'condition',
   templateId = '',
 ) {
   const edge = definition.edges.find((candidate) => candidate.id === edgeId);
   if (!edge) return definition;
   let node: EmailWorkflowNode;
   if (type === 'send_email') node = { id: id('email'), type, name: 'Send email', config: { templateId } };
+  else if (type === 'send_telegram')
+    node = {
+      id: id('telegram'),
+      type,
+      name: 'Send Telegram message',
+      config: { message: 'New order received. Please check the order queue.', includeOrderDetails: true },
+    };
   else if (type === 'create_task') node = { id: id('task'), type, name: 'Create task', config: { subject: '', body: '' } };
   else if (type === 'delay') node = { id: id('delay'), type, name: 'Wait', config: { amount: 1, unit: 'days' } };
   else {
@@ -230,7 +240,7 @@ export function removeWorkflowNode(definition: EmailWorkflowDefinition, nodeId: 
 
 /** Steps that can be picked up and dropped somewhere else. */
 export const isMovableNode = (node: EmailWorkflowNode) =>
-  node.type === 'send_email' || node.type === 'create_task' || node.type === 'delay';
+  node.type === 'send_email' || node.type === 'send_telegram' || node.type === 'create_task' || node.type === 'delay';
 
 /** Every node reachable from `nodeId`, itself included. */
 function subtreeIds(definition: EmailWorkflowDefinition, nodeId: string) {
@@ -349,7 +359,9 @@ export function workflowSummary(definition: EmailWorkflowDefinition, templateNam
     condition: definition.nodes.filter((node) => node.type === 'condition').length,
   };
   const tasks = definition.nodes.filter((node) => node.type === 'create_task').length;
+  const telegram = definition.nodes.filter((node) => node.type === 'send_telegram').length;
   const parts = [
+    ...(telegram ? [`${telegram} Telegram message${telegram === 1 ? '' : 's'}`] : []),
     ...(tasks ? [`${tasks} task${tasks === 1 ? '' : 's'}`] : []),
     ...(counts.email ? [`${counts.email} email${counts.email === 1 ? '' : 's'}`] : []),
     ...(counts.delay ? [`${counts.delay} wait${counts.delay === 1 ? '' : 's'}`] : []),
