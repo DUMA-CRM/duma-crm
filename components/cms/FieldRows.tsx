@@ -32,7 +32,10 @@ export function FieldRows({
   issues,
   placeholders,
   recommendedLengths,
+  otherLanguages = 0,
 }: {
+  /** How many other language versions the entry has: a shared field's row says it changes them too. */
+  otherLanguages?: number;
   fields: CmsFieldDefinition[];
   value: Data;
   onChange: (next: Data) => void;
@@ -70,9 +73,10 @@ export function FieldRows({
     <fieldset disabled={disabled} className="min-w-0 space-y-3">
       {fields.map((field) => {
         const icon = FIELD_ICONS[field.type];
+        const shared = field.shared && otherLanguages > 0 ? `Same in all ${otherLanguages + 1} languages` : undefined;
         if (field.type === 'boolean') {
           return (
-            <InfoRow key={field.key} icon={icon} title={field.label}>
+            <InfoRow key={field.key} icon={icon} title={field.label} description={shared}>
               <Switch
                 checked={value[field.key] === true}
                 disabled={disabled}
@@ -91,6 +95,7 @@ export function FieldRows({
             key={field.key}
             icon={icon}
             title={field.label}
+            description={shared}
             value={errors?.length ? errors[0]! : (written ?? fallback ?? (missing ? 'Required' : 'None'))}
             muted={!written}
             tone={errors?.length ? 'danger' : missing ? 'warning' : undefined}

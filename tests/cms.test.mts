@@ -3,6 +3,7 @@ import test from 'node:test';
 
 const {
   cleanEntryData,
+  dropIndex,
   entryStatusMeta,
   fieldKeyFromLabel,
   fieldListProblems,
@@ -12,6 +13,7 @@ const {
   newField,
   previewUrlFor,
   sameEntryData,
+  savedMessage,
   slugify,
   typeKeyFromName,
   uniqueKey,
@@ -390,4 +392,34 @@ test('translationDrift: which language versions have fallen behind', async () =>
   assert.equal(translationDrift('uk', [en, fr, uk], 'en'), null);
   assert.equal(translationDrift('en', [en, { ...fr, changedAt: null }], 'en'), null);
   assert.equal(translationDrift('en', [en], 'en'), null);
+});
+
+test('dropping a dragged item before or after another lands it there', () => {
+  const list = ['a', 'b', 'c', 'd'];
+  const drop = (from: number, over: number, after: boolean) => moveItem(list, from, dropIndex(from, over, after));
+  assert.deepEqual(drop(0, 2, false), ['b', 'a', 'c', 'd']);
+  assert.deepEqual(drop(0, 2, true), ['b', 'c', 'a', 'd']);
+  assert.deepEqual(drop(3, 0, false), ['d', 'a', 'b', 'c']);
+  assert.deepEqual(drop(3, 1, true), ['a', 'b', 'd', 'c']);
+  // Onto either side of itself, or its neighbour's near side: nothing moves.
+  assert.equal(dropIndex(1, 1, true), 1);
+  assert.equal(dropIndex(1, 2, false), 1);
+});
+
+test('media fields start shared by every language, only at the top level', () => {
+  assert.equal(newField('media', 'Gallery', []).shared, true);
+  assert.equal(newField('media', 'Photo', [], 1).shared, undefined);
+  assert.equal(newField('text', 'Title', []).shared, undefined);
+  const problems = fieldListProblems([
+    { key: 'sku', label: 'SKU', type: 'text', unique: true, shared: true },
+    { key: 'faq', label: 'FAQ', type: 'group', fields: [{ key: 'img', label: 'Img', type: 'media', shared: true }] },
+  ]);
+  assert.ok(problems.some((problem) => problem.startsWith('“SKU”') && problem.includes('unique')));
+  assert.ok(problems.some((problem) => problem.startsWith('FAQ →') && problem.includes('inside a group')));
+});
+
+test('a save names the languages its shared fields changed', () => {
+  assert.equal(savedMessage('Draft saved.', undefined), 'Draft saved.');
+  assert.equal(savedMessage('Draft saved.', []), 'Draft saved.');
+  assert.match(savedMessage('Draft saved.', ['de', 'fr']), /changed in de, fr too — publish those versions/);
 });

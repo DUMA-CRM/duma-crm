@@ -77,6 +77,7 @@ import {
   previewUrlFor,
   requiredMissing,
   sameEntryData,
+  savedMessage,
   translationDrift,
 } from '@/lib/utils/cms';
 import { draftStorageKey, parseStoredDraft, recoveryFor } from '@/lib/utils/cms-draft';
@@ -285,11 +286,11 @@ function LoadedEntryEditor({
 
   const save = useMutation({
     mutationFn: () => saveCmsEntry(entry.id, cleanEntryData(fields, data), entry.version, tenantId),
-    onSuccess: () => {
+    onSuccess: (saved) => {
       forgetDraft();
       setIssues([]);
       invalidateCms(queryClient);
-      toast('success', 'Draft saved.');
+      toast('success', savedMessage('Draft saved.', saved.sharedLocales));
     },
     onError: fail,
   });
@@ -298,14 +299,18 @@ function LoadedEntryEditor({
   // first, so "Publish" can never ship an older draft than the one you see.
   const publish = useMutation({
     mutationFn: async () => {
-      if (dirty) await saveCmsEntry(entry.id, cleanEntryData(fields, data), entry.version, tenantId);
-      return publishCmsEntry(entry.id, tenantId);
+      const saved = dirty ? await saveCmsEntry(entry.id, cleanEntryData(fields, data), entry.version, tenantId) : null;
+      await publishCmsEntry(entry.id, tenantId);
+      return saved?.sharedLocales;
     },
-    onSuccess: () => {
+    onSuccess: (sharedLocales) => {
       forgetDraft();
       setIssues([]);
       invalidateCms(queryClient);
-      toast('success', `Published${otherLanguages > 0 ? ` in ${entry.locale}` : ''}. It is live on the delivery API.`);
+      toast(
+        'success',
+        savedMessage(`Published${otherLanguages > 0 ? ` in ${entry.locale}` : ''}. It is live on the delivery API.`, sharedLocales),
+      );
     },
     onError: (error) => {
       // A failed publish after a successful save still changed the draft.
@@ -604,6 +609,7 @@ function LoadedEntryEditor({
                   locale={entry.locale}
                   open={contentRow}
                   onOpenChange={setContentRow}
+                  otherLanguages={otherLanguages}
                 />
               </SettingsSection>
               {seoField && (

@@ -36,6 +36,8 @@ export interface CmsFieldDefinition {
   unique?: boolean;
   private?: boolean;
   multiple?: boolean;
+  /** Top level only: one value for every language version; saving one locale copies it into the others' drafts. */
+  shared?: boolean;
   minLength?: number;
   maxLength?: number;
   min?: number;
@@ -386,7 +388,8 @@ export const createCmsEntry = (
   tenantId?: string,
 ) => apiFetch<CmsEntry>(`/cms/entries?${qs(tenantId)}`, { method: 'POST', body: JSON.stringify(data) });
 export const saveCmsEntry = (id: string, data: Record<string, unknown>, expectedVersion: number, tenantId?: string) =>
-  apiFetch<CmsEntry>(`/cms/entries/${id}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify({ data, expectedVersion }) });
+  /** `sharedLocales`: the other language versions whose shared fields this save changed. */
+  apiFetch<CmsEntry & { sharedLocales?: string[] }>(`/cms/entries/${id}?${qs(tenantId)}`, { method: 'PATCH', body: JSON.stringify({ data, expectedVersion }) });
 export const publishCmsEntry = (id: string, tenantId?: string) =>
   apiFetch<CmsEntry>(`/cms/entries/${id}/publish?${qs(tenantId)}`, { method: 'POST' });
 export const unpublishCmsEntry = (id: string, tenantId?: string) =>

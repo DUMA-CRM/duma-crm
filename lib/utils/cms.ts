@@ -84,7 +84,11 @@ export function uniqueKey(base: string, taken: readonly string[]): string {
   return `${base}${index}`;
 }
 
-export function newField(type: CmsFieldType, label: string, siblings: readonly CmsFieldDefinition[]): CmsFieldDefinition {
+/**
+ * A field as the palette adds it. A top-level media field starts shared by
+ * every language — a photo rarely changes with the language; text never does.
+ */
+export function newField(type: CmsFieldType, label: string, siblings: readonly CmsFieldDefinition[], depth = 0): CmsFieldDefinition {
   const key = uniqueKey(
     fieldKeyFromLabel(label) || type,
     siblings.map((field) => field.key),
@@ -98,7 +102,37 @@ export function newField(type: CmsFieldType, label: string, siblings: readonly C
     field.required = true;
     field.unique = true;
   }
+  if (type === 'media' && depth === 0) field.shared = true;
   return field;
+}
+
+/** Whether a field may be the same in every language: top level, not unique, not a slug (the API's rule). */
+export function canShareField(field: CmsFieldDefinition, depth: number): boolean {
+  return depth === 0 && !field.unique && field.type !== 'slug';
+}
+
+/** The labels of a type's fields that are the same in every language. */
+export function sharedFieldLabels(fields: readonly CmsFieldDefinition[]): string[] {
+  return fields.filter((field) => field.shared).map((field) => field.label);
+}
+
+/**
+ * A save's toast, naming the other languages its shared fields changed. Only
+ * their drafts changed: each goes live when that language is published.
+ */
+export function savedMessage(message: string, sharedLocales: readonly string[] | undefined): string {
+  if (!sharedLocales?.length) return message;
+  const one = sharedLocales.length === 1;
+  return `${message} Shared fields changed in ${sharedLocales.join(', ')} too — publish ${one ? 'that version' : 'those versions'} to put them live.`;
+}
+
+/**
+ * Where an item dragged from `from` lands when dropped on the item at `over`,
+ * before or after it — as an index for `moveItem`.
+ */
+export function dropIndex(from: number, over: number, after: boolean): number {
+  const insertAt = after ? over + 1 : over;
+  return from < insertAt ? insertAt - 1 : insertAt;
 }
 
 /** Move an item in a list, returning a new list. Out-of-range moves are a no-op. */
@@ -111,7 +145,7 @@ export function moveItem<T>(items: readonly T[], from: number, to: number): T[] 
 }
 
 /** Problems the model editor can point at before the API is asked. */
-export function fieldListProblems(fields: readonly CmsFieldDefinition[]): string[] {
+export function fieldListProblems(fields: readonly CmsFieldDefinition[], depth = 0): string[] {
   const problems: string[] = [];
   const keys = new Set<string>();
   for (const field of fields) {
@@ -122,7 +156,10 @@ export function fieldListProblems(fields: readonly CmsFieldDefinition[]): string
       problems.push(`“${field.label}” needs at least one choice`);
     if (field.type === 'group' && !(field.fields && field.fields.length > 0))
       problems.push(`“${field.label}” needs at least one nested field`);
-    if (field.type === 'group') problems.push(...fieldListProblems(field.fields ?? []).map((problem) => `${field.label} → ${problem}`));
+    if (field.shared && !canShareField(field, depth))
+      problems.push(`“${field.label}” can’t be the same in every language${depth > 0 ? ' inside a group' : ' while it is unique or a slug'}`);
+    if (field.type === 'group')
+      problems.push(...fieldListProblems(field.fields ?? [], depth + 1).map((problem) => `${field.label} → ${problem}`));
   }
   if (fields.filter((field) => field.type === 'slug').length > 1) problems.push('Only one slug field per content type');
   return problems;

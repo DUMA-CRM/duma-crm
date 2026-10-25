@@ -18,6 +18,7 @@ import {
   Globe,
   Hash,
   type IconComponent,
+  Languages,
   Layers,
   ListOrdered,
   Plus,
@@ -68,6 +69,7 @@ import {
   canHoldList,
   duplicateField,
   fieldKeyFromLabel,
+  canShareField,
   fieldListProblems,
   fieldRules,
   fieldTypeLabel,
@@ -710,7 +712,7 @@ function FieldList({
     else if (open !== null && open >= Math.min(from, to) && open <= Math.max(from, to)) setOpen(open + (from < to ? -1 : 1));
   };
   const add = (type: CmsFieldType, label: string) => {
-    onChange([...fields, newField(type, label, fields)]);
+    onChange([...fields, newField(type, label, fields, depth)]);
     setAdding(false);
     setOpen(fields.length);
   };
@@ -1032,7 +1034,7 @@ function FieldSettings({
   };
   const textual = ['text', 'longText', 'richText', 'slug', 'email', 'url'].includes(field.type);
   const isSaved = savedKeys.has(field.key);
-  const switchRow = (key: 'required' | 'unique' | 'private' | 'multiple' | 'integer', icon: IconComponent, title: string, hint: string) => (
+  const switchRow = (key: 'required' | 'unique' | 'private' | 'multiple' | 'integer' | 'shared', icon: IconComponent, title: string, hint: string) => (
     <InfoRow icon={icon} title={title} description={hint}>
       <Switch checked={Boolean(field[key])} disabled={disabled} label={title} onChange={(checked) => set(key, checked || undefined)} />
     </InfoRow>
@@ -1224,6 +1226,13 @@ function FieldSettings({
       <div className="space-y-3">
         {heading('Visibility', 'Where its value goes')}
         {switchRow('private', EyeOff, 'Private', 'Editors see it; your website never receives it')}
+        {(canShareField(field, depth) || field.shared) &&
+          switchRow(
+            'shared',
+            Languages,
+            'Same in every language',
+            'Change it in one language and every other language changes too. Leave off for text you translate',
+          )}
       </div>
     </div>
   );

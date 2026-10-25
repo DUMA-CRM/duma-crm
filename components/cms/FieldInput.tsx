@@ -13,7 +13,7 @@ import { Select } from '@/components/ui/select';
 
 import { type CmsFieldDefinition, getCmsAssets, getCmsEntries, importCmsAsset } from '@/lib/modules/cms/client';
 import { toast } from '@/lib/toast';
-import { emptyValueFor, isImage, isListField, moveItem, slugify } from '@/lib/utils/cms';
+import { dropIndex, emptyValueFor, isImage, isListField, moveItem, slugify } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -533,6 +533,9 @@ function MediaInput({
   const queryClient = useQueryClient();
   const [picking, setPicking] = useState(false);
   const [link, setLink] = useState('');
+  // Reordering by drag: the tile being dragged, and the side of the tile it would land on.
+  const [dragFrom, setDragFrom] = useState<number | null>(null);
+  const [dropAt, setDropAt] = useState<{ index: number; after: boolean } | null>(null);
   const multiple = isListField(field);
   // A link can only bring in a picture; a field for documents or video picks from Media alone.
   const takesImages = !field.mediaGroups?.length || field.mediaGroups.includes('image');
@@ -559,6 +562,11 @@ function MediaInput({
     enabled: !!tenantId && ids.length > 0,
   });
   const byId = new Map((assetsQuery.data?.data ?? []).map((asset) => [asset.id, asset]));
+  const sortable = multiple && !disabled && ids.length > 1;
+  const endDrag = () => {
+    setDragFrom(null);
+    setDropAt(null);
+  };
 
   return (
     <div>
@@ -566,11 +574,61 @@ function MediaInput({
       <div className={cn('flex flex-wrap gap-2', ids.length === 0 && 'hidden')}>
         {ids.map((id, index) => {
           const asset = byId.get(id);
+          const marker = dragFrom !== null && dragFrom !== index && dropAt?.index === index ? dropAt : null;
           return (
-            <div key={id} className="group relative w-32 overflow-hidden rounded-md border border-rule/60 bg-band/40">
+            <div
+              key={id}
+              draggable={sortable}
+              onDragStart={(event) => {
+                if (!sortable) return;
+                setDragFrom(index);
+                event.dataTransfer.effectAllowed = 'move';
+                // Firefox starts a drag only with data; a private type so no text box takes the id.
+                event.dataTransfer.setData('application/x-duma-media-order', id);
+              }}
+              onDragOver={(event) => {
+                // Only this field's own tiles: a file from the desktop or another field is not a reorder.
+                if (dragFrom === null) return;
+                event.preventDefault();
+                event.dataTransfer.dropEffect = 'move';
+                const box = event.currentTarget.getBoundingClientRect();
+                const after = event.clientX > box.left + box.width / 2;
+                if (dropAt?.index !== index || dropAt.after !== after) setDropAt({ index, after });
+              }}
+              onDrop={(event) => {
+                if (dragFrom === null) return;
+                event.preventDefault();
+                const after = dropAt?.index === index ? dropAt.after : false;
+                const to = dropIndex(dragFrom, index, after);
+                if (to !== dragFrom) onChange(moveItem(ids, dragFrom, to));
+                endDrag();
+              }}
+              onDragEnd={endDrag}
+              className={cn(
+                'group relative w-32 overflow-hidden rounded-md border border-rule/60 bg-band/40',
+                sortable && 'cursor-grab active:cursor-grabbing',
+                dragFrom === index && 'opacity-40',
+              )}
+            >
+              {marker && (
+                <span
+                  aria-hidden="true"
+                  className={cn('absolute inset-y-0 z-10 w-1 bg-primary', marker.after ? 'right-0' : 'left-0')}
+                />
+              )}
+              {sortable && (
+                <span className="absolute left-1 top-1 rounded bg-background/85 px-1.5 text-[11px] font-medium tabular-nums text-foreground">
+                  {index + 1}
+                </span>
+              )}
               {asset && isImage(asset.mimeType) ? (
                 // eslint-disable-next-line @next/next/no-img-element -- tenant media from the API, not a static asset
-                <img src={assetPreviewSrc(asset)} alt={asset.altText ?? ''} className="aspect-4/3 w-full object-cover" />
+                <img
+                  src={assetPreviewSrc(asset)}
+                  alt={asset.altText ?? ''}
+                  draggable={false}
+                  className="aspect-4/3 w-full object-cover"
+                />
               ) : (
                 <div className="flex aspect-4/3 items-center justify-center text-muted-foreground">
                   <FileText size={22} aria-hidden="true" />
@@ -584,6 +642,11 @@ function MediaInput({
                   {multiple && index > 0 && (
                     <IconButton label="Move earlier" onClick={() => onChange(moveItem(ids, index, index - 1))}>
                       <ChevronUp size={12} className="-rotate-90" aria-hidden="true" />
+                    </IconButton>
+                  )}
+                  {multiple && index < ids.length - 1 && (
+                    <IconButton label="Move later" onClick={() => onChange(moveItem(ids, index, index + 1))}>
+                      <ChevronDown size={12} className="-rotate-90" aria-hidden="true" />
                     </IconButton>
                   )}
                   <IconButton
