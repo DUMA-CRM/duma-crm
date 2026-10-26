@@ -1,10 +1,10 @@
 import { ApprovalError } from '@/lib/ai/action-seal';
 import type { AgentActionSubmission, AgentChatMessage, AgentStreamEvent } from '@/lib/ai/agent-types';
 import type { AgentContext } from '@/lib/ai/duma-agent.server';
-import { CapabilityError, executeConfirmedAction, runDumaAgent } from '@/lib/ai/duma-agent.server';
+import { CapabilityError, executeConfirmedAction, recordTurn, runDumaAgent } from '@/lib/ai/duma-agent.server';
 import { isAgentProviderPreference } from '@/lib/ai/provider-chain';
 import { getAgentConversation, saveAgentTurn } from '@/lib/api/agent-conversations.service';
-import { consumeAgentBudget, recordAgentTurn } from '@/lib/modules/agent/client';
+import { consumeAgentBudget } from '@/lib/modules/agent/client';
 import type { StaffProfile } from '@/lib/modules/identity/client';
 import { getMyStaffProfile } from '@/lib/modules/identity/client';
 
@@ -160,7 +160,7 @@ function streamTurn(
         write({ type: 'error', message });
         // A turn that throws never reaches the agent's own recording, and a
         // failure is precisely the turn worth having in the log.
-        void recordAgentTurn(
+        recordTurn(
           {
             question: messages.at(-1)?.content ?? '',
             tools: [],
@@ -169,6 +169,7 @@ function streamTurn(
             page: context.page,
           },
           cookieHeader,
+          profile,
         );
       } finally {
         if (!cancelled) controller.close();

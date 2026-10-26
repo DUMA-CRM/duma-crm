@@ -4,6 +4,7 @@ import { redirect } from 'next/navigation';
 import { Header } from '@/components/layout/Header';
 import { LoginIntro } from '@/components/layout/LoginIntro';
 import { Sidebar } from '@/components/layout/Sidebar';
+import { AnalyticsIdentity } from '@/components/providers/AnalyticsIdentity';
 import { AuthInitializer } from '@/components/providers/AuthInitializer';
 import { WorkspaceInitializer } from '@/components/providers/WorkspaceInitializer';
 import { WorkspaceSettingsSync } from '@/components/providers/WorkspaceSettingsSync';
@@ -43,6 +44,13 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
       </a>
       {/* Hydrates the Zustand auth store with the server-fetched user. */}
       <AuthInitializer user={session.user} role={profile?.role ?? null} capabilities={profile?.capabilities ?? []} />
+      <AnalyticsIdentity
+        id={session.user.id}
+        email={session.user.email}
+        name={session.user.name}
+        role={profile?.role ?? null}
+        tenantId={profile?.tenantId ?? null}
+      />
       <WorkspaceInitializer
         profile={profile ? { tenantId: profile.tenantId, role: profile.role, locationIds: profile.locationIds } : null}
       />

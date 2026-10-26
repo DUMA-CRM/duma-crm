@@ -6,6 +6,7 @@ import { useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { resetAnalytics, track } from '@/lib/analytics/client';
 import { signIn, signOut } from '@/lib/modules/identity/client';
 import { useAuthStore } from '@/stores/authStore';
 import { useLoginIntroStore } from '@/stores/loginIntroStore';
@@ -24,6 +25,7 @@ export function useAuth() {
     try {
       const session = await signIn(email, password);
       setUser(session.user);
+      track('user_signed_in', undefined, { beforeNavigation: true });
       // Armed before navigating so the intro is already up when the CRM layout
       // paints — it doubles as cover for the dashboard's first data fetches.
       useLoginIntroStore.getState().start();
@@ -43,6 +45,7 @@ export function useAuth() {
       // newly stored cookie, instead of racing an App Router transition.
       window.location.replace(destination);
     } catch (err) {
+      track('sign_in_failed');
       setError(err instanceof Error ? err.message : 'Sign in failed. Check your credentials.');
     } finally {
       setIsLoading(false);
@@ -51,6 +54,8 @@ export function useAuth() {
 
   async function logout() {
     await signOut().catch(() => {}); // best-effort — clear client state regardless
+    track('user_signed_out');
+    resetAnalytics();
     setUser(null);
     setRole(null);
     // Workspace selection is account-specific. Keeping it on a shared tablet

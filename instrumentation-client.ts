@@ -1,3 +1,5 @@
+import { initAnalytics } from '@/lib/analytics/client';
+
 const endpoint = process.env.NEXT_PUBLIC_ERROR_REPORTING_URL;
 const reported = new Set<string>();
 
@@ -20,6 +22,7 @@ function report(error: unknown, source: 'error' | 'unhandledrejection') {
 try {
   window.addEventListener('error', (event) => report(event.error, 'error'));
   window.addEventListener('unhandledrejection', (event) => report(event.reason, 'unhandledrejection'));
+  initAnalytics();
 } catch {
   // Monitoring must never prevent application startup.
 }

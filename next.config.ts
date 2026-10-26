@@ -1,6 +1,7 @@
 import type { NextConfig } from 'next';
 
 const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:7777';
+const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posthog.com';
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
@@ -37,7 +38,11 @@ const nextConfig: NextConfig = {
   // Same-origin proxy for browser API calls. Lets the API's Set-Cookie land on
   // OUR origin so the session cookie is readable by the app (see lib/api/client.ts).
   async rewrites() {
-    return [{ source: '/be/:path*', destination: `${API_ORIGIN}/:path*` }];
+    return [
+      { source: '/be/:path*', destination: `${API_ORIGIN}/:path*` },
+      // Product analytics, same-origin for the same reasons (lib/analytics/client.ts).
+      { source: '/ingest/:path*', destination: `${POSTHOG_HOST}/:path*` },
+    ];
   },
   images: {
     remotePatterns: [

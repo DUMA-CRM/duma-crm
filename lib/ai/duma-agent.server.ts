@@ -1,7 +1,8 @@
 import 'server-only';
 
+import { captureAgentTurn } from '@/lib/analytics/server';
 import { hasCapability } from '@/lib/auth/capabilities';
-import { claimAgentApproval, recordAgentTurn } from '@/lib/modules/agent/client';
+import { type AgentTurnRecord, claimAgentApproval, recordAgentTurn } from '@/lib/modules/agent/client';
 import { ApiError } from '@/lib/modules/core/client';
 import type { StaffProfile } from '@/lib/modules/identity/client';
 import { MODULE_IDS, type ModuleId } from '@/lib/modules/manifest';
@@ -232,9 +233,10 @@ export async function* runDumaAgent(
 
   const smallTalk = smallTalkResponse(latestRequest);
   if (smallTalk) {
-    void recordAgentTurn(
+    recordTurn(
       { question: latestRequest, tools: [], outcome: 'answered', durationMs: Date.now() - startedAt, rounds: 0, page: context.page },
       cookieHeader,
+      profile,
     );
     yield {
       type: 'result',
@@ -252,9 +254,10 @@ export async function* runDumaAgent(
     // A refusal is the most important thing to record, not the least: a
     // refusal rate climbing is the only signal that the guard has started
     // declining real work, and that is exactly what went unnoticed before.
-    void recordAgentTurn(
+    recordTurn(
       { question: latestRequest, tools: [], outcome: 'refused', refused: 'scope', durationMs: Date.now() - startedAt, page: context.page },
       cookieHeader,
+      profile,
     );
     yield {
       type: 'result',
@@ -327,7 +330,7 @@ export async function* runDumaAgent(
       ...(chain.fallback ? { fallbackModel: chain.fallback.label } : {}),
       generatedAt: new Date().toISOString(),
     };
-    void recordAgentTurn(
+    recordTurn(
       {
         question: latestRequest,
         tools: toolsUsed,
@@ -342,6 +345,7 @@ export async function* runDumaAgent(
         fellBack: Boolean(chain.fallback),
       },
       cookieHeader,
+      profile,
     );
     return { type: 'result', response };
   };
@@ -589,6 +593,12 @@ function describeToolFailure(error: unknown) {
  */
 export class CapabilityError extends Error {}
 
+/** The workspace's own turn log, and product analytics — which drops the question. */
+export function recordTurn(turn: AgentTurnRecord, cookieHeader: string, profile: StaffProfile) {
+  void recordAgentTurn(turn, cookieHeader);
+  captureAgentTurn(profile, turn);
+}
+
 export async function executeConfirmedAction(
   submission: AgentActionSubmission,
   context: AgentContext,
@@ -616,7 +626,7 @@ export async function executeConfirmedAction(
   );
   const result = await definition.execute(action, runtime);
 
-  void recordAgentTurn(
+  recordTurn(
     {
       question: `[approval] ${definition.tool.name}`,
       tools: [definition.tool.name],
@@ -627,6 +637,7 @@ export async function executeConfirmedAction(
       page: context.page,
     },
     cookieHeader,
+    profile,
   );
 
   return {
