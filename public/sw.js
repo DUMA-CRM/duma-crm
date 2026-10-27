@@ -207,7 +207,8 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  if (url.pathname.startsWith('/be/v1/auth/')) return;
+  // Announcement eligibility and drafts must never be replayed from offline cache.
+  if (url.pathname.startsWith('/be/v1/auth/') || url.pathname.startsWith('/be/v1/updates')) return;
 
   if (url.pathname.startsWith('/be/')) {
     respondWithLifetime(

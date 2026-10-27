@@ -1,7 +1,7 @@
-export type ContentTab = 'overview' | 'entries' | 'media' | 'configure';
+export type ContentTab = 'overview' | 'entries' | 'media' | 'configure' | 'updates';
 export type ContentSection = 'models' | 'locales' | 'settings';
 
-const tabs: readonly string[] = ['overview', 'entries', 'media', 'configure'];
+const tabs: readonly string[] = ['overview', 'entries', 'media', 'configure', 'updates'];
 const sections: readonly string[] = ['models', 'locales', 'settings'];
 
 /** Old tab links still open the same section, now under Configure. */

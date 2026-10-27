@@ -28,6 +28,7 @@ export const MODULE_IDS = [
   'referrals',
   'notes',
   'reservations',
+  'forms',
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -123,6 +124,8 @@ export const CRM_MODULE_CAPABILITIES = {
   notes: ['notes:read', 'notes:write', 'notes:manage'],
   // Bookings and the waitlist are the door's; the floor plan and the booking rules are a manager's.
   reservations: ['reservations:read', 'reservations:write', 'reservations.floor:write', 'reservations.settings:write'],
+  // Building forms; reading what people sent is separate, because responses are personal data.
+  forms: ['forms:read', 'forms:write', 'forms.responses:read', 'forms.responses:write'],
 } as const satisfies Record<ModuleId, readonly string[]>;
 
 type CrmCapabilityRegistry = typeof CRM_MODULE_CAPABILITIES;
@@ -162,6 +165,16 @@ export interface ModuleManifest {
 const pages: Record<ModuleId, readonly string[]> = {
   core: ['/', '/privacy', '/terms'],
   identity: [
+    // DUMA Admin: the platform's own pages, gated on a platform role.
+    '/admin',
+    '/admin/activity',
+    '/admin/overview',
+    '/admin/system',
+    '/admin/updates',
+    '/admin/usage',
+    '/admin/workspaces',
+    '/updates',
+    '/updates/[id]',
     '/forgot-password',
     '/reset-password',
     '/sign-in',
@@ -216,6 +229,8 @@ const pages: Record<ModuleId, readonly string[]> = {
   notes: ['/notes', '/notes/graph'],
   // The guest's own booking pages are public, like the QR menu.
   reservations: ['/reservations', '/book/[token]', '/book/manage/[token]'],
+  // The hosted form is public, like the booking page.
+  forms: ['/forms', '/f/[publicId]'],
 };
 
 const dependencies: Record<ModuleId, readonly ModuleId[]> = {
@@ -247,6 +262,7 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   notes: ['identity', 'organization'],
   // Communications sends the guest emails when it's on; it isn't required.
   reservations: ['communications', 'customers', 'organization'],
+  forms: ['customers', 'organization'],
 };
 
 const navigation: Record<ModuleId, readonly string[]> = {
@@ -278,6 +294,7 @@ const navigation: Record<ModuleId, readonly string[]> = {
   referrals: [],
   notes: ['/notes'],
   reservations: ['/reservations'],
+  forms: ['/forms'],
 };
 
 export const CRM_MODULE_MANIFESTS: readonly ModuleManifest[] = MODULE_IDS.map((id) => ({

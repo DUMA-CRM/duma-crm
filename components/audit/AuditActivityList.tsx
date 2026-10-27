@@ -53,6 +53,7 @@ export function AuditActivityList({
   loadingMore,
   onLoadMore,
   total,
+  workspaceOf,
 }: {
   groups: AuditGroup[];
   now: number;
@@ -65,6 +66,8 @@ export function AuditActivityList({
   onLoadMore: () => void;
   /** Null when the count isn't a count of groups (the fallback path). */
   total: number | null;
+  /** DUMA Admin reads every workspace's trail: the name to show under each row. */
+  workspaceOf?: (group: AuditGroup) => string | null;
 }) {
   return (
     <div className="space-y-6">
@@ -83,6 +86,7 @@ export function AuditActivityList({
                 today={day.day === localDayKey(new Date(now))}
                 onToggle={() => onToggle(group.key)}
                 onSelect={onSelect}
+                workspace={workspaceOf?.(group) ?? null}
               />
             ))}
           </ListRowGroup>
@@ -104,10 +108,12 @@ function GroupRow({
   today,
   onToggle,
   onSelect,
+  workspace,
 }: {
   group: AuditGroup;
   selectedId: string | null;
   expanded: boolean;
+  workspace: string | null;
   /** Today's rows read as a distance ("12m ago"); older days keep the clock. */
   today: boolean;
   onToggle: () => void;
@@ -118,7 +124,7 @@ function GroupRow({
   const record = groupRecord(group);
   const role = group.actor.role ? (ROLE_LABEL[group.actor.role] ?? group.actor.role) : null;
   const glyphSeverity = group.severity === 'ok' && latest ? auditSeverity(latest) : group.severity;
-  const detail = [role, many ? groupVerbs(group) : record && !record.named ? record.label : null].filter(Boolean).join(' · ');
+  const detail = [workspace, role, many ? groupVerbs(group) : record && !record.named ? record.label : null].filter(Boolean).join(' · ');
   const selected = !many && latest?.id === selectedId;
 
   return (

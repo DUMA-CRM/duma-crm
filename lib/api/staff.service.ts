@@ -25,7 +25,14 @@ export interface StaffUser {
 export interface StaffProfile {
   id: string;
   userId: string;
-  tenantId: string;
+  /**
+   * The workspace this person is a member of. Null only for a platform
+   * administrator with no membership (`platform: true`) — authority and
+   * membership are separate (duma-api lib/platform-identity.ts).
+   */
+  tenantId: string | null;
+  /** Only on GET /staff/me: holds an active platform role. Not a workspace role. */
+  platform?: boolean;
   name?: string;
   email?: string;
   image?: string | null;

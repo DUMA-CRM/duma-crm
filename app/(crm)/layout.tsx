@@ -1,6 +1,7 @@
 import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
+import { ContextBoundary } from '@/components/layout/ContextBoundary';
 import { Header } from '@/components/layout/Header';
 import { LoginIntro } from '@/components/layout/LoginIntro';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -9,9 +10,11 @@ import { AuthInitializer } from '@/components/providers/AuthInitializer';
 import { WorkspaceInitializer } from '@/components/providers/WorkspaceInitializer';
 import { WorkspaceSettingsSync } from '@/components/providers/WorkspaceSettingsSync';
 
+import { apiFetch } from '@/lib/api/client';
 import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
+import { WorkspaceSeedProvider } from '@/lib/hooks/useWorkspaceContext';
 import { getSession } from '@/lib/modules/identity/client';
-import { getCurrentTenantModules } from '@/lib/modules/organization/client';
+import type { WorkspaceContextResponse } from '@/lib/modules/identity/client';
 
 // Server Component — runs on every navigation to a CRM page.
 // Validates the session with the API (not just a cookie existence check).
@@ -32,41 +35,48 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
   // deletes the stale cookie before sending the browser to sign-in.
   // (Cookies can't be deleted directly in a Server Component.)
   if (!session) redirect('/api/auth/clear-session');
-  const moduleState = profile ? (await getCurrentTenantModules(undefined, cookieHeader)).modules : [];
+
+  // A member's workspace is known here, so its context (modules, brand, zone)
+  // is read now and seeds the first paint — for that workspace only. A platform
+  // administrator's context lives in the tab (sessionStorage), which the server
+  // cannot see: their shell renders neutral until the tab says where it is.
+  const account = profile?.platform ? 'platform' : profile ? 'member' : 'none';
+  const seed =
+    account === 'member' ? await apiFetch<WorkspaceContextResponse>('/workspace-context', { cookieHeader }).catch(() => null) : null;
 
   return (
-    <div className="flex h-dvh overflow-hidden bg-background">
-      <a
-        href="#main-content"
-        className="fixed left-3 top-3 z-50 -translate-y-20 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition-transform focus:translate-y-0"
-      >
-        Skip to main content
-      </a>
-      {/* Hydrates the Zustand auth store with the server-fetched user. */}
-      <AuthInitializer user={session.user} role={profile?.role ?? null} capabilities={profile?.capabilities ?? []} />
-      <AnalyticsIdentity
-        id={session.user.id}
-        email={session.user.email}
-        name={session.user.name}
-        role={profile?.role ?? null}
-        tenantId={profile?.tenantId ?? null}
-      />
-      <WorkspaceInitializer
-        profile={profile ? { tenantId: profile.tenantId, role: profile.role, locationIds: profile.locationIds } : null}
-      />
-      {/* Before the pages: every time they show is read in this zone. */}
-      <WorkspaceSettingsSync timezone={profile?.workspace?.timezone ?? null} brand={profile?.workspace?.brand ?? null} />
+    <WorkspaceSeedProvider seed={seed?.workspace ? { accountId: session.user.id, data: seed } : null}>
+      <div className="flex h-dvh overflow-hidden bg-background">
+        <a
+          href="#main-content"
+          className="fixed left-3 top-3 z-50 -translate-y-20 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition-transform focus:translate-y-0"
+        >
+          Skip to main content
+        </a>
+        {/* Hydrates the Zustand auth store with the server-fetched user. */}
+        <AuthInitializer user={session.user} role={profile?.role ?? null} capabilities={profile?.capabilities ?? []} />
+        <AnalyticsIdentity id={session.user.id} email={session.user.email} name={session.user.name} role={profile?.role ?? null} />
+        <WorkspaceInitializer
+          userId={session.user.id}
+          account={account}
+          homeTenantId={profile?.tenantId ?? null}
+          locationIds={profile?.locationIds ?? null}
+          seed={seed}
+        />
+        {/* Before the pages: every time they show is read in this zone. */}
+        <WorkspaceSettingsSync account={account} />
 
-      {/* Plays only when a sign-in armed it; renders nothing otherwise. */}
-      <LoginIntro />
+        {/* Plays only when a sign-in armed it; renders nothing otherwise. */}
+        <LoginIntro />
 
-      <Sidebar capabilities={profile?.capabilities ?? []} moduleState={moduleState} />
-      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
-        <Header moduleState={moduleState} />
-        <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-4 outline-none md:p-8">
-          {children}
-        </main>
+        <Sidebar capabilities={profile?.capabilities ?? []} />
+        <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
+          <Header />
+          <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-4 outline-none md:p-8">
+            <ContextBoundary>{children}</ContextBoundary>
+          </main>
+        </div>
       </div>
-    </div>
+    </WorkspaceSeedProvider>
   );
 }

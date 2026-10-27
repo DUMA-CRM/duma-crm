@@ -35,14 +35,20 @@ export function createAgentConversation(title: string, tenantId: string | null, 
     body: JSON.stringify({ title: title.slice(0, 100), tenantId: tenantId ?? undefined, locationId: locationId ?? undefined }),
   });
 }
-export function getAgentConversation(id: string, cookieHeader?: string) {
-  return apiFetch<AgentConversationDetail>(`/agent/conversations/${encodeURIComponent(id)}`, { cookieHeader, cache: 'no-store' });
+// Server-side callers name the workspace the browser asked from (`workspaceId`).
+export function getAgentConversation(id: string, cookieHeader?: string, workspaceId?: string | null) {
+  return apiFetch<AgentConversationDetail>(`/agent/conversations/${encodeURIComponent(id)}`, {
+    cookieHeader,
+    cache: 'no-store',
+    ...(workspaceId ? { workspaceId } : {}),
+  });
 }
-export function saveAgentTurn(id: string, turn: SavedAgentTurn, cookieHeader?: string) {
+export function saveAgentTurn(id: string, turn: SavedAgentTurn, cookieHeader?: string, workspaceId?: string | null) {
   return apiFetch<Required<Pick<SavedAgentTurn, 'id'>> & SavedAgentTurn>(`/agent/conversations/${encodeURIComponent(id)}/turns`, {
     method: 'POST',
     timeoutMs: 4000,
     cookieHeader,
+    ...(workspaceId ? { workspaceId } : {}),
     body: JSON.stringify(turn),
   });
 }

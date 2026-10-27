@@ -220,7 +220,7 @@ export function AccessCard({
   const qc = useQueryClient();
   const { data: roleCatalog } = useQuery({
     queryKey: moduleQueryKeys.identity.key('roles', member.tenantId),
-    queryFn: () => getRoles(member.tenantId),
+    queryFn: () => getRoles(member.tenantId ?? undefined),
   });
   const [edit, setEdit] = useState(false);
   const [role, setRole] = useState<StaffRole>(member.role);

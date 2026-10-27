@@ -66,6 +66,7 @@ export const APP_MAP = `- Dashboard: today at a glance — taken today against t
 - Customers: list or card view, filters and saved segments; each customer record shows tier, points, loyalty stamp cards and reward vouchers, a visit timeline and consent. Customers → Loyalty sets up the loyalty programme; Customers → Duplicates reviews and merges duplicates.
 - Communications: customer email — Overview, Automations, Templates, History and Suppressions. The sending account is a connector in Settings → Connectors.
 - Promotions: promo codes (when the module is on) — percentage or amount off, or a free item, with dates, limits and a record of every use. Staff apply a code at the Till; codes that are once per customer or for a first order need a customer on the sale. Its Referrals tab (when the referrals module is on) sets up refer-a-friend: every customer's own code, the friend's offer, and the referrer's reward.
+- Forms: forms the workspace builds (when the module is on) — enquiries, feedback, sign-ups, job applications. Build questions with logic and steps, publish, then share a link or QR code, embed it on a website, or post answers to the API. Responses are triaged (new, reviewed, archived), summarised per question and exported as CSV; a form can save respondents as customers, matched by email.
 - Notes: the team's knowledge base and everyone's own notes (when the module is on) — folders, private or shared by role and location; recipes, checklists, SOPs. search_notes reads shared notes only.
 - Content: the headless CMS (when the module is on) — Overview, Entries, Models, Media, Locales and Settings. Websites read published content through the delivery API with a workspace API key.
 - Settings → Developers: one place for every public API — workspace API keys (one key per website, scoped to content, catalogue, orders, newsletter), content webhooks, and the API reference.
@@ -108,7 +109,7 @@ Calendar anchors — use these instead of computing dates yourself:
 What you can do for this operator:
 ${capabilities}
 
-Where things are in DUMA (the sidebar runs Dashboard, Till, Kitchen, Orders, Reservations, Menu, Inventory, Customers, Communications, Promotions, Content, Notes, Staff, My rota, My HR; then Reports, Compliance, Audit log; then Settings and Support):
+Where things are in DUMA (the sidebar runs Dashboard, Till, Kitchen, Orders, Reservations, Menu, Inventory, Customers, Communications, Promotions, Forms, Content, Notes, Staff, My rota, My HR; then Reports, Compliance, Audit log; then Settings and Support):
 ${APP_MAP}
 
 Rules:
@@ -237,6 +238,7 @@ export async function* runDumaAgent(
       { question: latestRequest, tools: [], outcome: 'answered', durationMs: Date.now() - startedAt, rounds: 0, page: context.page },
       cookieHeader,
       profile,
+      context.tenantId ?? profile.tenantId,
     );
     yield {
       type: 'result',
@@ -258,6 +260,7 @@ export async function* runDumaAgent(
       { question: latestRequest, tools: [], outcome: 'refused', refused: 'scope', durationMs: Date.now() - startedAt, page: context.page },
       cookieHeader,
       profile,
+      context.tenantId ?? profile.tenantId,
     );
     yield {
       type: 'result',
@@ -346,6 +349,7 @@ export async function* runDumaAgent(
       },
       cookieHeader,
       profile,
+      context.tenantId ?? profile.tenantId,
     );
     return { type: 'result', response };
   };
@@ -594,9 +598,9 @@ function describeToolFailure(error: unknown) {
 export class CapabilityError extends Error {}
 
 /** The workspace's own turn log, and product analytics — which drops the question. */
-export function recordTurn(turn: AgentTurnRecord, cookieHeader: string, profile: StaffProfile) {
-  void recordAgentTurn(turn, cookieHeader);
-  captureAgentTurn(profile, turn);
+export function recordTurn(turn: AgentTurnRecord, cookieHeader: string, profile: StaffProfile, workspaceId: string | null) {
+  void recordAgentTurn(turn, cookieHeader, workspaceId);
+  captureAgentTurn({ ...profile, tenantId: workspaceId ?? profile.tenantId }, turn);
 }
 
 export async function executeConfirmedAction(
@@ -615,7 +619,7 @@ export async function executeConfirmedAction(
   // authorised and has not expired; only this proves it has not already been
   // used. Claiming first means a double submission fails before it writes,
   // rather than after — the order matters more than it looks.
-  await claimAgentApproval(action.approvalId, cookieHeader);
+  await claimAgentApproval(action.approvalId, cookieHeader, context.tenantId ?? profile.tenantId);
 
   const runtime = new AgentRuntime(
     cookieHeader,
@@ -638,6 +642,7 @@ export async function executeConfirmedAction(
     },
     cookieHeader,
     profile,
+    context.tenantId ?? profile.tenantId,
   );
 
   return {

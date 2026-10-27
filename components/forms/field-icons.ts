@@ -1,0 +1,47 @@
+import {
+  AlignLeft,
+  Calendar,
+  ChevronsUpDown,
+  Clock,
+  EyeOff,
+  FileText,
+  Gauge,
+  Hash,
+  Heading,
+  type IconComponent,
+  Link2,
+  ListChecks,
+  Mail,
+  Phone,
+  Pilcrow,
+  Radio,
+  ShieldCheck,
+  Star,
+  ToggleRight,
+  Type,
+} from '@/components/icons';
+
+import type { FormFieldType } from '@/lib/utils/forms';
+
+/** One glyph per field type — the palette, the canvas chips and the inspector agree. */
+export const FIELD_ICONS: Record<FormFieldType, IconComponent> = {
+  short_text: Type,
+  long_text: AlignLeft,
+  email: Mail,
+  phone: Phone,
+  number: Hash,
+  url: Link2,
+  date: Calendar,
+  time: Clock,
+  select: ChevronsUpDown,
+  radio: Radio,
+  checkboxes: ListChecks,
+  yes_no: ToggleRight,
+  consent: ShieldCheck,
+  rating: Star,
+  scale: Gauge,
+  hidden: EyeOff,
+  heading: Heading,
+  paragraph: Pilcrow,
+  page_break: FileText,
+};

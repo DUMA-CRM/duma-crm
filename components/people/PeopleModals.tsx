@@ -147,7 +147,7 @@ export function EditStaffModal({
   const actorRole = useAuthStore((state) => state.role);
   const { data: roleCatalog } = useQuery({
     queryKey: moduleQueryKeys.identity.key('roles', member.tenantId),
-    queryFn: () => getRoles(member.tenantId),
+    queryFn: () => getRoles(member.tenantId ?? undefined),
   });
   const roles = (roleCatalog?.roles ?? []).filter((entry) => actorRole === 'super_admin' || entry.key !== 'super_admin');
   const [role, setRole] = useState<StaffRole>(member.role);

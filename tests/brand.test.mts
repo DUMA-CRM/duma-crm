@@ -51,3 +51,32 @@ test('the pre-paint script falls back to forest on anything unexpected', () => {
   assert.equal(runPrePaint(JSON.stringify({ state: {} })), 'forest');
   assert.equal(runPrePaint(null, { throws: true }), 'forest');
 });
+
+function runPrePaintIn(settings: unknown, tab: unknown) {
+  const dataset: Record<string, string> = {};
+  const storage = (value: unknown) => ({ getItem: () => (value === undefined ? null : JSON.stringify(value)) });
+  new Function('localStorage', 'sessionStorage', 'document', brandPrePaintScript)(storage(settings), storage(tab), {
+    documentElement: { dataset },
+  });
+  return dataset.brand;
+}
+
+const A = '11111111-1111-4111-8111-111111111111';
+
+test("the pre-paint script follows this tab's context, not the last colour on the device", () => {
+  const settings = { state: { brand: 'ocean', brands: { [`me|w:${A}`]: 'ocean' } } };
+  // A workspace tab paints its own cached colour.
+  assert.equal(
+    runPrePaintIn(settings, { state: { accountId: 'me', context: { kind: 'workspace', tenantId: A, locationId: null } } }),
+    'ocean',
+  );
+  // DUMA Admin always wears the default, whatever another tab last painted.
+  assert.equal(runPrePaintIn(settings, { state: { accountId: 'me', context: { kind: 'platform' } } }), 'forest');
+  // A workspace this device has never coloured, or another account's cache, paints the default.
+  assert.equal(
+    runPrePaintIn(settings, { state: { accountId: 'you', context: { kind: 'workspace', tenantId: A, locationId: null } } }),
+    'forest',
+  );
+  // No context yet: the device's last colour.
+  assert.equal(runPrePaintIn(settings, undefined), 'ocean');
+});

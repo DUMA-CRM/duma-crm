@@ -31,9 +31,14 @@ export interface AgentBudget {
  * everybody — the API's own per-route limiters still stand behind every tool
  * call the turn would make.
  */
-export async function consumeAgentBudget(cookieHeader: string): Promise<AgentBudget> {
+export async function consumeAgentBudget(cookieHeader: string, workspaceId?: string | null): Promise<AgentBudget> {
   try {
-    return await apiFetch<AgentBudget>('/agent/budget/consume', { method: 'POST', cookieHeader, timeoutMs: 4_000 });
+    return await apiFetch<AgentBudget>('/agent/budget/consume', {
+      method: 'POST',
+      cookieHeader,
+      timeoutMs: 4_000,
+      ...(workspaceId ? { workspaceId } : {}),
+    });
   } catch {
     return { allowed: true, limit: 0, remaining: 0, resetAt: 0, degraded: true };
   }
@@ -49,11 +54,12 @@ export class ApprovalAlreadyUsedError extends Error {}
  * or stock adjustment is a worse outcome than an approval the operator has to
  * confirm again.
  */
-export async function claimAgentApproval(approvalId: string, cookieHeader: string): Promise<void> {
+export async function claimAgentApproval(approvalId: string, cookieHeader: string, workspaceId?: string | null): Promise<void> {
   try {
     await apiFetch<{ claimed: boolean }>('/agent/approvals/claim', {
       method: 'POST',
       cookieHeader,
+      ...(workspaceId ? { workspaceId } : {}),
       timeoutMs: 4_000,
       body: JSON.stringify({ approvalId }),
     });
@@ -89,11 +95,12 @@ export interface AgentTurnRecord {
  * every failure here is swallowed — deliberately, and this is the one place in
  * the agent where that is the right call.
  */
-export async function recordAgentTurn(turn: AgentTurnRecord, cookieHeader: string): Promise<void> {
+export async function recordAgentTurn(turn: AgentTurnRecord, cookieHeader: string, workspaceId?: string | null): Promise<void> {
   try {
     await apiFetch('/agent/turns', {
       method: 'POST',
       cookieHeader,
+      ...(workspaceId ? { workspaceId } : {}),
       timeoutMs: 4_000,
       body: JSON.stringify(turn),
     });

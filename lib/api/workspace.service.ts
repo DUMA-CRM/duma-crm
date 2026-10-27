@@ -14,8 +14,12 @@ export interface Tenant {
   timezone?: string;
   /** Brand colour id — see lib/utils/brand.ts. */
   brand?: string;
+  /** What the workspace is for. Only `customer` counts in DUMA Admin's default figures. */
+  classification?: WorkspaceClassification;
   createdAt: string;
 }
+
+export type WorkspaceClassification = 'customer' | 'internal' | 'demo';
 
 export interface TenantPayload {
   name: string;

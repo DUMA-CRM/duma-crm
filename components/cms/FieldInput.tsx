@@ -1,9 +1,10 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
-import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Copy, FileText, ImageIcon, Link2, Plus, Trash2, X } from '@/components/icons';
+import { ArrowDown, ArrowUp, ChevronDown, ChevronUp, Copy, FileText, GripVertical, ImageIcon, Link2, Plus, Trash2, X } from '@/components/icons';
 import { Switch } from '@/components/settings/controls';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Badge } from '@/components/ui/badge';
@@ -533,9 +534,11 @@ function MediaInput({
   const queryClient = useQueryClient();
   const [picking, setPicking] = useState(false);
   const [link, setLink] = useState('');
-  // Reordering by drag: the tile being dragged, and the side of the tile it would land on.
-  const [dragFrom, setDragFrom] = useState<number | null>(null);
-  const [dropAt, setDropAt] = useState<{ index: number; after: boolean } | null>(null);
+  // Reordering by drag: the file being dragged, and the order shown while it is — the
+  // other tiles make room as it passes, and the drop keeps that order (Escape keeps the old one).
+  const [dragId, setDragId] = useState<string | null>(null);
+  const [preview, setPreview] = useState<string[] | null>(null);
+  const reduceMotion = useReducedMotion();
   const multiple = isListField(field);
   // A link can only bring in a picture; a field for documents or video picks from Media alone.
   const takesImages = !field.mediaGroups?.length || field.mediaGroups.includes('image');
@@ -563,104 +566,132 @@ function MediaInput({
   });
   const byId = new Map((assetsQuery.data?.data ?? []).map((asset) => [asset.id, asset]));
   const sortable = multiple && !disabled && ids.length > 1;
+  const shown = preview ?? ids;
   const endDrag = () => {
-    setDragFrom(null);
-    setDropAt(null);
+    setDragId(null);
+    setPreview(null);
+  };
+  const commitDrag = () => {
+    if (preview && preview.join() !== ids.join()) onChange(preview);
+    endDrag();
   };
 
   return (
     <div>
       {label}
-      <div className={cn('flex flex-wrap gap-2', ids.length === 0 && 'hidden')}>
-        {ids.map((id, index) => {
+      <div
+        role="list"
+        className={cn('flex flex-wrap gap-2', ids.length === 0 && 'hidden')}
+        // The gaps between tiles take the drop too, so a release between two never snaps back.
+        onDragOver={(event) => {
+          if (dragId === null) return;
+          event.preventDefault();
+          event.dataTransfer.dropEffect = 'move';
+        }}
+        onDrop={(event) => {
+          if (dragId === null) return;
+          event.preventDefault();
+          commitDrag();
+        }}
+      >
+        {shown.map((id, index) => {
           const asset = byId.get(id);
-          const marker = dragFrom !== null && dragFrom !== index && dropAt?.index === index ? dropAt : null;
+          const name = asset?.fileName ?? (assetsQuery.isPending ? 'Loading…' : 'Missing asset');
+          const lifted = dragId === id;
           return (
-            <div
+            <motion.div
               key={id}
-              draggable={sortable}
-              onDragStart={(event) => {
-                if (!sortable) return;
-                setDragFrom(index);
-                event.dataTransfer.effectAllowed = 'move';
-                // Firefox starts a drag only with data; a private type so no text box takes the id.
-                event.dataTransfer.setData('application/x-duma-media-order', id);
-              }}
-              onDragOver={(event) => {
-                // Only this field's own tiles: a file from the desktop or another field is not a reorder.
-                if (dragFrom === null) return;
-                event.preventDefault();
-                event.dataTransfer.dropEffect = 'move';
-                const box = event.currentTarget.getBoundingClientRect();
-                const after = event.clientX > box.left + box.width / 2;
-                if (dropAt?.index !== index || dropAt.after !== after) setDropAt({ index, after });
-              }}
-              onDrop={(event) => {
-                if (dragFrom === null) return;
-                event.preventDefault();
-                const after = dropAt?.index === index ? dropAt.after : false;
-                const to = dropIndex(dragFrom, index, after);
-                if (to !== dragFrom) onChange(moveItem(ids, dragFrom, to));
-                endDrag();
-              }}
-              onDragEnd={endDrag}
-              className={cn(
-                'group relative w-32 overflow-hidden rounded-md border border-rule/60 bg-band/40',
-                sortable && 'cursor-grab active:cursor-grabbing',
-                dragFrom === index && 'opacity-40',
-              )}
+              role="listitem"
+              layout={reduceMotion ? false : 'position'}
+              transition={{ type: 'spring', stiffness: 520, damping: 42 }}
+              className="w-32"
             >
-              {marker && (
-                <span
-                  aria-hidden="true"
-                  className={cn('absolute inset-y-0 z-10 w-1 bg-primary', marker.after ? 'right-0' : 'left-0')}
-                />
-              )}
-              {sortable && (
-                <span className="absolute left-1 top-1 rounded bg-background/85 px-1.5 text-[11px] font-medium tabular-nums text-foreground">
-                  {index + 1}
-                </span>
-              )}
-              {asset && isImage(asset.mimeType) ? (
-                // eslint-disable-next-line @next/next/no-img-element -- tenant media from the API, not a static asset
-                <img
-                  src={assetPreviewSrc(asset)}
-                  alt={asset.altText ?? ''}
-                  draggable={false}
-                  className="aspect-4/3 w-full object-cover"
-                />
-              ) : (
-                <div className="flex aspect-4/3 items-center justify-center text-muted-foreground">
-                  <FileText size={22} aria-hidden="true" />
+              <div
+                draggable={sortable}
+                aria-label={sortable ? `${name}, ${index + 1} of ${shown.length}` : undefined}
+                onDragStart={(event) => {
+                  if (!sortable) return;
+                  event.dataTransfer.effectAllowed = 'move';
+                  // Firefox starts a drag only with data; a private type so no text box takes the id.
+                  event.dataTransfer.setData('application/x-duma-media-order', id);
+                  // After the browser has taken its picture of the tile, so the ghost is the file, not the empty slot.
+                  requestAnimationFrame(() => setDragId(id));
+                }}
+                onDragOver={(event) => {
+                  // Only this field's own tiles: a file from the desktop or another field is not a reorder.
+                  if (dragId === null || id === dragId) return;
+                  const from = shown.indexOf(dragId);
+                  const box = event.currentTarget.getBoundingClientRect();
+                  const to = dropIndex(from, index, event.clientX > box.left + box.width / 2);
+                  if (to !== from) setPreview(moveItem(shown, from, to));
+                }}
+                onDragEnd={endDrag}
+                className={cn(
+                  'group relative overflow-hidden rounded-md border bg-band/40 transition-[border-color,box-shadow,background-color] duration-150',
+                  lifted ? 'border-dashed border-primary/60 bg-primary/5 shadow-none' : 'border-rule/60',
+                  sortable && !lifted && 'cursor-grab hover:border-rule hover:shadow-sm active:cursor-grabbing',
+                  dragId !== null && !lifted && 'shadow-sm',
+                )}
+              >
+                <div className={cn('transition-opacity duration-150', lifted && 'opacity-25')}>
+                  {asset && isImage(asset.mimeType) ? (
+                    // eslint-disable-next-line @next/next/no-img-element -- tenant media from the API, not a static asset
+                    <img
+                      src={assetPreviewSrc(asset)}
+                      alt={asset.altText ?? ''}
+                      draggable={false}
+                      className="aspect-4/3 w-full object-cover"
+                    />
+                  ) : (
+                    <div className="flex aspect-4/3 items-center justify-center text-muted-foreground">
+                      <FileText size={22} aria-hidden="true" />
+                    </div>
+                  )}
+                  <p className="flex items-center gap-1 px-2 py-1 text-xs text-muted-foreground">
+                    {sortable && (
+                      <GripVertical
+                        size={12}
+                        aria-hidden="true"
+                        className="-ml-0.5 shrink-0 text-muted-foreground/60 transition-colors group-hover:text-foreground"
+                      />
+                    )}
+                    <span className="truncate">{name}</span>
+                  </p>
                 </div>
-              )}
-              <p className="truncate px-2 py-1 text-xs text-muted-foreground">
-                {asset?.fileName ?? (assetsQuery.isPending ? 'Loading…' : 'Missing asset')}
-              </p>
-              {!disabled && (
-                <span className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
-                  {multiple && index > 0 && (
-                    <IconButton label="Move earlier" onClick={() => onChange(moveItem(ids, index, index - 1))}>
-                      <ChevronUp size={12} className="-rotate-90" aria-hidden="true" />
-                    </IconButton>
-                  )}
-                  {multiple && index < ids.length - 1 && (
-                    <IconButton label="Move later" onClick={() => onChange(moveItem(ids, index, index + 1))}>
-                      <ChevronDown size={12} className="-rotate-90" aria-hidden="true" />
-                    </IconButton>
-                  )}
-                  <IconButton
-                    label={`Remove ${asset?.fileName ?? 'asset'}`}
-                    onClick={() => onChange(multiple ? ids.filter((item) => item !== id) : '')}
+                {sortable && !lifted && (
+                  <span
+                    aria-hidden="true"
+                    className="absolute left-1.5 top-1.5 grid size-5 place-items-center rounded-full bg-foreground/75 text-[11px] font-semibold tabular-nums text-background shadow-sm"
                   >
-                    <X size={12} aria-hidden="true" />
-                  </IconButton>
-                </span>
-              )}
-            </div>
+                    {index + 1}
+                  </span>
+                )}
+                {!disabled && dragId === null && (
+                  <span className="absolute right-1 top-1 flex gap-0.5 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+                    {multiple && index > 0 && (
+                      <IconButton label="Move earlier" onClick={() => onChange(moveItem(ids, index, index - 1))}>
+                        <ChevronUp size={12} className="-rotate-90" aria-hidden="true" />
+                      </IconButton>
+                    )}
+                    {multiple && index < ids.length - 1 && (
+                      <IconButton label="Move later" onClick={() => onChange(moveItem(ids, index, index + 1))}>
+                        <ChevronDown size={12} className="-rotate-90" aria-hidden="true" />
+                      </IconButton>
+                    )}
+                    <IconButton
+                      label={`Remove ${asset?.fileName ?? 'asset'}`}
+                      onClick={() => onChange(multiple ? ids.filter((item) => item !== id) : '')}
+                    >
+                      <X size={12} aria-hidden="true" />
+                    </IconButton>
+                  </span>
+                )}
+              </div>
+            </motion.div>
           );
         })}
       </div>
+      {sortable && <p className="mt-1.5 text-xs text-muted-foreground">Drag to change the order — the first shows first.</p>}
       {/* One line, as for the QR page's cover photo: paste a link, or pick from Media. */}
       {!disabled && (multiple || ids.length === 0) && (
         <div className={cn('flex items-start gap-2', ids.length > 0 && 'mt-2')}>

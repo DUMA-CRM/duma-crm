@@ -149,6 +149,7 @@ function streamTurn(
                   },
                 },
                 cookieHeader,
+                context.tenantId ?? profile.tenantId,
               );
             } catch {
               write({ type: 'notice', message: 'This answer could not be saved to history. Keep this chat open to retain it.' });
@@ -170,6 +171,7 @@ function streamTurn(
           },
           cookieHeader,
           profile,
+          context.tenantId ?? profile.tenantId,
         );
       } finally {
         if (!cancelled) controller.close();
@@ -255,7 +257,7 @@ export async function POST(request: Request) {
       const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i;
       if (!uuid.test(body.conversationId) || !body.requestId || !uuid.test(body.requestId))
         return errorResponse(new Error('Invalid conversation or request id.'), 400);
-      const conversation = await getAgentConversation(body.conversationId, cookieHeader);
+      const conversation = await getAgentConversation(body.conversationId, cookieHeader, context.tenantId ?? profile.tenantId);
       if (conversation.tenantId !== (context.tenantId ?? profile.tenantId) || conversation.locationId !== (context.locationId ?? null))
         return errorResponse(new Error('This conversation belongs to another workspace.'), 403);
       // History comes from the private store, never a client-supplied assistant turn.
@@ -272,7 +274,7 @@ export async function POST(request: Request) {
     // Before a provider is paid: one question is up to eight model calls and
     // dozens of API calls, and nothing else caps what one operator can spend.
     // The check fails open — see `consumeAgentBudget`.
-    const budget = await consumeAgentBudget(cookieHeader);
+    const budget = await consumeAgentBudget(cookieHeader, safeContext(body.context).tenantId);
     if (!budget.allowed) {
       const minutes = Math.max(1, Math.ceil((budget.resetAt * 1000 - Date.now()) / 60_000));
       return Response.json(

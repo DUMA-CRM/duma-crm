@@ -1,5 +1,7 @@
+import { requestScopeHeaders } from '@/lib/api/request-scope';
 import { emailImageUrl, previewImageSrc } from '@/lib/utils/email-images';
 import { viaApiProxy } from '@/lib/utils/image-src';
+import { scopeHeaders } from '@/lib/utils/workspace-context';
 
 // The deployed API lives on a DIFFERENT host than the app (e.g. api.dudych.cc
 // vs. localhost / the app's own domain). Cookies are scoped by host, so a
@@ -54,6 +56,12 @@ interface FetchOptions extends RequestInit {
   // Return the body as a Blob instead of parsing JSON — for a file read
   // through the API. Kept on apiFetch so the contract test still sees the path.
   asBlob?: boolean;
+  // The workspace this request is for, when it is not this tab's current one:
+  // a queued offline sale replays into the workspace it was rung up in, and a
+  // server-side caller (Ask DUMA) names the workspace the browser asked about.
+  // `platform` sends DUMA Admin's context. Omitted, a browser request carries
+  // the tab's context (lib/api/request-scope.ts) and a server one carries none.
+  workspaceId?: string | 'platform';
 }
 
 /** One field-level complaint from the API's Zod validation. */
@@ -150,7 +158,7 @@ async function extractErrorMessage(res: Response): Promise<{
 }
 
 export async function apiFetch<T>(path: string, options: FetchOptions = {}): Promise<T> {
-  const { cookieHeader, headers, timeoutMs, asBlob, ...rest } = options;
+  const { cookieHeader, headers, timeoutMs, asBlob, workspaceId, ...rest } = options;
 
   // We always send `Content-Type: application/json`, and the API rejects a JSON
   // content type with an empty body ("Invalid JSON in request body"). So for
@@ -171,6 +179,10 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
       ...(!isMultipart ? { 'Content-Type': 'application/json' } : {}),
       // Server-side: forward the full cookie header from the incoming Next.js request.
       ...(cookieHeader ? { Cookie: cookieHeader } : {}),
+      // Read now, at submission: a switch after this point cannot retarget it.
+      ...(workspaceId
+        ? scopeHeaders(workspaceId === 'platform' ? { kind: 'platform' } : { kind: 'workspace', tenantId: workspaceId, locationId: null })
+        : requestScopeHeaders()),
       ...headers,
     },
     ...rest,

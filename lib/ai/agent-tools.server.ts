@@ -313,6 +313,7 @@ const MODULE_NAMES: Record<ModuleId, string> = {
   referrals: 'Refer a friend',
   notes: 'Notes',
   reservations: 'Reservations',
+  forms: 'Forms',
 };
 
 const getWorkspaceModules: ToolDefinition = {

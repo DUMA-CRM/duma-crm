@@ -20,8 +20,10 @@ export default defineConfig({
     {
       command: 'pnpm dev --hostname 127.0.0.1 --port 3100',
       url: 'http://127.0.0.1:3100/sign-in',
+      timeout: 180_000,
       reuseExistingServer: !process.env.CI,
       env: {
+        DUMA_BUILD_DIR: '.next-e2e',
         NEXT_PUBLIC_API_URL: 'http://127.0.0.1:47778',
         NEXT_PUBLIC_APP_URL: 'http://127.0.0.1:3100',
       },

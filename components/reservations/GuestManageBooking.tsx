@@ -4,6 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { CalendarDays, Loader2, MapPin, Phone, Users } from '@/components/icons';
+import { GuestHeader, GuestUnavailable } from '@/components/shared/GuestChrome';
 import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -11,8 +12,6 @@ import { Button } from '@/components/ui/button';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cancelGuestBooking, getGuestBooking } from '@/lib/modules/reservations/client';
 import { STATUS_BADGE } from '@/lib/utils/reservations';
-
-import { GuestHeader, GuestUnavailable } from './GuestBooking';
 
 const GUEST_STATUS: Record<string, string> = {
   booked: 'Booked',

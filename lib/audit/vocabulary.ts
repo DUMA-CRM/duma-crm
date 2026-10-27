@@ -321,7 +321,26 @@ function derivedVerb(action: string): string {
   return segments.join(' ');
 }
 
+/**
+ * DUMA Admin's own actions, keyed `resourceType:action` because the API writes
+ * generic verbs ("platform.admins") that mean something only beside their
+ * resource. The workspace vocabulary has no words for these.
+ */
+const PLATFORM_ACTIONS: Record<string, ActionMeta> = {
+  'tenant:reclassify': { verb: 'reclassified', noun: 'workspace' },
+  'tenant:provision_internal': { verb: 'set up DUMA’s internal workspace', noun: null },
+  'platform_role:grant': { verb: 'granted platform access', noun: null },
+  'platform_role:revoke': { verb: 'revoked platform access', noun: null },
+  'platform:platform.collect': { verb: 'measured the database', noun: null },
+  'platform:platform.classification': { verb: 'reclassified', noun: 'workspace' },
+  'platform:platform.internal-workspace': { verb: 'set up DUMA’s internal workspace', noun: null },
+  'platform:platform.admins': { verb: 'granted platform access', noun: null },
+  'platform:platform.revoke': { verb: 'revoked platform access', noun: null },
+};
+
 export function actionMeta(action: string, resourceType: string): Required<Pick<ActionMeta, 'verb'>> & ActionMeta {
+  const platform = PLATFORM_ACTIONS[`${resourceType}:${action}`];
+  if (platform) return platform;
   const known = ACTIONS[action];
   if (known) return known;
   return { verb: derivedVerb(action), noun: resourceMeta(resourceType).noun };

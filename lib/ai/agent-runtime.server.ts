@@ -55,8 +55,17 @@ export class AgentRuntime {
     return pending;
   }
 
+  /**
+   * Every tool call names the workspace the person asked from — captured with
+   * the message, so a tab switching mid-turn cannot move the turn's reads or
+   * writes. The API refuses a member naming any workspace but their own.
+   */
+  private get scope() {
+    return this.tenantId ? { workspaceId: this.tenantId } : {};
+  }
+
   get<T>(path: string) {
-    return this.once(`GET:${path}`, () => apiFetch<T>(path, { cookieHeader: this.cookieHeader, signal: this.signal }));
+    return this.once(`GET:${path}`, () => apiFetch<T>(path, { cookieHeader: this.cookieHeader, signal: this.signal, ...this.scope }));
   }
 
   send<T>(path: string, method: 'POST' | 'PATCH' | 'PUT' | 'DELETE', body?: unknown) {
@@ -64,6 +73,7 @@ export class AgentRuntime {
       method,
       signal: this.signal,
       cookieHeader: this.cookieHeader,
+      ...this.scope,
       ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
   }

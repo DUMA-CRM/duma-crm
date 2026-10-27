@@ -278,11 +278,12 @@ export const getOrder = (id: string) => apiFetch<OrderDetail>(`/orders/${id}`);
 
 // 10s timeout: with a dead café connection the proxied request would otherwise
 // hang for minutes — the POS treats the abort as "offline" and queues the order.
-export const createOrder = (data: CreateOrderPayload, idempotencyKey?: string) =>
+export const createOrder = (data: CreateOrderPayload, idempotencyKey?: string, workspaceId?: string) =>
   apiFetch<{ order: Order }>('/orders', {
     method: 'POST',
     body: JSON.stringify(data),
     timeoutMs: 10_000,
+    ...(workspaceId ? { workspaceId } : {}),
     ...(idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}),
   }).then((response) => response.order);
 

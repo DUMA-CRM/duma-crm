@@ -5,6 +5,8 @@ const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posth
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
+  // Let browser tests run alongside a developer's existing server.
+  distDir: process.env.DUMA_BUILD_DIR ?? '.next',
   experimental: {
     // proxy.ts runs on /be as well, and Next buffers only this much of a request
     // body there — silently truncating anything larger before the rewrite sends
@@ -32,6 +34,13 @@ const nextConfig: NextConfig = {
         // matches override earlier ones for the same key.
         source: '/order/:path*',
         headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
+      },
+      {
+        // A hosted form is meant to be framed into any website. X-Frame-Options
+        // can't say "anyone", so this value is deliberately not one browsers
+        // recognise (they ignore it) and proxy.ts's `frame-ancestors *` rules.
+        source: '/f/:path*',
+        headers: [{ key: 'X-Frame-Options', value: 'ALLOWALL' }],
       },
     ];
   },

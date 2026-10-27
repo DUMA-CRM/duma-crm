@@ -5,6 +5,7 @@ import {
   CalendarCheck,
   ChefHat,
   ClipboardCheck,
+  ClipboardList,
   CreditCard,
   Gift,
   Layers,
@@ -98,6 +99,11 @@ export const MODULE_COPY: Record<WorkspaceModuleId, { name: string; detail: stri
     name: 'Notes',
     detail: 'Recipes, opening and closing checklists, SOPs and your own notes — shared by folder, searchable, and readable by Ask DUMA.',
     icon: NotebookPen,
+  },
+  forms: {
+    name: 'Forms',
+    detail: 'Enquiry, feedback and sign-up forms on your own page, your website or the API — responses become customers.',
+    icon: ClipboardList,
   },
   reservations: {
     name: 'Reservations',

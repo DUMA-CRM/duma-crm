@@ -60,7 +60,7 @@ export function useAuth() {
     setRole(null);
     // Workspace selection is account-specific. Keeping it on a shared tablet
     // can make the next user query a tenant they cannot access.
-    useWorkspaceStore.setState({ tenantId: null, locationId: null });
+    useWorkspaceStore.getState().setContext(null, { kind: 'unresolved' });
     // Drop all cached API data so nothing sensitive survives sign-out in memory.
     qc.clear();
     // Remove any navigation responses cached by an older service worker before

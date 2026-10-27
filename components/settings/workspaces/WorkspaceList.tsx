@@ -3,21 +3,24 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { Building2, Check, Loader2, MoreHorizontal, Pencil, Plus, Search } from '@/components/icons';
+import { ArrowRight, Building2, Loader2, MoreHorizontal, Pencil, Plus, Search, Tag } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { TileSkeleton } from '@/components/shared/TileSkeleton';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { type PlatformWorkspace, setWorkspaceClassification } from '@/lib/api/platform.service';
+import type { WorkspaceClassification } from '@/lib/api/workspace.service';
 import { useTenants } from '@/lib/hooks/useTenants';
+import { useWorkspaceSwitch } from '@/lib/hooks/useWorkspaceSwitch';
 import { type Tenant, type TenantPayload, changeTenantStatus, createTenant, updateTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Form ─────────────────────────────────────────────────────────────────────
 
@@ -66,7 +69,90 @@ function TenantForm({
 
 // ── List ─────────────────────────────────────────────────────────────────────
 
-type ModalState = { mode: 'create' } | { mode: 'edit'; tenant: Tenant } | { mode: 'lifecycle'; tenant: Tenant };
+type ModalState =
+  | { mode: 'create' }
+  | { mode: 'edit'; tenant: Tenant }
+  | { mode: 'lifecycle'; tenant: Tenant }
+  | { mode: 'classify'; tenant: Tenant };
+
+const CLASSIFICATION_COPY: Record<WorkspaceClassification, { label: string; description: string }> = {
+  customer: { label: 'Client', description: 'A paying or prospective client. Counted in DUMA Admin’s figures.' },
+  internal: { label: 'DUMA internal', description: 'DUMA’s own workspace. Excluded from client figures. Only one workspace can be internal.' },
+  demo: { label: 'Demo', description: 'For demonstrations and testing. Excluded from client figures.' },
+};
+
+/**
+ * What a workspace is for, set by hand and recorded with a reason. DUMA never
+ * infers it from a name or slug — a client called "Demo Coffee" is a client.
+ */
+function WorkspaceClassificationForm({ tenant, onClose }: { tenant: Tenant; onClose: () => void }) {
+  const qc = useQueryClient();
+  const [classification, setClassification] = useState<WorkspaceClassification>(tenant.classification ?? 'customer');
+  const [reason, setReason] = useState('');
+  const mutation = useMutation({
+    mutationFn: () => setWorkspaceClassification(tenant.id, classification, reason.trim()),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenants') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('platform-workspaces') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('platform-overview') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('platform-context') });
+      onClose();
+    },
+  });
+
+  return (
+    <form
+      className="space-y-5"
+      onSubmit={(event) => {
+        event.preventDefault();
+        mutation.mutate();
+      }}
+    >
+      <div className="space-y-2" role="radiogroup" aria-label="Workspace classification">
+        {(Object.keys(CLASSIFICATION_COPY) as WorkspaceClassification[]).map((value) => (
+          <label
+            key={value}
+            className={cn(
+              'flex cursor-pointer gap-3 rounded-md border px-3 py-3 transition-[border-color,background-color] duration-150 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring',
+              classification === value ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-rule/70 bg-card hover:border-rule hover:bg-band/45',
+            )}
+          >
+            <input
+              type="radio"
+              name="workspace-classification"
+              value={value}
+              checked={classification === value}
+              onChange={() => setClassification(value)}
+              className="mt-0.5 size-4 accent-primary"
+            />
+            <span>
+              <span className="block text-sm font-semibold text-foreground">{CLASSIFICATION_COPY[value].label}</span>
+              <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{CLASSIFICATION_COPY[value].description}</span>
+            </span>
+          </label>
+        ))}
+      </div>
+      <Input
+        label="Reason for the change"
+        value={reason}
+        onChange={(event) => setReason(event.target.value)}
+        maxLength={500}
+        placeholder="For example: sales demo account"
+        hint="Recorded in the audit history with your name."
+      />
+      {mutation.error && <p className="text-sm text-exception">{mutation.error.message}</p>}
+      <div className="flex justify-end gap-2">
+        <Button type="button" variant="outline" onClick={onClose}>
+          Cancel
+        </Button>
+        <Button type="submit" disabled={classification === (tenant.classification ?? 'customer') || reason.trim().length < 3 || mutation.isPending}>
+          {mutation.isPending && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+          {mutation.isPending ? 'Saving…' : 'Save classification'}
+        </Button>
+      </div>
+    </form>
+  );
+}
 
 const TENANT_STATUS_COPY: Record<Tenant['status'], { label: string; description: string }> = {
   active: { label: 'Active', description: 'The workspace and its locations can operate normally.' },
@@ -168,17 +254,23 @@ function WorkspaceLifecycleForm({ tenant, onClose }: { tenant: Tenant; onClose: 
   );
 }
 
-/** Step 1 of the workspace settings: which business the app is working in. */
-export function WorkspaceList() {
+/**
+ * Every workspace, in DUMA Admin: create, rename, classify, wind down — and
+ * open one, which moves this tab into it. Opening is a switch of context, not
+ * a radio button: DUMA Admin stays a place of its own.
+ *
+ * `directory` adds the exact counts DUMA Admin reads alongside (locations,
+ * staff, modules, billing) when the caller has them.
+ */
+export function WorkspaceList({ directory }: { directory?: ReadonlyMap<string, PlatformWorkspace> } = {}) {
   const qc = useQueryClient();
   const role = useAuthStore((state) => state.role);
-  const { tenantId, setTenantId } = useWorkspaceStore();
+  const switchTo = useWorkspaceSwitch();
   const [query, setQuery] = useState('');
   const [modal, setModal] = useState<ModalState | null>(null);
 
-  // Owns the selection rules too: reconciles a stale persisted workspace and
-  // selects the sole one — including the first one created here.
-  const { tenants, isLoading } = useTenants();
+  const { tenants, isLoading, isError, refetch } = useTenants();
+  const open = (tenant: Tenant) => void switchTo({ kind: 'workspace', tenantId: tenant.id, locationId: null });
 
   const createMutation = useMutation({
     mutationFn: createTenant,
@@ -225,14 +317,11 @@ export function WorkspaceList() {
         </div>
       )}
 
-      <div
-        className="flex max-h-128 flex-col gap-2 overflow-y-auto"
-        role="radiogroup"
-        aria-label={isLoading ? 'Loading workspaces' : 'Active workspace'}
-        aria-busy={isLoading || undefined}
-      >
+      <div className="flex flex-col gap-2" aria-label={isLoading ? 'Loading workspaces' : 'Workspaces'} aria-busy={isLoading || undefined}>
         {isLoading ? (
           Array.from({ length: 3 }, (_, index) => <TileSkeleton key={index} index={index} />)
+        ) : isError ? (
+          <ErrorState title="Workspaces couldn’t be loaded" onRetry={() => void refetch()} />
         ) : filtered.length === 0 ? (
           <EmptyState
             icon={Building2}
@@ -248,44 +337,24 @@ export function WorkspaceList() {
           />
         ) : (
           filtered.map((tenant) => {
-            const isSelected = tenant.id === tenantId;
+            const row = directory?.get(tenant.id);
             return (
-              // A radio, not a toggle: there is always an active workspace, and
-              // clearing it only strands the app in an empty context.
+              // Same row as a location, so a workspace and a site read alike.
               <div
                 key={tenant.id}
-                role="radio"
-                tabIndex={0}
-                aria-checked={isSelected}
-                onClick={() => setTenantId(tenant.id)}
-                onKeyDown={(e) => {
-                  if (e.key === 'Enter' || e.key === ' ') {
-                    e.preventDefault();
-                    setTenantId(tenant.id);
-                  }
-                }}
-                // Same row as a location, so picking a workspace and picking a site read alike.
-                className={cn(
-                  'flex w-full items-center gap-3 rounded-lg border px-3.5 py-3 text-left transition-[border-color,background-color,box-shadow] duration-150',
-                  'outline-none focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                  isSelected
-                    ? 'cursor-default border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
-                    : 'cursor-pointer border-rule/70 bg-background/60 hover:border-rule hover:bg-band/45',
-                )}
+                className="flex w-full items-center gap-3 rounded-lg border border-rule/70 bg-background/60 px-3.5 py-3 text-left transition-[border-color,background-color] duration-150 hover:border-rule hover:bg-band/45"
               >
-                <span
-                  className={cn(
-                    'flex size-10 shrink-0 items-center justify-center rounded-md border transition-colors duration-150',
-                    isSelected
-                      ? 'border-primary/40 bg-primary text-primary-foreground'
-                      : 'border-rule/55 bg-background text-muted-foreground',
-                  )}
-                >
-                  {isSelected ? <Check size={17} aria-hidden="true" /> : <Building2 size={17} aria-hidden="true" />}
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+                  <Building2 size={17} aria-hidden="true" />
                 </span>
                 <div className="min-w-0 flex-1">
                   <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
                     {tenant.name}
+                    {tenant.classification && tenant.classification !== 'customer' && (
+                      <Badge variant={tenant.classification === 'internal' ? 'reference' : 'muted'} className="shrink-0">
+                        {CLASSIFICATION_COPY[tenant.classification].label}
+                      </Badge>
+                    )}
                     {tenant.status !== 'active' && (
                       <Badge variant={tenant.status === 'winding_down' ? 'warning' : 'muted'} className="shrink-0">
                         {TENANT_STATUS_COPY[tenant.status].label}
@@ -294,20 +363,27 @@ export function WorkspaceList() {
                   </p>
                   <p className="truncate text-xs text-muted-foreground">
                     {tenant.slug}
-                    {tenant.locationCount !== undefined &&
-                      ` · ${tenant.locationCount} ${tenant.locationCount === 1 ? 'location' : 'locations'}`}
+                    {row
+                      ? ` · ${row.activeLocations} ${row.activeLocations === 1 ? 'location' : 'locations'} · ${row.activeStaff} staff · ${row.enabledModules} modules${row.billingStatus && row.billingStatus !== 'not_configured' ? ` · ${row.billingStatus.replace('_', ' ')}` : ''}`
+                      : tenant.locationCount !== undefined && ` · ${tenant.locationCount} ${tenant.locationCount === 1 ? 'location' : 'locations'}`}
                   </p>
                 </div>
-                {/* The tint and the tick mark the current one; aria-checked says it. */}
                 <div className="flex shrink-0 gap-1">
                   {role === 'super_admin' && (
                     <Button
                       variant="ghost"
                       size="icon-sm"
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setModal({ mode: 'lifecycle', tenant });
-                      }}
+                      onClick={() => setModal({ mode: 'classify', tenant })}
+                      aria-label={`Classify ${tenant.name}`}
+                    >
+                      <Tag size={14} aria-hidden="true" />
+                    </Button>
+                  )}
+                  {role === 'super_admin' && (
+                    <Button
+                      variant="ghost"
+                      size="icon-sm"
+                      onClick={() => setModal({ mode: 'lifecycle', tenant })}
                       aria-label={`Manage ${tenant.name} lifecycle`}
                     >
                       <MoreHorizontal size={14} aria-hidden="true" />
@@ -316,13 +392,14 @@ export function WorkspaceList() {
                   <Button
                     variant="ghost"
                     size="icon-sm"
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setModal({ mode: 'edit', tenant });
-                    }}
+                    onClick={() => setModal({ mode: 'edit', tenant })}
                     aria-label={`Edit ${tenant.name}`}
                   >
                     <Pencil size={14} aria-hidden="true" />
+                  </Button>
+                  <Button variant="outline" size="sm" onClick={() => open(tenant)} aria-label={`Open ${tenant.name}`}>
+                    Open
+                    <ArrowRight size={14} aria-hidden="true" />
                   </Button>
                 </div>
               </div>
@@ -334,11 +411,27 @@ export function WorkspaceList() {
       {/* Create / Edit modal */}
       {modal && (
         <Modal
-          title={modal.mode === 'create' ? 'New workspace' : modal.mode === 'edit' ? 'Edit workspace' : `Lifecycle · ${modal.tenant.name}`}
-          description={modal.mode === 'lifecycle' ? 'Wind down a workspace without deleting its records.' : undefined}
+          title={
+            modal.mode === 'create'
+              ? 'New workspace'
+              : modal.mode === 'edit'
+                ? 'Edit workspace'
+                : modal.mode === 'classify'
+                  ? `Classification · ${modal.tenant.name}`
+                  : `Lifecycle · ${modal.tenant.name}`
+          }
+          description={
+            modal.mode === 'lifecycle'
+              ? 'Wind down a workspace without deleting its records.'
+              : modal.mode === 'classify'
+                ? 'What this workspace is for. Only clients count in DUMA Admin’s figures.'
+                : undefined
+          }
           onClose={() => setModal(null)}
         >
-          {modal.mode === 'lifecycle' ? (
+          {modal.mode === 'classify' ? (
+            <WorkspaceClassificationForm tenant={modal.tenant} onClose={() => setModal(null)} />
+          ) : modal.mode === 'lifecycle' ? (
             <WorkspaceLifecycleForm tenant={modal.tenant} onClose={() => setModal(null)} />
           ) : (
             <TenantForm

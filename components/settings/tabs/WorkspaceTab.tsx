@@ -12,7 +12,6 @@ import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact } from '@/components/settings/controls';
 import { CatalogKindSetting } from '@/components/settings/workspaces/CatalogKindSetting';
 import { LocationList } from '@/components/settings/workspaces/LocationList';
-import { WorkspaceList } from '@/components/settings/workspaces/WorkspaceList';
 import { WorkspaceReadinessChecklist } from '@/components/settings/workspaces/WorkspaceReadinessChecklist';
 import { Modal } from '@/components/shared/Modal';
 import { Bone, FactSkeleton } from '@/components/shared/Skeleton';
@@ -23,6 +22,7 @@ import { Input } from '@/components/ui/input';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
+import { WORKSPACE_CONTEXT_KEY } from '@/lib/hooks/useWorkspaceContext';
 import {
   type CurrentTenantPatch,
   getWorkspaceSetup,
@@ -42,7 +42,6 @@ import {
   workspaceTimeZone,
 } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const STATUS = {
@@ -52,21 +51,15 @@ const STATUS = {
 } as const;
 
 export function WorkspaceTab() {
-  const { tenant, isPlatform } = useCurrentWorkspace();
+  const { tenant } = useCurrentWorkspace();
 
+  // The workspace this tab is in. Choosing another one happens in DUMA Admin
+  // (or the switcher), not here: settings never change where you are working.
   return (
     <SettingsTabBody>
       <BusinessSection />
       <ReadinessSection />
-      {isPlatform ? (
-        // Pick the workspace on the left, its locations follow on the right.
-        <div className="grid items-start gap-5 xl:grid-cols-2">
-          <WorkspaceList />
-          <LocationList tenant={tenant} />
-        </div>
-      ) : (
-        <LocationList tenant={tenant} />
-      )}
+      <LocationList tenant={tenant} />
     </SettingsTabBody>
   );
 }
@@ -236,21 +229,20 @@ function useWorkspaceAppearance() {
   const router = useRouter();
   const capabilities = useAuthStore((state) => state.capabilities);
   const ownTenantId = useWorkspaceStore((state) => state.tenantId);
-  const setDeviceBrand = useUiSettingsStore((state) => state.setBrand);
   const { tenant, isPlatform } = useCurrentWorkspace();
   const canEdit = isPlatform ? hasCapability(capabilities, 'tenants:write') : hasCapability(capabilities, 'settings:write');
-  // A platform admin may be looking at someone else's workspace; only our own repaints this browser.
-  const own = !isPlatform || tenant?.id === ownTenantId;
+  // The workspace this tab is in is the only one it repaints.
+  const own = tenant?.id === ownTenantId;
 
   const save = useMutation({
     mutationFn: (patch: CurrentTenantPatch) => (isPlatform ? updateTenant(tenant!.id, patch) : updateCurrentTenant(patch)),
     onSuccess: (_saved, patch) => {
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenants') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('current-tenant') });
-      if (patch.brand) {
-        if (own) setDeviceBrand(parseBrand(patch.brand));
-        toast('success', 'Brand colour saved for everyone in the workspace.');
-      }
+      // The tab's context carries the colour and zone; reading it again repaints
+      // this tab, and other tabs in this workspace within a minute.
+      void qc.invalidateQueries({ queryKey: WORKSPACE_CONTEXT_KEY });
+      if (patch.brand) toast('success', 'Brand colour saved for everyone in the workspace.');
       // Every time on every page was drawn in the old zone, so redraw them all.
       if (patch.timezone && own) window.location.reload();
       else if (patch.timezone) toast('success', 'Timezone saved.');

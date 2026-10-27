@@ -183,18 +183,52 @@ createServer((request, response) => {
 
   if (!authenticated(request)) return json(response, 401, { error: 'Unauthorized', code: 'unauthorized' });
 
+  if (url.pathname === '/v1/tenants') return json(response, 200, [{ id: tenantId, name: 'High Street', slug: 'high-street', status: 'active', timezone: 'Europe/London' }]);
+  if (url.pathname === '/v1/updates/unread') return json(response, 200, { count: 0, popup: null });
   if (url.pathname === '/v1/auth/get-session') return json(response, 200, { user, session });
   if (url.pathname === '/v1/staff/me') {
-    return json(response, 200, staffProfile);
+    return json(response, 200, request.headers.cookie?.includes('updates-test-admin=1') ? { ...staffProfile, role: 'super_admin', capabilities: [...capabilities, 'cms:read', 'cms:write', 'cms:publish'] } : staffProfile);
   }
   if (url.pathname === '/v1/modules/current') {
     return json(response, 200, {
       modules: moduleIds.map((moduleId) => ({
         moduleId,
-        status: 'enabled',
+        status: moduleId === 'cms' && request.headers.cookie?.includes('updates-test-cms-disabled=1') ? 'disabled' : 'enabled',
         configurationVersion: 1,
         configuration: {},
       })),
+    });
+  }
+  // The tab's context in one answer (the CRM's content waits for it). A member,
+  // in their own workspace, whose modules match /modules/current above.
+  if (url.pathname === '/v1/workspace-context') {
+    const admin = request.headers.cookie?.includes('updates-test-admin=1');
+    return json(response, 200, {
+      mode: 'workspace',
+      actor: {
+        userId: staffProfile.userId,
+        kind: 'staff',
+        platformRoles: [],
+        homeTenantId: tenantId,
+        role: admin ? 'super_admin' : staffProfile.role,
+        capabilities: admin ? [...capabilities, 'cms:read', 'cms:write', 'cms:publish'] : staffProfile.capabilities,
+        locationIds: staffProfile.locationIds ?? null,
+      },
+      workspace: {
+        id: tenantId,
+        name: 'High Street',
+        slug: 'high-street',
+        status: 'active',
+        classification: 'customer',
+        timezone: 'Europe/London',
+        brand: 'forest',
+        modules: moduleIds.map((moduleId) => ({
+          moduleId,
+          status: moduleId === 'cms' && request.headers.cookie?.includes('updates-test-cms-disabled=1') ? 'disabled' : 'enabled',
+          configurationVersion: 1,
+          configuration: {},
+        })),
+      },
     });
   }
   if (['/v1/email/automations', '/v1/email/templates', '/v1/email/automation-runs'].includes(url.pathname)) return json(response, 200, []);

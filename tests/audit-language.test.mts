@@ -339,3 +339,10 @@ test('the fallback search matches the entry’s own words', () => {
   assert.equal(entryMatches(log({ metadata: JSON.stringify({ name: 'Whole milk' }) }), 'milk'), true);
   assert.equal(entryMatches(log({ userName: 'Sam Reed' }), 'ana'), false);
 });
+
+test('DUMA Admin’s own actions read in words, keyed by their resource', () => {
+  assert.equal(actionPhrase('platform.admins', 'platform'), 'granted platform access');
+  assert.equal(actionPhrase('platform.collect', 'platform'), 'measured the database');
+  assert.equal(actionPhrase('reclassify', 'tenant'), 'reclassified a workspace');
+  assert.equal(actionPhrase('revoke', 'platform_role'), 'revoked platform access');
+});

@@ -23,7 +23,7 @@ const SESSION_COOKIE_SUFFIX = 'session_token';
 // API calls (sign-in itself!) get redirected to the sign-in HTML page, which
 // then fails JSON parsing in the client. The API enforces its own auth.
 // '/ingest' is product analytics (next.config.ts): the sign-in page reports too.
-const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password', '/order', '/book', '/privacy', '/terms', '/api/auth', '/be', '/ingest'];
+const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password', '/order', '/book', '/f', '/privacy', '/terms', '/api/auth', '/be', '/ingest'];
 
 /**
  * Content Security Policy.
@@ -58,7 +58,7 @@ const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-passwo
  * > `strict-dynamic` was bought for. `CSP_ALLOW_EVAL` is opt-in instead: absent
  * > means strict, which is the right way for this switch to fail.
  */
-function contentSecurityPolicy(nonce: string, allowEval: boolean, frameable = false) {
+function contentSecurityPolicy(nonce: string, allowEval: boolean, frameable: 'none' | 'self' | 'any' = 'none') {
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${allowEval ? " 'unsafe-eval'" : ''}`,
@@ -74,8 +74,10 @@ function contentSecurityPolicy(nonce: string, allowEval: boolean, frameable = fa
     "object-src 'none'",
     "base-uri 'self'",
     "form-action 'self'",
-    // Only the guest QR page may be framed, and only by this app (the settings preview).
-    frameable ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
+    // The guest QR page may be framed by this app alone (the settings preview);
+    // a hosted form by any website — embedding it is the point. It holds no
+    // session-bound action: the form endpoints are public and ignore cookies.
+    frameable === 'any' ? 'frame-ancestors *' : frameable === 'self' ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     'upgrade-insecure-requests',
   ].join('; ');
 }
@@ -101,7 +103,8 @@ export function proxy(req: NextRequest) {
   // A fresh nonce per request — a predictable one is no nonce at all.
   const nonce = crypto.randomUUID().replaceAll('-', '');
   // React uses eval in development for readable error stacks. Opt in locally.
-  const csp = contentSecurityPolicy(nonce, process.env.CSP_ALLOW_EVAL === 'true', pathname.startsWith('/order/'));
+  const frameable = pathname.startsWith('/f/') ? 'any' : pathname.startsWith('/order/') ? 'self' : 'none';
+  const csp = contentSecurityPolicy(nonce, process.env.CSP_ALLOW_EVAL === 'true', frameable);
   const header = process.env.CSP_REPORT_ONLY === 'true' ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
 
   // Next reads both of these off the *request* to stamp its own scripts.

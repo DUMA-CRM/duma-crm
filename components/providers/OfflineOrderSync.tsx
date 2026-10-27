@@ -46,7 +46,9 @@ export function OfflineOrderSync() {
         );
         for (const queued of eligible) {
           try {
-            const order = await createOrder(queued.payload, queued.idempotencyKey);
+            // Into the workspace it was rung up in, named explicitly — never
+            // whichever one the tab happens to be in when the network returns.
+            const order = await createOrder(queued.payload, queued.idempotencyKey, queued.tenantId);
             const payment = await startPayment(order.id, {
               provider: queued.paymentProvider,
               idempotencyKey: `pay-${queued.idempotencyKey}`,

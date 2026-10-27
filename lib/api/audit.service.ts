@@ -48,6 +48,10 @@ export interface AuditLogsParams {
   to?: string;
   /** Free text, searched server-side across actor, action, record and request details. */
   q?: string;
+  /** `platform`: DUMA Admin's feed — platform administrators' actions and workspace lifecycle changes. */
+  scope?: 'platform';
+  /** One workspace — honoured for platform administrators only; everyone else is pinned to their own. */
+  tenantId?: string;
   /** Exact entry ids — how a group from `getAuditGroups` is opened. */
   ids?: string[];
 }
@@ -63,6 +67,8 @@ export const getAuditLogs = (params: AuditLogsParams = {}) => {
   if (params.from) qs.set('from', params.from);
   if (params.to) qs.set('to', params.to);
   if (params.q) qs.set('q', params.q);
+  if (params.scope) qs.set('scope', params.scope);
+  if (params.tenantId) qs.set('tenantId', params.tenantId);
   if (params.ids?.length) qs.set('ids', params.ids.join(','));
   const query = qs.toString();
   return apiFetch<AuditLogsResponse>(`/audit-logs${query ? `?${query}` : ''}`);

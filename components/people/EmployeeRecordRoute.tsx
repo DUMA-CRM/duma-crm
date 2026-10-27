@@ -30,7 +30,7 @@ export function EmployeeRecordRoute() {
   });
   const { data: locations = [] } = useQuery({
     queryKey: moduleQueryKeys.organization.key('locations', member?.tenantId),
-    queryFn: () => getLocationsByTenant(member!.tenantId),
+    queryFn: () => getLocationsByTenant(member!.tenantId!),
     enabled: !!member?.tenantId,
   });
   if (!canManage) return null;

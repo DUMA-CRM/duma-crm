@@ -3,6 +3,8 @@
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
+import { UpdatesAdmin } from '@/components/updates/UpdatesAdmin';
+import { useAuthStore } from '@/stores/authStore';
 import { CmsOverviewPanel } from '@/components/cms/CmsOverviewPanel';
 import { ContentConfiguration } from '@/components/cms/ContentConfiguration';
 import { ContentSettingsPanel } from '@/components/cms/ContentSettingsPanel';
@@ -55,13 +57,16 @@ function ContentView() {
   const searchParams = useSearchParams();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const access = useCmsAccess();
+  const isSuperadmin = useAuthStore((state) => state.role === 'super_admin');
+  const contentTabs: SectionTab<ContentTab>[] = isSuperadmin ? [...CONTENT_TABS, { value: 'updates', label: 'DUMA Updates' }] : CONTENT_TABS;
   const [creating, setCreating] = useState<{ contentTypeId?: string } | null>(null);
   const [importing, setImporting] = useState(false);
   // Media renders its own header actions (Upload, storage) into this slot.
   const [mediaActions, setMediaActions] = useState<HTMLElement | null>(null);
 
   const requestedTab = searchParams.get('tab');
-  const { tab, section: requestedSection } = contentLocation(requestedTab, searchParams.get('section'));
+  const { tab: requestedContentTab, section: requestedSection } = contentLocation(requestedTab, searchParams.get('section'));
+  const tab = requestedContentTab === 'updates' && !isSuperadmin ? 'overview' : requestedContentTab;
   const section = requestedSection === 'settings' && !access.canManageKeys ? null : requestedSection;
   const entryParam = searchParams.get('entry');
   const modelParam = searchParams.get('model');
@@ -89,6 +94,8 @@ function ContentView() {
     const query = next.toString();
     router[mode](query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
+
+  if (tab === 'updates' && isSuperadmin) return <UpdatesAdmin tabs={<SectionTabs tabs={contentTabs} value={tab} onChange={(value) => navigate({ tab: value, entry: null, model: null })} ariaLabel="Content sections" />} />;
 
   if (!tenantId) {
     return (
@@ -172,7 +179,7 @@ function ContentView() {
       }
       subheader={
         <SectionTabs
-          tabs={CONTENT_TABS}
+          tabs={contentTabs}
           value={tab}
           onChange={(value) => navigate({ tab: value, section: null, folder: null }, 'replace')}
           ariaLabel="Content sections"

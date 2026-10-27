@@ -1,58 +1,67 @@
 'use client';
 
+import { useQueryClient } from '@tanstack/react-query';
 import { useLayoutEffect } from 'react';
 
-import { useTenants } from '@/lib/hooks/useTenants';
-import type { StaffProfile } from '@/lib/modules/identity/client';
-import { useAuthStore } from '@/stores/authStore';
+import type { WorkspaceContextResponse } from '@/lib/api/platform.service';
+import { WORKSPACE_CONTEXT_KEY } from '@/lib/hooks/useWorkspaceContext';
+import { type AccountKind, initialContext } from '@/lib/utils/workspace-context';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-type AssignedWorkspace = Pick<StaffProfile, 'tenantId' | 'role' | 'locationIds'>;
-
-export function WorkspaceInitializer({ profile }: { profile: AssignedWorkspace | null }) {
-  const userId = useAuthStore((state) => state.user?.id);
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
-
-  // A super admin is the only role whose profile doesn't pin a tenant, so it is
-  // the only one that can arrive with nothing selected. Fetching the list here
-  // lets a single-workspace estate select itself app-wide, not just in settings.
-  useTenants({ enabled: profile?.role === 'super_admin' && !tenantId });
+/**
+ * Decides where this tab starts, once the account is known.
+ *
+ * A member is always in their own workspace. A platform administrator resumes
+ * this tab's remembered context, or starts in DUMA Admin — never in a client
+ * workspace because it happens to be the only one. A different account signing
+ * in on this browser starts fresh (lib/utils/workspace-context.ts).
+ *
+ * The server read a member's workspace context with the profile; it seeds the
+ * cache for that exact workspace only, so the first paint is complete and no
+ * other workspace can inherit it.
+ */
+export function WorkspaceInitializer({
+  userId,
+  account,
+  homeTenantId,
+  locationIds,
+  seed,
+}: {
+  userId: string;
+  account: AccountKind;
+  homeTenantId: string | null;
+  locationIds: readonly string[] | null;
+  seed: WorkspaceContextResponse | null;
+}) {
+  const qc = useQueryClient();
 
   useLayoutEffect(() => {
-    if (!profile) return;
+    const store = useWorkspaceStore.getState();
+    const next = initialContext({
+      accountId: userId,
+      account,
+      homeTenantId,
+      assignedLocationIds: locationIds,
+      remembered: { accountId: store.accountId, context: store.context },
+    });
+    if (store.accountId !== userId || JSON.stringify(store.context) !== JSON.stringify(next)) store.setContext(userId, next);
 
-    if (userId) useOfflineOrdersStore.getState().claimUnscoped(userId, profile.tenantId);
-    if (profile.role === 'super_admin') return;
-
-    const current = useWorkspaceStore.getState();
-    const assignedLocations = profile.locationIds ?? [];
-    const tenantChanged = current.tenantId !== profile.tenantId;
-    const currentLocationIsAssigned = !!current.locationId && assignedLocations.includes(current.locationId);
-
-    // Every non-super-admin is fixed to their profile tenant. Restricted roles
-    // cannot visit Workspaces, so also keep a valid assigned location or choose
-    // their first one. Owners may select any location within their tenant.
-    //
-    // This stays a role check rather than a capability one: it is not asking
-    // "may you do X", it is asking whether this account is pinned to a set of
-    // locations at all. That is a property of the role itself, not a permission.
-    // super_admin already returned above, so franchise_owner is the only
-    // tenant-wide, unpinned case left here.
-    const tenantWide = profile.role === 'franchise_owner';
-
-    const locationId = tenantWide
-      ? tenantChanged
-        ? null
-        : current.locationId
-      : !tenantChanged && (assignedLocations.length === 0 || currentLocationIsAssigned)
-        ? current.locationId
-        : (assignedLocations[0] ?? null);
-
-    if (tenantChanged || current.locationId !== locationId) {
-      useWorkspaceStore.setState({ tenantId: profile.tenantId, locationId });
+    if (seed?.workspace && next.kind === 'workspace' && seed.workspace.id === next.tenantId && !qc.getQueryData(WORKSPACE_CONTEXT_KEY)) {
+      qc.setQueryData(WORKSPACE_CONTEXT_KEY, seed);
     }
-  }, [profile, userId]);
+
+    // Sales queued before scoping existed belong to the member's own workspace.
+    // A platform administrator's are never reassigned to wherever they are now.
+    if (account === 'member' && homeTenantId) useOfflineOrdersStore.getState().claimUnscoped(userId, homeTenantId);
+
+    // The pre-2026-10 device-wide selection: no longer read, so no longer kept.
+    try {
+      localStorage.removeItem('duma-workspace');
+    } catch {
+      // Storage blocked — nothing to clean.
+    }
+  }, [account, homeTenantId, locationIds, qc, seed, userId]);
 
   return null;
 }

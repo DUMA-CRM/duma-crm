@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useId, useState } from 'react';
 import { createPortal } from 'react-dom';
 
 import { ArrowLeft } from '@/components/icons';
@@ -8,6 +8,7 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
+import { markUnsavedWork } from '@/lib/utils/unsaved-work';
 import { usePageHeaderStore } from '@/stores/pageHeaderStore';
 
 /**
@@ -93,6 +94,13 @@ export function EditorShell({
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
   }, [attemptClose, onClose]);
+
+  // Switching workspace mid-edit asks first (useWorkspaceSwitch).
+  const editorId = useId();
+  useEffect(() => {
+    markUnsavedWork(editorId, dirty);
+    return () => markUnsavedWork(editorId, false);
+  }, [dirty, editorId]);
 
   // Reloading or closing the tab mid-edit gets the browser's own warning.
   useEffect(() => {

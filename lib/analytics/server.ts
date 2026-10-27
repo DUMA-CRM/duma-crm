@@ -25,7 +25,7 @@ async function captureServerEvent(distinctId: string, event: string, properties:
 }
 
 /** An Ask DUMA turn: which tools it ran, for whom, and how it ended. */
-export function captureAgentTurn(profile: { userId: string; tenantId: string; role: string }, turn: AgentTurnSummary) {
+export function captureAgentTurn(profile: { userId: string; tenantId: string | null; role: string }, turn: AgentTurnSummary) {
   void captureServerEvent(profile.userId, 'agent_turn', {
     ...agentTurnProperties(turn),
     role: profile.role,

@@ -257,7 +257,7 @@ function PreviewImage({ src, alt, title }: { src: string; alt: string; title?: s
   );
 }
 
-export function RichTextPreview({ markdown, className }: { markdown: string; className?: string }) {
+export function RichTextPreview({ markdown, className, resolveWorkspaceImages = true }: { markdown: string; className?: string; resolveWorkspaceImages?: boolean }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const tokens = useMemo(() => lexer(markdown), [markdown]);
   // Images on a connected bucket's own domain are refused by this app's CSP;
@@ -266,7 +266,7 @@ export function RichTextPreview({ markdown, className }: { markdown: string; cla
   const lookup = useQuery({
     queryKey: cmsKeys.assets(tenantId, { urls }),
     queryFn: () => getCmsAssets({ urls: urls.join(',') }, tenantId ?? undefined),
-    enabled: !!tenantId && urls.length > 0,
+    enabled: resolveWorkspaceImages && !!tenantId && urls.length > 0,
     staleTime: 60_000,
   });
   const resolver = useMemo(() => {

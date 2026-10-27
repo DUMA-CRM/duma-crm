@@ -1,8 +1,7 @@
-import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { requireCapability } from '@/lib/auth/require-capability';
-import { getCurrentTenantModules } from '@/lib/modules/organization/client';
+import { workspaceModuleEnabled } from '@/lib/auth/require-module';
 
 /**
  * Promotions is a switchable module: a workspace that has not enabled it is
@@ -11,13 +10,9 @@ import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 export default async function PromotionsLayout({ children }: { children: React.ReactNode }) {
   await requireCapability('promotions:read');
 
-  const cookieHeader = (await cookies())
-    .getAll()
-    .map((cookie) => `${cookie.name}=${cookie.value}`)
-    .join('; ');
-  const modules = await getCurrentTenantModules(undefined, cookieHeader);
-  const enabled = modules.modules.some((module) => module.moduleId === 'promotions' && module.status === 'enabled');
-  if (!enabled) redirect('/settings/modules');
+  // null for a platform administrator: the tab's workspace decides (ContextBoundary).
+  const enabled = await workspaceModuleEnabled('promotions');
+  if (enabled === false) redirect('/settings/modules');
 
   return children;
 }

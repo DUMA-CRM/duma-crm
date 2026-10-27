@@ -33,15 +33,24 @@ export function initAnalytics() {
   });
 }
 
-export function identifyUser(
-  user: { id: string; email: string; name: string },
-  workspace: { role: string | null; tenantId: string | null },
-) {
+export function identifyUser(user: { id: string; email: string; name: string }, account: { role: string | null }) {
   if (!posthog.__loaded) return;
   posthog.identify(user.id, { email: user.email, name: user.name });
-  // Registered as event properties too, so any event can be broken down by role
-  // or workspace without joining on the person.
-  posthog.register({ role: workspace.role, tenant_id: workspace.tenantId });
+  // Registered as an event property too, so any event can be broken down by role
+  // without joining on the person. The workspace is not the account's: it is
+  // this tab's context, registered by registerAnalyticsContext.
+  posthog.register({ role: account.role });
+}
+
+/**
+ * The context every later event in this tab belongs to: platform or workspace,
+ * which workspace and its classification, and whether the actor is the
+ * workspace's staff or a platform administrator visiting it. Re-registered on
+ * every switch. `tenant_id` mirrors `workspace_id` for existing insights.
+ */
+export function registerAnalyticsContext(properties: Record<string, string | null>) {
+  if (!posthog.__loaded) return;
+  posthog.register({ ...properties, tenant_id: properties.workspace_id ?? null });
 }
 
 export function track(event: string, properties?: Record<string, unknown>, options?: { beforeNavigation?: boolean }) {

@@ -1,16 +1,17 @@
 'use client';
 
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQueries } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
 import { LogOut, X } from '@/components/icons';
 import { Logo } from '@/components/shared/Logo';
 import { Tooltip } from '@/components/shared/Tooltip';
 
+import { adminNavItems } from '@/lib/constants/admin-nav';
 import { analyticsNavItems, filterNavByCapability, footerNavItems, mainNavItems } from '@/lib/constants/nav';
 import { useAuth } from '@/lib/hooks/useAuth';
+import { useWorkspaceContext } from '@/lib/hooks/useWorkspaceContext';
 import { getOrders } from '@/lib/modules/ordering/client';
-import { type TenantModuleState, getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
@@ -18,10 +19,11 @@ import { useLoginIntroStore } from '@/stores/loginIntroStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { ContextSwitcher } from './ContextSwitcher';
 import { LocationPicker } from './LocationPicker';
 import { SidebarNavItem } from './SidebarNavItem';
 
-export function Sidebar({ capabilities, moduleState }: { capabilities: readonly string[]; moduleState: readonly TenantModuleState[] }) {
+export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
   const { collapsed, mobileOpen, closeMobile } = useSidebarStore();
   const sidebarRef = useRef<HTMLElement>(null);
   const closeButtonRef = useRef<HTMLButtonElement>(null);
@@ -92,18 +94,15 @@ export function Sidebar({ capabilities, moduleState }: { capabilities: readonly 
   const storeCapabilities = useAuthStore((state) => state.capabilities);
   const effective = hydrated ? storeCapabilities : capabilities;
 
-  const modulesQuery = useQuery({
-    queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
-    queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
-    enabled: Boolean(tenantId),
-    initialData: { modules: [...moduleState] },
-    staleTime: 30_000,
-    refetchInterval: 60_000,
-  });
-  const effectiveModuleState = modulesQuery.data.modules;
-  const mainItems = filterNavByCapability(mainNavItems, effective, effectiveModuleState);
-  const analyticsItems = filterNavByCapability(analyticsNavItems, effective, effectiveModuleState);
-  const footerItems = filterNavByCapability(footerNavItems, effective, effectiveModuleState);
+  // The tab's own workspace context — never another workspace's modules, and
+  // nothing at all (no operational links) until it has loaded. DUMA Admin has
+  // no workspace: its navigation is the platform's.
+  const { context, workspace } = useWorkspaceContext();
+  const platformContext = context.kind === 'platform';
+  const effectiveModuleState = workspace?.modules ?? [];
+  const mainItems = platformContext ? adminNavItems : workspace ? filterNavByCapability(mainNavItems, effective, effectiveModuleState) : [];
+  const analyticsItems = workspace ? filterNavByCapability(analyticsNavItems, effective, effectiveModuleState) : [];
+  const footerItems = workspace ? filterNavByCapability(footerNavItems, effective, effectiveModuleState) : [];
 
   // Badge the kitchen queue with the exact active count. Three count-only
   // responses are much smaller than downloading 200 complete orders globally
@@ -121,7 +120,7 @@ export function Sidebar({ capabilities, moduleState }: { capabilities: readonly 
   }, [showOrders]);
   const activeOrderQueries = useQueries({
     queries: (['pending', 'preparing', 'ready'] as const).map((status) => ({
-      queryKey: moduleQueryKeys.ordering.key('orders-nav-count', status, locationId),
+      queryKey: moduleQueryKeys.ordering.key('orders-nav-count', status, tenantId, locationId),
       queryFn: () => getOrders({ limit: 100, status, paymentStatus: 'paid', locationId: locationId ?? undefined }),
       enabled: showOrders && badgeEnabled,
       staleTime: 60_000,
@@ -186,6 +185,11 @@ export function Sidebar({ capabilities, moduleState }: { capabilities: readonly 
           </button>
         </div>
 
+        {/* ── Context: DUMA Admin or a workspace ───────────── */}
+        <div className="shrink-0 border-b border-sidebar-border py-2">
+          <ContextSwitcher />
+        </div>
+
         {/* ── Navigation ───────────────────────────────────── */}
         <nav aria-label="Main menu" className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto py-3">
           {mainItems.map((item) => (
@@ -210,9 +214,11 @@ export function Sidebar({ capabilities, moduleState }: { capabilities: readonly 
         <div className="flex shrink-0 flex-col gap-0.5 border-t border-sidebar-border py-3 lg:py-2">
           {/* Everything above is scoped to this location, so the bottom cluster
               opens with it — one place, every breakpoint. */}
-          <div className={cn('mb-1 border-b border-sidebar-border pb-3 lg:pb-2', collapsed && !mobileOpen && 'flex justify-center')}>
-            <LocationPicker />
-          </div>
+          {context.kind === 'workspace' && (
+            <div className={cn('mb-1 border-b border-sidebar-border pb-3 lg:pb-2', collapsed && !mobileOpen && 'flex justify-center')}>
+              <LocationPicker />
+            </div>
+          )}
 
           {footerItems.map((item) => (
             <SidebarNavItem key={item.href} {...item} mobileMenu={mobileOpen} />

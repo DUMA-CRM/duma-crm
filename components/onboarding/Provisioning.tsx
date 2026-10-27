@@ -111,7 +111,7 @@ export function Provisioning({ onEditDetails }: ProvisioningProps) {
         const result = await createWorkspace(payload, key);
         useAuthStore.getState().setUser(result.user);
         workspace = { tenantId: result.workspace.tenantId, locationId: result.workspace.locationId };
-        useWorkspaceStore.setState(workspace);
+        useWorkspaceStore.getState().setContext(result.user.id, { kind: 'workspace', ...workspace });
         store.setProvisioned(workspace);
       }
 

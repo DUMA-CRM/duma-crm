@@ -83,6 +83,7 @@ import {
   DeleteColumnIcon,
   DeleteRowIcon,
   DownloadIcon,
+  DragDropVerticalIcon,
   DrawingModeIcon,
   DropletIcon,
   DropletsIcon,
@@ -378,6 +379,7 @@ export const GitCompareArrows = /*#__PURE__*/ glyph(GitCompareArrowsIcon, 'GitCo
 export const Globe = /*#__PURE__*/ glyph(GlobeIcon, 'Globe');
 export const GraduationCap = /*#__PURE__*/ glyph(GraduationCapIcon, 'GraduationCap');
 export const Grid2X2 = /*#__PURE__*/ glyph(Grid2X2Icon, 'Grid2X2');
+export const GripVertical = /*#__PURE__*/ glyph(DragDropVerticalIcon, 'GripVertical');
 export const Headphones = /*#__PURE__*/ glyph(HeadphonesIcon, 'Headphones');
 export const HeartHandshake = /*#__PURE__*/ glyph(HeartHandshakeIcon, 'HeartHandshake');
 export const HeartPulse = /*#__PURE__*/ glyph(HeartPulseIcon, 'HeartPulse');

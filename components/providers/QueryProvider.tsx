@@ -1,6 +1,6 @@
 'use client';
 
-import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryCache, QueryClient, QueryClientProvider, hashKey } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { OfflineOrderSync } from '@/components/providers/OfflineOrderSync';
@@ -10,6 +10,7 @@ import { AppToaster } from '@/components/shared/AppToaster';
 
 import { ApiError } from '@/lib/modules/core/client';
 import { toast } from '@/lib/toast';
+import { currentPartition } from '@/stores/workspaceStore';
 
 function queryErrorMessage(error: unknown) {
   if (error instanceof ApiError) {
@@ -46,6 +47,14 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
         }),
         defaultOptions: {
           queries: {
+            // Every cache entry belongs to one account and one context. The key
+            // a screen writes ('orders', status) is hashed together with where
+            // the tab is working, so workspace A's answers can never be read —
+            // or overwritten by a late response — while the tab is in B, even
+            // for the many keys that never named a tenant. Returning to A finds
+            // A's entries again and revalidates them. Invalidation still matches
+            // by key, across every partition.
+            queryKeyHashFn: (queryKey) => hashKey([currentPartition(), ...queryKey]),
             // Data is fresh for 60 s — won't refetch on every component mount.
             staleTime: 60_000,
             // Live operational queries already have explicit polling. Avoid a

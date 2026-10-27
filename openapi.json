@@ -75,6 +75,9 @@
           "multiple": {
             "type": "boolean"
           },
+          "shared": {
+            "type": "boolean"
+          },
           "minLength": {
             "type": "integer",
             "minimum": 0,
@@ -9011,8 +9014,8 @@
         "tags": [
           "Storefront"
         ],
-        "summary": "Record a paid storefront order",
-        "description": "Secret key only. Prices come from DUMA; send products and sizes, never amounts. The customer is matched by email (or created), the address kept, and stock taken off now — a size that has run out fails the whole order with 409 `out_of_stock`. Sending the same `externalReference` again returns the original order.",
+        "summary": "Record a storefront order",
+        "description": "Secret key only. Prices come from DUMA; send products and sizes, never amounts. The customer is matched by email (or created), the address kept, and stock taken off now — a size that has run out fails the whole order with 409 `out_of_stock`. `payment.status` is `paid` (default: the website took the money), `pending` (not paid yet — a bank transfer or jar staff will check) or `claimed` (the shopper says they paid). A pending order holds its stock and promo code until `expiresAt` (`payment.expiresInMinutes`, default 60); unclaimed by then it expires and gives both back. Sending the same `externalReference` again with the same shopper and lines returns the original order (200); with a different basket, 409 `idempotency_conflict`.",
         "responses": {
           "200": {
             "description": "The order already recorded under this externalReference"
@@ -9027,12 +9030,138 @@
             "description": "Unauthorized — missing or invalid bearer token"
           },
           "409": {
-            "description": "`out_of_stock`, `total_mismatch`, `price_unavailable`, `promo_unavailable` (used up as the order was placed) or `location_not_configured`"
+            "description": "`out_of_stock`, `total_mismatch`, `price_unavailable`, `promo_unavailable` (used up as the order was placed), `idempotency_conflict` or `location_not_configured`"
           },
           "429": {
             "description": "Too many requests — rate limited"
           }
         }
+      }
+    },
+    "/v1/store/orders/{idOrReference}": {
+      "get": {
+        "operationId": "getV1StoreOrdersByIdOrReference",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Get one of this key’s orders",
+        "description": "Secret key only. By DUMA’s order id or your `externalReference`. For a confirmation page, and to recover after a checkout request timed out: if it is here, it was recorded. Only orders placed through this key’s location are found.",
+        "responses": {
+          "200": {
+            "description": "The order: status, payment.status, totals, expiresAt"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No such order for this key"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "idOrReference",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/store/orders/{idOrReference}/payment": {
+      "patch": {
+        "operationId": "patchV1StoreOrdersByIdOrReferencePayment",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "Claim or cancel an unpaid order",
+        "description": "Secret key only. For an order placed `pending` — paid by transfer, checked by staff. `claimed`: the shopper says they’ve paid; the order stops expiring, staff are asked to check, and the shopper gets the \"order received\" email. `cancelled`: the shopper gave up; the stock and promo code are released. Only staff in DUMA mark an order `paid` (or `failed`, `refunded`): asking for those is 409 `invalid_transition`, as is any move from a state that doesn’t allow it — the body carries the order as it is. Repeating a request that already applied answers 200 with the order unchanged.",
+        "responses": {
+          "200": {
+            "description": "The order, after the change (or already in that state)"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No such order for this key"
+          },
+          "409": {
+            "description": "`invalid_transition`, with `status` and `data` (the order as it is)"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "idOrReference",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/store/forms": {
+      "get": {
+        "operationId": "getV1StoreForms",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "List forms",
+        "description": "Secret key with `forms:read`. Every form that has been published and isn’t archived, with its live questions (`key` names each answer).",
+        "responses": {
+          "200": {
+            "description": "{ data: Form[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/store/forms/{idOrPublicId}/responses": {
+      "get": {
+        "operationId": "getV1StoreFormsByIdOrPublicIdResponses",
+        "tags": [
+          "Storefront"
+        ],
+        "summary": "List a form’s responses",
+        "description": "Secret key with `forms:read`. Newest first; `limit` ≤ 100 (default 50). Page back with `before` (the last `submittedAt` you have), or poll for new ones with `since`. Answers are keyed by field `key`.",
+        "responses": {
+          "200": {
+            "description": "{ data: Response[], form }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No such form"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "idOrPublicId",
+            "required": true
+          }
+        ]
       }
     },
     "/v1/mcp": {
@@ -12758,7 +12887,7 @@
                       },
                       "declinedModules": {
                         "default": [],
-                        "maxItems": 27,
+                        "maxItems": 28,
                         "type": "array",
                         "items": {
                           "type": "string",
@@ -12789,7 +12918,8 @@
                             "promotions",
                             "referrals",
                             "notes",
-                            "reservations"
+                            "reservations",
+                            "forms"
                           ]
                         }
                       }
@@ -13208,7 +13338,7 @@
                       },
                       "declinedModules": {
                         "default": [],
-                        "maxItems": 27,
+                        "maxItems": 28,
                         "type": "array",
                         "items": {
                           "type": "string",
@@ -13239,7 +13369,8 @@
                             "promotions",
                             "referrals",
                             "notes",
-                            "reservations"
+                            "reservations",
+                            "forms"
                           ]
                         }
                       }
@@ -13372,7 +13503,8 @@
                         "promotions",
                         "referrals",
                         "notes",
-                        "reservations"
+                        "reservations",
+                        "forms"
                       ]
                     },
                     "description": "selectedModules for workspace setup apply."
@@ -16163,8 +16295,8 @@
         "tags": [
           "Orders"
         ],
-        "summary": "Set the customer and delivery of an order taken by hand",
-        "description": "Manual orders only, until they are completed or cancelled. A delivery address is also saved to the customer for next time.",
+        "summary": "Set the customer and delivery of a manual or website order",
+        "description": "Manual and website orders, until they are completed or cancelled. A delivery address is also saved to the customer for next time. `shipping` (a carrier chosen at the website checkout) can only be kept by a website order that already ships — send it with the new address; its method and fee stay as they were.",
         "responses": {
           "200": {
             "description": "The order"
@@ -16179,7 +16311,7 @@
             "description": "Not found"
           },
           "409": {
-            "description": "Not an open manual order"
+            "description": "Not an open manual or website order, or shipping asked of an order that does not ship"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -16240,8 +16372,8 @@
         "tags": [
           "Orders"
         ],
-        "summary": "Record payment for an order taken by hand",
-        "description": "For a manual order that is still unpaid: records how the customer paid outside DUMA (cash, card, bank transfer, other). Nothing is charged.",
+        "summary": "Record payment for an order paid outside DUMA",
+        "description": "For a manual order that is still unpaid, or a website order awaiting payment or claimed by the shopper (a bank transfer or jar staff have checked): records how the customer paid (cash, card, bank transfer, other). Nothing is charged. A website order then gets its confirmation email.",
         "responses": {
           "200": {
             "description": "The order, now paid"
@@ -16256,7 +16388,7 @@
             "description": "Not found"
           },
           "409": {
-            "description": "Not an unpaid manual order"
+            "description": "Not an unpaid manual or website order"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -20898,6 +21030,102 @@
         }
       }
     },
+    "/v1/telegram-connections": {
+      "get": {
+        "operationId": "getV1TelegramConnections",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Get the workspace Telegram connection",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1TelegramConnections",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Verify and save a Telegram bot and destination",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "delete": {
+        "operationId": "deleteV1TelegramConnections",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Disconnect Telegram",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/telegram-connections/chats": {
+      "post": {
+        "operationId": "postV1TelegramConnectionsChats",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Find recent chats seen by the Telegram bot",
+        "responses": {
+          "200": {
+            "description": "Chat IDs and names only"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/telegram-connections/test": {
+      "post": {
+        "operationId": "postV1TelegramConnectionsTest",
+        "tags": [
+          "Automation"
+        ],
+        "summary": "Send a Telegram test message",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/analytics-connections": {
       "get": {
         "operationId": "getV1AnalyticsConnections",
@@ -24700,7 +24928,7 @@
           "CMS"
         ],
         "summary": "Save an entry draft",
-        "description": "Never changes what is published. Send `expectedVersion` to detect a concurrent save (409).",
+        "description": "Never changes what is published. Send `expectedVersion` to detect a concurrent save (409). Fields marked `shared` are copied into the entry's other language versions' drafts; `sharedLocales` lists the ones that changed.",
         "responses": {
           "200": {
             "description": "Saved"
@@ -25953,6 +26181,1363 @@
         ]
       }
     },
+    "/v1/forms": {
+      "get": {
+        "operationId": "getV1Forms",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "List forms",
+        "responses": {
+          "200": {
+            "description": "Forms with their response counts"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1Forms",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Create a form",
+        "description": "A draft. Pass `definition` to start from a template; otherwise it starts empty.",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/forms/{id}": {
+      "get": {
+        "operationId": "getV1FormsById",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Get a form",
+        "description": "The draft, the live snapshot and what stops the draft being published.",
+        "responses": {
+          "200": {
+            "description": "The form"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1FormsById",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Save a form",
+        "description": "Saves the draft and the form’s settings. A change to `definition` needs `expectedVersion` (the version you read); 409 when someone saved in between. `closesAt` and `responseLimit` apply at once. Publish to make the draft live.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Changed since you read it"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1FormsById",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Delete a form",
+        "description": "Deletes the form and every response to it. Archive instead to keep them.",
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/forms/{id}/publish": {
+      "post": {
+        "operationId": "postV1FormsByIdPublish",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Publish a form",
+        "description": "Makes the draft live and opens the form for responses. Refused with the problems when the draft isn’t complete.",
+        "responses": {
+          "200": {
+            "description": "Live"
+          },
+          "400": {
+            "description": "The draft has problems"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/forms/{id}/status": {
+      "post": {
+        "operationId": "postV1FormsByIdStatus",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Open, close or archive a form",
+        "description": "`closed` stops responses (the page says so); `published` reopens a form that has been live; `archived` puts it away, keeping its responses; `restore` brings an archived form back closed (or as a draft if it was never live).",
+        "responses": {
+          "200": {
+            "description": "Changed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "Not possible from where it is"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/forms/{id}/duplicate": {
+      "post": {
+        "operationId": "postV1FormsByIdDuplicate",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Duplicate a form",
+        "description": "A new draft with the same questions and settings, and no responses.",
+        "responses": {
+          "201": {
+            "description": "The copy"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/forms/{id}/responses": {
+      "get": {
+        "operationId": "getV1FormsByIdResponses",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "List responses",
+        "description": "Newest first, paged (`page`, `limit` ≤ 100). Answers are keyed by field id; `answersByKey` names them by API key.",
+        "responses": {
+          "200": {
+            "description": "{ data, total, page, limit, pages }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/forms/{id}/responses/export": {
+      "get": {
+        "operationId": "getV1FormsByIdResponsesExport",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Export responses as CSV",
+        "description": "One row per response (newest first, up to 10,000), one column per question of the live form, with the same filters as the list.",
+        "responses": {
+          "200": {
+            "description": "text/csv"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/forms/{id}/summary": {
+      "get": {
+        "operationId": "getV1FormsByIdSummary",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Summarise responses",
+        "description": "Per question of the live form, over the latest 5,000 responses that aren’t archived: how many answered and, for choices, ratings, scales, yes/no and numbers, the breakdown.",
+        "responses": {
+          "200": {
+            "description": "The summary"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/forms/{id}/responses/{responseId}": {
+      "patch": {
+        "operationId": "patchV1FormsByIdResponsesByResponseId",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Mark a response",
+        "description": "`new`, `reviewed` or `archived`.",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "responseId",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1FormsByIdResponsesByResponseId",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Delete a response",
+        "responses": {
+          "200": {
+            "description": "Deleted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "responseId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/forms/{id}/responses/bulk": {
+      "post": {
+        "operationId": "postV1FormsByIdResponsesBulk",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Mark or delete several responses",
+        "responses": {
+          "200": {
+            "description": "How many changed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/forms/public/{publicId}": {
+      "get": {
+        "operationId": "getV1FormsPublicByPublicId",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "A published form",
+        "description": "Public, no key. The live questions (`fields`, in order; `page_break` splits pages; `logic` says when a field shows), the copy around them, and whether it’s taking responses. 404 for a draft, archived or unknown form.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The form"
+          },
+          "404": {
+            "description": "Not available"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "publicId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/forms/public/{publicId}/responses": {
+      "post": {
+        "operationId": "postV1FormsPublicByPublicIdResponses",
+        "tags": [
+          "Forms"
+        ],
+        "summary": "Submit a response",
+        "description": "Public, no key. `answers` is keyed by field `key` (or id). Answers are checked against the live form: required questions, formats and options; answers to questions hidden by logic are dropped. 400 lists each problem in `issues` (path = the field key). When the form links customers, the respondent is matched by email or added. 409 when the form has closed or is full.",
+        "security": [],
+        "responses": {
+          "201": {
+            "description": "{ data: { id, successTitle, successMessage, redirectUrl } }"
+          },
+          "400": {
+            "description": "Problems with the answers"
+          },
+          "404": {
+            "description": "Not available"
+          },
+          "409": {
+            "description": "Closed or full"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "publicId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/updates/admin/posts": {
+      "get": {
+        "operationId": "getV1UpdatesAdminPosts",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "GET product updates /admin/posts",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1UpdatesAdminPosts",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "POST product updates /admin/posts",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/updates/admin/posts/{id}": {
+      "get": {
+        "operationId": "getV1UpdatesAdminPostsById",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "GET product updates /admin/posts/:id",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putV1UpdatesAdminPostsById",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "PUT product updates /admin/posts/:id",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/updates/admin/posts/{id}/publish": {
+      "post": {
+        "operationId": "postV1UpdatesAdminPostsByIdPublish",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "POST product updates /admin/posts/:id/publish",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/updates/admin/posts/{id}/unpublish": {
+      "post": {
+        "operationId": "postV1UpdatesAdminPostsByIdUnpublish",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "POST product updates /admin/posts/:id/unpublish",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/updates": {
+      "get": {
+        "operationId": "getV1Updates",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "GET product updates /",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/updates/unread": {
+      "get": {
+        "operationId": "getV1UpdatesUnread",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "GET product updates /unread",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/updates/{id}": {
+      "get": {
+        "operationId": "getV1UpdatesById",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "GET product updates /:id",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/updates/{id}/media/{assetId}": {
+      "get": {
+        "operationId": "getV1UpdatesByIdMediaByAssetId",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "GET product updates /:id/media/:assetId",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "assetId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/updates/{id}/shown": {
+      "post": {
+        "operationId": "postV1UpdatesByIdShown",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "Record announcement shown for the current user",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/updates/{id}/dismiss": {
+      "post": {
+        "operationId": "postV1UpdatesByIdDismiss",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "Record announcement dismiss for the current user",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/updates/{id}/read": {
+      "post": {
+        "operationId": "postV1UpdatesByIdRead",
+        "tags": [
+          "Product updates"
+        ],
+        "summary": "Record announcement read for the current user",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "400": {
+            "description": "Invalid input"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Access denied"
+          },
+          "404": {
+            "description": "Update not found"
+          },
+          "409": {
+            "description": "Revision changed"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/context": {
+      "get": {
+        "operationId": "getV1PlatformContext",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Who the platform administrator is, and where DUMA's own workspace is",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/overview": {
+      "get": {
+        "operationId": "getV1PlatformOverview",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Attention items and headline figures",
+        "description": "Customer workspaces only unless stated; internal and demo are counted separately.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/workspaces": {
+      "get": {
+        "operationId": "getV1PlatformWorkspaces",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Every workspace with its classification, plan and exact counts",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/workspaces/{id}/classification": {
+      "patch": {
+        "operationId": "patchV1PlatformWorkspacesByIdClassification",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Reclassify a workspace",
+        "description": "Explicit and audited. Only one workspace may be internal.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/internal-workspace": {
+      "post": {
+        "operationId": "postV1PlatformInternalWorkspace",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Provision DUMA's internal workspace",
+        "description": "Idempotent: returns the existing internal workspace when there is one. Creates a normal workspace classified internal, with the chosen modules (and what they require), its own roles and settings, and no members — invite staff with an ordinary role. Never repurposes an existing workspace.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/usage": {
+      "get": {
+        "operationId": "getV1PlatformUsage",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Module adoption and product usage",
+        "description": "Adoption is enablement, not use. Active use comes from PostHog when it is configured server-side.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/database": {
+      "get": {
+        "operationId": "getV1PlatformDatabase",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Latest database measurement and its history",
+        "description": "Read from stored snapshots — a page load never measures.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/database/collect": {
+      "post": {
+        "operationId": "postV1PlatformDatabaseCollect",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Take a database measurement now",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/health": {
+      "get": {
+        "operationId": "getV1PlatformHealth",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Database, cache, workers and queues",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/activity": {
+      "get": {
+        "operationId": "getV1PlatformActivity",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "What platform administrators did, and workspace lifecycle changes",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/admins": {
+      "get": {
+        "operationId": "getV1PlatformAdmins",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Platform role assignments, active and revoked",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1PlatformAdmins",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Grant platform administration to an existing account",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/admins/{id}/revoke": {
+      "post": {
+        "operationId": "postV1PlatformAdminsByIdRevoke",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Revoke a platform role assignment",
+        "description": "The row is kept with who revoked it and why. The last active administrator cannot be revoked.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspace-context": {
+      "get": {
+        "operationId": "getV1WorkspaceContext",
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "The caller and the workspace this request is scoped to",
+        "responses": {
+          "200": {
+            "description": "Context"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a member of staff or platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
     "/v1/system/queues": {
       "get": {
         "operationId": "getV1SystemQueues",
@@ -25964,102 +27549,6 @@
         "responses": {
           "200": {
             "description": "Counts per queue, and whether anything needs attention"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/telegram-connections": {
-      "get": {
-        "operationId": "getV1TelegramConnections",
-        "tags": [
-          "Automation"
-        ],
-        "summary": "Get the workspace Telegram connection",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      },
-      "put": {
-        "operationId": "putV1TelegramConnections",
-        "tags": [
-          "Automation"
-        ],
-        "summary": "Verify and save a Telegram bot and destination",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      },
-      "delete": {
-        "operationId": "deleteV1TelegramConnections",
-        "tags": [
-          "Automation"
-        ],
-        "summary": "Disconnect Telegram",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/telegram-connections/test": {
-      "post": {
-        "operationId": "postV1TelegramConnectionsTest",
-        "tags": [
-          "Automation"
-        ],
-        "summary": "Send a Telegram test message",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/telegram-connections/chats": {
-      "post": {
-        "operationId": "postV1TelegramConnectionsChats",
-        "tags": [
-          "Automation"
-        ],
-        "summary": "Find recent chats seen by the Telegram bot",
-        "responses": {
-          "200": {
-            "description": "Chat IDs and names only"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
