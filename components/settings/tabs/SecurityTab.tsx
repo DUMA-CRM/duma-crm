@@ -120,7 +120,7 @@ function EmailRow({ open, onToggle, onDone }: { open: boolean; onToggle: () => v
   const changed = valid && normalized !== user?.email.toLowerCase();
 
   const mutation = useMutation({
-    mutationFn: () => changeEmail(normalized, `${window.location.origin}/settings/security`),
+    mutationFn: () => changeEmail(normalized, `${window.location.origin}/verify-email?flow=change-email`),
     onSuccess: (result) => {
       if (result.user) setUser(result.user);
       toast('success', result.user || result.message === 'Email updated' ? 'Email changed.' : `Check ${normalized} to confirm the change.`);

@@ -113,6 +113,10 @@ export const requestPasswordReset = (email: string, redirectTo: string) =>
   apiFetch<{ status: boolean }>('/auth/request-password-reset', { method: 'POST', body: JSON.stringify({ email, redirectTo }) });
 export const resetPassword = (token: string, newPassword: string) =>
   apiFetch('/auth/reset-password', { method: 'POST', body: JSON.stringify({ token, newPassword }) });
+// Re-send the confirmation link to the signed-in user's own address.
+// callbackURL must be absolute: better-auth defaults to "/" on the API host.
+export const sendVerificationEmail = (email: string, callbackURL: string) =>
+  apiFetch<{ status: boolean }>('/auth/send-verification-email', { method: 'POST', body: JSON.stringify({ email, callbackURL }) });
 export const changePassword = (currentPassword: string, newPassword: string) =>
   apiFetch('/auth/change-password', { method: 'POST', body: JSON.stringify({ currentPassword, newPassword, revokeOtherSessions: true }) });
 

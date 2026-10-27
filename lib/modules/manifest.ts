@@ -177,6 +177,7 @@ const pages: Record<ModuleId, readonly string[]> = {
     '/updates/[id]',
     '/forgot-password',
     '/reset-password',
+    '/verify-email',
     '/sign-in',
     '/sign-up',
     '/settings/roles',

@@ -2,6 +2,7 @@ import { cookies } from 'next/headers';
 import { redirect } from 'next/navigation';
 
 import { ContextBoundary } from '@/components/layout/ContextBoundary';
+import { EmailVerificationBanner } from '@/components/layout/EmailVerificationBanner';
 import { Header } from '@/components/layout/Header';
 import { LoginIntro } from '@/components/layout/LoginIntro';
 import { Sidebar } from '@/components/layout/Sidebar';
@@ -72,6 +73,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
         <Sidebar capabilities={profile?.capabilities ?? []} />
         <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
           <Header />
+          <EmailVerificationBanner />
           <main id="main-content" tabIndex={-1} className="flex-1 overflow-y-auto p-4 outline-none md:p-8">
             <ContextBoundary>{children}</ContextBoundary>
           </main>

@@ -52,7 +52,7 @@ const currencySigns = localFont({
 });
 
 export const metadata: Metadata = {
-  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://duma-coffee.vercel.app'),
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://duma-business.com'),
   title: 'DUMA — Your coffee business, clearly',
   description: 'Run sales, customers, inventory, staffing, and day-to-day business os from one connected workspace.',
   // Every mark here is the logo in public/logo.svg. The SVG is what modern

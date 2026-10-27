@@ -23,7 +23,7 @@ const SESSION_COOKIE_SUFFIX = 'session_token';
 // API calls (sign-in itself!) get redirected to the sign-in HTML page, which
 // then fails JSON parsing in the client. The API enforces its own auth.
 // '/ingest' is product analytics (next.config.ts): the sign-in page reports too.
-const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password', '/order', '/book', '/f', '/privacy', '/terms', '/api/auth', '/be', '/ingest'];
+const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password', '/verify-email', '/order', '/book', '/f', '/privacy', '/terms', '/api/auth', '/be', '/ingest'];
 
 /**
  * Content Security Policy.

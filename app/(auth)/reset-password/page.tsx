@@ -39,6 +39,23 @@ function Form() {
       setLoading(false);
     }
   }
+  // The emailed link goes through the API, which redirects here with
+  // `?error=INVALID_TOKEN` when the token is unknown, used or expired.
+  if (!token || searchParams.get('error'))
+    return (
+      <>
+        <h1 className="text-2xl font-semibold">{isActivation ? 'This invitation link has expired' : 'This reset link has expired'}</h1>
+        <p role="alert" className="mt-2 text-sm text-muted-foreground">
+          Links work once and for one hour.{' '}
+          {isActivation
+            ? 'Ask your manager to resend the invitation, or request a password reset with the email you were invited on.'
+            : 'Request a new one to continue.'}
+        </p>
+        <Link href="/forgot-password" className="mt-5 inline-block font-semibold text-primary">
+          Request a new link
+        </Link>
+      </>
+    );
   if (done)
     return (
       <>
