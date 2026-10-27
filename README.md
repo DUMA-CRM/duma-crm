@@ -6,7 +6,7 @@ purchasing, scheduling, HR, reporting, and customer communications.
 
 ## Requirements
 
-- Node.js 22
+- Node.js 22.18 or newer
 - pnpm 9
 - A running DUMA API
 - Access to the private `@duma-crm/api` package registry
@@ -69,8 +69,24 @@ directly and forward the session cookie.
 pnpm check
 ```
 
-This runs ESLint, TypeScript, unit tests, and a production build. GitHub Actions
+This runs business logic tests first, then ESLint, TypeScript, and a production build. GitHub Actions
 runs the same gates for pull requests and pushes to `main`.
+
+### Business logic tests
+
+Run `pnpm test` for the complete suite or `pnpm test:watch` while editing.
+Tests live in `tests/unit/` and use `node:test` with `node:assert/strict`.
+They call production functions directly: checkout, loyalty, payment eligibility,
+offline failure decisions, stock valuation, payroll, and capability checks.
+No API, database, Next.js server, browser, or environment secrets are needed.
+
+Test meaningful business outcomes and boundaries, not UI rendering, clicks,
+text, snapshots, source-file contents, or trivial helpers. There is no coverage
+percentage target. Add cases for consequential business changes and regressions;
+do not add tests merely because a file changed. Use fixed inputs and explicit
+time zones for date rules. Aim for a full test run under 10 seconds, excluding
+installation and build time. Native TypeScript execution requires explicit
+relative value imports and does not typecheck; `pnpm typecheck` handles that.
 
 ## Authentication and authorization
 

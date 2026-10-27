@@ -10,11 +10,6 @@
 !.yarn/releases
 !.yarn/versions
 
-# testing
-/coverage
-/playwright-report/
-/test-results/
-
 # next.js
 /.next/
 /out/
@@ -44,6 +39,3 @@ next-env.d.ts
 
 # Copied from node_modules on install (scripts/copy-excalidraw-fonts.mjs)
 /public/excalidraw-assets/
-
-# Isolated browser-test build
-/.next-e2e/

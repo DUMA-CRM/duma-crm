@@ -118,6 +118,9 @@ export function proxy(req: NextRequest) {
 }
 
 export const config = {
-  // Run on everything except Next.js internals and static files.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico).*)'],
+  // Run on everything except Next.js internals and files served from public/.
+  // Those were behind the sign-in redirect, so anything fetching them without a
+  // session — email clients loading the logo, link previews reading og.png, the
+  // browser reading the manifest before sign-in — got the sign-in page instead.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|svg|ico|webmanifest|js)$).*)'],
 };

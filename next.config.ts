@@ -5,8 +5,6 @@ const POSTHOG_HOST = process.env.NEXT_PUBLIC_POSTHOG_HOST ?? 'https://eu.i.posth
 
 const nextConfig: NextConfig = {
   poweredByHeader: false,
-  // Let browser tests run alongside a developer's existing server.
-  distDir: process.env.DUMA_BUILD_DIR ?? '.next',
   experimental: {
     // proxy.ts runs on /be as well, and Next buffers only this much of a request
     // body there — silently truncating anything larger before the rewrite sends
