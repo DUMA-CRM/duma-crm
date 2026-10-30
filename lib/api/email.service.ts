@@ -273,10 +273,11 @@ const tenantQuery = (tenantId?: string) => (tenantId ? `?tenantId=${encodeURICom
 
 export const getEmailConnection = (tenantId?: string) => apiFetch<EmailConnection | null>(`/email/connection${tenantQuery(tenantId)}`);
 export const saveEmailConnection = (data: EmailConnectionPayload) =>
-  apiFetch<EmailConnection>('/email/connection', { method: 'PUT', body: JSON.stringify(data) });
+  apiFetch<EmailConnection>('/email/connection', { method: 'PUT', workspaceId: data.tenantId, body: JSON.stringify(data) });
 export const testEmailConnection = (data: { tenantId?: string; toEmail?: string }) =>
   apiFetch<{ ok: boolean; testedAt: string; error?: string }>('/email/connection/test', {
     method: 'POST',
+    workspaceId: data.tenantId,
     body: JSON.stringify(data),
   });
 

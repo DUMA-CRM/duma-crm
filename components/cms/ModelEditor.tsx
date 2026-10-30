@@ -83,7 +83,7 @@ import {
 import { type ModelDraft, mergeDraftFields, uniqueModelName } from '@/lib/utils/cms-model-draft';
 import { SEO_FIELD, hasSeoBlock, missingSeoFields, withFullSeoBlock } from '@/lib/utils/cms-seo';
 import { cn } from '@/lib/utils/cn';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { ModelAssist } from './ModelAssist';
 import { FIELD_ICONS } from './fieldIcons';
@@ -109,7 +109,7 @@ export function ModelEditor({
   /** Open the Entries tab filtered to this model. */
   onBrowseEntries?: (id: string) => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   // Bumped by Discard: remounting the form is the simplest exact reset.
   const [resetCount, setResetCount] = useState(0);
   const query = useQuery({
@@ -159,7 +159,7 @@ function LoadedModelEditor({
   onDiscard: () => void;
   onBrowseEntries?: (id: string) => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   const access = useCmsAccess();
   const editable = access.canModel;
@@ -1298,7 +1298,7 @@ const FALLBACK_ROLES = [
  * permission a role lacks — the API checks both. Saved on its own, at once.
  */
 function TypeRolesSection({ typeId, typeName, editable }: { typeId: string; typeName: string; editable: boolean }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   const rolesQuery = useQuery({ queryKey: [...cmsKeys.contentType(typeId), 'roles'], queryFn: () => getCmsTypeRoles(typeId, tenantId) });
   // The catalogue needs a roles permission a model editor may not hold; fall back to the built-in names.

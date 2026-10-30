@@ -84,7 +84,7 @@ import { draftStorageKey, parseStoredDraft, recoveryFor } from '@/lib/utils/cms-
 import { SEO_FIELD_KEY } from '@/lib/utils/cms-seo';
 import { cn } from '@/lib/utils/cn';
 import { formatInstant, resolvedTimeZone, workspaceDateKey } from '@/lib/utils/workspace-time';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { AssistSection } from './AssistSection';
 import { DateTimeField } from './DateTimeField';
@@ -109,7 +109,7 @@ export function EntryEditor({
   onOpenEntry: (id: string) => void;
   onOpenModel: (id: string) => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   // Bumped by Discard: remounting the form is the simplest exact reset.
   const [resetCount, setResetCount] = useState(0);
   const entryQuery = useQuery({
@@ -169,7 +169,7 @@ function LoadedEntryEditor({
   onOpenModel: (id: string) => void;
   onDiscard: () => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   const access = useCmsAccess();
   const reduceMotion = useReducedMotion();
@@ -210,6 +210,9 @@ function LoadedEntryEditor({
     return { passed: seoChecks.filter((check) => check.ok).length, total: seoChecks.length, empty };
   })();
   // What each blank SEO field falls back to — the same reading the checks and the previews use.
+  // The card shows the headline as written; without one, the title search would show.
+  const headline = headlineField ? data[headlineField.key] : undefined;
+  const shareCardTitle = (typeof headline === 'string' && headline.trim()) || seoView.title;
   const seoPlaceholders = seoField
     ? {
         metaTitle: seoView.title,
@@ -660,6 +663,7 @@ function LoadedEntryEditor({
                     placeholders={seoPlaceholders}
                     open={seoRow}
                     onOpenChange={setSeoRow}
+                    shareCard={{ label: type.name, title: shareCardTitle }}
                   />
                 </SettingsSection>
               )}
@@ -824,7 +828,7 @@ const ADD_PREFIX = 'add:';
  * in place — the new version starts as a copy of the default language.
  */
 function LanguageSwitcher({ entry, dirty, onOpenEntry }: { entry: CmsEntry; dirty: boolean; onOpenEntry: (id: string) => void }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const queryClient = useQueryClient();
   const access = useCmsAccess();
   const [pending, setPending] = useState<string | null>(null);
@@ -968,7 +972,7 @@ function StatusSection({
  * restore in each version's history — publishing alone doesn't count.
  */
 function TranslationNotice({ entry, onOpenVersion }: { entry: CmsEntry; onOpenVersion: (id: string) => void }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const versions = entry.localizations ?? [];
   const several = versions.length > 1;
   const locales = useQuery({
@@ -1023,7 +1027,7 @@ function TranslationNotice({ entry, onOpenVersion }: { entry: CmsEntry; onOpenVe
 }
 
 function ScheduleSection({ entry }: { entry: CmsEntry }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   // Keyed by the saved schedule (see the call site), so these reset when it changes.
   const [publishAt, setPublishAt] = useState(entry.scheduledPublishAt ?? '');
@@ -1175,7 +1179,7 @@ function HistoryDrawer({
   onClose: () => void;
   onRestored: () => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const [selected, setSelected] = useState<string | null>(null);
   const versionsQuery = useQuery({ queryKey: cmsKeys.versions(entry.id), queryFn: () => getCmsEntryVersions(entry.id, tenantId) });
   const snapshotQuery = useQuery({

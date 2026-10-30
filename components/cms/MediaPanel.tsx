@@ -90,7 +90,7 @@ import {
   pendingFolders,
 } from '@/lib/utils/media-folders';
 import { isConvertibleImage, isConvertibleVideo, renditionWidths } from '@/lib/utils/media-storage';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { assist } from './AssistSection';
 import { FocalMarker, ImageOptionsDialog } from './ImageOptionsDialog';
@@ -173,7 +173,7 @@ export function MediaPanel({
   folder: string | null;
   onOpenFolder: (path: string | null) => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const queryClient = useQueryClient();
   const access = useCmsAccess();
   const fileInput = useRef<HTMLInputElement>(null);
@@ -1206,7 +1206,7 @@ export function AssetDrawer({
   extra?: React.ReactNode;
   onChanged?: () => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   const access = useCmsAccess();
   const query = useQuery({

@@ -17,7 +17,7 @@ import { Input } from '@/components/ui/input';
 
 import { type CmsContentType, getCmsContentTypes } from '@/lib/modules/cms/client';
 import { FIELD_TYPES } from '@/lib/utils/cms';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { FIELD_ICONS } from './fieldIcons';
 import { InfoRow, InfoRows, RowTile, SectionInfo } from './rows';
@@ -41,7 +41,7 @@ export function ModelsPanel({
   onNewModel?: () => void;
   onBrowseEntries: (contentTypeId: string) => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const reduceMotion = useReducedMotion();
   const [search, setSearch] = useState('');
   const query = useQuery({

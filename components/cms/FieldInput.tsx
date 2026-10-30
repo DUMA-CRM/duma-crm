@@ -16,7 +16,7 @@ import { type CmsFieldDefinition, getCmsAssets, getCmsEntries, importCmsAsset } 
 import { toast } from '@/lib/toast';
 import { dropIndex, emptyValueFor, isImage, isListField, moveItem, slugify } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { DateTimeField } from './DateTimeField';
 import { MarkdownEditor } from './MarkdownEditor';
@@ -43,6 +43,7 @@ export function FieldSet({
   headlineKey,
   placeholders,
   recommendedLengths,
+  fieldActions,
   hideLabel = false,
 }: {
   fields: CmsFieldDefinition[];
@@ -59,6 +60,8 @@ export function FieldSet({
   recommendedLengths?: Readonly<Record<string, number>>;
   /** The field sits under a row that already names it: keep the label for screen readers only. */
   hideLabel?: boolean;
+  /** An extra control beside a field's own, by key (media fields only, today). */
+  fieldActions?: Readonly<Record<string, React.ReactNode>>;
 }) {
   const headline = headlineKey ? fields.find((field) => field.key === headlineKey && field.type === 'text') : undefined;
   const ordered = headline ? [headline, ...fields.filter((field) => field !== headline)] : fields;
@@ -71,6 +74,7 @@ export function FieldSet({
           field={field}
           value={value[field.key]}
           siblings={value}
+          action={fieldActions?.[field.key]}
           onChange={(next) => onChange({ ...value, [field.key]: next })}
           errors={issues?.get(field.key)}
           disabled={disabled}
@@ -96,8 +100,10 @@ function FieldInput({
   placeholder,
   recommendedLength,
   hideLabel = false,
+  action,
 }: {
   hideLabel?: boolean;
+  action?: React.ReactNode;
   headline?: boolean;
   placeholder?: string;
   recommendedLength?: number;
@@ -458,7 +464,7 @@ function FieldInput({
         </div>
       );
     case 'media':
-      return <MediaInput field={field} label={label} help={help} value={value} disabled={disabled} onChange={onChange} />;
+      return <MediaInput field={field} label={label} help={help} value={value} disabled={disabled} onChange={onChange} action={action} />;
     case 'reference':
       return (
         <ReferenceInput field={field} label={label} help={help} value={value} disabled={disabled} onChange={onChange} locale={locale} />
@@ -522,6 +528,7 @@ function MediaInput({
   value,
   disabled,
   onChange,
+  action,
 }: {
   field: CmsFieldDefinition;
   label: React.ReactNode;
@@ -529,8 +536,10 @@ function MediaInput({
   value: unknown;
   disabled?: boolean;
   onChange: (next: unknown) => void;
+  /** Beside Media while the field is empty; under the chosen file once it has one. */
+  action?: React.ReactNode;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const queryClient = useQueryClient();
   const [picking, setPicking] = useState(false);
   const [link, setLink] = useState('');
@@ -726,8 +735,10 @@ function MediaInput({
             <ImageIcon aria-hidden="true" />
             Media
           </Button>
+          {action}
         </div>
       )}
+      {!disabled && action && !(multiple || ids.length === 0) && <div className="mt-2 flex">{action}</div>}
       {help}
       {picking && (
         <MediaPicker
@@ -762,7 +773,7 @@ function ReferenceInput({
   onChange: (next: unknown) => void;
   locale: string;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const [picking, setPicking] = useState(false);
   const multiple = isListField(field);
   const ids = (Array.isArray(value) ? value : value ? [value] : []).filter((item): item is string => typeof item === 'string');

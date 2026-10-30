@@ -21,7 +21,7 @@ import {
   seoSnapshot,
 } from '@/lib/utils/cms-seo';
 import { cn } from '@/lib/utils/cn';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { DumaSays } from './DumaSays';
 import { cmsKeys } from './shared';
@@ -76,7 +76,7 @@ export function AssistSection({
   /** Bumped by another card (Search & sharing's Fix) to run Fill SEO here. */
   fillSeoRequest?: number;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const [busy, setBusy] = useState<string | null>(null);
   const [saying, setSaying] = useState<null | { tone: 'done' | 'error'; text: string }>(null);
   // Bumped on each success so the mascot celebrates every time, not just the first.

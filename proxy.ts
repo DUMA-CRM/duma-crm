@@ -10,20 +10,12 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { CSP_IMAGE_HOSTS } from '@/lib/utils/image-src';
+import { isPublicPath } from '@/lib/utils/public-paths';
 
 // better-auth's session cookie. The exact name varies with configuration —
 // `better-auth.session_token` plain, `__Secure-better-auth.session_token` on
 // HTTPS, or a custom cookiePrefix — so match by suffix, not equality.
 const SESSION_COOKIE_SUFFIX = 'session_token';
-
-// Routes that are accessible without a session. '/' must be matched exactly —
-// a startsWith('/') check matches every path and disables the guard entirely.
-//
-// '/be' is the same-origin API proxy: it MUST stay exempt or unauthenticated
-// API calls (sign-in itself!) get redirected to the sign-in HTML page, which
-// then fails JSON parsing in the client. The API enforces its own auth.
-// '/ingest' is product analytics (next.config.ts): the sign-in page reports too.
-const PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password', '/verify-email', '/order', '/book', '/f', '/privacy', '/terms', '/api/auth', '/be', '/ingest'];
 
 /**
  * Content Security Policy.
@@ -85,7 +77,8 @@ function contentSecurityPolicy(nonce: string, allowEval: boolean, frameable: 'no
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
   const hasSession = req.cookies.getAll().some((c) => c.name.endsWith(SESSION_COOKIE_SUFFIX) && c.value.length > 0);
-  const isPublic = pathname === '/' || PUBLIC_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
+  // Which routes need no session: lib/utils/public-paths.ts.
+  const isPublic = isPublicPath(pathname);
 
   // Unauthenticated user visiting a protected page → send to sign-in.
   // Preserve `?next=` so we can redirect back after a successful login.
@@ -120,7 +113,9 @@ export function proxy(req: NextRequest) {
 export const config = {
   // Run on everything except Next.js internals and files served from public/.
   // Those were behind the sign-in redirect, so anything fetching them without a
-  // session — email clients loading the logo, link previews reading og.png, the
+  // session — email clients loading the logo, link previews reading the share image, the
   // browser reading the manifest before sign-in — got the sign-in page instead.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|svg|ico|webmanifest|js)$).*)'],
+  // Every image format public/ may hold is listed — a .webp or .jpg missing here
+  // silently became a redirect for every signed-out visitor.
+  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|webp|avif|gif|svg|ico|webmanifest|js)$).*)'],
 };

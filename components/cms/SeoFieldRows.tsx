@@ -4,6 +4,7 @@ import type { CmsFieldDefinition } from '@/lib/modules/cms/client';
 import { SEO_RECOMMENDED_LENGTHS, seoFieldGroups } from '@/lib/utils/cms-seo';
 
 import { FieldRows } from './FieldRows';
+import { ShareCardButton } from './ShareCardButton';
 import { SectionInfo } from './rows';
 
 type Data = Record<string, unknown>;
@@ -18,6 +19,7 @@ export function SeoFieldRows({
   placeholders,
   open,
   onOpenChange,
+  shareCard,
 }: {
   fields: CmsFieldDefinition[];
   value: Data;
@@ -28,7 +30,22 @@ export function SeoFieldRows({
   /** The open row's field key — owned by the editor, so another card can open one. */
   open: string | null;
   onOpenChange: (key: string | null) => void;
+  /** What a generated share card says; omitted, there is no Generate beside Social image. */
+  shareCard?: { label: string; title: string };
 }) {
+  // Generate sits beside Social image's own Media button.
+  const actions = shareCard
+    ? {
+        ogImage: (
+          <ShareCardButton
+            label={shareCard.label}
+            title={shareCard.title}
+            hasImage={Boolean(value.ogImage)}
+            onGenerated={(assetId) => onChange({ ...value, ogImage: assetId })}
+          />
+        ),
+      }
+    : undefined;
   return (
     <div className="divide-y divide-rule/40 [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
       {seoFieldGroups(fields).map((group) => (
@@ -47,6 +64,7 @@ export function SeoFieldRows({
             onOpenChange={onOpenChange}
             placeholders={placeholders}
             recommendedLengths={SEO_RECOMMENDED_LENGTHS}
+            fieldActions={actions}
           />
         </div>
       ))}

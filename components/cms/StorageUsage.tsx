@@ -11,7 +11,7 @@ import { type CmsStorage, getCmsStorage } from '@/lib/modules/cms/client';
 import { formatBytes } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import { type StorageKind, storageMeter } from '@/lib/utils/media-storage';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId, useContentPaths } from '@/components/cms/ContentScope';
 
 import { StorageMeter } from './StorageMeter';
 import { cmsKeys } from './shared';
@@ -56,7 +56,7 @@ export function uploadTarget(storage: CmsStorage | undefined) {
 
 /** The overview uses the same target and cached usage data as the Media header. */
 export function ContentStorageUsage() {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const access = useCmsAccess();
   const storage = useQuery({
     queryKey: cmsKeys.storage(tenantId),
@@ -93,6 +93,7 @@ const TONE = {
  * turns amber at 90% and red when full, which is when it needs to be noticed.
  */
 export function StorageUsage({ target, canManage }: { target: UploadTarget; canManage: boolean }) {
+  const { storagePath } = useContentPaths();
   const meter = storageMeter(target.byKind, target.quotaBytes);
   const tone = TONE[meter.state];
   // Without a limit there is nothing to fill; the bar would only ever look empty.
@@ -162,7 +163,7 @@ export function StorageUsage({ target, canManage }: { target: UploadTarget; canM
         <div className="border-t border-rule/50 px-4 py-3 text-xs">
           {canManage ? (
             <Link
-              href="/settings/connectors?connector=media-storage"
+              href={storagePath}
               className="inline-flex items-center gap-1 font-medium text-primary underline-offset-2 hover:underline"
             >
               {target.builtIn ? 'Connect your own storage' : 'Manage storage'}

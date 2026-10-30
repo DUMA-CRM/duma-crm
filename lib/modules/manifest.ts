@@ -168,6 +168,10 @@ const pages: Record<ModuleId, readonly string[]> = {
     // DUMA Admin: the platform's own pages, gated on a platform role.
     '/admin',
     '/admin/activity',
+    '/admin/content',
+    '/admin/content/storage',
+    '/admin/settings',
+    '/admin/settings/connectors',
     '/admin/overview',
     '/admin/system',
     '/admin/updates',

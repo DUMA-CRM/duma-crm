@@ -53,8 +53,8 @@ const currencySigns = localFont({
 
 export const metadata: Metadata = {
   metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL ?? 'https://duma-business.com'),
-  title: 'DUMA — Your coffee business, clearly',
-  description: 'Run sales, customers, inventory, staffing, and day-to-day business os from one connected workspace.',
+  title: 'DUMA — Business OS',
+  description: 'Run sales, bookings, stock, staff, customers and content from one connected workspace.',
   // Every mark here is the logo in public/logo.svg. The SVG is what modern
   // browsers pick. app/favicon.ico (16/32/48/256, rasterised from the same
   // file) is not listed because Next emits its own link for that file
@@ -68,16 +68,14 @@ export const metadata: Metadata = {
     apple: [{ url: '/apple-icon.png', sizes: '180x180', type: 'image/png' }],
   },
   openGraph: {
-    title: 'DUMA — Your coffee business, clearly',
-    description: 'One connected operating system for modern coffee businesses.',
+    title: 'DUMA — Business OS',
+    description: 'One connected workspace to run your whole business.',
     type: 'website',
-    images: [{ url: '/og.png', width: 1731, height: 909, alt: 'DUMA coffee business dashboard' }],
   },
   twitter: {
     card: 'summary_large_image',
-    title: 'DUMA — Your coffee business, clearly',
-    description: 'One connected operating system for modern coffee businesses.',
-    images: ['/og.png'],
+    title: 'DUMA — Business OS',
+    description: 'One connected workspace to run your whole business.',
   },
 };
 

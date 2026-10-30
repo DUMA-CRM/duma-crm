@@ -26,7 +26,7 @@ import {
 import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { EditStorageDialog } from './EditStorageDialog';
 import { storageProviderLabel } from './StorageConnector';
@@ -39,7 +39,7 @@ import { storageProviderLabel } from './StorageConnector';
  * `cms.keys:write` — the same capability the API checks.
  */
 export function StorageConnectorPage({ onClose, onConnect }: { onClose: () => void; onConnect: () => void }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<CmsStorageConnection | null>(null);
   const [disconnecting, setDisconnecting] = useState<CmsStorageConnection | null>(null);

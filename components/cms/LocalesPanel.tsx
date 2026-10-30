@@ -30,7 +30,7 @@ import { toast } from '@/lib/toast';
 import { localeDisplayName, translationCoverage } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import { CURRENCIES, currencyLabel } from '@/lib/utils/currencies';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { FieldRow, InfoRow, InfoRows, PickerRow, RowMenu } from './rows';
 import { cmsKeys, invalidateCms } from './shared';
@@ -49,7 +49,7 @@ type Patch = { isDefault?: boolean; fallbackCode?: string | null; currency?: str
  * change saves at once; there is no draft.
  */
 export function LocalesPanel() {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const reduceMotion = useReducedMotion();
   const queryClient = useQueryClient();
   const query = useQuery({ queryKey: cmsKeys.locales(tenantId), queryFn: () => getCmsLocales(tenantId ?? undefined), enabled: !!tenantId });
@@ -236,7 +236,7 @@ export function LocalesPanel() {
 
 /** A new language: its tag, and a name that fills itself in from the tag. */
 function AddLocaleDialog({ locales, onClose }: { locales: CmsLocale[]; onClose: () => void }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   const [code, setCode] = useState('');
   const [name, setName] = useState('');
@@ -319,7 +319,7 @@ function AddLocaleDialog({ locales, onClose }: { locales: CmsLocale[]; onClose: 
  * numbers the Entries tab shows, archived left out of both.
  */
 function TranslationSection({ locales }: { locales: CmsLocale[] }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const overview = useQuery({
     queryKey: cmsKeys.overview(tenantId),
     queryFn: () => getCmsOverview(tenantId ?? undefined),

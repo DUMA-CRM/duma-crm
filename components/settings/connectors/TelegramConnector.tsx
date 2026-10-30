@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AlertCircle, CheckCircle2, Clock3, ExternalLink, Loader2, Plug, Search, Send, Sparkles, Trash2, Zap } from '@/components/icons';
+import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SaveBar, Switch } from '@/components/settings/controls';
@@ -27,7 +28,6 @@ import {
 } from '@/lib/modules/communications/client';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ConnectWizard, WizardRail, type WizardStep } from './ConnectWizard';
 import { CONNECTORS_BY_ID, type ConnectorState } from './registry';
@@ -54,7 +54,7 @@ interface TelegramForm {
  * and the manage page. An empty token means "keep the saved one".
  */
 function useTelegramForm() {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useSettingsTenantId();
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: telegramQueryKey(tenantId),
@@ -261,7 +261,7 @@ function TestPanel({
   dirty: boolean;
   onSent: () => Promise<unknown>;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useSettingsTenantId();
   const test = useMutation({
     mutationFn: () => testTelegramConnection(tenantId!),
     onSuccess: async () => {

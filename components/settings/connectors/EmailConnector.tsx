@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { AlertCircle, Building2, CheckCircle2, Clock3, Loader2, Mail, Send, Server, ShieldOff, Sparkles, Zap } from '@/components/icons';
+import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SaveBar, Switch } from '@/components/settings/controls';
@@ -26,7 +27,6 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ConnectWizard, ProviderGrid, WizardRail, type WizardStep } from './ConnectWizard';
 import { CONNECTORS_BY_ID, type ConnectorState } from './registry';
@@ -81,7 +81,7 @@ export function emailConnectorState(connection: EmailConnection | null | undefin
  */
 function useEmailConnectionForm() {
   const capabilities = useAuthStore((state) => state.capabilities);
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useSettingsTenantId();
   const queryClient = useQueryClient();
   const { data: connection, isLoading } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
@@ -163,7 +163,7 @@ function useEmailConnectionForm() {
 
 /** Send-a-test panel — the only proof that any of the settings above are right. */
 function useConnectionTest() {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useSettingsTenantId();
   const queryClient = useQueryClient();
   const [testEmail, setTestEmail] = useState('');
 

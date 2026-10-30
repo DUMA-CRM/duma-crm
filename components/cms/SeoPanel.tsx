@@ -19,7 +19,7 @@ import { toast } from '@/lib/toast';
 import { SERP_DESCRIPTION_MAX, SERP_TITLE_MAX, hasSeoBlock, seoChecklist, seoSnapshot, truncate } from '@/lib/utils/cms-seo';
 import { cn } from '@/lib/utils/cn';
 import { formatInstant } from '@/lib/utils/workspace-time';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { SectionInfo } from './rows';
 import { assetPreviewSrc, cmsKeys, copyText } from './shared';
@@ -72,7 +72,7 @@ export function goToField(key: string) {
  * adds its own checks.
  */
 export function useSeoChecks(fields: CmsFieldDefinition[], titleField: string | null, data: Record<string, unknown>, keyword?: string) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const snapshot = seoSnapshot(fields, titleField, data);
   const imageQuery = useQuery({
     queryKey: cmsKeys.assets(tenantId, { ids: snapshot.imageId }),
@@ -280,7 +280,7 @@ const DURATIONS = [
  * one draft until then, so the dialog says so.
  */
 export function SharePreviewDialog({ entryId, onClose }: { entryId: string; onClose: () => void }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const [hours, setHours] = useState('24');
   const link = useMutation({
     mutationFn: () => createCmsPreviewLink(entryId, Number(hours), tenantId),

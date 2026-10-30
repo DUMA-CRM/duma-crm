@@ -102,9 +102,9 @@ export function assetSrc(url: string): string {
  * a private bucket, a CDN the CSP has never heard of — and `v` caches it until
  * the file is replaced. Websites keep using `asset.url`.
  */
-export function assetPreviewSrc(asset: { id: string; updatedAt: string }): string {
+export function assetPreviewSrc(asset: { id: string; updatedAt: string; tenantId?: string }): string {
   const query = new URLSearchParams({ v: asset.updatedAt });
-  const tenantId = useWorkspaceStore.getState().tenantId;
+  const tenantId = asset.tenantId ?? useWorkspaceStore.getState().tenantId;
   if (tenantId) query.set('tenantId', tenantId);
   return `${API_PREFIX}/v1/cms/assets/${asset.id}/file?${query}`;
 }

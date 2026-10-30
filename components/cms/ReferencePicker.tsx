@@ -11,7 +11,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { getCmsContentTypes, getCmsEntries } from '@/lib/modules/cms/client';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { EntryStatusBadge, PanelError, cmsKeys } from './shared';
 
@@ -32,7 +32,7 @@ export function ReferencePicker({
   onPick: (documentId: string) => void;
   onClose: () => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
   const typesQuery = useQuery({

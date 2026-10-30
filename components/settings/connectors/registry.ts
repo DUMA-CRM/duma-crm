@@ -204,3 +204,6 @@ export const STATE_BADGE: Record<ConnectorState, { label: string; variant: 'succ
 
 /** Which filter chip a card belongs under. `unavailable` never counts as set up. */
 export type ConnectorFilter = 'all' | 'connected' | 'attention' | 'disconnected';
+
+/** Workspace-wide integrations used by DUMA itself. */
+export const ADMIN_CONNECTOR_IDS: readonly ConnectorId[] = ['media-storage', 'email', 'telegram', 'analytics'];

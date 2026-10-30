@@ -22,7 +22,7 @@ import {
   wordPressRow,
 } from '@/lib/utils/cms-import';
 import { cn } from '@/lib/utils/cn';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { cmsKeys, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
@@ -58,7 +58,7 @@ function parseWordPress(xml: string): string[][] {
  * the preview, import. Entries arrive as drafts unless you choose to publish.
  */
 export function ImportDialog({ initialTypeId, onClose }: { initialTypeId?: string; onClose: () => void }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const queryClient = useQueryClient();
   const access = useCmsAccess();
   const fileInput = useRef<HTMLInputElement>(null);

@@ -14,7 +14,7 @@ import { type CmsAsset, type CmsMediaGroup, getCmsAssets, uploadCmsAsset } from 
 import { toast } from '@/lib/toast';
 import { isImage } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { createRenditions } from './renditions';
 import { PanelError, assetPreviewSrc, cmsKeys, invalidateCms } from './shared';
@@ -32,7 +32,7 @@ export function MediaPicker({
   onPick: (ids: string[], assets: CmsAsset[]) => void;
   onClose: () => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const queryClient = useQueryClient();
   const fileInput = useRef<HTMLInputElement>(null);
   const [search, setSearch] = useState('');

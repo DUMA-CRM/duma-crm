@@ -14,7 +14,7 @@ import { type CmsAsset, bulkCmsAssets, getCmsAssetFile, replaceCmsAssetFile } fr
 import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
 import { DEFAULT_IMAGE_OPTIONS, isConvertibleImage } from '@/lib/utils/media-storage';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { encodeImage } from './imageEncode';
 import { invalidateCms } from './shared';
@@ -38,7 +38,7 @@ export function MediaBulkBar({
   request?: { dialog: 'tag' | 'delete' } | null;
   onClear: () => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   const [dialog, setDialog] = useState<Dialog>(null);
   const [handled, setHandled] = useState(request);

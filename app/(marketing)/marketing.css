@@ -1,0 +1,223 @@
+/*
+ * The marketing site's material. Modelled on seline.com's grammar — a
+ * near-white canvas, white cards with a hairline, two-tone headings, a
+ * highlighter on the phrase that matters, handwritten notes
+ * and pencil strokes in the margins — set in DUMA's own type and brand green.
+ *
+ * Scoped to `.mkt` (app/(marketing)/layout.tsx) so none of it reaches the app.
+ */
+
+.mkt {
+  --mkt-ground: #faf9f6;
+  --mkt-card: #ffffff;
+  /* Headlines are true black; the brand green is kept for the highlighted phrase. */
+  --mkt-heading: #0a0a0a;
+  /* The chalk curves: warm graphite, barely there on the paper. */
+  --mkt-chalk: #e6e0d6;
+  --mkt-line: color-mix(in oklab, var(--ink) 11%, transparent);
+  --mkt-ink-2: color-mix(in oklab, var(--ink) 62%, #fff);
+  --mkt-ink-3: color-mix(in oklab, var(--ink) 34%, #fff);
+  /* A clear mint, not a grey sage: green enough to read as a highlighter. */
+  --mkt-marker: #c9edd8;
+  --mkt-marker-ink: var(--mkt-heading);
+  --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
+
+  background: var(--mkt-ground);
+  color: var(--ink);
+}
+
+.dark .mkt {
+  --mkt-ground: #121110;
+  --mkt-card: #1a1917;
+  --mkt-heading: var(--ink);
+  --mkt-chalk: #2a2724;
+  --mkt-line: color-mix(in oklab, var(--ink) 14%, transparent);
+  --mkt-ink-2: color-mix(in oklab, var(--ink) 70%, #000);
+  --mkt-ink-3: color-mix(in oklab, var(--ink) 42%, #000);
+  --mkt-marker: #1d4a35;
+  --mkt-marker-ink: var(--mkt-heading);
+}
+
+html:has(.mkt) {
+  scroll-behavior: smooth;
+}
+
+/*
+ * The header is clear at the top of the page, so the hero's chalk curves run
+ * up behind it, and frosts over in the first 64px of scroll. Browsers without
+ * scroll-driven animations keep the always-frosted header from its classes.
+ */
+@supports (animation-timeline: scroll()) {
+  .mkt-header {
+    background: transparent;
+    backdrop-filter: none;
+    animation: mkt-header-frost linear both;
+    animation-timeline: scroll();
+    animation-range: 0 64px;
+  }
+}
+
+@keyframes mkt-header-frost {
+  to {
+    background: color-mix(in oklab, var(--mkt-ground) 85%, transparent);
+    backdrop-filter: blur(12px);
+  }
+}
+
+/* Text the eye should land on, as if run over with a highlighter. */
+.mkt-mark {
+  background: var(--mkt-marker);
+  color: var(--mkt-marker-ink);
+  border-radius: 3px;
+  padding: 0.05em 0.2em;
+  box-decoration-break: clone;
+  -webkit-box-decoration-break: clone;
+}
+
+/* The hero's highlighted phrase keeps the brand green; every other highlight is black. */
+.mkt-mark-green {
+  color: var(--success);
+}
+
+/* The handwritten voice: notes in the margin, the signature. */
+.mkt-hand {
+  font-family: var(--font-hand), cursive;
+  font-weight: 500;
+  letter-spacing: 0.01em;
+}
+
+.mkt-card {
+  background: var(--mkt-card);
+  border: 1px solid var(--mkt-line);
+  border-radius: 10px;
+  box-shadow: 0 1px 2px rgb(32 55 45 / 0.04);
+}
+
+/* A mock interface placed inside a card: it bleeds off the card's bottom edge. */
+.mkt-mock {
+  background: var(--mkt-card);
+  border: 1px solid var(--mkt-line);
+  border-radius: 8px;
+  box-shadow:
+    0 1px 2px rgb(32 55 45 / 0.05),
+    0 12px 32px -12px rgb(32 55 45 / 0.18);
+}
+
+/* Small grey tag in a card's corner. */
+.mkt-tag {
+  display: inline-flex;
+  align-items: center;
+  height: 1.5rem;
+  padding: 0 0.5rem;
+  border-radius: 4px;
+  font-size: 0.8125rem;
+  color: var(--mkt-ink-2);
+  background: color-mix(in oklab, var(--ink) 6%, transparent);
+  white-space: nowrap;
+}
+
+/* Pencil strokes in the margins. Decoration only, behind everything. */
+.mkt-strokes {
+  pointer-events: none;
+  position: absolute;
+  inset: 0;
+  overflow: hidden;
+  z-index: 0;
+}
+
+/* Reveal on scroll — RevealObserver only hides what is still below the fold. */
+[data-reveal-state] {
+  transition:
+    opacity 0.6s var(--ease-out-expo),
+    transform 0.7s var(--ease-out-expo),
+    filter 0.6s var(--ease-out-expo);
+  transition-delay: var(--reveal-delay, 0ms);
+}
+
+[data-reveal-state='hidden'] {
+  opacity: 0;
+  transform: translateY(10px);
+  filter: blur(4px);
+}
+
+/* The hero's review line: each new review fades up into place. */
+.mkt-review {
+  animation: mkt-review-in 0.5s var(--ease-out-expo) both;
+}
+
+@keyframes mkt-review-in {
+  from {
+    opacity: 0;
+    transform: translateY(4px);
+  }
+}
+
+/* The hero bill and any other "struck off" list. */
+.bill-strike::after {
+  content: '';
+  position: absolute;
+  left: -2px;
+  right: -2px;
+  top: 52%;
+  height: 1.5px;
+  background: currentColor;
+  transform-origin: left;
+  animation: bill-strike 0.45s var(--ease-out-expo) calc(0.5s + var(--strike-order, 0) * 0.14s) both;
+}
+
+@keyframes bill-strike {
+  from {
+    scale: 0 1;
+  }
+}
+
+.bill-total {
+  animation: bill-total 0.7s var(--ease-out-expo) 1.6s both;
+}
+
+@keyframes bill-total {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* An order waiting in the offline queue breathes until it is sent. */
+@keyframes queue-wait {
+  50% {
+    opacity: 0.35;
+  }
+}
+
+.queue-wait {
+  animation: queue-wait 1.6s ease-in-out infinite;
+}
+
+/* A typing caret for the Ask DUMA card. */
+@keyframes mkt-caret {
+  50% {
+    opacity: 0;
+  }
+}
+
+.mkt-caret {
+  animation: mkt-caret 1s steps(1) infinite;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html:has(.mkt) {
+    scroll-behavior: auto;
+  }
+
+  [data-reveal-state] {
+    transition: none;
+  }
+
+  .mkt-review,
+  .bill-strike::after,
+  .bill-total,
+  .queue-wait,
+  .mkt-caret {
+    animation: none;
+  }
+}

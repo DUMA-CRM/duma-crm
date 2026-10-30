@@ -15,7 +15,7 @@ import { type CmsStorage, type CmsStorageConnection, createCmsStorageConnection 
 import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
 import { QUOTA_UNITS, type QuotaUnit, parseBucketUrl, quotaToBytes } from '@/lib/utils/media-storage';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId, useContentPaths } from '@/components/cms/ContentScope';
 
 import { ConnectWizard, ProviderGrid, WizardRail, type WizardStep } from './ConnectWizard';
 import { CONNECTORS_BY_ID, type ConnectorState } from './registry';
@@ -64,7 +64,8 @@ export function storageProviderLabel(connection: CmsStorageConnection): string {
  * provider's own reason, and nothing half-configured is ever saved.
  */
 export function StorageConnectWizard({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const { basePath } = useContentPaths();
+  const tenantId = useCmsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   const [preset, setPreset] = useState<Preset | null>(null);
   const [form, setForm] = useState({
@@ -346,7 +347,7 @@ export function StorageConnectWizard({ onClose, onDone }: { onClose: () => void;
           {connected && <StorageMeter byKind={connected.byKind} quotaBytes={connected.quotaBytes} />}
           <p className="text-xs text-muted-foreground">
             Upload and optimise images in{' '}
-            <Link href="/content?tab=media" className="font-medium text-primary hover:underline">
+            <Link href={`${basePath}?tab=media`} className="font-medium text-primary hover:underline">
               Content → Media
             </Link>
             .

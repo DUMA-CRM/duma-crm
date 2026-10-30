@@ -12,7 +12,7 @@ import { Select } from '@/components/ui/select';
 import { type CmsStorageConnection, updateCmsStorageConnection } from '@/lib/modules/cms/client';
 import { toast } from '@/lib/toast';
 import { QUOTA_UNITS, type QuotaUnit, bytesToQuota, quotaToBytes } from '@/lib/utils/media-storage';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 /**
  * Change what can change on a connected bucket: its name, limit, public URL
@@ -21,7 +21,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
  * New credentials are re-tested by the API before they are saved.
  */
 export function EditStorageDialog({ connection, onClose }: { connection: CmsStorageConnection; onClose: () => void }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   const isS3 = connection.provider === 's3';
   const initialQuota = bytesToQuota(connection.quotaBytes);

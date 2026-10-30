@@ -1,8 +1,13 @@
+import type { Metadata } from 'next';
 import Link from 'next/link';
 
 import { BrandBackdrop } from '@/components/shared/BrandBackdrop';
 import { Logo } from '@/components/shared/Logo';
 import { PublicFooter } from '@/components/shared/PublicFooter';
+
+// Account screens, not content: kept out of search so a query for "DUMA" lands
+// on the home page rather than a sign-in form. Links on them are still followed.
+export const metadata: Metadata = { robots: { index: false, follow: true } };
 
 /**
  * Sign-in, password reset and activation share the landing page's ground: one

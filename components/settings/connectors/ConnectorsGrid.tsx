@@ -7,6 +7,7 @@ import { useEffect, useState } from 'react';
 
 import { InfoRow, InfoRows, RowTile } from '@/components/cms/rows';
 import { AlertTriangle, ChevronRight, Code, CreditCard, Database, MapPin, Plug } from '@/components/icons';
+import { useSettingsScope, useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -37,7 +38,7 @@ import { emailConnectorState } from './EmailConnector';
 import { PROVIDER_LABELS, paymentsConnectorState } from './PaymentsConnector';
 import { storageConnectorState, storageProviderLabel } from './StorageConnector';
 import { telegramConnectorState } from './TelegramConnector';
-import { CONNECTORS, type ConnectorId, type ConnectorState } from './registry';
+import { ADMIN_CONNECTOR_IDS, CONNECTORS, type ConnectorId, type ConnectorState } from './registry';
 import { relativeTime } from './shared';
 
 /**
@@ -49,18 +50,23 @@ import { relativeTime } from './shared';
  */
 export function ConnectorsGrid() {
   const router = useRouter();
-  const { tenantId, locationId } = useWorkspaceStore();
+  const scope = useSettingsScope();
+  const tenantId = useSettingsTenantId();
+  const selectedLocationId = useWorkspaceStore((state) => state.locationId);
+  const locationId = scope ? null : selectedLocationId;
+  const listPath = scope?.connectorsPath ?? '/settings/connectors';
   const capabilities = useAuthStore((state) => state.capabilities);
   const workspace = useCurrentWorkspace();
   // The same rule as the Developers tab.
-  const canUseApi = hasAnyCapability(capabilities, 'settings:write', 'cms.keys:write');
+  const canUseApi = !scope && hasAnyCapability(capabilities, 'settings:write', 'cms.keys:write');
 
   const modules = useQuery({
     queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
     queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
     staleTime: 30_000,
   });
-  const visible = (definition: (typeof CONNECTORS)[number]) => canAccessConnector(capabilities, definition, modules.data?.modules);
+  const visible = (definition: (typeof CONNECTORS)[number]) =>
+    (!scope || ADMIN_CONNECTOR_IDS.includes(definition.id)) && canAccessConnector(capabilities, definition, modules.data?.modules);
 
   const telegram = useQuery({
     queryKey: telegramQueryKey(tenantId),
@@ -134,11 +140,11 @@ export function ConnectorsGrid() {
     if (outcome === 'connected') toast('success', 'Google Drive connected. Choose “Sync to Google Docs” on any note.');
     else toast('error', searchParams.get('reason') ?? 'Google Drive didn’t connect.');
     void queryClient.invalidateQueries({ queryKey: googleKey });
-    router.replace('/settings/connectors');
+    router.replace(listPath);
     // eslint-disable-next-line react-hooks/exhaustive-deps -- once, on the redirect
   }, []);
 
-  const open = (id: ConnectorId, mode?: 'connect') => router.push(`/settings/connectors?connector=${id}${mode ? `&mode=${mode}` : ''}`);
+  const open = (id: ConnectorId, mode?: 'connect') => router.push(`${listPath}?connector=${id}${mode ? `&mode=${mode}` : ''}`);
 
   const emailState = emailConnectorState(emailConnection);
   const paymentsState = paymentsConnectorState(paymentMethods);
@@ -287,6 +293,9 @@ export function ConnectorsGrid() {
   if (modules.isError) return <ErrorState title="Couldn’t load your connections" onRetry={() => void modules.refetch()} />;
 
   // Most urgent first: broken, then working, then not set up — each its own section.
+  const disabledAdminConnectors = scope
+    ? CONNECTORS.filter((definition) => ADMIN_CONNECTOR_IDS.includes(definition.id) && !visible(definition))
+    : [];
   const live = cards.filter((card) => card.definition.available);
   const attention = live.filter((card) => card.state === 'attention');
   const connected = live.filter((card) => card.state === 'connected' || card.state === 'paused');
@@ -374,8 +383,12 @@ export function ConnectorsGrid() {
       {live.length === 0 ? (
         <EmptyState
           icon={Plug}
-          title="No connections for you here"
-          description="Connections appear when their module is on and your role can manage them. Ask a workspace administrator."
+          title={scope ? 'Choose a connection to enable' : 'No connections for you here'}
+          description={
+            scope
+              ? 'Enable a service below to configure it for DUMA.'
+              : 'Connections appear when their module is on and your role can manage them. Ask a workspace administrator.'
+          }
         />
       ) : (
         <>
@@ -389,6 +402,21 @@ export function ConnectorsGrid() {
         </>
       )}
 
+      {disabledAdminConnectors.length > 0 && (
+        <SettingsSection title="More connections">
+          <div className="-mx-2 flex flex-col gap-0.5">
+            {disabledAdminConnectors.map((definition) => (
+              <ConnectorRow
+                key={definition.id}
+                definition={definition}
+                state="disconnected"
+                accounts={[]}
+                action={{ label: 'Enable', onClick: () => open(definition.id) }}
+              />
+            ))}
+          </div>
+        </SettingsSection>
+      )}
       {confirmDisconnect && (
         <ConfirmModal
           title="Disconnect Google Drive?"

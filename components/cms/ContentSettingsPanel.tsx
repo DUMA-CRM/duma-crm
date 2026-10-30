@@ -16,7 +16,7 @@ import { Badge } from '@/components/ui/badge';
 import { exportCmsContent, getCmsSettings, getCmsStorage, updateCmsSettings } from '@/lib/modules/cms/client';
 import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId, useContentPaths } from '@/components/cms/ContentScope';
 
 import { uploadTarget } from './StorageUsage';
 import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile } from './rows';
@@ -54,7 +54,7 @@ export function ContentSettingsPanel() {
  * is as public as that bucket. Saves on the switch — there is nothing else to edit.
  */
 function FilePrivacySection() {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const queryClient = useQueryClient();
   const query = useQuery({
     queryKey: cmsKeys.settings(tenantId),
@@ -106,7 +106,7 @@ function FilePrivacySection() {
 
 /** One JSON file with every model, language, entry and media record — a backup, or the start of a move. */
 function BackupSection() {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const [busy, setBusy] = useState(false);
   async function download() {
     setBusy(true);
@@ -146,7 +146,8 @@ function BackupSection() {
 
 /** Where uploads go and how full it is — and whether a bucket's own public link sidesteps the privacy switch. */
 function StorageSection() {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const { storagePath } = useContentPaths();
+  const tenantId = useCmsTenantId();
   const storage = useQuery({
     queryKey: cmsKeys.storage(tenantId),
     queryFn: () => getCmsStorage(tenantId ?? undefined),
@@ -184,7 +185,7 @@ function StorageSection() {
           )}
           <div className="-mx-2 mt-4 flex flex-col gap-0.5">
             <Link
-              href="/settings/connectors?connector=media-storage"
+              href={storagePath}
               className="group flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-band/50"
             >
               <RowTile icon={Settings} />

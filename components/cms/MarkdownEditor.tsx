@@ -64,7 +64,7 @@ import {
   uploadPlaceholder,
   videoEmbed,
 } from '@/lib/utils/markdown-edit';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { MediaPicker } from './MediaPicker';
 import { ReferencePicker } from './ReferencePicker';
@@ -175,7 +175,7 @@ export function MarkdownEditor({
   error: boolean;
   onChange: (next: string) => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useCmsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   const textarea = useRef<HTMLTextAreaElement>(null);
   const fileInput = useRef<HTMLInputElement>(null);

@@ -19,6 +19,7 @@ import {
   Server,
   Trash2,
 } from '@/components/icons';
+import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { MiniBar } from '@/components/shared/MiniBar';
 import { LoadingState } from '@/components/shared/Skeleton';
@@ -55,7 +56,6 @@ import {
   setupLabel,
   setupOf,
 } from '@/lib/utils/analytics-connector';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ConnectWizard, ProviderGrid, WizardRail, type WizardStep } from './ConnectWizard';
 import { CONNECTORS_BY_ID } from './registry';
@@ -72,7 +72,7 @@ const connectionKey = (tenantId?: string | null) => moduleQueryKeys.analytics.ke
  * only then the fields, each with where to find it.
  */
 export function AnalyticsConnectWizard({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
+  const tenantId = useSettingsTenantId() ?? undefined;
   const queryClient = useQueryClient();
   const [provider, setProvider] = useState<ExternalAnalyticsProvider | null>(null);
   const [hosting, setHosting] = useState<UmamiHosting | null>(null);
@@ -272,7 +272,7 @@ function Field({ help, children }: { help: FieldHelp; children: React.ReactNode 
 }
 
 export function AnalyticsConnectorPage({ onClose, onConnect }: { onClose: () => void; onConnect: () => void }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useSettingsTenantId();
   const queryClient = useQueryClient();
   const key = connectionKey(tenantId);
   const connection = useQuery({

@@ -32,6 +32,7 @@ export function FieldRows({
   issues,
   placeholders,
   recommendedLengths,
+  fieldActions,
   otherLanguages = 0,
 }: {
   /** How many other language versions the entry has: a shared field's row says it changes them too. */
@@ -46,6 +47,8 @@ export function FieldRows({
   issues?: Map<string, string[]>;
   placeholders?: Readonly<Record<string, string>>;
   recommendedLengths?: Readonly<Record<string, number>>;
+  /** An extra control beside a field's own, by key — e.g. Generate beside a media field's Media. */
+  fieldActions?: Readonly<Record<string, React.ReactNode>>;
 }) {
   // Required fields still empty when the entry opens start open, ready to fill — and stay open while
   // they're typed in, until tapped closed. Read once: a row snapping shut on the first letter would be worse.
@@ -111,6 +114,7 @@ export function FieldRows({
               locale={locale}
               placeholders={placeholders}
               recommendedLengths={recommendedLengths}
+              fieldActions={fieldActions}
               hideLabel
             />
           </PickerRow>

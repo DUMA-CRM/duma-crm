@@ -14,7 +14,7 @@ import { ApiError } from '@/lib/api/client';
 import { createCmsEntry, getCmsContentTypes, getCmsLocales } from '@/lib/modules/cms/client';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { cmsKeys, invalidateCms } from './shared';
 
@@ -33,7 +33,7 @@ export function NewEntryDialog({
   onCreated: (entryId: string) => void;
   onNewModel?: () => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const queryClient = useQueryClient();
   const [typeId, setTypeId] = useState(initialTypeId ?? '');
   const [locale, setLocale] = useState('');

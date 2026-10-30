@@ -13,7 +13,7 @@ import { ListSkeleton } from '@/components/shared/Skeleton';
 
 import { getCmsOverview } from '@/lib/modules/cms/client';
 import { type CmsAttention, cmsAttention } from '@/lib/utils/cms';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { InfoRow, InfoRows } from './rows';
 import { EntryStatusBadge, PanelError, cmsKeys } from './shared';
@@ -31,7 +31,7 @@ export function CmsOverviewPanel({
   onOpenTab: (tab: OverviewTab) => void;
   onNewModel?: () => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const access = useCmsAccess();
   const query = useQuery({
     queryKey: cmsKeys.overview(tenantId),

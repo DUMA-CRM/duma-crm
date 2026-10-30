@@ -52,6 +52,9 @@ const nextConfig: NextConfig = {
     ];
   },
   images: {
+    // AVIF first: roughly a fifth smaller than WebP for screenshots, which is
+    // most of the marketing site's weight and its LCP.
+    formats: ['image/avif', 'image/webp'],
     remotePatterns: [
       {
         protocol: 'https',
@@ -61,6 +64,9 @@ const nextConfig: NextConfig = {
         protocol: 'https',
         hostname: 'duma-coffee.vercel.app',
       },
+      // Blog covers from DUMA's own CMS (lib/blog/posts.ts), and a local API when DUMA_CMS_API_URL points at one.
+      { protocol: 'https', hostname: 'api.duma-business.com', pathname: '/v1/cms/delivery/assets/**' },
+      { protocol: 'http', hostname: 'localhost', port: '7777', pathname: '/v1/cms/delivery/assets/**' },
     ],
   },
 };

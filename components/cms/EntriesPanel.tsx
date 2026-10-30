@@ -58,7 +58,7 @@ import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { clickSelection } from '@/lib/utils/media-folders';
 import { formatInstant } from '@/lib/utils/workspace-time';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { FolderTile } from './MediaFolders';
 import { EntryStatusBadge, LanguageChips, PanelError, cmsKeys, copyText, invalidateCms } from './shared';
@@ -108,7 +108,7 @@ export function EntriesPanel({
   onNewEntry: (contentTypeId?: string) => void;
   onOpenModel: (id: string) => void;
 }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const queryClient = useQueryClient();
   const access = useCmsAccess();
   const [locale, setLocale] = useState('');

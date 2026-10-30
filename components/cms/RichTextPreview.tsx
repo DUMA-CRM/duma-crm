@@ -10,7 +10,7 @@ import { getCmsAssets } from '@/lib/modules/cms/client';
 import { safeHref, safeImageSrc } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import { type CalloutKind, calloutKind, videoEmbed } from '@/lib/utils/markdown-edit';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { assetPreviewSrc, assetSrc, cmsKeys } from './shared';
 
@@ -258,7 +258,7 @@ function PreviewImage({ src, alt, title }: { src: string; alt: string; title?: s
 }
 
 export function RichTextPreview({ markdown, className, resolveWorkspaceImages = true }: { markdown: string; className?: string; resolveWorkspaceImages?: boolean }) {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const tokens = useMemo(() => lexer(markdown), [markdown]);
   // Images on a connected bucket's own domain are refused by this app's CSP;
   // look up which assets they are and show them through the API instead.

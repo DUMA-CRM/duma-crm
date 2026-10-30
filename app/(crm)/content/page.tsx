@@ -1,12 +1,12 @@
 'use client';
 
+import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
-import { UpdatesAdmin } from '@/components/updates/UpdatesAdmin';
-import { useAuthStore } from '@/stores/authStore';
 import { CmsOverviewPanel } from '@/components/cms/CmsOverviewPanel';
 import { ContentConfiguration } from '@/components/cms/ContentConfiguration';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
 import { ContentSettingsPanel } from '@/components/cms/ContentSettingsPanel';
 import { EntriesPanel } from '@/components/cms/EntriesPanel';
 import { EntryEditor } from '@/components/cms/EntryEditor';
@@ -23,9 +23,10 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
+import { UpdatesAdmin } from '@/components/updates/UpdatesAdmin';
 
 import { type ContentTab, contentLocation, contentNavigation } from '@/lib/utils/cms-navigation';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
+import { useAuthStore } from '@/stores/authStore';
 
 const CONTENT_TABS: SectionTab<ContentTab>[] = [
   { value: 'overview', label: 'Overview' },
@@ -55,10 +56,12 @@ function ContentView() {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const tenantId = useCmsTenantId();
   const access = useCmsAccess();
+  const isAdminContent = pathname.startsWith('/admin/content');
   const isSuperadmin = useAuthStore((state) => state.role === 'super_admin');
-  const contentTabs: SectionTab<ContentTab>[] = isSuperadmin ? [...CONTENT_TABS, { value: 'updates', label: 'DUMA Updates' }] : CONTENT_TABS;
+  const contentTabs: SectionTab<ContentTab>[] =
+    isSuperadmin && !isAdminContent ? [...CONTENT_TABS, { value: 'updates', label: 'DUMA Updates' }] : CONTENT_TABS;
   const [creating, setCreating] = useState<{ contentTypeId?: string } | null>(null);
   const [importing, setImporting] = useState(false);
   // Media renders its own header actions (Upload, storage) into this slot.
@@ -95,7 +98,19 @@ function ContentView() {
     router[mode](query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
 
-  if (tab === 'updates' && isSuperadmin) return <UpdatesAdmin tabs={<SectionTabs tabs={contentTabs} value={tab} onChange={(value) => navigate({ tab: value, entry: null, model: null })} ariaLabel="Content sections" />} />;
+  if (tab === 'updates' && isSuperadmin)
+    return (
+      <UpdatesAdmin
+        tabs={
+          <SectionTabs
+            tabs={contentTabs}
+            value={tab}
+            onChange={(value) => navigate({ tab: value, entry: null, model: null })}
+            ariaLabel="Content sections"
+          />
+        }
+      />
+    );
 
   if (!tenantId) {
     return (
@@ -161,6 +176,19 @@ function ContentView() {
           <div ref={setMediaActions} className="flex items-center gap-1.5 md:gap-2" />
         ) : tab === 'overview' || action ? (
           <div className="flex items-center gap-1.5 md:gap-2">
+            {isAdminContent && (
+              <>
+                <Link href="/blog" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline">
+                  View blog
+                </Link>
+                <Link
+                  href="/admin/settings/connectors?connector=media-storage"
+                  className="text-sm font-medium text-primary hover:underline"
+                >
+                  Storage
+                </Link>
+              </>
+            )}
             {tab === 'overview' && <ContentStorageUsage />}
             {tab === 'entries' && access.canWrite && (
               <Button variant="outline" className="h-9 gap-1.5" aria-label="Import entries" onClick={() => setImporting(true)}>
