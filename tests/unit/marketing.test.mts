@@ -9,7 +9,7 @@ test('the sign-in guard stays on for app screens while marketing sections are pu
   for (const path of ['/dashboard', '/pos', '/kds', '/admin/overview', '/settings/modules', '/content', '/updates']) {
     assert.equal(isPublicPath(path), false, path);
   }
-  for (const path of ['/', '/welcome', '/features/pos', '/compare/duma-vs-square', '/blog', '/blog/food-cost-formula', '/developers', '/developers/mcp', '/blog/feed.xml', '/llms.txt', '/llms-full.txt', '/api/cms-webhook', '/sitemap.xml', '/robots.txt', '/opengraph-image', '/privacy']) {
+  for (const path of ['/', '/welcome', '/features/pos', '/compare/duma-vs-square', '/blog', '/blog/food-cost-formula', '/developers', '/developers/mcp', '/blog/feed.xml', '/llms.txt', '/llms-full.txt', '/api/cms-webhook', '/sitemap.xml', '/robots.txt', '/opengraph-image', '/privacy', '/dpa', '/gdpr', '/legal']) {
     assert.equal(isPublicPath(path), true, path);
   }
 });

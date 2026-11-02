@@ -1,5 +1,9 @@
 import type { Metadata } from 'next';
 
+import Link from 'next/link';
+
+import { CONTACT_EMAIL, OPERATOR, OPERATOR_LEGAL_NAME } from '@/lib/marketing/site';
+
 import { LegalDocument } from '../LegalDocument';
 
 export const metadata: Metadata = {
@@ -9,13 +13,17 @@ export const metadata: Metadata = {
 
 export default function PrivacyPage() {
   return (
-    <LegalDocument title="Privacy Policy" updated="10 October 2026">
+    <LegalDocument title="Privacy Policy" updated="1 November 2026">
       <p>
         DUMA is a business operating system for hospitality — till, kitchen display, stock, people, customer records,
         reporting and guest QR ordering. This policy explains what personal data we handle, why, and the choices you have.
       </p>
 
       <h2>Who we are and our role</h2>
+      <p>
+        DUMA is provided by {OPERATOR_LEGAL_NAME}, {OPERATOR.status}, of {OPERATOR.address.join(', ')} — see{' '}
+        <Link href="/legal">Company information</Link>.
+      </p>
       <p>
         For the data a business puts into its DUMA workspace — its staff, customers, orders and notes — that business is
         the <strong>controller</strong> and DUMA acts as its <strong>processor</strong>, handling the data only on the
@@ -133,7 +141,7 @@ export default function PrivacyPage() {
 
       <h2>Contact</h2>
       <p>
-        Questions about this policy or your data: <a href="mailto:dudychmarian@gmail.com">dudychmarian@gmail.com</a>.
+        Questions about this policy or your data: <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>.
       </p>
     </LegalDocument>
   );

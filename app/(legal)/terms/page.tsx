@@ -1,6 +1,8 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { CONTACT_EMAIL, OPERATOR, OPERATOR_LEGAL_NAME } from '@/lib/marketing/site';
+
 import { LegalDocument } from '../LegalDocument';
 
 export const metadata: Metadata = {
@@ -10,11 +12,17 @@ export const metadata: Metadata = {
 
 export default function TermsPage() {
   return (
-    <LegalDocument title="Terms of Service" updated="10 October 2026">
+    <LegalDocument title="Terms of Service" updated="1 November 2026">
       <p>
         These terms govern your use of DUMA — the back office, till, kitchen display and guest ordering services
         (together, the &ldquo;Service&rdquo;). By creating a workspace or using the Service you agree to them. If you
         accept on behalf of a business, you confirm you have authority to bind it.
+      </p>
+
+      <h2>Who we are</h2>
+      <p>
+        DUMA is provided by {OPERATOR_LEGAL_NAME} (&ldquo;DUMA&rdquo;, &ldquo;we&rdquo;), {OPERATOR.status}, of{' '}
+        {OPERATOR.address.join(', ')}. See <Link href="/legal">Company information</Link>.
       </p>
 
       <h2>Accounts</h2>
@@ -24,7 +32,7 @@ export default function TermsPage() {
           The workspace owner is responsible for who they invite, the permissions they grant, and everything done under
           their workspace.
         </li>
-        <li>Tell us promptly at <a href="mailto:dudychmarian@gmail.com">dudychmarian@gmail.com</a> if you suspect unauthorised access.</li>
+        <li>Tell us promptly at <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a> if you suspect unauthorised access.</li>
       </ul>
 
       <h2>Acceptable use</h2>
@@ -98,7 +106,7 @@ export default function TermsPage() {
 
       <h2>Contact</h2>
       <p>
-        <a href="mailto:dudychmarian@gmail.com">dudychmarian@gmail.com</a>
+        <a href={`mailto:${CONTACT_EMAIL}`}>{CONTACT_EMAIL}</a>
       </p>
     </LegalDocument>
   );

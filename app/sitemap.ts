@@ -2,6 +2,7 @@ import type { MetadataRoute } from 'next';
 
 import { listPosts } from '@/lib/blog/posts';
 import { docEndpoints } from '@/lib/marketing/developers';
+import { GLOSSARY } from '@/lib/marketing/glossary';
 import { MODULES, PAGES, absoluteUrl, modulePath } from '@/lib/marketing/site';
 
 /**
@@ -37,6 +38,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
         priority: 0.7,
         ...(post.cover && { images: [post.cover.url] }),
       })),
+    ...GLOSSARY.map((term) => ({
+      url: absoluteUrl(`/glossary/${term.slug}`),
+      lastModified: term.updated,
+      changeFrequency: 'monthly' as const,
+      priority: 0.6,
+    })),
     ...docEndpoints().map((endpoint) => ({
       url: absoluteUrl(`/developers/${endpoint.slug}`),
       changeFrequency: 'monthly' as const,

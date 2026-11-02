@@ -4,9 +4,9 @@ import { BrandBackdrop } from '@/components/shared/BrandBackdrop';
 import { Logo } from '@/components/shared/Logo';
 
 /**
- * Privacy policy and terms of service. Public on purpose — both are linked from
+ * Privacy policy, terms of service, the DPA, the GDPR page and company information. Public on purpose — both are linked from
  * the landing page and must be readable before anyone has an account, so the
- * routes are listed in `PUBLIC_PATHS` in `proxy.ts`.
+ * routes are listed in APP_PUBLIC_PATHS (lib/utils/public-paths.ts).
  */
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -33,6 +33,18 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
         <span aria-hidden="true">·</span>
         <Link href="/terms" className="min-h-11 content-center hover:text-foreground">
           Terms
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/dpa" className="min-h-11 content-center hover:text-foreground">
+          DPA
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/gdpr" className="min-h-11 content-center hover:text-foreground">
+          GDPR
+        </Link>
+        <span aria-hidden="true">·</span>
+        <Link href="/legal" className="min-h-11 content-center hover:text-foreground">
+          Company information
         </Link>
       </footer>
     </div>

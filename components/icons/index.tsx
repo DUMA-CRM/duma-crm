@@ -107,6 +107,7 @@ import {
   FolderTransferIcon,
   GaugeIcon,
   GiftIcon,
+  GithubIcon,
   GitCompareArrowsIcon,
   GlobeIcon,
   GoogleDriveIcon,
@@ -154,7 +155,9 @@ import {
   LockIcon,
   Login03Icon,
   Logout03Icon,
+  LinkedinIcon,
   MailIcon,
+  NewTwitterIcon,
   MailRemove01Icon,
   Maximize04Icon,
   MegaphoneIcon,
@@ -375,6 +378,7 @@ export const Flame = /*#__PURE__*/ glyph(FlameIcon, 'Flame');
 export const FlaskConical = /*#__PURE__*/ glyph(FlaskConicalIcon, 'FlaskConical');
 export const Gauge = /*#__PURE__*/ glyph(GaugeIcon, 'Gauge');
 export const Gift = /*#__PURE__*/ glyph(GiftIcon, 'Gift');
+export const Github = /*#__PURE__*/ glyph(GithubIcon, 'Github');
 export const GitCompareArrows = /*#__PURE__*/ glyph(GitCompareArrowsIcon, 'GitCompareArrows');
 export const Globe = /*#__PURE__*/ glyph(GlobeIcon, 'Globe');
 export const GraduationCap = /*#__PURE__*/ glyph(GraduationCapIcon, 'GraduationCap');
@@ -396,6 +400,7 @@ export const Leaf = /*#__PURE__*/ glyph(LeafIcon, 'Leaf');
 export const LibraryBig = /*#__PURE__*/ glyph(LibraryIcon, 'LibraryBig');
 export const LifeBuoy = /*#__PURE__*/ glyph(LifebuoyIcon, 'LifeBuoy');
 export const LineChart = /*#__PURE__*/ glyph(ChartLineIcon, 'LineChart');
+export const Linkedin = /*#__PURE__*/ glyph(LinkedinIcon, 'Linkedin');
 export const Link2 = /*#__PURE__*/ glyph(LinkIcon, 'Link2');
 export const ListChecks = /*#__PURE__*/ glyph(CheckListIcon, 'ListChecks');
 export const ListView = /*#__PURE__*/ glyph(ListViewIcon, 'ListView');
@@ -490,6 +495,8 @@ export const WifiOff = /*#__PURE__*/ glyph(WifiOffIcon, 'WifiOff');
 export const Wrench = /*#__PURE__*/ glyph(WrenchIcon, 'Wrench');
 export const X = /*#__PURE__*/ glyph(Cancel01Icon, 'X');
 export const XCircle = /*#__PURE__*/ glyph(CircleXIcon, 'XCircle');
+/** X, the network formerly Twitter — `X` is the close glyph. */
+export const XLogo = /*#__PURE__*/ glyph(NewTwitterIcon, 'XLogo');
 export const Zap = /*#__PURE__*/ glyph(ZapIcon, 'Zap');
 // CMS
 export const Code = /*#__PURE__*/ glyph(SourceCodeIcon, 'Code');

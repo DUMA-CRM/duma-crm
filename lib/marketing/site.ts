@@ -231,12 +231,52 @@ export const PAGES: readonly MarketingPage[] = [
   { path: '/solutions/any-business', label: 'Any business', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/developers', label: 'Public API', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/developers/mcp', label: 'MCP', published: true, changeFrequency: 'monthly', priority: 0.6 },
+  { path: '/developers/webhooks', label: 'Webhooks', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/blog', label: 'Blog', published: true, inHeader: true, changeFrequency: 'daily', priority: 0.7 },
+  { path: '/glossary', label: 'Terms & definitions', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/about', label: 'About', published: true, changeFrequency: 'yearly', priority: 0.5 },
   { path: '/contact', label: 'Contact', published: false, changeFrequency: 'yearly', priority: 0.5 },
   { path: '/privacy', label: 'Privacy', published: true, changeFrequency: 'yearly', priority: 0.2 },
-  { path: '/terms', label: 'Terms', published: true, changeFrequency: 'yearly', priority: 0.2 },
+  { path: '/terms', label: 'Terms & conditions', published: true, changeFrequency: 'yearly', priority: 0.2 },
+  { path: '/legal', label: 'Company information', published: true, changeFrequency: 'yearly', priority: 0.2 },
+  { path: '/dpa', label: 'DPA', published: true, changeFrequency: 'yearly', priority: 0.2 },
+  { path: '/gdpr', label: 'GDPR', published: true, changeFrequency: 'yearly', priority: 0.3 },
 ];
+
+/**
+ * Who provides DUMA, for /legal (Company information), the Terms, the Privacy
+ * Policy and the DPA — the details the Electronic Commerce Regulations 2002
+ * (reg. 6) and Companies Act 2006 Part 41 ask a business trading online, under
+ * a name that is not its owner's, to publish. A sole trader until the company
+ * is registered: then the name, company number and registered office change
+ * here, and everywhere follows.
+ */
+export const OPERATOR = {
+  name: 'Marian Dudych',
+  tradingAs: 'DUMA',
+  status: 'a self-employed sole trader',
+  address: ['67B Harringay Road', 'London', 'N15 3HU', 'United Kingdom'],
+} as const;
+
+/** "Marian Dudych, trading as DUMA" — the legal name to use in a sentence. */
+export const OPERATOR_LEGAL_NAME = `${OPERATOR.name}, trading as ${OPERATOR.tradingAs}`;
+
+/** The public status page (Better Stack), linked from the footer. */
+export const STATUS_URL = 'https://status.duma-business.com';
+
+/** The one public inbox, for the footer's Contact us and the Organization schema. */
+export const CONTACT_EMAIL = 'hello@duma-business.com';
+
+/**
+ * The founder's own profiles, linked from the footer. Personal accounts, not
+ * DUMA's — so they stay out of the Organization schema's sameAs
+ * (lib/marketing/schema.ts), which must only name the company's profiles.
+ */
+export const FOUNDER_PROFILES = [
+  { network: 'github', label: 'GitHub', url: 'https://github.com/DudychMarian' },
+  { network: 'x', label: 'X', url: 'https://x.com/MarianDudych' },
+  { network: 'linkedin', label: 'LinkedIn', url: 'https://www.linkedin.com/in/marian-dudych/' },
+] as const;
 
 export const SIGN_IN_PATH = '/sign-in';
 export const SIGN_UP_PATH = '/sign-up';

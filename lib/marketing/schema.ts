@@ -1,4 +1,4 @@
-import { SITE_NAME, SITE_URL, absoluteUrl } from '@/lib/marketing/site';
+import { CONTACT_EMAIL, SITE_NAME, SITE_URL, absoluteUrl } from '@/lib/marketing/site';
 
 /**
  * schema.org builders for the marketing site's JSON-LD. Render the result with
@@ -29,6 +29,7 @@ export function organizationSchema() {
     url: SITE_URL,
     // Google needs at least 112×112, legible on white: the forest mark is both.
     logo: absoluteUrl('/icon.svg'),
+    email: CONTACT_EMAIL,
     ...(SAME_AS.length > 0 && { sameAs: SAME_AS }),
   };
 }
@@ -163,5 +164,50 @@ export function blogSchema(posts: PostForSchema[]) {
       datePublished: post.publishedAt,
       dateModified: post.updatedAt,
     })),
+  };
+}
+
+/** /glossary — the set every DefinedTerm belongs to. */
+export function glossarySchema(terms: { slug: string; term: string; short: string }[]) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'DefinedTermSet',
+    '@id': `${absoluteUrl('/glossary')}#set`,
+    name: 'Business terms & definitions',
+    url: absoluteUrl('/glossary'),
+    hasDefinedTerm: terms.map((term) => ({
+      '@type': 'DefinedTerm',
+      name: term.term,
+      description: term.short,
+      url: absoluteUrl(`/glossary/${term.slug}`),
+    })),
+  };
+}
+
+/** One /glossary/<slug> page: the term, defined, and the article that explains it. */
+export function glossaryTermSchema(term: { slug: string; term: string; title: string; short: string; updated: string }) {
+  const url = absoluteUrl(`/glossary/${term.slug}`);
+  return {
+    '@context': 'https://schema.org',
+    '@graph': [
+      {
+        '@type': 'DefinedTerm',
+        '@id': `${url}#term`,
+        name: term.term,
+        description: term.short,
+        url,
+        inDefinedTermSet: { '@id': `${absoluteUrl('/glossary')}#set` },
+      },
+      {
+        '@type': 'Article',
+        '@id': `${url}#article`,
+        mainEntityOfPage: { '@type': 'WebPage', '@id': url },
+        headline: term.title,
+        description: term.short,
+        about: { '@id': `${url}#term` },
+        dateModified: term.updated,
+        publisher: { '@id': ORGANIZATION_ID },
+      },
+    ],
   };
 }
