@@ -23,6 +23,7 @@
   "menuAccent": "subtle",
   "registries": {
     "@ncdai": "https://chanhdai.com/r/{name}.json",
-    "@uiarc": "https://uiarc.dev/r/{name}.json"
+    "@uiarc": "https://uiarc.dev/r/{name}.json",
+    "@magicui": "https://magicui.design/r/{name}"
   }
 }

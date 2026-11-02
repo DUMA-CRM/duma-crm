@@ -10,7 +10,8 @@ type LinksetEntry = { anchor: string; 'service-desc'?: Link[]; 'service-doc': Li
  * discovery. Only the Store API has a `service-desc` — its OpenAPI document,
  * /v1/store/openapi.json, is the one served without a session. The full
  * /openapi.json is behind sign-in in production (duma-api `docsGuard`), so
- * the other APIs point at their docs here instead of at a 401.
+ * the other APIs point at their docs here instead of at a 401. The MCP
+ * server's description is its Server Card (lib/marketing/mcp-server-card.ts).
  */
 export function apiCatalog(): { linkset: LinksetEntry[] } {
   const status = [{ href: `${API_ORIGIN}/health`, type: 'application/json' }];
@@ -24,7 +25,12 @@ export function apiCatalog(): { linkset: LinksetEntry[] } {
         'service-doc': docs('/developers', `${api.name} — DUMA API docs`),
         status,
       })),
-      { anchor: `${API_ORIGIN}${MCP_PATH}`, 'service-doc': docs('/developers/mcp', 'MCP server — DUMA API docs'), status },
+      {
+        anchor: `${API_ORIGIN}${MCP_PATH}`,
+        'service-desc': [{ href: absoluteUrl('/.well-known/mcp/server-card.json'), type: 'application/json', title: 'MCP Server Card' }],
+        'service-doc': docs('/developers/mcp', 'MCP server — DUMA API docs'),
+        status,
+      },
     ],
   };
 }

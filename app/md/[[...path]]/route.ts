@@ -9,7 +9,9 @@ import { MARKDOWN_RENDER_HEADER, estimateTokens, htmlToMarkdown, servesMarkdown 
  * it (lib/utils/markdown-for-agents.ts). Requested directly, /md is behind the
  * sign-in redirect like any other app path.
  */
-export async function GET(req: NextRequest, ctx: RouteContext<'/md/[[...path]]'>) {
+// Params typed by hand: Next's global `RouteContext` exists only after `next dev`/`next build`
+// generates it, and CI type-checks before building.
+export async function GET(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
   const { path = [] } = await ctx.params;
   const pageUrl = new URL(`/${path.join('/')}${req.nextUrl.search}`, req.nextUrl.origin);
   if (!servesMarkdown(pageUrl.pathname)) {
