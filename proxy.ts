@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { CSP_IMAGE_HOSTS } from '@/lib/utils/image-src';
+import { MARKDOWN_RENDER_HEADER, prefersMarkdown, servesMarkdown } from '@/lib/utils/markdown-for-agents';
 import { isPublicPath } from '@/lib/utils/public-paths';
 
 // better-auth's session cookie. The exact name varies with configuration —
@@ -91,6 +92,17 @@ export function proxy(req: NextRequest) {
     const url = new URL('/sign-in', req.url);
     url.searchParams.set('next', `${pathname}${req.nextUrl.search}`);
     return NextResponse.redirect(url);
+  }
+
+  // An agent asking for `Accept: text/markdown` gets the page as Markdown (app/md/route.ts);
+  // browsers, and the conversion's own fetch of the page, carry on to the HTML. The rewrite runs
+  // before any cache, which keys on /md/<page>, so neither form can be served in place of the other.
+  // (A `Vary: Accept` set here would not reach the HTML: Next replaces Vary when it renders.)
+  const negotiable = (req.method === 'GET' || req.method === 'HEAD') && servesMarkdown(pathname);
+  if (negotiable && !req.headers.has(MARKDOWN_RENDER_HEADER) && prefersMarkdown(req.headers.get('accept'))) {
+    const url = req.nextUrl.clone();
+    url.pathname = pathname === '/' ? '/md' : `/md${pathname}`;
+    return NextResponse.rewrite(url);
   }
 
   // A fresh nonce per request — a predictable one is no nonce at all.
