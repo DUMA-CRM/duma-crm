@@ -5,8 +5,8 @@ import { Logo } from '@/components/shared/Logo';
 
 import { CONTACT_EMAIL, FOUNDER_PROFILES, PAGES, STATUS_URL, linkTo, modulePath, publishedModules, publishedPage } from '@/lib/marketing/site';
 
-/** `status` puts the status page's green dot before the label. */
-type FooterLink = { path: string; label: string; status?: boolean };
+/** `status` puts the status page's green dot before the label; `external` opens the link in a new tab. */
+type FooterLink = { path: string; label: string; status?: boolean; external?: boolean };
 type FooterGroup = { title: string; links: FooterLink[] };
 
 const NETWORK_ICON = { github: Github, x: XLogo, linkedin: Linkedin } as const;
@@ -33,7 +33,7 @@ export function MarketingFooter() {
           ...publishedModules().map((m) => ({ path: modulePath(m.slug), label: m.name })),
           { path: linkTo('/pricing'), label: 'Pricing' },
           ...pages(['/developers', '/developers/mcp', '/developers/webhooks']),
-          { path: STATUS_URL, label: 'Status page', status: true },
+          { path: STATUS_URL, label: 'Status page', status: true, external: true },
         ],
       },
       { title: 'Contact us', links: [{ path: `mailto:${CONTACT_EMAIL}`, label: 'Email' }] },
@@ -114,6 +114,7 @@ export function MarketingFooter() {
                     <li key={link.path}>
                       <Link
                         href={link.path}
+                        {...(link.external && { target: '_blank', rel: 'noopener' })}
                         className="inline-flex min-h-8 items-center gap-2 text-[0.9375rem] leading-snug text-[var(--mkt-ink-2)] transition-colors hover:text-[var(--mkt-heading)]"
                       >
                         {link.status && (
@@ -125,6 +126,7 @@ export function MarketingFooter() {
                           </span>
                         )}
                         {link.label}
+                        {link.external && <span className="sr-only"> (opens in a new tab)</span>}
                       </Link>
                     </li>
                   ))}
