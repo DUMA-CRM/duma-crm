@@ -49,6 +49,8 @@ export const MARKETING_PATHS = [
   '/auth.md',
   // Machine-readable discovery: /.well-known/api-catalog (lib/marketing/api-catalog.ts).
   '/.well-known',
+  // The IndexNow key file search engines fetch to confirm a submission (lib/utils/indexnow.ts).
+  '/indexnow.txt',
 ] as const;
 
 export const PUBLIC_PATHS: readonly string[] = [...APP_PUBLIC_PATHS, ...MARKETING_PATHS];

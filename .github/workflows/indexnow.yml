@@ -1,0 +1,27 @@
+name: IndexNow
+
+# After Vercel finishes a production deploy, tell IndexNow search engines
+# (Bing, Yandex, Seznam, Naver, Yep) to recrawl every page in the sitemap.
+# Vercel's GitHub integration reports the deploy as a deployment status.
+# Needs the INDEXNOW_KEY repository secret — the same key as the site's
+# INDEXNOW_KEY environment variable. See lib/utils/indexnow.ts.
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  submit:
+    if: github.event.deployment_status.state == 'success' && github.event.deployment.environment == 'Production'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON scripts/indexnow.mts
+        env:
+          INDEXNOW_KEY: ${{ secrets.INDEXNOW_KEY }}
