@@ -45,6 +45,10 @@ export const MARKETING_PATHS = [
   // For AI assistants and answer engines: app/llms.txt and app/llms-full.txt (lib/blog/llms.ts).
   '/llms.txt',
   '/llms-full.txt',
+  // How an agent gets credentials: app/auth.md (lib/marketing/auth-md.ts).
+  '/auth.md',
+  // Machine-readable discovery: /.well-known/api-catalog (lib/marketing/api-catalog.ts).
+  '/.well-known',
 ] as const;
 
 export const PUBLIC_PATHS: readonly string[] = [...APP_PUBLIC_PATHS, ...MARKETING_PATHS];

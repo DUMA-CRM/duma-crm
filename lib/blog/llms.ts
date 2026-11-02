@@ -46,7 +46,7 @@ export async function llmsText(full: boolean): Promise<string> {
 
   const sections = [INTRO, `## Pages\n\n${pages}`, published.length ? `## Blog\n\n${postList}` : ''];
   if (!full) {
-    sections.push(`## More\n\n- Full text of every post: ${absoluteUrl('/llms-full.txt')}\n- RSS: ${absoluteUrl('/blog/feed.xml')}\n- Sitemap: ${absoluteUrl('/sitemap.xml')}`);
+    sections.push(`## More\n\n- Full text of every post: ${absoluteUrl('/llms-full.txt')}\n- RSS: ${absoluteUrl('/blog/feed.xml')}\n- Sitemap: ${absoluteUrl('/sitemap.xml')}\n- How an agent gets an API key: ${absoluteUrl('/auth.md')}\n- API catalog: ${absoluteUrl('/.well-known/api-catalog')}`);
     return sections.filter(Boolean).join('\n\n') + '\n';
   }
 

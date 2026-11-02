@@ -19,6 +19,18 @@ import { isPublicPath } from '@/lib/utils/public-paths';
 const SESSION_COOKIE_SUFFIX = 'session_token';
 
 /**
+ * The home page's Link header: same-origin, so the proxy needs none of the
+ * developer registries. /.well-known/api-catalog lists every API with its
+ * OpenAPI document and status; /auth.md is how an agent gets a key.
+ */
+const HOME_LINKS = [
+  '</.well-known/api-catalog>; rel="api-catalog"; type="application/linkset+json"',
+  '</developers>; rel="service-doc"; type="text/html"',
+  '</llms.txt>; rel="describedby"; type="text/plain"',
+  '</auth.md>; rel="describedby"; type="text/markdown"',
+].join(', ');
+
+/**
  * Content Security Policy.
  *
  * The reason this exists is `components/shared/Markdown.tsx`: Ask DUMA renders
@@ -119,6 +131,8 @@ export function proxy(req: NextRequest) {
 
   const response = NextResponse.next({ request: { headers: requestHeaders } });
   response.headers.set(header, csp);
+  // Agent discovery from the home page (RFC 8288, RFC 9727 §3). The catalog carries the API links themselves.
+  if (pathname === '/') response.headers.set('Link', HOME_LINKS);
   return response;
 }
 

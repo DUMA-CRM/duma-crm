@@ -17,7 +17,7 @@ test('Markdown is served only when asked for by name, and never in place of HTML
 
 test('only marketing and legal pages have a Markdown version — never the app, guest pages or files', () => {
   for (const path of ['/', '/pricing', '/blog/some-post', '/developers/mcp', '/terms']) assert.equal(servesMarkdown(path), true, path);
-  for (const path of ['/dashboard', '/order/abc', '/f/form', '/sign-in', '/blogger', '/sitemap.xml', '/llms.txt', '/blog/feed.xml', '/opengraph-image']) {
+  for (const path of ['/dashboard', '/order/abc', '/f/form', '/sign-in', '/blogger', '/sitemap.xml', '/llms.txt', '/blog/feed.xml', '/opengraph-image', '/auth.md', '/.well-known/api-catalog']) {
     assert.equal(servesMarkdown(path), false, path);
   }
 });

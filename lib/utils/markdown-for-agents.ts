@@ -18,8 +18,8 @@ export const MARKDOWN_RENDER_HEADER = 'x-duma-markdown-render';
 const MARKDOWN_PATHS = [...MARKETING_PATHS, '/privacy', '/terms', '/dpa', '/gdpr', '/legal'];
 
 export function servesMarkdown(pathname: string): boolean {
-  // A dot means a file — sitemap.xml, llms.txt, feed.xml — which already has its own format.
-  if (pathname.split('/').pop()!.includes('.') || pathname.endsWith('/opengraph-image')) return false;
+  // A dot means a file — sitemap.xml, llms.txt, feed.xml, /.well-known/* — which already has its own format.
+  if (pathname.split('/').some((segment) => segment.includes('.')) || pathname.endsWith('/opengraph-image')) return false;
   return pathname === '/' || MARKDOWN_PATHS.some((p) => pathname === p || pathname.startsWith(`${p}/`));
 }
 
