@@ -13,6 +13,7 @@ import { RisingLines } from '@/components/marketing/Strokes';
 
 import { GLOSSARY, glossaryTerm } from '@/lib/marketing/glossary';
 import { marketingMetadata } from '@/lib/marketing/metadata';
+import { publishedPage } from '@/lib/marketing/site';
 import { breadcrumbSchema, faqSchema, glossaryTermSchema } from '@/lib/marketing/schema';
 import { extractHeadings, readingMinutes } from '@/lib/utils/blog';
 
@@ -27,7 +28,7 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
   const term = glossaryTerm((await params).slug);
   if (!term) return {};
   return marketingMetadata({
-    title: `${term.title} | DUMA`,
+    title: term.metaTitle ?? `${term.title} | DUMA`,
     description: term.short,
     path: `/glossary/${term.slug}`,
   });
@@ -36,7 +37,8 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 /**
  * /glossary/[slug] — one term as a short article, laid out like a blog post:
  * breadcrumb, the question as the headline, the one-line definition as a TL;DR, the body, the
- * questions, related terms; the live table of contents and the sign-up card
+ * a "See it in DUMA" link to the audience page it belongs to, the questions,
+ * related terms; the live table of contents and the sign-up card
  * beside it.
  */
 export default async function GlossaryTermPage({ params }: { params: Promise<{ slug: string }> }) {
@@ -45,6 +47,8 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
 
   const headings = [...extractHeadings(term.body), { depth: 2 as const, text: 'Questions and answers', id: 'questions' }];
   const related = term.related.map(glossaryTerm).filter((item) => item !== undefined);
+  // Only a published page is linked, so an unpublished one never becomes a 404.
+  const seeIt = publishedPage(term.seeIt.path) ? term.seeIt : undefined;
 
   return (
     <>
@@ -98,6 +102,16 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
             <div id="post-body" className="mt-10">
               <Markdown source={term.body} />
             </div>
+
+            {seeIt && (
+              <p className="mt-10 flex flex-wrap items-center gap-x-2 gap-y-1 rounded-[12px] border border-[var(--mkt-line)] bg-[var(--mkt-card)] px-6 py-4 text-[0.9375rem]">
+                <span className="font-semibold text-foreground">See it in DUMA:</span>
+                <Link href={seeIt.path} className="inline-flex items-center gap-1 font-medium text-primary hover:underline">
+                  {seeIt.label}
+                  <ArrowUpRight className="size-4" aria-hidden="true" />
+                </Link>
+              </p>
+            )}
 
             <section aria-labelledby="questions" className="mt-14">
               <h2 id="questions" className="scroll-mt-24 text-2xl font-semibold tracking-display text-[var(--mkt-heading)]">

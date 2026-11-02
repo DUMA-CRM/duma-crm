@@ -13,7 +13,7 @@ import { marketingMetadata } from '@/lib/marketing/metadata';
 import { breadcrumbSchema } from '@/lib/marketing/schema';
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'Webhooks — DUMA API',
+  title: 'Webhooks for Content and Media Changes | DUMA API',
   description:
     'Get a signed request when content is published, unpublished or deleted, or media changes. Events, payloads, headers, signature verification and retries.',
   path: '/developers/webhooks',

@@ -39,7 +39,7 @@ export const SHOP_MISTAKES: readonly ListItem[] = [
 export const SHOP_USE_CASES: readonly ListItem[] = [
   {
     title: 'Never sell what you don’t have',
-    body: 'Stock by size and colour, per location, updated by the till and by your storefront. Move stock between shops with a transfer, not a phone call.',
+    body: 'Stock by size and colour, updated by the till and by your storefront, so the last medium sold at a pop-up comes off the website too.',
   },
   {
     title: 'Sell in person without a second system',
@@ -143,7 +143,7 @@ export const SHOP_FAQS: { question: string; answer: string }[] = [
     answer: 'Yes. Every size and colour of a product has its own stock, per location, and every sale — in the shop or through the storefront API — takes from it.',
   },
   {
-    question: 'Can I sell at markets and pop-ups?',
+    question: 'Can I use the EPOS at markets and pop-ups?',
     answer: 'Yes. Open the till on a phone or tablet and sell from the same products and stock. It keeps taking orders if the signal drops and sends them when it’s back.',
   },
   {
@@ -153,6 +153,6 @@ export const SHOP_FAQS: { question: string; answer: string }[] = [
   },
   {
     question: 'Can you help me set it up?',
-    answer: 'Yes, for free. We help you bring in your products, sizes and stock so you can start selling quickly.',
+    answer: 'Yes, for free. We help you bring in your products, sizes, colours and photos so you can start selling in the shop and online quickly.',
   },
 ];

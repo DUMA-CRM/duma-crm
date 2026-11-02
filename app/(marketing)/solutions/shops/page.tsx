@@ -5,6 +5,7 @@ import { Check, ClipboardList, Code, CreditCard, Gift, Layers, LayoutDashboard, 
 import { JsonLd } from '@/components/marketing/JsonLd';
 import { CustomerMock, CustomersScreen, OfflineQueueMock, OrdersScreen, StorefrontApiMock, VariantStockMock } from '@/components/marketing/mocks';
 import { ProductTabs } from '@/components/marketing/ProductTabs';
+import { RelatedSection } from '@/components/marketing/RelatedLinks';
 import { ReviewTicker } from '@/components/marketing/ReviewTicker';
 import { Screenshot } from '@/components/marketing/Screenshot';
 import { ClosingCta, FaqSection, FeatureCard, Mark, SecondaryButton, Section, SectionHeading, SignUpButton } from '@/components/marketing/sections';
@@ -17,12 +18,13 @@ import { breadcrumbSchema, faqSchema, softwareApplicationSchema } from '@/lib/ma
 import { hasScreenshot } from '@/lib/marketing/screenshots.server';
 import { SHOP_COMPARISON, SHOP_FAQS, SHOP_METRICS, SHOP_MISTAKES, SHOP_SETUP_STEPS, SHOP_USE_CASES } from '@/lib/marketing/shops';
 import { linkTo } from '@/lib/marketing/site';
+import { AUDIENCE_LINKS } from '@/lib/marketing/solutions';
 
 const DESCRIPTION =
-  'Software for clothing shops and online stores: stock by size and colour, a till for the shop and pop-ups that works offline, customers, loyalty, promotions and a storefront API. Free plan, no card needed.';
+  'Stock by size and colour, a till for your boutique and pop-ups that works offline, customers and loyalty. Keep your storefront. Free plan, no card.';
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'Inventory & POS for Clothing Shops and Online Stores, Free to Start | DUMA',
+  title: 'EPOS and Stock for Clothing Shops and Online Stores | DUMA',
   description: DESCRIPTION,
   path: '/solutions/shops',
 });
@@ -35,8 +37,10 @@ const METRIC_ICONS = [Tag, MapPin, Star, Users, Gift, Receipt];
 const COMPARISON_ICONS = [Layers, CreditCard];
 
 /**
- * /solutions/shops — DUMA for clothing shops and online stores, after
- * seline.com/for-ecommerce, on the same blocks as /solutions/cafes. Online
+ * /solutions/shops — DUMA for clothing shops, boutiques and online stores, and
+ * the pop-ups and markets they sell at, after seline.com/for-ecommerce, on the
+ * same blocks as /solutions/cafes. Several locations, stocktakes and supplier
+ * orders are /solutions/retail's subject, so this page leaves them out. Online
  * selling is described exactly as it works today: the storefront API, no
  * hosted store yet, no Shopify connection (see lib/marketing/shops.ts).
  */
@@ -57,7 +61,8 @@ export default function ShopsPage() {
             <span className="mkt-mark mkt-mark-green rounded-md px-2">and your online store</span>
           </h1>
           <p className="mt-6 max-w-[44rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">
-            Stock by size and colour, a till for the shop and pop-ups, customers, loyalty and promotions — in one place, connected to your website.
+            An EPOS and stock system for UK clothing shops, boutiques and online stores: every size and colour counted, a till for the shop and pop-ups, customers,
+            loyalty and promotions — in one place, connected to your website.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <SignUpButton />
@@ -118,13 +123,13 @@ export default function ShopsPage() {
         </div>
       </Section>
 
-      <MistakesSection id="mistakes" title="Five things that quietly cost a shop money" items={SHOP_MISTAKES} />
+      <MistakesSection id="mistakes" title="Five things that quietly cost a clothing shop money" items={SHOP_MISTAKES} />
 
       {/* ── How DUMA runs a shop ── */}
       <Section spacing="roomy" aria-labelledby="how">
         <SectionHeading
           id="how"
-          title="How DUMA runs a shop"
+          title="How DUMA runs a boutique, from the EPOS to the website"
           intro={
             <p>
               One workspace for the counter, the stock room and the website: <Mark>one stock and one customer list</Mark>, a till that sells anywhere, and the
@@ -160,9 +165,9 @@ export default function ShopsPage() {
 
       <UseCasesSection
         id="uses"
-        title="Four things shops do with DUMA every week"
+        title="Four things clothing and online shops do with DUMA every week"
         lead={[
-          'Whether you sell clothing, gifts or homeware, in a shop, online or at markets, these are the jobs DUMA takes off your list.',
+          'Whether you sell clothing, shoes or accessories, in a boutique, online or at markets and pop-ups, these are the jobs DUMA takes off your list.',
           'Start with the one you need most. The rest is already in the same workspace, with nothing to move when you’re ready.',
         ]}
         items={SHOP_USE_CASES}
@@ -171,31 +176,37 @@ export default function ShopsPage() {
 
       <ExplainerSection
         id="explainer"
-        title="What shop software should do, and how to set it up"
+        title="What clothing shop software should do, and how to set it up"
         intro={
           <p>
             Shop software should keep the counter, the stock room and the website telling the same story. If the till and the site count stock separately, one of
             them is always wrong. If customers live in three places, nobody knows who your regulars are.
           </p>
         }
-        setupTitle="How to set up DUMA in a shop"
+        setupTitle="How to set up DUMA in a boutique or online store"
         steps={SHOP_SETUP_STEPS}
-        metricsTitle="Shop numbers worth watching"
+        metricsTitle="Numbers a clothing shop should watch"
         metrics={SHOP_METRICS}
         metricIcons={METRIC_ICONS}
         comparisonTitle="A hosted store, a till app,"
         comparisonHighlight="or one system"
-        comparisonLead="Three ways most small shops run. Here is what each one covers."
+        comparisonLead="Three ways most clothing shops and online stores run. Here is what each one covers."
         comparison={SHOP_COMPARISON}
         comparisonIcons={COMPARISON_ICONS}
       />
 
-      <SetupBand id="shop-setup" title="Open your shop on DUMA." body="Bring your products, sizes and stock across — we’ll help you set it up, for free." />
+      <SetupBand id="shop-setup" title="Open your boutique on DUMA." body="Bring your products, sizes and stock across — we’ll help you set it up, for free." />
 
-      <FaqSection items={SHOP_FAQS} title="Questions shops ask" />
+      <FaqSection items={SHOP_FAQS} title="Questions clothing and online shops ask" />
+
+      <RelatedSection
+        id="shops-related"
+        audiences={[AUDIENCE_LINKS.retail, AUDIENCE_LINKS.blogs, AUDIENCE_LINKS.anyBusiness]}
+        terms={['sku', 'loyalty-programme', 'customer-retention', 'customer-lifetime-value']}
+      />
 
       <ClosingCta
-        title="The one place to run your shop."
+        title="The one place to run your clothing shop."
         muted="One simple bill, or none at all."
         body="Get started in minutes, completely free. No card required, and we’re here to help you every step of the way."
         aside={<RisingLines id="shops-cta" />}

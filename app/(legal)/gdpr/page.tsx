@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { marketingMetadata } from '@/lib/marketing/metadata';
 import { CONTACT_EMAIL } from '@/lib/marketing/site';
 
 import { LegalDocument } from '../LegalDocument';
 
-export const metadata: Metadata = {
-  title: 'DUMA and GDPR',
+export const metadata: Metadata = marketingMetadata({
+  title: 'DUMA and GDPR | DUMA',
   description: 'How DUMA handles personal data under UK GDPR and EU GDPR: who is responsible for what, where data is stored, and the tools you have.',
-};
+  path: '/gdpr',
+});
 
 /*
  * Plain-language companion to the DPA. Claims follow the business profile's

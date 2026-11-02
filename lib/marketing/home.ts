@@ -93,10 +93,10 @@ export const FAQS: { question: string; answer: string }[] = [
   {
     question: 'What kind of business is DUMA for?',
     answer:
-      'Small food and drink businesses — cafés, bakeries, restaurants, bars and food trucks — and small shops that sell products in store, online or both. It also works for services, creators and anyone who needs just one part, such as forms, notes or website content.',
+      'Small food and drink businesses in the UK — cafés, bakeries, restaurants, bars and food trucks — and small shops that sell products in store, online or both. It also works for services, creators and anyone who needs just one part, such as forms, notes or website content.',
   },
   {
-    question: 'Do I need new hardware?',
+    question: 'Do I need new EPOS hardware?',
     answer:
       'No. DUMA runs in the browser on the tablet, phone or computer you already have, and you can keep your card machine: Square and SumUp connect directly, and with any other you key in the amount and the sale still lands in your reports. Receipts print from the browser today; dedicated receipt printer and cash drawer support is coming soon.',
   },

@@ -8,7 +8,7 @@ import { JsonLd } from '@/components/marketing/JsonLd';
 import { MethodLabel } from '@/components/marketing/docs/DocsSidebar';
 import { DocsPage, FieldList, H2, InlineCode, Note, ResponseBlock, Ticks, prose, requestTabs } from '@/components/marketing/docs/parts';
 
-import { API_ORIGIN, type DocEndpoint, docEndpoint, docEndpoints } from '@/lib/marketing/developers';
+import { API_ORIGIN, type DocEndpoint, docEndpoint, docEndpoints, indexedEndpoint } from '@/lib/marketing/developers';
 import { marketingMetadata } from '@/lib/marketing/metadata';
 import { breadcrumbSchema } from '@/lib/marketing/schema';
 import { cn } from '@/lib/utils/cn';
@@ -20,13 +20,23 @@ export function generateStaticParams() {
 
 export const dynamicParams = false;
 
+/** `text` cut at the last word that fits in `max` characters, with an ellipsis when anything was cut. */
+function clip(text: string, max: number): string {
+  if (text.length <= max) return text;
+  const cut = text.slice(0, max - 1);
+  return `${cut.slice(0, cut.lastIndexOf(' ')).replace(/[\s,.;:—-]+$/, '')}…`;
+}
+
 export async function generateMetadata({ params }: { params: Promise<{ slug: string }> }): Promise<Metadata> {
   const endpoint = docEndpoint((await params).slug);
   if (!endpoint) return {};
+  // Search results cut a title at about 60 characters and a description at about 155.
+  const full = `${endpoint.title} — ${endpoint.apiName} | DUMA`;
   return marketingMetadata({
-    title: `${endpoint.title} — ${endpoint.apiName} — DUMA API`,
-    description: `${endpoint.method} ${endpoint.fullPath}. ${endpoint.description}`.slice(0, 300),
+    title: full.length <= 60 ? full : `${endpoint.title} | DUMA API`,
+    description: clip(`${endpoint.method} ${endpoint.fullPath}. ${endpoint.description}`, 155),
     path: `/developers/${endpoint.slug}`,
+    noindex: !indexedEndpoint(endpoint),
   });
 }
 

@@ -15,7 +15,7 @@ import { marketingMetadata } from '@/lib/marketing/metadata';
 import { breadcrumbSchema } from '@/lib/marketing/schema';
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'MCP Server — DUMA API',
+  title: 'MCP Server: Connect an AI Assistant to Your Business | DUMA',
   description:
     'Connect an AI assistant to DUMA. Set up Claude Code, Cursor or another MCP client, choose workspace permissions, and explore the available tools.',
   path: '/developers/mcp',

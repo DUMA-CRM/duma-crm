@@ -11,7 +11,7 @@ import { NextRequest, NextResponse } from 'next/server';
 
 import { CSP_IMAGE_HOSTS } from '@/lib/utils/image-src';
 import { MARKDOWN_RENDER_HEADER, prefersMarkdown, servesMarkdown } from '@/lib/utils/markdown-for-agents';
-import { isPublicPath } from '@/lib/utils/public-paths';
+import { needsSignIn } from '@/lib/utils/public-paths';
 
 // better-auth's session cookie. The exact name varies with configuration —
 // `better-auth.session_token` plain, `__Secure-better-auth.session_token` on
@@ -89,18 +89,28 @@ function contentSecurityPolicy(nonce: string, allowEval: boolean, frameable: 'no
 
 export function proxy(req: NextRequest) {
   const { pathname } = req.nextUrl;
-  const hasSession = req.cookies.getAll().some((c) => c.name.endsWith(SESSION_COOKIE_SUFFIX) && c.value.length > 0);
-  // Which routes need no session: lib/utils/public-paths.ts.
-  const isPublic = isPublicPath(pathname);
 
-  // Unauthenticated user visiting a protected page → send to sign-in.
+  // One host: www.duma-business.com served a full duplicate of the site. A
+  // permanent redirect folds its links into the apex domain for search engines.
+  const host = req.headers.get('host') ?? '';
+  if (host.startsWith('www.')) {
+    const url = req.nextUrl.clone();
+    url.host = host.slice(4);
+    return NextResponse.redirect(url, 301);
+  }
+
+  const hasSession = req.cookies.getAll().some((c) => c.name.endsWith(SESSION_COOKIE_SUFFIX) && c.value.length > 0);
+  // Which routes need a session, and which are public: lib/utils/public-paths.ts.
+  // Unauthenticated user visiting an app section → send to sign-in. An unknown
+  // URL falls through to the real 404 instead (needsSignIn), so a crawler never
+  // sees a login page for a page that does not exist.
   // Preserve `?next=` so we can redirect back after a successful login.
   //
   // Note: we intentionally do NOT redirect authenticated users away from public
   // pages here. The cookie only proves a token exists — not that the session is
   // still valid. If the session has expired, the CRM layout will redirect to
   // sign-in, and blindly bouncing back to /dashboard from here would loop.
-  if (!hasSession && !isPublic) {
+  if (!hasSession && needsSignIn(pathname)) {
     const url = new URL('/sign-in', req.url);
     url.searchParams.set('next', `${pathname}${req.nextUrl.search}`);
     return NextResponse.redirect(url);

@@ -26,7 +26,7 @@ export const SCREENSHOT_DIR = '/marketing/screenshots';
 
 export const SCREENSHOTS = {
   dashboard: { file: 'dashboard.png', frame: 'browser', url: 'duma-business.com/dashboard', alt: "The DUMA dashboard: today's sales, orders and the team on shift" },
-  pos: { file: 'pos.png', frame: 'browser', url: 'duma-business.com/pos', alt: 'The DUMA till with an order in progress' },
+  pos: { file: 'pos.png', frame: 'browser', url: 'duma-business.com/pos', alt: 'The DUMA EPOS till with an order in progress' },
   qrOrdering: { file: 'qr-ordering.png', frame: 'phone', alt: "A customer ordering from a business's menu on their phone" },
   products: { file: 'products.png', frame: 'browser', url: 'duma-business.com/menu', alt: 'A product in DUMA with its price, recipe and margin' },
   inventory: { file: 'inventory.png', frame: 'browser', url: 'duma-business.com/inventory', alt: 'Stock levels in DUMA with low-stock items flagged' },

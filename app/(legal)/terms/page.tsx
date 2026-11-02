@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { marketingMetadata } from '@/lib/marketing/metadata';
 import { CONTACT_EMAIL, OPERATOR, OPERATOR_LEGAL_NAME } from '@/lib/marketing/site';
 
 import { LegalDocument } from '../LegalDocument';
 
-export const metadata: Metadata = {
-  title: 'Terms of Service',
-  description: 'The terms that govern use of DUMA.',
-};
+export const metadata: Metadata = marketingMetadata({
+  title: 'Terms of Service | DUMA',
+  description: 'The terms for using DUMA, the business software for UK cafés, restaurants, bars and shops: accounts, acceptable use, payments, plans and liability.',
+  path: '/terms',
+});
 
 export default function TermsPage() {
   return (
@@ -53,7 +55,7 @@ export default function TermsPage() {
 
       <h2>Payments and orders</h2>
       <p>
-        Card payments are processed by the provider you connect — Stripe, SumUp or Square — under that provider&apos;s
+        Card payments are processed by the provider you connect — for example SumUp or Square — under that provider&apos;s
         own terms, and payments go directly to your account with them. You remain responsible for your prices, tax and
         VAT treatment, refunds, receipts and the accuracy of your financial records. Figures DUMA calculates — including
         margins and reports — are tools to help you, not accounting or tax advice.

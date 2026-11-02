@@ -2,20 +2,22 @@ import type { Metadata } from 'next';
 
 import Link from 'next/link';
 
+import { marketingMetadata } from '@/lib/marketing/metadata';
 import { CONTACT_EMAIL, OPERATOR, OPERATOR_LEGAL_NAME } from '@/lib/marketing/site';
 
 import { LegalDocument } from '../LegalDocument';
 
-export const metadata: Metadata = {
-  title: 'Privacy Policy',
-  description: 'How DUMA collects, uses and protects personal data.',
-};
+export const metadata: Metadata = marketingMetadata({
+  title: 'Privacy Policy | DUMA',
+  description: 'How DUMA collects, uses and protects personal data: what we hold, why, who processes it and the choices you have.',
+  path: '/privacy',
+});
 
 export default function PrivacyPage() {
   return (
     <LegalDocument title="Privacy Policy" updated="1 November 2026">
       <p>
-        DUMA is a business operating system for hospitality — till, kitchen display, stock, people, customer records,
+        DUMA is business software for cafés, restaurants, bars, bakeries and shops — till, kitchen display, stock, people, customer records,
         reporting and guest QR ordering. This policy explains what personal data we handle, why, and the choices you have.
       </p>
 

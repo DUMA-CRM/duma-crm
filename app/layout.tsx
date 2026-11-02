@@ -77,6 +77,12 @@ export const metadata: Metadata = {
     title: 'DUMA — Business OS',
     description: 'One connected workspace to run your whole business.',
   },
+  // Search Console and Bing Webmaster Tools ownership, when verified by meta tag
+  // rather than DNS: set the token each one gives you, and the tag appears.
+  verification: {
+    ...(process.env.GOOGLE_SITE_VERIFICATION && { google: process.env.GOOGLE_SITE_VERIFICATION }),
+    ...(process.env.BING_SITE_VERIFICATION && { other: { 'msvalidate.01': process.env.BING_SITE_VERIFICATION } }),
+  },
 };
 
 export default async function RootLayout({ children }: { children: React.ReactNode }) {
@@ -87,7 +93,7 @@ export default async function RootLayout({ children }: { children: React.ReactNo
   const nonce = (await headers()).get('x-nonce') ?? undefined;
 
   return (
-    <html lang="en" suppressHydrationWarning className={`${archivo.variable} ${chivoMono.variable} ${currencySigns.variable}`}>
+    <html lang="en-GB" suppressHydrationWarning className={`${archivo.variable} ${chivoMono.variable} ${currencySigns.variable}`}>
       <body className="font-sans" suppressHydrationWarning>
         {/* The direction contract has to survive the production build so it can be
             audited, and a JSX comment is stripped at compile time — hence a real

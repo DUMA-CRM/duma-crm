@@ -31,6 +31,7 @@ import {
   X,
 } from '@/components/icons';
 import { JsonLd } from '@/components/marketing/JsonLd';
+import { PageLink } from '@/components/marketing/RelatedLinks';
 import { CustomerMock, CustomersScreen, KitchenMock, LocationsMock, MarginMock, OfflineQueueMock, OrdersScreen, QrMock, RotaMock, SaleTrailMock, StockMock } from '@/components/marketing/mocks';
 import { ProductTabs } from '@/components/marketing/ProductTabs';
 import { ReviewTicker } from '@/components/marketing/ReviewTicker';
@@ -49,13 +50,13 @@ import { linkTo } from '@/lib/marketing/site';
 import { cn } from '@/lib/utils/cn';
 
 const DESCRIPTION =
-  'DUMA runs your whole business from one place, on one bill: till, orders, stock, rotas, customers, marketing and reports. Free plan, no card needed. For cafés, food businesses and small shops in store or online.';
+  'Till, orders, stock, rotas, customers and reports in one place, on one bill. Free plan, no card needed. For UK cafés, food businesses and small shops.';
 
 // Title and H1 say the same thing in different words — Google builds the
 // title link from both, and a slogan in either would waste the page's
 // strongest signal.
 export const metadata: Metadata = marketingMetadata({
-  title: 'Free All-in-One Business Software for Cafés and Shops | DUMA',
+  title: 'Free All-in-One EPOS and Business Software UK | DUMA',
   description: DESCRIPTION,
   path: '/',
 });
@@ -113,7 +114,8 @@ export default function HomePage() {
           </h1>
           {/* Wide enough to sit on two balanced lines from sm up. */}
           <p className="mt-6 max-w-[44rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">
-            Everything you need to run your business, from sales and stock to staff and customers. All on your existing tablet, with the card reader you already use.
+            Everything a UK café, food business or small shop runs on, from the EPOS till and stock to staff and customers. All on your existing tablet, with the card
+            reader you already use.
           </p>
 
           <div className="mt-8 flex flex-wrap gap-3">
@@ -200,11 +202,18 @@ export default function HomePage() {
         <div className="mt-6 grid gap-6 text-pretty text-[1.0625rem] leading-relaxed text-[var(--mkt-ink-2)] md:grid-cols-2 md:gap-10" data-reveal="">
           <p>
             Running a café, bakery or small restaurant? The till, the kitchen screen, recipes and margin, stock, rotas and loyalty live in one workspace, so the
-            numbers at close agree with each other.
+            numbers at close agree with each other. See how it runs{' '}
+            <PageLink path="/solutions/cafes">cafés and restaurants</PageLink>, <PageLink path="/solutions/bakeries">bakeries, with recipe costing and waste</PageLink>{' '}
+            and <PageLink path="/solutions/bars">bars and pubs, with table bookings</PageLink>.
           </p>
           <p>
             Selling products in a shop or online? Keep your storefront and its checkout. DUMA becomes the one place for stock in every size and colour, customers,
-            loyalty, email and a till for in-person sales. <Mark>Start with one part, add the rest when you’re ready.</Mark>
+            loyalty, email and a till for in-person sales — for <PageLink path="/solutions/shops">clothing shops and online stores</PageLink>, and for{' '}
+            <PageLink path="/solutions/retail">retailers with stock in more than one shop</PageLink>. <Mark>Start with one part, add the rest when you’re ready.</Mark>
+          </p>
+          <p className="md:col-span-2">
+            Only need one part? There is <PageLink path="/solutions/blogs">a headless content system for blogs and creators</PageLink>, and{' '}
+            <PageLink path="/solutions/any-business">forms, team notes and an API you can use on their own</PageLink>.
           </p>
         </div>
         <p className="mt-8 text-sm text-[var(--mkt-ink-2)]">
@@ -446,7 +455,7 @@ export default function HomePage() {
         <SectionHeading
           id="works"
           align="center"
-          title="Works with the tools you already use"
+          title="An EPOS that works with the tools you already use"
           intro={<p>Connect your card terminal, web analytics, storage and everyday tools — or build your own with the API.</p>}
         />
         {/* Two centred rows of four from sm up: a zero-height, full-width break after the fourth chip. */}

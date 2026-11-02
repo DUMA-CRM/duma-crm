@@ -27,6 +27,13 @@ export type GlossaryTerm = {
   body: string;
   faq: { question: string; answer: string }[];
   related: string[];
+  /**
+   * The audience page where this number lives in DUMA, linked from the term as
+   * "See it in DUMA". The label is the anchor, so it says what the page is.
+   */
+  seeIt: { path: `/solutions/${string}`; label: string };
+  /** A search title, when the headline alone would not say who the guide is for. Otherwise `${title} | DUMA`. */
+  metaTitle?: string;
   /** ISO date the article last changed. */
   updated: string;
 };
@@ -39,6 +46,7 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     short: 'The share of your food sales that went on the ingredients to make it — the first number a kitchen is run on.',
     updated: '2026-10-31',
     related: ['gross-profit-margin', 'prime-cost', 'margin-vs-markup', 'wastage'],
+    seeIt: { path: '/solutions/cafes', label: 'Food cost and recipe margin for cafés and restaurants' },
     body: `
 Picture a burger that sells for £12. The bun, the beef, the cheese and the sauce cost you £3.60. That burger has a food cost of 30%: for every pound it brings in, 30p went on ingredients. Food cost percentage is that same sum, for one dish or for the whole kitchen.
 
@@ -101,6 +109,7 @@ Add a recipe to each menu item and DUMA works out the cost of every dish from it
     short: 'What is left of each sale after the cost of the goods sold, as a percentage of the sale.',
     updated: '2026-10-31',
     related: ['food-cost-percentage', 'margin-vs-markup', 'prime-cost', 'menu-engineering'],
+    seeIt: { path: '/solutions/cafes', label: 'Margin per dish, after VAT, for cafés and restaurants' },
     body: `
 In UK hospitality you will hear "what GP are we running at?" more than almost any other question. Gross profit is what a sale leaves you after paying for the goods in it — the ingredients in a dish, the stock behind a T-shirt. The margin is that profit as a share of the sale.
 
@@ -162,6 +171,7 @@ Every menu item with a recipe shows its cost and margin, with VAT taken out when
     short: 'Two ways to describe the same profit: margin divides it by the price, markup divides it by the cost.',
     updated: '2026-10-31',
     related: ['gross-profit-margin', 'food-cost-percentage'],
+    seeIt: { path: '/solutions/cafes', label: 'VAT-aware margin on every dish for cafés and restaurants' },
     body: `
 You buy a candle for £4 and sell it for £10. Is that a 60% profit or a 150% profit? Both — it depends whether you are talking about margin or markup. Mixing the two up is one of the most common ways small businesses underprice.
 
@@ -225,6 +235,7 @@ DUMA shows the cost and margin of every product with a recipe, worked out from i
     short: 'Your cost of goods sold plus your total labour cost — the biggest controllable cost in a restaurant.',
     updated: '2026-10-31',
     related: ['food-cost-percentage', 'labour-cost-percentage', 'gross-profit-margin'],
+    seeIt: { path: '/solutions/cafes', label: 'Food and staff cost against sales for cafés and restaurants' },
     body: `
 Rent is fixed for years. Energy you can only nudge. But what you spend on ingredients and on people changes every single week — and together they are usually well over half of what a restaurant takes. That pair is prime cost.
 
@@ -283,6 +294,7 @@ The **Prime cost** report shows food and labour as a share of sales for any peri
     short: 'What your team cost as a share of your sales — the number to rota against.',
     updated: '2026-10-31',
     related: ['prime-cost', 'average-order-value', 'food-cost-percentage'],
+    seeIt: { path: '/solutions/bars', label: 'Staff cost against the night’s takings for bars and pubs' },
     body: `
 A quiet Tuesday with four people on the floor and a Saturday rush with three both cost you money — one in wages, the other in lost sales and tired staff. Labour cost percentage is how you see it.
 
@@ -343,6 +355,7 @@ The **Labour vs sales** report shows labour cost, labour % and sales per labour 
     short: 'Sorting every dish by how often it sells and how much it earns, to decide what to promote, re-cost or cut.',
     updated: '2026-10-31',
     related: ['gross-profit-margin', 'food-cost-percentage', 'average-order-value'],
+    seeIt: { path: '/solutions/cafes', label: 'Menu margins and top sellers for cafés and restaurants' },
     body: `
 Your best-seller might be your least profitable dish. Your most profitable one might be hidden at the bottom of the menu. Menu engineering puts both numbers side by side so you can see it.
 
@@ -400,6 +413,7 @@ The **Menu engineering** report places every costed item in one of four groups �
     short: 'How much a customer spends in one order, on average — also called average spend or average transaction value.',
     updated: '2026-10-31',
     related: ['customer-retention', 'menu-engineering', 'labour-cost-percentage'],
+    seeIt: { path: '/solutions/cafes', label: 'Average order and takings reports for cafés and restaurants' },
     body: `
 There are only two ways to sell more: more orders, or bigger ones. Average order value measures the second. In restaurants you will also hear **average spend per head**, which divides by guests instead of orders.
 
@@ -461,6 +475,7 @@ The **Sales summary** report shows gross and net sales, refunds, orders and aver
     short: 'Counting everything you have on the shelves, so your records — and your costs — match reality.',
     updated: '2026-10-31',
     related: ['par-level', 'wastage', 'food-cost-percentage'],
+    seeIt: { path: '/solutions/retail', label: 'Stocktakes across every shop with the retail EPOS' },
     body: `
 Your system says there are 24 bottles of oat milk. The shelf says 17. A stocktake is how you find out — and every cost figure you rely on, from [food cost](/glossary/food-cost-percentage) to [gross profit](/glossary/gross-profit-margin), is only as good as the last one.
 
@@ -521,6 +536,7 @@ DUMA has **stocktakes**: count by location, see what was expected next to what y
     short: 'The amount of an item you want on hand to get through until the next delivery, with a little to spare.',
     updated: '2026-10-31',
     related: ['stocktake', 'wastage'],
+    seeIt: { path: '/solutions/bakeries', label: 'Low-stock flags and supplier orders for bakeries' },
     body: `
 Run out of oat milk at 10am and you lose sales and annoy regulars. Order twice what you need and it goes off in the fridge. A par level is the line between the two: how much should be on the shelf, so ordering becomes a sum instead of a guess.
 
@@ -585,6 +601,7 @@ Each stock item can have a **reorder level** for each location. DUMA flags items
     short: 'Stock you paid for but never sold — spoiled, dropped, over-produced, returned or missing.',
     updated: '2026-10-31',
     related: ['food-cost-percentage', 'stocktake', 'par-level'],
+    seeIt: { path: '/solutions/bakeries', label: 'Waste tracking for bakeries' },
     body: `
 Every tray of unsold pastries in the bin was bought, prepared and paid for in staff time. Wastage is the cost of stock that never turned into a sale, and in food businesses it is often the largest cost nobody measures.
 
@@ -645,6 +662,7 @@ Write stock off with a reason as it happens. The **Waste & loss** report shows w
     short: 'Closing the till at the end of the day: counting what is there and checking it against what the sales say should be.',
     updated: '2026-10-31',
     related: ['average-order-value', 'stocktake'],
+    seeIt: { path: '/solutions/bars', label: 'Nightly cash-up for bars and pubs' },
     body: `
 At the end of the day someone counts the drawer. The till says there should be £412.50 in cash; the drawer has £402.50. Cashing up is how that £10 gets noticed tonight rather than at the year-end.
 
@@ -706,6 +724,7 @@ Cash up the till at the end of the day: DUMA works out what should be there and 
     short: 'How many of your customers come back — usually measured as the repeat customer rate.',
     updated: '2026-10-31',
     related: ['average-order-value', 'menu-engineering'],
+    seeIt: { path: '/solutions/shops', label: 'Loyalty and repeat customers for clothing shops and online stores' },
     body: `
 A regular who comes in three times a week is worth more than any marketing campaign. Customer retention measures how many customers come back, and the most practical way to measure it is the repeat customer rate.
 
@@ -767,6 +786,7 @@ The **Customer retention** report shows new and returning customers and the repe
     short: 'What the stock you actually sold cost you to buy or make — the cost that sits against your sales.',
     updated: '2026-10-31',
     related: ['gross-profit-margin', 'food-cost-percentage', 'stocktake', 'prime-cost'],
+    seeIt: { path: '/solutions/retail', label: 'Stock, stocktakes and supplier orders for retail shops' },
     body: `
 Your accountant, your bank and every margin you calculate start from the same figure: what the things you sold cost you. Not what you bought this month — what you used up making the sales. That is cost of goods sold, or COGS.
 
@@ -828,6 +848,7 @@ Every menu item with a recipe has its ingredient cost worked out, so each sale c
     short: 'Working out exactly what one portion of a dish costs from the quantity and price of every ingredient in it.',
     updated: '2026-10-31',
     related: ['food-cost-percentage', 'gross-profit-margin', 'modifiers', 'menu-engineering'],
+    seeIt: { path: '/solutions/cafes', label: 'Recipe costing for cafés and restaurants' },
     body: `
 "About £3" is not a cost. Recipe costing turns a dish into a list — 150g of beef, one brioche bun, 20g of cheese, 15ml of sauce — and prices each line, so you know to the penny what a portion costs and whether its price still works.
 
@@ -894,6 +915,7 @@ Give a menu item a recipe from your stock items and DUMA works out its cost, and
     short: 'The options a customer can add to or change in an item — oat milk, an extra shot, no onions, a size — and the price and cost that come with them.',
     updated: '2026-10-31',
     related: ['recipe-costing', 'average-order-value', 'epos'],
+    seeIt: { path: '/solutions/cafes', label: 'The café and restaurant EPOS, with options on every item' },
     body: `
 "Large oat latte, extra shot, no sugar." One item, three modifiers. Modifiers are how a till records the choices customers make, so the kitchen gets the order right, the price is right, and the cost is right.
 
@@ -950,6 +972,7 @@ Modifiers are set up once and attached to items on the till, the QR code menu an
     short: 'Gross sales are everything rung up; net sales are what is left after refunds, discounts and VAT — the money that is actually yours.',
     updated: '2026-10-31',
     related: ['vat-inclusive-pricing', 'discounts-and-voids', 'gross-profit-margin', 'average-order-value'],
+    seeIt: { path: '/solutions/bars', label: 'Takings and cash-up for bars and pubs' },
     body: `
 Your till says you took £5,000 on Saturday. Some of that went back as refunds, some was knocked off as discounts, and a sixth of it belongs to HMRC if you are VAT-registered. Net sales is what is left once all of that comes out.
 
@@ -1013,6 +1036,8 @@ The **Sales summary** report shows gross and net sales, refunds, orders and aver
     short: 'Showing customers prices with VAT already included — and knowing how much of each price is really yours.',
     updated: '2026-10-31',
     related: ['net-sales', 'gross-profit-margin', 'margin-vs-markup'],
+    seeIt: { path: '/solutions/bakeries', label: 'Recipe costing with the right VAT on every bake' },
+    metaTitle: 'What is VAT-Inclusive Pricing? A UK Guide | DUMA',
     body: `
 UK consumers expect the price on the menu or the tag to be the price they pay. So if you are VAT-registered, the VAT is inside the price — and part of every £4 coffee is not yours. VAT-inclusive pricing is simple for customers and easy to get wrong in your own numbers.
 
@@ -1076,6 +1101,7 @@ DUMA takes VAT out of the selling price when it works out an item's margin, if y
     short: 'Money knocked off a sale, and items or orders cancelled before they were paid — both worth tracking by reason.',
     updated: '2026-10-31',
     related: ['net-sales', 'cash-up', 'gross-profit-margin'],
+    seeIt: { path: '/solutions/bars', label: 'Cash-up against expected cash and card for bars and pubs' },
     body: `
 A free coffee for a regular. Ten percent off for staff. A pint poured and then cancelled. Each one is small, and each one is money. Discounts and voids are where takings quietly go missing — sometimes by policy, sometimes by mistake, occasionally on purpose.
 
@@ -1132,6 +1158,7 @@ The till asks for a reason when an item or order is voided. The **Discounts & vo
     short: 'The schedule of who works when — built around when you actually trade, and shared with the team in advance.',
     updated: '2026-10-31',
     related: ['labour-cost-percentage', 'prime-cost', 'average-order-value'],
+    seeIt: { path: '/solutions/cafes', label: 'Staff rotas on your team’s phones for cafés and restaurants' },
     body: `
 A good rota has the right people in at the right times: enough for the rush, not a crowd for the quiet hour after. Get it wrong one way and service suffers; the other way and [labour cost](/glossary/labour-cost-percentage) eats the day's profit.
 
@@ -1187,6 +1214,8 @@ Build the week's rota and publish it to the team, with open shifts for people to
     short: 'The till system where sales are taken and paid — and, in a modern one, where stock, staff and reports are connected to them.',
     updated: '2026-10-31',
     related: ['kitchen-display-system', 'modifiers', 'cash-up', 'qr-code-ordering'],
+    seeIt: { path: '/solutions/cafes', label: 'The EPOS for UK cafés and restaurants that works offline' },
+    metaTitle: 'What is EPOS? A UK Guide for Small Businesses | DUMA',
     body: `
 The cash register rang up a price and kept the money. An EPOS — electronic point of sale — does that and remembers everything about the sale: what was sold, to whom, by whom, how it was paid, and what stock it used.
 
@@ -1242,6 +1271,7 @@ DUMA's till runs in the browser on any device and can be installed like an app. 
     short: 'A screen in the kitchen that shows orders as they come in from the till and online, instead of paper tickets.',
     updated: '2026-10-31',
     related: ['epos', 'modifiers', 'qr-code-ordering'],
+    seeIt: { path: '/solutions/cafes', label: 'The kitchen screen for cafés and restaurants' },
     body: `
 Paper tickets get lost, get splashed and get read wrong. A kitchen display system puts every order on a screen the moment it is placed, in order, with every [modifier](/glossary/modifiers) on it — and the chef marks it done with a tap.
 
@@ -1298,6 +1328,7 @@ DUMA's kitchen display shows tickets from the till and from QR code orders as th
     short: 'Customers scan a code with their phone, see the menu and place their order — no app, and no waiting to be served.',
     updated: '2026-10-31',
     related: ['epos', 'kitchen-display-system', 'average-order-value', 'customer-retention'],
+    seeIt: { path: '/solutions/cafes', label: 'QR ordering for cafés and restaurants' },
     body: `
 A customer sits down, scans a code on the table or the counter, and the menu opens on their phone. They choose, add their extras, and send the order. It goes straight to the kitchen. That is QR code ordering — and for busy counters and small teams, it can feel like an extra member of staff.
 
@@ -1354,6 +1385,7 @@ Guests scan your code and order without an account, choosing a collection time. 
     short: 'The gap between the stock your records say you have and the stock you count — in retail, often called shrinkage.',
     updated: '2026-10-31',
     related: ['stocktake', 'wastage', 'cost-of-goods-sold', 'par-level'],
+    seeIt: { path: '/solutions/retail', label: 'Stocktake differences for retail shops' },
     body: `
 Your records say 40 bottles of gin. You count 36. Those four bottles are stock variance. In retail the same gap is called **shrinkage**: stock that left without being sold or recorded.
 
@@ -1419,6 +1451,7 @@ A [stocktake](/glossary/stocktake) in DUMA shows what was expected next to what 
     short: 'A written order to a supplier for what you want delivered, at what price — and the record you check the delivery against.',
     updated: '2026-10-31',
     related: ['par-level', 'stock-variance', 'cost-of-goods-sold'],
+    seeIt: { path: '/solutions/retail', label: 'Supplier orders checked in against deliveries, for retail shops' },
     body: `
 "Can you send the usual?" works until the usual changes, the price goes up, or half of it does not arrive. A purchase order writes down what you asked for, so you can check what came.
 
@@ -1476,6 +1509,7 @@ Raise purchase orders to your suppliers in DUMA and receive deliveries against t
     short: 'A way to reward customers for coming back — points, tiers or a free tenth coffee — and to know who your regulars are.',
     updated: '2026-10-31',
     related: ['customer-retention', 'customer-lifetime-value', 'average-order-value'],
+    seeIt: { path: '/solutions/shops', label: 'Loyalty, promotions and referrals for clothing shops and online stores' },
     body: `
 The paper stamp card has kept coffee shops' regulars coming back for decades. A loyalty programme does the same job with more information: it rewards people for returning, and it tells you who they are.
 
@@ -1537,6 +1571,7 @@ DUMA has loyalty built into customer records: points, tiers and referral codes, 
     short: 'How much a typical customer spends with you over the whole time they keep coming back.',
     updated: '2026-10-31',
     related: ['customer-retention', 'loyalty-programme', 'average-order-value'],
+    seeIt: { path: '/solutions/shops', label: 'Repeat customers for clothing shops and online stores' },
     body: `
 A regular who buys a £3.50 coffee five days a week for two years spends about £1,800. Knowing that changes how you think about a free coffee on a bad day. Customer lifetime value — CLV — is that number for a typical customer.
 
@@ -1600,6 +1635,7 @@ Each customer record in DUMA holds their order history and loyalty, so you can s
     short: 'A unique code for each product you sell — down to each size and colour — so every one can be counted and tracked.',
     updated: '2026-10-31',
     related: ['stocktake', 'stock-variance', 'par-level', 'purchase-order'],
+    seeIt: { path: '/solutions/shops', label: 'Stock by size and colour for clothing shops' },
     body: `
 A shop selling a T-shirt in three colours and four sizes is not selling one product — it is selling twelve. Each of those twelve needs its own stock count, because a rail full of smalls does not help the customer who wants a large. That is what an SKU, or stock keeping unit, is for.
 

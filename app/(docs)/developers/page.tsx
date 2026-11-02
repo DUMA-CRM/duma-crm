@@ -12,9 +12,9 @@ import { API_ORIGIN, RATE_LIMITS, docApis, docEndpoints, docScopes } from '@/lib
 import { marketingMetadata } from '@/lib/marketing/metadata';
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'Public API Overview — DUMA API',
+  title: 'Public REST API for Products, Orders and Content | DUMA',
   description:
-    'The DUMA public API: the Store API for products, baskets and orders, the Content API for your website, and the management APIs — one workspace key, scoped. Authentication, base URL and rate limits.',
+    'One scoped workspace key for the DUMA public API: the Store API for products, baskets and orders, the Content API for your site, and the management APIs.',
   path: '/developers',
 });
 

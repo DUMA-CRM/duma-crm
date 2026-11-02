@@ -55,10 +55,18 @@ export function websiteSchema() {
  * `review`, so this earns none yet — and must not be given an invented one,
  * which is a manual-action offence. Add real ratings when there are some.
  */
+/**
+ * What the product does, as every page that carries this schema says it in
+ * view: the home page's one-line promise and the parts each solution page shows.
+ */
+const FEATURES = ['Till (EPOS) that works offline', 'Orders and payments', 'Stock', 'Recipe costing and margin', 'Staff rotas and clock-ins', 'Customers and loyalty', 'Email marketing', 'Reports'];
+
 export function softwareApplicationSchema({ description }: { description: string }) {
   return {
     '@context': 'https://schema.org',
     '@type': 'SoftwareApplication',
+    // One product, however many pages describe it.
+    '@id': `${SITE_URL}/#software`,
     name: SITE_NAME,
     url: SITE_URL,
     description,
@@ -66,6 +74,9 @@ export function softwareApplicationSchema({ description }: { description: string
     operatingSystem: 'Web, iOS, Android, Windows, macOS',
     publisher: { '@id': ORGANIZATION_ID },
     offers: { '@type': 'Offer', price: '0', priceCurrency: 'GBP' },
+    featureList: FEATURES,
+    // The dashboard is the screenshot the home page shows. The till's still has a demo menu that isn't English.
+    screenshot: absoluteUrl('/marketing/screenshots/dashboard.png'),
   };
 }
 
@@ -113,7 +124,20 @@ type PostForSchema = {
   seo: { metaDescription?: string; canonicalUrl?: string };
 };
 
-const AUTHOR = { '@type': 'Person', name: 'Marian Dudych', jobTitle: 'Founder of DUMA', url: absoluteUrl('/about'), worksFor: { '@id': ORGANIZATION_ID } } as const;
+const PERSON_ID = `${SITE_URL}/about#founder`;
+const AUTHOR = { '@type': 'Person', '@id': PERSON_ID, name: 'Marian Dudych', jobTitle: 'Founder of DUMA', url: absoluteUrl('/about'), worksFor: { '@id': ORGANIZATION_ID } } as const;
+
+/** /about: the page is about the founder — the same Person every post names as author. */
+export function aboutPageSchema() {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'ProfilePage',
+    '@id': `${absoluteUrl('/about')}#page`,
+    url: absoluteUrl('/about'),
+    mainEntity: AUTHOR,
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+  };
+}
 
 /**
  * One blog post as a BlogPosting — what Google's article results and AI

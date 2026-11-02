@@ -56,6 +56,28 @@ export const MARKETING_PATHS = [
 export const PUBLIC_PATHS: readonly string[] = [...APP_PUBLIC_PATHS, ...MARKETING_PATHS];
 
 /**
+ * The app's signed-in sections — the first segments of app/(crm), plus the
+ * route handlers and /md that sit behind a session. Only these redirect a
+ * visitor without a session cookie to sign-in. Anything else that is not
+ * public — a mistyped or retired URL — gets the real 404, which a crawler
+ * reads as "not found" instead of a soft 404 behind a login.
+ *
+ * Missing a new section here is safe: the request reaches the page, and the
+ * CRM layout redirects a visitor with no valid session itself. This list is
+ * only the fast path.
+ */
+const APP_SECTIONS = [
+  'admin', 'audit-log', 'automation', 'cash-up', 'communications', 'compliance', 'content', 'customers', 'dashboard', 'forms', 'inventory', 'kds', 'menu',
+  'my-hr', 'notes', 'operations', 'orders', 'pos', 'promotions', 'reports', 'reservations', 'scheduling', 'settings', 'staff', 'support', 'training', 'updates',
+  'api', 'md',
+];
+
+/** Whether a path without a session should be sent to sign-in: it is an app section, not a public page or an unknown URL. */
+export function needsSignIn(pathname: string): boolean {
+  return !isPublicPath(pathname) && APP_SECTIONS.includes(pathname.split('/')[1] ?? '');
+}
+
+/**
  * '/' is matched exactly — a startsWith('/') check matches every path and
  * disables the guard entirely. The rest match themselves and their subpaths,
  * never a sibling that merely shares the prefix ('/blogger' is not '/blog').

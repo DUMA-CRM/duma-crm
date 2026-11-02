@@ -23,6 +23,14 @@ const PAGES: { title: string; path: string; summary: string }[] = [
   { title: 'About', path: '/about', summary: 'Who builds DUMA, and why.' },
   { title: 'Public API', path: '/developers', summary: 'Store, Content and management APIs with one scoped workspace key.' },
   { title: 'MCP server', path: '/developers/mcp', summary: 'Connect an AI assistant to a DUMA workspace.' },
+  { title: 'Webhooks', path: '/developers/webhooks', summary: 'Signed notifications to your website when content is published, unpublished or deleted.' },
+  { title: 'Blog', path: '/blog', summary: 'Practical guides on running a café, restaurant or small shop.' },
+  { title: 'Terms & definitions', path: '/glossary', summary: 'Plain-English definitions of food cost, gross profit, EPOS, rotas and other terms, with the formulas.' },
+  { title: 'Privacy Policy', path: '/privacy', summary: 'What personal data DUMA handles, why, and the choices you have.' },
+  { title: 'Terms of Service', path: '/terms', summary: 'The terms for using DUMA.' },
+  { title: 'Data Processing Agreement', path: '/dpa', summary: 'How DUMA processes personal data for the businesses that use it.' },
+  { title: 'DUMA and GDPR', path: '/gdpr', summary: 'Who is responsible for what, where data is stored, and the tools you have.' },
+  { title: 'Company information', path: '/legal', summary: 'Who provides DUMA.' },
 ];
 
 const INTRO = `# DUMA

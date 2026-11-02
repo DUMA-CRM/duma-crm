@@ -16,15 +16,17 @@ import { MediaPanel } from '@/components/cms/MediaPanel';
 import { ModelEditor } from '@/components/cms/ModelEditor';
 import { ModelsPanel } from '@/components/cms/ModelsPanel';
 import { NewEntryDialog } from '@/components/cms/NewEntryDialog';
+import { PasteEntryDialog } from '@/components/cms/PasteEntryDialog';
 import { ContentStorageUsage } from '@/components/cms/StorageUsage';
 import { useCmsAccess } from '@/components/cms/useCmsAccess';
-import { Languages, Layers, Plus, SlidersHorizontal, UploadCloud } from '@/components/icons';
+import { ClipboardPaste, Languages, Layers, Plus, SlidersHorizontal, UploadCloud } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 import { UpdatesAdmin } from '@/components/updates/UpdatesAdmin';
 
+import { parseEntryClipboard } from '@/lib/utils/cms-entry-clipboard';
 import { type ContentTab, contentLocation, contentNavigation } from '@/lib/utils/cms-navigation';
 import { useAuthStore } from '@/stores/authStore';
 
@@ -64,6 +66,8 @@ function ContentView() {
     isSuperadmin && !isAdminContent ? [...CONTENT_TABS, { value: 'updates', label: 'DUMA Updates' }] : CONTENT_TABS;
   const [creating, setCreating] = useState<{ contentTypeId?: string } | null>(null);
   const [importing, setImporting] = useState(false);
+  // null: closed; otherwise the text it opens with (⌘V on the Entries tab fills it).
+  const [pasting, setPasting] = useState<string | null>(null);
   // Media renders its own header actions (Upload, storage) into this slot.
   const [mediaActions, setMediaActions] = useState<HTMLElement | null>(null);
 
@@ -87,6 +91,23 @@ function ContentView() {
       router.replace(`${pathname}?${next}`, { scroll: false });
     }
   }, [movedTo, requestedTab, searchParams, pathname, router]);
+
+  // ⌘V / Ctrl+V on the Entries tab, outside a text field, pastes a copied entry.
+  const canPaste = tab === 'entries' && !entryParam && !modelParam && access.canWrite && !!tenantId;
+  const dialogOpen = importing || pasting !== null || creating !== null;
+  useEffect(() => {
+    if (!canPaste || dialogOpen) return;
+    const onPaste = (event: ClipboardEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target?.closest('input, textarea, select, [contenteditable="true"]')) return;
+      const text = event.clipboardData?.getData('text/plain') ?? '';
+      if (!parseEntryClipboard(text)) return;
+      event.preventDefault();
+      setPasting(text);
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [canPaste, dialogOpen]);
 
   const navigate = (patch: Record<string, string | null>, mode: 'push' | 'replace' = 'push') => {
     const next = new URLSearchParams(searchParams.toString());
@@ -196,6 +217,12 @@ function ContentView() {
                 <span className="hidden md:inline">Import</span>
               </Button>
             )}
+            {tab === 'entries' && access.canWrite && (
+              <Button variant="outline" className="h-9 gap-1.5" aria-label="Paste entry" onClick={() => setPasting('')}>
+                <ClipboardPaste size={15} aria-hidden="true" />
+                <span className="hidden md:inline">Paste</span>
+              </Button>
+            )}
             {action && (
               <Button className="h-9 gap-1.5" aria-label={action.label} onClick={action.onClick}>
                 <Plus size={15} aria-hidden="true" />
@@ -252,6 +279,16 @@ function ContentView() {
       </div>
 
       {importing && <ImportDialog initialTypeId={searchParams.get('type') || undefined} onClose={() => setImporting(false)} />}
+      {pasting !== null && (
+        <PasteEntryDialog
+          initialText={pasting}
+          onClose={() => setPasting(null)}
+          onCreated={(id) => {
+            setPasting(null);
+            openEntry(id);
+          }}
+        />
+      )}
       {creating && (
         <NewEntryDialog
           initialTypeId={creating.contentTypeId}

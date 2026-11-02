@@ -180,6 +180,15 @@ const publishableScope = (scope: string | null) => Boolean(scope && SCOPES[scope
 let cache: DocEndpoint[] | null = null;
 
 /** Every public endpoint, in sidebar order, each to be rendered as its own page. */
+/**
+ * Whether an endpoint page is offered to search engines. The Workspace
+ * Management API's operations are thin, generated pages, several mirroring a
+ * Content Management API endpoint, written for a developer already inside the
+ * docs — not a search. They stay in the docs and the sidebar, noindexed and out
+ * of the sitemap; the Store and Content API pages carry the examples.
+ */
+export const indexedEndpoint = (endpoint: DocEndpoint): boolean => endpoint.api !== 'management';
+
 export function docEndpoints(): DocEndpoint[] {
   if (cache) return cache;
   const docs = new Map<string, EndpointDoc>(ENDPOINT_DOCS.map((doc) => [`${doc.api} ${doc.method} ${doc.path}`, doc]));

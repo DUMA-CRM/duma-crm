@@ -3,18 +3,20 @@ import Image from 'next/image';
 import Link from 'next/link';
 
 import { JsonLd } from '@/components/marketing/JsonLd';
+import { PageLink } from '@/components/marketing/RelatedLinks';
 import { ChalkCurve } from '@/components/marketing/Strokes';
 import { Mark, SecondaryButton } from '@/components/marketing/sections';
 
 import { marketingMetadata } from '@/lib/marketing/metadata';
 import { hasPublicFile } from '@/lib/marketing/public-file.server';
-import { breadcrumbSchema } from '@/lib/marketing/schema';
+import { aboutPageSchema, breadcrumbSchema } from '@/lib/marketing/schema';
 import { linkTo } from '@/lib/marketing/site';
+import { AUDIENCE_LINKS } from '@/lib/marketing/solutions';
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'About DUMA: Independent Business Software, Built in the Open',
+  title: 'About DUMA: Independent, Founder-Built Business Software',
   description:
-    'DUMA is an independent, all-in-one business system for cafés, food businesses and small shops — built and supported by its founder, Marian Dudych. Hosted in the UK.',
+    'DUMA is independent, all-in-one software for UK cafés, food businesses and small shops, built and supported by one person: its founder, Marian Dudych.',
   path: '/about',
 });
 
@@ -24,7 +26,8 @@ const FOUNDER_PHOTO = '/marketing/team/marian.jpg';
 /**
  * /about, after seline.com/about-us: a centred headline and intro, the team
  * as cards in a grey tray, the story told in a narrow column, two tilted
- * pictures with a caption, and an invitation at the end. Every line is true of
+ * pictures with a caption, the name, what being built by one person means for
+ * you, and an invitation at the end. Every line is true of
  * DUMA today (see the "DUMA Business Profile" vault note) — no investors,
  * customer counts or founding dates are claimed because none are confirmed.
  */
@@ -33,6 +36,7 @@ export default function AboutPage() {
 
   return (
     <>
+      <JsonLd data={aboutPageSchema()} />
       <JsonLd data={breadcrumbSchema([{ name: 'About', path: '/about' }])} />
 
       {/* Pulled up under the sticky header, like the home hero, so the chalk curves start at the very top and run on behind the story. */}
@@ -124,8 +128,29 @@ export default function AboutPage() {
               rian — and from the Ukrainian word <Mark><em>дума</em></Mark>, a thought, a considered idea. That is how we try to build it: carefully, and
               around what businesses actually need rather than what makes a good feature list.
             </p>
+
+            <h2 className="mt-6 text-2xl font-semibold tracking-display text-[var(--mkt-heading)]">Built and supported by one person</h2>
             <p>
-              We are at the start of the journey. If you run a café, a shop or anything in between,{' '}
+              DUMA is built by one person, and supported by the same person. So when you ask for something, <Mark>you’re talking to the person who builds
+              it</Mark>. We still say “we”, because DUMA is meant to grow, but today the answer to your email comes from
+              Marian.
+            </p>
+            <p>That makes a few promises easy to keep:</p>
+            <ul className="flex list-disc flex-col gap-2 pl-6">
+              <li>Setup help is free on every plan, including the free one. We bring in your menu or products and your team with you.</li>
+              <li>
+                Using a tool DUMA doesn’t connect to yet? Tell us. We add integrations on request, and you hear back from the person who adds them.
+              </li>
+              <li>
+                Your card machine stays. Square and SumUp connect directly, and any other works with the amount keyed in at the till.
+              </li>
+              <li>Your business data is hosted in the UK, on servers in Manchester.</li>
+            </ul>
+            <p>
+              We are at the start of the journey. If you run a{' '}
+              <PageLink path={AUDIENCE_LINKS.cafes.path}>café or restaurant</PageLink>, a <PageLink path={AUDIENCE_LINKS.bakeries.path}>bakery</PageLink>, a{' '}
+              <PageLink path={AUDIENCE_LINKS.bars.path}>bar or pub</PageLink>, a <PageLink path={AUDIENCE_LINKS.shops.path}>clothing shop or online store</PageLink>, a{' '}
+              <PageLink path={AUDIENCE_LINKS.retail.path}>retail shop</PageLink> or anything in between,{' '}
               <Mark>we’ll help you set DUMA up, for free</Mark> — and we’d love to hear what it should do next. You can read what it costs
               on the{' '}
               <Link href={linkTo('/pricing')} className="text-primary hover:underline">

@@ -13,7 +13,7 @@ import { breadcrumbSchema, glossarySchema } from '@/lib/marketing/schema';
 export const metadata: Metadata = marketingMetadata({
   title: 'Terms & Definitions for Cafés, Restaurants and Shops | DUMA',
   description:
-    'Plain-English definitions of the numbers a hospitality or retail business runs on — food cost, GP, prime cost, labour %, menu engineering, stocktakes, par levels and more — with formulas and worked examples.',
+    'Plain-English definitions of the numbers a UK café, restaurant or shop runs on: food cost, GP, prime cost, labour %, stocktakes and more, with examples.',
   path: '/glossary',
 });
 

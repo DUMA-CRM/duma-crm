@@ -14,10 +14,10 @@ import { breadcrumbSchema, faqSchema, softwareApplicationSchema } from '@/lib/ma
 import { cn } from '@/lib/utils/cn';
 
 const DESCRIPTION =
-  'DUMA pricing: a free plan forever with no card needed — till, orders, payments, stock, customers and rotas free in full. Business is £89 a month, or £80 a month paid yearly, coming soon; founding members keep 10% off for life.';
+  'A free plan forever, no card needed: till, orders, stock, customers and rotas. Business is £89 a month, coming soon. Free setup help on every plan.';
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'Pricing: Free POS and Business Software, No Card Needed | DUMA',
+  title: 'Pricing: Free EPOS and Business Software, UK | DUMA',
   description: DESCRIPTION,
   path: '/pricing',
 });
@@ -44,6 +44,9 @@ export default function PricingPage() {
           <div className="mx-auto max-w-5xl text-center">
             <h1 className="text-4xl leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-5xl">Pricing</h1>
             <p className="mt-4 text-[1.0625rem] text-[var(--mkt-ink-2)]">Free forever. No card needed.</p>
+            <p className="mx-auto mt-3 max-w-2xl text-pretty text-[var(--mkt-ink-2)]">
+              A free EPOS and back office for UK cafés, food businesses and small shops: the till, orders, stock, customers and rotas stay free in full, for good.
+            </p>
           </div>
 
           {/* Two plans, side by side as equals: Free (available now) and Business (the step up, coming soon). */}
@@ -111,7 +114,7 @@ export default function PricingPage() {
       <section className="px-4 pb-24 sm:px-6" aria-labelledby="compare-plans">
         <div className="mx-auto max-w-4xl">
           <h2 id="compare-plans" className="text-center text-3xl leading-[1.12] font-semibold tracking-display sm:text-4xl">
-            Free and Business, <span className="text-[var(--mkt-ink-3)]">side by side.</span>
+            A free EPOS and back office, <span className="text-[var(--mkt-ink-3)]">side by side with Business.</span>
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-center text-pretty text-[1.0625rem] text-[var(--mkt-ink-2)]">
             The basics are free in full, for good. Every other part has a free allowance, and Business raises it. Today, everything is free.

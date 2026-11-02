@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { marketingMetadata } from '@/lib/marketing/metadata';
 import { CONTACT_EMAIL, OPERATOR, OPERATOR_LEGAL_NAME } from '@/lib/marketing/site';
 
 import { LegalDocument } from '../LegalDocument';
 
-export const metadata: Metadata = {
-  title: 'Data Processing Agreement',
+export const metadata: Metadata = marketingMetadata({
+  title: 'Data Processing Agreement | DUMA',
   description: 'The terms on which DUMA processes personal data for the businesses that use it, under UK GDPR and EU GDPR Article 28.',
-};
+  path: '/dpa',
+});
 
 /*
  * Every factual line here — providers, hosting, security, erasure — must match

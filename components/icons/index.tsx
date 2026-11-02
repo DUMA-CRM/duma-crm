@@ -62,6 +62,7 @@ import {
   CircleXIcon,
   ClipboardCheckIcon,
   ClipboardListIcon,
+  ClipboardPasteIcon,
   ClockIcon,
   CloudIcon,
   CloudOffIcon,
@@ -319,6 +320,7 @@ export const CircleDot = /*#__PURE__*/ glyph(CircleDotIcon, 'CircleDot');
 export const CircleHelp = /*#__PURE__*/ glyph(HelpCircleIcon, 'CircleHelp');
 export const ClipboardCheck = /*#__PURE__*/ glyph(ClipboardCheckIcon, 'ClipboardCheck');
 export const ClipboardList = /*#__PURE__*/ glyph(ClipboardListIcon, 'ClipboardList');
+export const ClipboardPaste = /*#__PURE__*/ glyph(ClipboardPasteIcon, 'ClipboardPaste');
 export const Clock = /*#__PURE__*/ glyph(ClockIcon, 'Clock');
 export const Clock3 = /*#__PURE__*/ glyph(ClockIcon, 'Clock3');
 export const Cloud = /*#__PURE__*/ glyph(CloudIcon, 'Cloud');

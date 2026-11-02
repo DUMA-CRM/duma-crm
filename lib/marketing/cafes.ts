@@ -142,7 +142,7 @@ export const CAFE_FAQS: { question: string; answer: string }[] = [
       'Yes, whichever you have. Square and SumUp connect to DUMA directly. With any other card machine, staff key the amount into it and mark the sale as card in DUMA — it still lands in your reports, and it works offline too. Card fees are charged by your card machine provider, not by DUMA.',
   },
   {
-    question: 'What happens if the Wi-Fi goes down mid-rush?',
+    question: 'Does the café EPOS keep working if the Wi-Fi goes down mid-rush?',
     answer:
       'The till keeps taking orders. They are saved on the device and sent when the connection is back, and a sale that cannot be sent is kept for you to check rather than thrown away.',
   },

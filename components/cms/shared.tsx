@@ -10,6 +10,7 @@ import { API_PREFIX } from '@/lib/api/client';
 import type { CmsEntryStatus } from '@/lib/modules/cms/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { entryStatusMeta } from '@/lib/utils/cms';
+import { entryClipboard } from '@/lib/utils/cms-entry-clipboard';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -73,6 +74,15 @@ export async function copyText(text: string): Promise<boolean> {
   } catch {
     return false;
   }
+}
+
+/** Copy one language version as JSON, for "Paste entry" here or in another workspace (local → production). */
+export function copyEntryJson(
+  entry: { locale: string; title: string | null; contentType: { key: string; name: string } },
+  data: Record<string, unknown>,
+  tenantId: string,
+): Promise<boolean> {
+  return copyText(JSON.stringify(entryClipboard(entry, data, { origin: window.location.origin, tenantId }), null, 2));
 }
 
 const DELIVERY_FILE = /^\/v1\/cms\/delivery\/assets\/[0-9a-f-]{36}\/file(\/|$)/i;

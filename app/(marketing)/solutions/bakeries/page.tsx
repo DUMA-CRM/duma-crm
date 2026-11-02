@@ -3,6 +3,8 @@ import { type CostedItem, MarginMock, OfflineQueueMock, StockMock, WasteMock } f
 import { Mark } from '@/components/marketing/sections';
 import { SolutionPage, type SolutionContent, solutionMetadata } from '@/components/marketing/SolutionPage';
 
+import { AUDIENCE_LINKS } from '@/lib/marketing/solutions';
+
 /**
  * /solutions/bakeries — DUMA for bakeries. Claims checked against duma-api and
  * this repo: per-item VAT rates (bread is zero-rated; lib/menu/costing.ts),
@@ -25,13 +27,13 @@ const SOURDOUGH: CostedItem = {
 const content: SolutionContent = {
   path: '/solutions/bakeries',
   breadcrumb: 'Bakeries',
-  metaTitle: 'Bakery POS, Recipe Costing and Waste Tracking, Free to Start | DUMA',
+  metaTitle: 'Bakery EPOS UK: Recipe Costing and Waste Tracking | DUMA',
   description:
-    'Bakery software: recipe costing with the right VAT on every bake, waste tracking, stock and supplier orders, phone orders for collection and a till that works offline. Free plan, no card needed.',
+    'Recipe costing with the right VAT on every bake, waste tracking, stock, supplier orders and an offline till. Free plan, no card needed.',
   hero: {
     lead: 'Bakery software that knows',
     mark: 'what every bake makes',
-    subtitle: 'Recipes and margin, waste, stock and supplier orders, orders for collection and a till that works offline — in one place, on the tablet you already have.',
+    subtitle: 'A bakery EPOS that works offline, with recipes and margin, waste, stock and supplier orders and orders for collection — in one place, on the tablet you already have.',
     ticks: ['Free plan, forever', 'Recipes and waste', 'Works offline'],
     tabs: ['pos', 'dashboard', 'orders', 'customers'],
   },
@@ -39,7 +41,7 @@ const content: SolutionContent = {
     title: 'Cost every bake, with the VAT done right.',
     intro: (
       <p>
-        Bread is zero-rated, cakes and hot food are not. Set the rate on each item and DUMA works out the margin <Mark>you actually keep</Mark> — on the menu, in
+        In the UK most bread and cakes are zero-rated, while hot food and anything eaten in are not. Set the rate on each item and DUMA works out the margin <Mark>you actually keep</Mark> — on the menu, in
         the reports and on every sale.
       </p>
     ),
@@ -57,7 +59,7 @@ const content: SolutionContent = {
     ],
   },
   how: {
-    title: 'How DUMA runs a bakery',
+    title: 'How DUMA runs a bakery, from the EPOS to the waste log',
     intro: (
       <p>
         One workspace for the counter, the bakehouse and the stock room: <Mark>recipes with real margin</Mark>, waste you can see, stock that counts itself down and a
@@ -155,7 +157,7 @@ const content: SolutionContent = {
   setupBand: { title: 'Open tomorrow morning on DUMA.', body: 'Bring your bakes, recipes and suppliers across — we’ll help you set it up, for free.' },
   faqTitle: 'Questions bakeries ask',
   faqs: [
-    { question: 'Does DUMA handle zero-rated items like bread?', answer: 'Yes. Set the VAT rate on each item — 0% for most bread, the standard rate for hot food and cakes where it applies — and DUMA uses it in every margin.' },
+    { question: 'Does the bakery EPOS handle zero-rated items like bread?', answer: 'Yes. Set the VAT rate on each item — 0% for most bread and cakes, the standard rate for hot food and for food eaten in where it applies — and DUMA uses it in every margin.' },
     { question: 'How do I track waste?', answer: 'Log unsold bakes and out-of-date stock as they go. DUMA values them at cost, takes them off stock and shows what they cost you.' },
     { question: 'Can I take orders for collection?', answer: 'Yes. Phone and collection orders sit with the rest of the day’s orders, so they are ready when the customer arrives.' },
     { question: 'Can I order from my suppliers in DUMA?', answer: 'Yes. Raise purchase orders to your suppliers and check deliveries in against them, so stock goes up by what actually arrived.' },
@@ -163,6 +165,7 @@ const content: SolutionContent = {
     { question: 'Can you help me set it up?', answer: 'Yes, for free. We help you bring in your bakes, recipes and suppliers so you can open on DUMA quickly.' },
   ],
   closing: { title: 'The one place to run your bakery.', muted: 'One simple bill, or none at all.', body: 'Get started in minutes, completely free. No card required, and we’re here to help you every step of the way.' },
+  related: { audiences: [AUDIENCE_LINKS.cafes, AUDIENCE_LINKS.bars, AUDIENCE_LINKS.retail], terms: ['recipe-costing', 'wastage', 'vat-inclusive-pricing', 'purchase-order'] },
 };
 
 export const metadata = solutionMetadata(content);

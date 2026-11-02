@@ -1,14 +1,16 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
+import { marketingMetadata } from '@/lib/marketing/metadata';
 import { CONTACT_EMAIL, OPERATOR, OPERATOR_LEGAL_NAME, SITE_URL } from '@/lib/marketing/site';
 
 import { LegalDocument } from '../LegalDocument';
 
-export const metadata: Metadata = {
-  title: 'Company information',
+export const metadata: Metadata = marketingMetadata({
+  title: 'Company Information | DUMA',
   description: `Who provides DUMA: ${OPERATOR_LEGAL_NAME}, ${OPERATOR.address.join(', ')}.`,
-};
+  path: '/legal',
+});
 
 /**
  * /legal — the UK equivalent of an imprint: who provides DUMA and how to reach

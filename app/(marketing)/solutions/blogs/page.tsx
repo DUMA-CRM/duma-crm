@@ -3,7 +3,8 @@ import { ContentEditorMock, FormMock } from '@/components/marketing/mocks';
 import { Mark } from '@/components/marketing/sections';
 import { SolutionPage, type SolutionContent, solutionMetadata } from '@/components/marketing/SolutionPage';
 
-import { ANY_COMPARISON, ANY_SETUP_STEPS, CMS_FEATURES } from '@/lib/marketing/any-business';
+import { CMS_COMPARISON, CMS_FEATURES, CMS_SETUP_STEPS } from '@/lib/marketing/any-business';
+import { AUDIENCE_LINKS } from '@/lib/marketing/solutions';
 
 /**
  * /solutions/blogs — DUMA's content system for bloggers, writers and creators.
@@ -20,12 +21,12 @@ const content: SolutionContent = {
   breadcrumb: 'Blogs and creators',
   metaTitle: 'Headless CMS for Blogs and Creators, Free to Start | DUMA',
   description:
-    'A headless content system for your blog: write in DUMA, publish to your own site in every language, keep images in your own storage, collect subscribers and export everything any time. Free to start.',
+    'A headless content system for your blog: publish to your site in every language, keep images in your own storage and collect subscribers. Free to start.',
   hero: {
     lead: 'A content system for',
     mark: 'your blog',
     subtitle: 'Write in DUMA, publish to your own site in every language, keep your images in your own storage — and grow a list of readers from the first post.',
-    ticks: ['Free to start', 'Your own storage', 'Export any time'],
+    ticks: ['Free to start', 'Your own storage', 'Export your content any time'],
     visual: { node: <ContentEditorMock bleed={false} />, caption: 'An example blog post in the DUMA content editor.' },
   },
   teaser: {
@@ -42,7 +43,7 @@ const content: SolutionContent = {
   mistakes: {
     title: 'Five things that hold a blog back',
     items: [
-      { title: 'Writing into a platform you can’t leave.', body: 'Years of posts locked in one service. DUMA exports everything in the content system as one JSON document, whenever you want.' },
+      { title: 'Writing into a platform you can’t leave.', body: 'Years of posts locked in one service. In DUMA you can export all your content as JSON, whenever you want.' },
       { title: 'Keeping your images on someone else’s servers.', body: 'If the platform goes, so do the pictures. Connect your own Cloudflare R2 or Vercel Blob bucket and keep your media where you choose.' },
       { title: 'Publishing in one language only.', body: 'Readers abroad leave when they can’t read you. Add the languages you write in; fields that don’t change can be shared across all of them.' },
       { title: 'Publishing without a proper preview.', body: 'Typos and broken layouts go live. Share a preview link that shows a draft on your real site before anyone else sees it.' },
@@ -86,14 +87,14 @@ const content: SolutionContent = {
       </p>
     ),
     setupTitle: 'How to start a blog on DUMA',
-    steps: ANY_SETUP_STEPS,
+    steps: CMS_SETUP_STEPS,
     metricsTitle: 'What the content system includes',
     metrics: CMS_FEATURES,
     metricIcons: [Layers, Copy, Languages, ImageIcon, Zap, Code],
     comparisonTitle: 'A blog platform, a headless CMS,',
     comparisonHighlight: 'or DUMA',
     comparisonLead: 'Three ways to run a blog. Here is what each one covers.',
-    comparison: ANY_COMPARISON,
+    comparison: CMS_COMPARISON,
     comparisonIcons: [Globe, Code],
   },
   setupBand: { title: 'Publish your first post on DUMA.', body: 'Sign up free, switch on Content, and we’ll help you connect your site.' },
@@ -103,10 +104,11 @@ const content: SolutionContent = {
     { question: 'Can I email my readers?', answer: 'Yes. Subscribers from your sign-up forms become contacts in DUMA, and email reaches only the people who opted in.' },
     { question: 'Can several people write?', answer: 'Yes. Writers can submit a post for review, editors can publish it or send it back with requested changes, and you can limit who edits each content type.' },
     { question: 'Where are my images stored?', answer: 'In DUMA by default. You can connect your own Cloudflare R2 or Vercel Blob bucket instead, and move existing files across.' },
-    { question: 'Can I take my writing with me?', answer: 'Yes. You can export everything in the content system as one JSON document at any time.' },
+    { question: 'Can I take my writing with me?', answer: 'Yes. You can export all your content as one JSON document at any time.' },
     { question: 'What does it cost?', answer: 'Nothing to start: the free plan has no time limit and no card. The content system has a free allowance, and the Business plan raises it when you need more.' },
   ],
   closing: { title: 'The one place for your writing.', muted: 'Start free. Take it with you any time.', body: 'Get started in minutes, completely free. No card required, and we’re here to help you every step of the way.' },
+  related: { audiences: [AUDIENCE_LINKS.anyBusiness, AUDIENCE_LINKS.shops], extra: [{ path: '/developers', label: 'The public API, including the Content API your site reads' }] },
 };
 
 export const metadata = solutionMetadata(content);

@@ -6,6 +6,7 @@ import { useEffect, useState } from 'react';
 import {
   Archive,
   Box,
+  Braces,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -51,6 +52,7 @@ import {
   duplicateCmsEntry,
   getCmsContentTypes,
   getCmsEntries,
+  getCmsEntry,
   getCmsLocales,
   restoreCmsEntry,
 } from '@/lib/modules/cms/client';
@@ -61,7 +63,7 @@ import { formatInstant } from '@/lib/utils/workspace-time';
 import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { FolderTile } from './MediaFolders';
-import { EntryStatusBadge, LanguageChips, PanelError, cmsKeys, copyText, invalidateCms } from './shared';
+import { EntryStatusBadge, LanguageChips, PanelError, cmsKeys, copyEntryJson, copyText, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
 
 type StatusFilter = NonNullable<CmsEntryFilters['status']>;
@@ -207,6 +209,17 @@ export function EntriesPanel({
     },
     onError: (error) => toast('error', error.message),
   });
+
+  /** The tile is a summary; the copy needs this language version's draft. */
+  const copyJson = async (entry: CmsEntrySummary) => {
+    try {
+      const full = await getCmsEntry(entry.id, tenantId ?? undefined);
+      const copied = await copyEntryJson(full, full.draftData, full.tenantId);
+      toast(copied ? 'success' : 'error', copied ? 'Entry copied — paste it into Entries anywhere.' : 'Copy failed — open the entry and copy it from its menu.');
+    } catch (error) {
+      toast('error', error instanceof Error ? error.message : 'The entry couldn’t be copied.');
+    }
+  };
 
   const restore = useMutation({
     mutationFn: async (entry: CmsEntrySummary) => {
@@ -411,6 +424,9 @@ export function EntriesPanel({
             }
           >
             Copy link
+          </ContextMenuItem>
+          <ContextMenuItem icon={Braces} onSelect={() => void copyJson(entry)}>
+            Copy as JSON
           </ContextMenuItem>
           {(access.canWrite || access.canPublish) && <ContextMenuSeparator />}
           {access.canWrite && entry.contentType.kind === 'collection' && (

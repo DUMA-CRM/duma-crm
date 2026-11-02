@@ -1,7 +1,7 @@
 import type { MetadataRoute } from 'next';
 
 import { listPosts } from '@/lib/blog/posts';
-import { docEndpoints } from '@/lib/marketing/developers';
+import { docEndpoints, indexedEndpoint } from '@/lib/marketing/developers';
 import { GLOSSARY } from '@/lib/marketing/glossary';
 import { MODULES, PAGES, absoluteUrl, modulePath } from '@/lib/marketing/site';
 
@@ -13,7 +13,8 @@ import { MODULES, PAGES, absoluteUrl, modulePath } from '@/lib/marketing/site';
  * Only blog posts carry `lastModified`: their date is the post's real last
  * publish. A date that changed on every build would teach Google to ignore
  * it. Blog category archives are left out on purpose (they are noindex), as
- * are noindexed posts. If the CMS can't be read, the rest still ships.
+ * are noindexed posts and the Workspace Management API's endpoint pages
+ * (indexedEndpoint). If the CMS can't be read, the rest still ships.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
   const { posts } = await listPosts();
@@ -44,10 +45,12 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: 'monthly' as const,
       priority: 0.6,
     })),
-    ...docEndpoints().map((endpoint) => ({
-      url: absoluteUrl(`/developers/${endpoint.slug}`),
-      changeFrequency: 'monthly' as const,
-      priority: 0.3,
-    })),
+    ...docEndpoints()
+      .filter(indexedEndpoint)
+      .map((endpoint) => ({
+        url: absoluteUrl(`/developers/${endpoint.slug}`),
+        changeFrequency: 'monthly' as const,
+        priority: 0.3,
+      })),
   ];
 }

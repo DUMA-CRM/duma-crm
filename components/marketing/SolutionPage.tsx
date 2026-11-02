@@ -5,6 +5,7 @@ import { Check, ClipboardList, LayoutDashboard, Receipt, Users } from '@/compone
 import { JsonLd } from '@/components/marketing/JsonLd';
 import { CustomersScreen, OrdersScreen } from '@/components/marketing/mocks';
 import { ProductTabs } from '@/components/marketing/ProductTabs';
+import { RelatedSection, type RelatedLink } from '@/components/marketing/RelatedLinks';
 import { ReviewTicker } from '@/components/marketing/ReviewTicker';
 import { Screenshot } from '@/components/marketing/Screenshot';
 import { ClosingCta, FaqSection, FeatureCard, SecondaryButton, Section, SectionHeading, SignUpButton } from '@/components/marketing/sections';
@@ -63,6 +64,8 @@ export type SolutionContent = {
   faqTitle: string;
   faqs: { question: string; answer: string }[];
   closing: { title: string; muted: string; body: string };
+  /** The sideways links after the FAQ: other audiences, glossary slugs, and anything else worth a link. */
+  related: { audiences: readonly RelatedLink[]; terms?: readonly string[]; extra?: readonly RelatedLink[] };
 };
 
 export function solutionMetadata(content: SolutionContent): Metadata {
@@ -89,7 +92,8 @@ function tabPanel(tab: HeroTab, preload: boolean) {
  * One /solutions page from its content, after seline.com/for-ecommerce: hero
  * (product tabs or a single picture), optional teaser, costly habits, tagged
  * feature cards, use cases, the explainer, the setup band, FAQ and closing
- * card. Every audience page is a SolutionContent object and this.
+ * card, then the related links. Every audience page is a SolutionContent
+ * object and this.
  */
 export function SolutionPage({ content }: { content: SolutionContent }) {
   const { hero } = content;
@@ -191,6 +195,8 @@ export function SolutionPage({ content }: { content: SolutionContent }) {
       <SetupBand id={`${key}-setup`} title={content.setupBand.title} body={content.setupBand.body} />
 
       <FaqSection items={content.faqs} title={content.faqTitle} />
+
+      <RelatedSection id={`${key}-related`} {...content.related} />
 
       <ClosingCta title={content.closing.title} muted={content.closing.muted} body={content.closing.body} aside={<RisingLines id={`${key}-cta`} />} />
     </>

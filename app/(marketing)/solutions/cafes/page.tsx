@@ -5,6 +5,7 @@ import { BarChart3, CalendarDays, Check, ChefHat, ClipboardList, CreditCard, Gif
 import { JsonLd } from '@/components/marketing/JsonLd';
 import { CustomerMock, CustomersScreen, KitchenMock, MarginMock, OfflineQueueMock, OrdersScreen, QrMock, RotaMock, StockMock } from '@/components/marketing/mocks';
 import { ProductTabs } from '@/components/marketing/ProductTabs';
+import { RelatedSection } from '@/components/marketing/RelatedLinks';
 import { ReviewTicker } from '@/components/marketing/ReviewTicker';
 import { Screenshot } from '@/components/marketing/Screenshot';
 import { ClosingCta, FaqSection, FeatureCard, Mark, SecondaryButton, Section, SectionHeading, SignUpButton } from '@/components/marketing/sections';
@@ -17,12 +18,13 @@ import { reviewsToShow } from '@/lib/marketing/reviews';
 import { breadcrumbSchema, faqSchema, softwareApplicationSchema } from '@/lib/marketing/schema';
 import { hasScreenshot } from '@/lib/marketing/screenshots.server';
 import { linkTo } from '@/lib/marketing/site';
+import { AUDIENCE_LINKS } from '@/lib/marketing/solutions';
 
 const DESCRIPTION =
-  'All-in-one café and restaurant software: a till that works offline, QR ordering, a kitchen screen, recipe costing and margin, stock, rotas and loyalty. Keep your card machine. Free plan, no card needed.';
+  'A café and restaurant EPOS that works offline, with QR ordering, a kitchen screen, recipe margin, stock and rotas. Keep your card machine. Free plan.';
 
 export const metadata: Metadata = marketingMetadata({
-  title: 'Café & Restaurant POS and All-in-One Software, Free to Start | DUMA',
+  title: 'Café EPOS and Restaurant Software UK, Free to Start | DUMA',
   description: DESCRIPTION,
   path: '/solutions/cafes',
 });
@@ -43,7 +45,7 @@ const COMPARISON_ICONS = [CreditCard, Layers];
  * the hero with product tabs, a margin teaser, the five costly habits, tagged
  * feature cards, four weekly use cases, an explainer (setup in three steps,
  * numbers worth watching, three ways to run a café), a CTA band, the FAQ and a
- * closing card. Every claim follows lib/marketing/cafes.ts; data in the mocks
+ * closing card, then the related links. Every claim follows lib/marketing/cafes.ts; data in the mocks
  * is an example and is labelled as one.
  */
 export default function CafesPage() {
@@ -63,7 +65,8 @@ export default function CafesPage() {
             that runs <span className="mkt-mark mkt-mark-green rounded-md px-2">the whole day</span>
           </h1>
           <p className="mt-6 max-w-[44rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">
-            The till, kitchen screen, QR ordering, recipes and margin, stock, rotas and loyalty — in one place, on the tablet and card machine you already have.
+            An EPOS for UK cafés and restaurants, with the kitchen screen, QR ordering, recipes and margin, stock, rotas and loyalty — in one place, on the tablet and
+            card machine you already have.
           </p>
           <div className="mt-8 flex flex-wrap gap-3">
             <SignUpButton />
@@ -130,7 +133,7 @@ export default function CafesPage() {
       <Section spacing="roomy" aria-labelledby="how">
         <SectionHeading
           id="how"
-          title="How DUMA runs a café"
+          title="How DUMA runs a café, from the EPOS to the rota"
           intro={
             <p>
               One workspace for the counter, the kitchen and the back office: a <Mark>till that never stops</Mark>, a screen for the kitchen, recipes with real
@@ -204,6 +207,8 @@ export default function CafesPage() {
       <SetupBand id="cafe-setup" title="Open tomorrow on DUMA." body="Tell DUMA what you run and bring your menu across — we’ll help you set it up, for free." />
 
       <FaqSection items={CAFE_FAQS} title="Questions cafés ask" />
+
+      <RelatedSection id="cafes-related" audiences={[AUDIENCE_LINKS.bakeries, AUDIENCE_LINKS.bars]} terms={['recipe-costing', 'food-cost-percentage', 'staff-rota', 'epos']} />
 
       <ClosingCta
         title="The one place to run your café."

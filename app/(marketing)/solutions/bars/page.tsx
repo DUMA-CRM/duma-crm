@@ -3,6 +3,8 @@ import { BookingsMock, type CostedItem, MarginMock, OfflineQueueMock, RotaMock }
 import { Mark } from '@/components/marketing/sections';
 import { SolutionPage, type SolutionContent, solutionMetadata } from '@/components/marketing/SolutionPage';
 
+import { AUDIENCE_LINKS } from '@/lib/marketing/solutions';
+
 /**
  * /solutions/bars — DUMA for bars and pubs. Claims checked against duma-api:
  * table bookings with floor plan, waitlist, guest booking page and self-service
@@ -23,13 +25,13 @@ const GIN_AND_TONIC: CostedItem = {
 const content: SolutionContent = {
   path: '/solutions/bars',
   breadcrumb: 'Bars and pubs',
-  metaTitle: 'Bar & Pub POS with Table Bookings, Free to Start | DUMA',
+  metaTitle: 'Bar and Pub EPOS with Table Bookings, UK | DUMA',
   description:
-    'Bar and pub software: a fast till that works offline, drinks costed by recipe, table bookings with a waitlist, rotas and cash-up. Keep your card machine. Free plan, no card needed.',
+    'A fast offline till, drinks costed by recipe, table bookings with a waitlist, rotas and cash-up. Keep your card machine. Free plan, no card needed.',
   hero: {
     lead: 'Bar and pub software that keeps up with',
     mark: 'the Friday rush',
-    subtitle: 'A fast till, drinks costed by recipe, table bookings with a waitlist, rotas and cash-up — in one place, on the tablet and card machine you already have.',
+    subtitle: 'A fast EPOS for UK bars and pubs, with drinks costed by recipe, table bookings with a waitlist, rotas and cash-up — in one place, on the tablet and card machine you already have.',
     ticks: ['Free plan, forever', 'Table bookings included', 'Works offline'],
     tabs: ['pos', 'orders', 'dashboard', 'customers'],
   },
@@ -54,7 +56,7 @@ const content: SolutionContent = {
     ],
   },
   how: {
-    title: 'How DUMA runs a bar',
+    title: 'How DUMA runs a bar, from the EPOS to the cash-up',
     intro: (
       <p>
         One workspace for the bar, the floor and the back office: <Mark>a till that never stops</Mark>, bookings and a waitlist, drinks with real margin, rotas and a
@@ -157,9 +159,10 @@ const content: SolutionContent = {
     { question: 'Can I cost drinks by the measure?', answer: 'Yes. Add a recipe with the measures and what each costs. DUMA takes VAT out of the price if you are registered and shows the margin you keep.' },
     { question: 'How does cash-up work?', answer: 'Count the drawer at close, and DUMA shows what it expected in cash and card from the day’s sales, so any difference shows up the same night.' },
     { question: 'Can I keep my card machine?', answer: 'Yes. Square and SumUp connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.' },
-    { question: 'What happens if the Wi-Fi goes down?', answer: 'The till keeps taking orders. They are saved on the device and sent when the connection is back, and a sale that cannot be sent is kept for you to check.' },
+    { question: 'Does the bar EPOS keep working if the Wi-Fi goes down?', answer: 'Yes, the till keeps taking orders. They are saved on the device and sent when the connection is back, and a sale that cannot be sent is kept for you to check.' },
   ],
   closing: { title: 'The one place to run your bar.', muted: 'One simple bill, or none at all.', body: 'Get started in minutes, completely free. No card required, and we’re here to help you every step of the way.' },
+  related: { audiences: [AUDIENCE_LINKS.cafes, AUDIENCE_LINKS.bakeries], terms: ['cash-up', 'gross-profit-margin', 'labour-cost-percentage', 'discounts-and-voids'] },
 };
 
 export const metadata = solutionMetadata(content);

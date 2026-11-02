@@ -8,6 +8,7 @@ import {
   AlertCircle,
   AlertTriangle,
   Archive,
+  Braces,
   CheckCircle2,
   ChevronDown,
   Clock,
@@ -93,7 +94,7 @@ import { FieldRows } from './FieldRows';
 import { SeoFieldRows } from './SeoFieldRows';
 import { SeoPanel, SharePreviewDialog, goToField, useSeoChecks } from './SeoPanel';
 import { ActionRow, ActionRows, InfoRow, InfoRows, RowMenu, type RowMenuItem, RowTile, SectionInfo } from './rows';
-import { EntryStatusBadge, PanelError, TEXTAREA_CLASS, cmsKeys, copyText, invalidateCms } from './shared';
+import { EntryStatusBadge, PanelError, TEXTAREA_CLASS, cmsKeys, copyEntryJson, copyText, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
 
 type Issue = { field: string; message: string };
@@ -399,6 +400,14 @@ function LoadedEntryEditor({
     ...(access.canWrite && type.kind === 'collection'
       ? [{ icon: Copy, label: 'Duplicate', disabled: busy, onClick: () => action.mutate('duplicate') }]
       : []),
+    {
+      icon: Braces,
+      label: 'Copy as JSON',
+      onClick: () =>
+        void copyEntryJson({ ...entry, title }, data, entry.tenantId).then((copied) =>
+          toast(copied ? 'success' : 'error', copied ? 'Entry copied — paste it into Entries anywhere.' : 'Copy failed — clipboard access was refused.'),
+        ),
+    },
     ...(access.canPublish && entry.publishedData
       ? [{ icon: EyeOff, label: 'Unpublish', disabled: busy, onClick: () => setConfirm({ kind: 'unpublish' }) }]
       : []),

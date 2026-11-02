@@ -59,7 +59,7 @@ export const SETUP_HELP: readonly string[] = ['Bring in your menu or products', 
 
 export const PRICING_FAQS: { question: string; answer: string }[] = [
   {
-    question: 'Is the free plan really free forever?',
+    question: 'Is the free EPOS plan really free forever?',
     answer:
       'Yes. It has no time limit and needs no card. The till, orders, payments, products, stock, customers and rotas stay free in full, and every other part keeps a free allowance.',
   },
