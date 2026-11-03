@@ -668,7 +668,7 @@ Write stock off with a reason as it happens. The **Waste & loss** report shows w
     title: 'What is a cash-up?',
     term: 'Cash-up (end-of-day report)',
     short: 'Closing the till at the end of the day: counting what is there and checking it against what the sales say should be.',
-    updated: '2026-10-31',
+    updated: '2026-11-03',
     related: ['average-order-value', 'stocktake'],
     seeIt: { path: '/solutions/bars', label: 'Nightly cash-up for bars and pubs' },
     body: `
@@ -709,6 +709,8 @@ On traditional tills you will hear:
 ## Tracking it in DUMA
 
 Cash up the till at the end of the day: DUMA works out what should be there and records what you counted. The **End of day** report shows each day's cash-up — expected against counted, cash and card — and **Payment methods** shows card, cash and other tenders, net of refunds.
+
+Count a drawer note by note, and see if it is over or short and what to bank, with the free [cash-up calculator](/tools/cash-up-calculator).
 `,
     faq: [
       {

@@ -232,6 +232,7 @@ export const PAGES: readonly MarketingPage[] = [
   { path: '/compare/duma-vs-square', label: 'DUMA vs Square', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/compare/duma-vs-shopify', label: 'DUMA vs Shopify', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/tools/margin-calculator', label: 'Menu margin calculator', published: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/tools/cash-up-calculator', label: 'Cash-up calculator', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/developers', label: 'Public API', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/developers/mcp', label: 'MCP', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/developers/webhooks', label: 'Webhooks', published: true, changeFrequency: 'monthly', priority: 0.6 },

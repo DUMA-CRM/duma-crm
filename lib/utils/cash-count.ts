@@ -28,6 +28,9 @@ const DENOMINATIONS: Record<string, Denomination[]> = {
   GBP: build('£', [50, 20, 10, 5], [2, 1], [50, 20, 10, 5, 2, 1], 'p'),
   EUR: build('€', [200, 100, 50, 20, 10, 5], [2, 1], [50, 20, 10, 5, 2, 1], 'c'),
   USD: build('$', [100, 50, 20, 10, 5, 1], [], [25, 10, 5, 1], '¢'),
+  // The National Bank of Ukraine's current issue: ₴10 is a coin now (the older ₴10 notes count on the same
+  // line), and 1, 2, 5 and 25 kopiyok stopped being legal tender in October 2020.
+  UAH: build('₴', [1000, 500, 200, 100, 50, 20], [10, 5, 2, 1], [50, 10], ' коп'),
 };
 
 /** The notes and coins to count for a currency, largest first; null when we don't know them (enter a total instead). */

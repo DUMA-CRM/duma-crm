@@ -28,6 +28,7 @@ const PAGES: { title: string; path: string; summary: string }[] = [
   { title: 'DUMA vs Square', path: '/compare/duma-vs-square', summary: 'How DUMA and Square POS compare for UK cafés and shops, with Square prices as of November 2026.' },
   { title: 'DUMA vs Shopify', path: '/compare/duma-vs-shopify', summary: 'Keep your Shopify store and add DUMA for the till, rotas, customers and loyalty.' },
   { title: 'Menu margin calculator', path: '/tools/margin-calculator', summary: 'Free UK menu margin and GP calculator: a dish or drink’s gross profit and food cost after VAT, and the price for a target margin.' },
+  { title: 'Cash-up calculator', path: '/tools/cash-up-calculator', summary: 'Free till cash-up calculator: count the drawer, see if it is over or short against the float and cash sales, and what to bank.' },
   { title: 'Public API', path: '/developers', summary: 'Store, Content and management APIs with one scoped workspace key.' },
   { title: 'MCP server', path: '/developers/mcp', summary: 'Connect an AI assistant to a DUMA workspace.' },
   { title: 'Webhooks', path: '/developers/webhooks', summary: 'Signed notifications to your website when content is published, unpublished or deleted.' },
