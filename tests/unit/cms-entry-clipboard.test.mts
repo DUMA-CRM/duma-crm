@@ -34,7 +34,9 @@ const data = {
   legacy: 'gone from the model',
 };
 const copied = () =>
-  parseEntryClipboard(JSON.stringify(entryClipboard({ locale: 'en', title: 'Hello', contentType: { key: 'post', name: 'Post' } }, data, local)));
+  parseEntryClipboard(
+    JSON.stringify(entryClipboard({ locale: 'en', title: 'Hello', contentType: { key: 'post', name: 'Post' } }, data, local)),
+  );
 
 test('an entry survives the clipboard round trip; anything else on it is ignored', () => {
   assert.deepEqual(copied()?.data, data);

@@ -1,10 +1,14 @@
+import { cookies } from 'next/headers';
 import Link from 'next/link';
 
 import { BookOpen, ChevronDown, Code, Menu, X } from '@/components/icons';
 import { Logo } from '@/components/shared/Logo';
 import { buttonVariants } from '@/components/ui/button';
 
+import { hasSessionCookie } from '@/lib/auth/session-cookie';
 import { SIGN_IN_PATH, SIGN_UP_CTA, SIGN_UP_PATH, headerNav } from '@/lib/marketing/site';
+
+const DASHBOARD_PATH = '/dashboard';
 
 /**
  * The marketing site's top bar, after seline.com's: the mark on the left, and
@@ -14,9 +18,16 @@ import { SIGN_IN_PATH, SIGN_UP_CTA, SIGN_UP_PATH, headerNav } from '@/lib/market
  * A Server Component with no client JavaScript. Resources opens on hover and
  * on keyboard focus (CSS only); the mobile menu is a native <details>. Every
  * link is in the HTML a crawler reads. Links come from headerNav().
+ *
+ * Someone already signed in sees Open dashboard in place of Sign in and the
+ * sign-up button. It reads the session cookie the way proxy.ts does — free,
+ * since every page renders per request for its CSP nonce. A cookie whose
+ * session has expired still says signed in; the dashboard then sends them to
+ * sign-in, so the worst case is one extra hop.
  */
-export function MarketingHeader() {
+export async function MarketingHeader() {
   const { links, resources } = headerNav();
+  const signedIn = hasSessionCookie((await cookies()).getAll());
   const linkClass = 'text-[0.9375rem] text-[var(--mkt-ink-2)] transition-colors hover:text-foreground';
   // Resources and Sign in light up like the app's ghost button: a soft fill, the same 7px corners.
   const ghostClass = '-my-1.5 flex items-center gap-1 rounded-md px-3 py-1.5';
@@ -83,12 +94,20 @@ export function MarketingHeader() {
 
         <div className="ml-auto flex items-center gap-2 md:ml-0">
           <span className="mr-2 hidden h-5 w-px bg-[var(--mkt-line)] md:block" aria-hidden="true" />
-          <Link href={SIGN_IN_PATH} className={`${linkClass} ${ghostClass} ${ghostFill} outline-none`}>
-            Sign in
-          </Link>
-          <Link href={SIGN_UP_PATH} className={buttonVariants()}>
-            {SIGN_UP_CTA}
-          </Link>
+          {signedIn ? (
+            <Link href={DASHBOARD_PATH} className={buttonVariants()}>
+              Open dashboard
+            </Link>
+          ) : (
+            <>
+              <Link href={SIGN_IN_PATH} className={`${linkClass} ${ghostClass} ${ghostFill} outline-none`}>
+                Sign in
+              </Link>
+              <Link href={SIGN_UP_PATH} className={buttonVariants()}>
+                {SIGN_UP_CTA}
+              </Link>
+            </>
+          )}
 
           <details className="group md:hidden">
             <summary

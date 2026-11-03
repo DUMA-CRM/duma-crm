@@ -1,15 +1,18 @@
 'use client';
 
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useRef, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { FileText, UploadCloud } from '@/components/icons';
+import { useCmsTenantId } from '@/components/cms/ContentScope';
+import { ClipboardPaste, FileText, UploadCloud } from '@/components/icons';
 import { Modal } from '@/components/shared/Modal';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
 import { getCmsContentTypes, getCmsLocales, importCmsEntries } from '@/lib/modules/cms/client';
 import { toast } from '@/lib/toast';
+import { parseEntryClipboard } from '@/lib/utils/cms-entry-clipboard';
 import {
   type HtmlNode,
   WORDPRESS_COLUMNS,
@@ -22,8 +25,8 @@ import {
   wordPressRow,
 } from '@/lib/utils/cms-import';
 import { cn } from '@/lib/utils/cn';
-import { useCmsTenantId } from '@/components/cms/ContentScope';
 
+import { PasteEntryBody, usePasteEntry } from './PasteEntry';
 import { cmsKeys, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
 
@@ -52,12 +55,32 @@ function parseWordPress(xml: string): string[][] {
     });
 }
 
+type ImportMode = 'file' | 'paste';
+
+const MODES = [
+  { value: 'file', label: 'From a file', icon: UploadCloud },
+  { value: 'paste', label: 'Paste an entry', icon: ClipboardPaste },
+] as const;
+
 /**
- * Bring content in from a CSV file or a WordPress export: pick the file, the
- * model and the language, match columns to fields (pre-matched by name), check
- * the preview, import. Entries arrive as drafts unless you choose to publish.
+ * Bring content in, two ways. From a file — a CSV or a WordPress export: pick
+ * the file, the model and the language, match columns to fields (pre-matched
+ * by name), check the preview, import; entries arrive as drafts unless you
+ * choose to publish. Or paste one entry copied with "Copy as JSON", from here
+ * or another workspace (local → production); it arrives as a draft and opens.
  */
-export function ImportDialog({ initialTypeId, onClose }: { initialTypeId?: string; onClose: () => void }) {
+export function ImportDialog({
+  initialTypeId,
+  initialPaste,
+  onClose,
+  onCreated,
+}: {
+  initialTypeId?: string;
+  /** Opens on the paste side with this text — ⌘V on the Entries tab. */
+  initialPaste?: string;
+  onClose: () => void;
+  onCreated: (id: string) => void;
+}) {
   const tenantId = useCmsTenantId();
   const queryClient = useQueryClient();
   const access = useCmsAccess();
@@ -80,6 +103,23 @@ export function ImportDialog({ initialTypeId, onClose }: { initialTypeId?: strin
   const [publish, setPublish] = useState(false);
   const [progress, setProgress] = useState<null | { done: number; total: number }>(null);
   const [result, setResult] = useState<null | { created: number; failed: Array<{ row: number; error: string }> }>(null);
+  const [mode, setMode] = useState<ImportMode>(initialPaste ? 'paste' : 'file');
+  const paste = usePasteEntry(initialPaste ?? '', onCreated);
+  const { setText: setPasteText } = paste;
+
+  // A copied entry pasted while choosing a file switches to the paste side.
+  useEffect(() => {
+    if (mode !== 'file') return;
+    const onPaste = (event: ClipboardEvent) => {
+      const text = event.clipboardData?.getData('text/plain') ?? '';
+      if (!parseEntryClipboard(text)) return;
+      event.preventDefault();
+      setPasteText(text);
+      setMode('paste');
+    };
+    document.addEventListener('paste', onPaste);
+    return () => document.removeEventListener('paste', onPaste);
+  }, [mode, setPasteText]);
 
   const type = types.data?.find((candidate) => candidate.id === (typeId || types.data?.[0]?.id));
   const fields = useMemo(() => (type ? importableFields(type.fields) : []), [type]);
@@ -134,31 +174,49 @@ export function ImportDialog({ initialTypeId, onClose }: { initialTypeId?: strin
   return (
     <Modal
       title="Import entries"
-      description="From a CSV file or a WordPress export (Tools → Export). Entries arrive as drafts unless you choose to publish."
+      description={
+        mode === 'paste'
+          ? 'Paste an entry copied with “Copy as JSON” — from here or another workspace. It arrives as a draft.'
+          : 'From a CSV file or a WordPress export (Tools → Export). Entries arrive as drafts unless you choose to publish.'
+      }
       size="2xl"
       onClose={onClose}
       footer={
-        <div className="flex flex-wrap items-center justify-between gap-3">
-          <span className="text-xs text-muted-foreground">
-            {progress
-              ? `Importing… ${progress.done} of ${progress.total}`
-              : source
-                ? `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} ready`
-                : ''}
-          </span>
-          <div className="flex gap-2">
+        mode === 'paste' ? (
+          <div className="flex justify-end gap-2">
             <Button variant="ghost" onClick={onClose}>
-              {result ? 'Done' : 'Cancel'}
+              Cancel
             </Button>
-            {!result && (
-              <Button disabled={!source || !type || entries.length === 0 || progress !== null} onClick={() => void run()}>
-                {progress ? 'Importing…' : `Import ${entries.length || ''} ${publish ? 'and publish' : 'as drafts'}`.replace('  ', ' ')}
-              </Button>
-            )}
+            <Button disabled={!paste.plan?.ok || paste.create.isPending} onClick={() => paste.create.mutate()}>
+              {paste.create.isPending ? 'Creating…' : 'Create draft'}
+            </Button>
           </div>
-        </div>
+        ) : (
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <span className="text-xs text-muted-foreground">
+              {progress
+                ? `Importing… ${progress.done} of ${progress.total}`
+                : source
+                  ? `${entries.length} ${entries.length === 1 ? 'entry' : 'entries'} ready`
+                  : ''}
+            </span>
+            <div className="flex gap-2">
+              <Button variant="ghost" onClick={onClose}>
+                {result ? 'Done' : 'Cancel'}
+              </Button>
+              {!result && (
+                <Button disabled={!source || !type || entries.length === 0 || progress !== null} onClick={() => void run()}>
+                  {progress ? 'Importing…' : `Import ${entries.length || ''} ${publish ? 'and publish' : 'as drafts'}`.replace('  ', ' ')}
+                </Button>
+              )}
+            </div>
+          </div>
+        )
       }
     >
+      {!progress && !result && (
+        <SegmentedControl<ImportMode> className="mb-5" ariaLabel="Import from" value={mode} onChange={setMode} options={MODES} />
+      )}
       <input
         ref={fileInput}
         type="file"
@@ -173,7 +231,9 @@ export function ImportDialog({ initialTypeId, onClose }: { initialTypeId?: strin
         }}
       />
 
-      {result ? (
+      {mode === 'paste' ? (
+        <PasteEntryBody paste={paste} />
+      ) : result ? (
         <div className="space-y-3">
           <p className="text-sm text-foreground">
             <span className="font-semibold tabular-nums">{result.created}</span> {result.created === 1 ? 'entry' : 'entries'} created

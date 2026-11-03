@@ -47,7 +47,7 @@ export const MODULES: readonly MarketingModule[] = [
     name: 'Point of sale',
     summary: 'Take orders and payments at a counter or till, and keep selling offline.',
     group: 'front-of-house',
-    published: false,
+    published: true,
   },
   {
     slug: 'orders',
@@ -90,7 +90,7 @@ export const MODULES: readonly MarketingModule[] = [
     name: 'Products & menu',
     summary: 'Everything you sell, with prices, options, recipes and margin.',
     group: 'back-of-house',
-    published: false,
+    published: true,
   },
   {
     slug: 'inventory',
@@ -119,7 +119,7 @@ export const MODULES: readonly MarketingModule[] = [
     name: 'Rotas & time',
     summary: 'Shifts, clock-ins and leave your team sees on their phone.',
     group: 'people',
-    published: false,
+    published: true,
   },
   {
     slug: 'people-hr',
@@ -219,7 +219,7 @@ export type MarketingPage = {
 /** Standalone pages. Module pages come from MODULES; blog posts from the CMS. */
 export const PAGES: readonly MarketingPage[] = [
   { path: '/', label: 'Home', published: true, changeFrequency: 'weekly', priority: 1 },
-  { path: '/features', label: 'All features', published: false, changeFrequency: 'monthly', priority: 0.9 },
+  { path: '/features', label: 'All features', published: true, changeFrequency: 'monthly', priority: 0.9 },
   { path: '/why-duma', label: 'Why DUMA', published: false, inHeader: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/pricing', label: 'Pricing', published: true, changeFrequency: 'monthly', priority: 0.9 },
   { path: '/solutions/cafes', label: 'Cafés and restaurants', published: true, changeFrequency: 'monthly', priority: 0.9 },
@@ -229,6 +229,9 @@ export const PAGES: readonly MarketingPage[] = [
   { path: '/solutions/retail', label: 'Retail', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/solutions/blogs', label: 'Blogs and creators', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/solutions/any-business', label: 'Any business', published: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/compare/duma-vs-square', label: 'DUMA vs Square', published: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/compare/duma-vs-shopify', label: 'DUMA vs Shopify', published: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/tools/margin-calculator', label: 'Menu margin calculator', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/developers', label: 'Public API', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/developers/mcp', label: 'MCP', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/developers/webhooks', label: 'Webhooks', published: true, changeFrequency: 'monthly', priority: 0.6 },

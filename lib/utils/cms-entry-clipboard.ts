@@ -42,8 +42,7 @@ export function entryClipboard(
   };
 }
 
-const isRecord = (value: unknown): value is Record<string, unknown> =>
-  typeof value === 'object' && value !== null && !Array.isArray(value);
+const isRecord = (value: unknown): value is Record<string, unknown> => typeof value === 'object' && value !== null && !Array.isArray(value);
 
 /** The copied entry, or null for anything else on the clipboard. */
 export function parseEntryClipboard(text: string): EntryClipboard | null {
@@ -135,7 +134,8 @@ export function planEntryPaste(
   locales: ReadonlyArray<Pick<CmsLocale, 'code'>>,
 ): EntryPastePlan {
   const type = types.find((candidate) => candidate.key === clip.contentType.key);
-  if (!type) return { ok: false, error: `This workspace has no “${clip.contentType.name}” model (key ${clip.contentType.key}). Create it first.` };
+  if (!type)
+    return { ok: false, error: `This workspace has no “${clip.contentType.name}” model (key ${clip.contentType.key}). Create it first.` };
   const sameWorkspace = clip.source.origin === here.origin && clip.source.tenantId === here.tenantId;
   const out = { cleared: [] as string[], linkedImages: [] as string[] };
   const data = carryFields(type.fields, clip.data, sameWorkspace, '', out);

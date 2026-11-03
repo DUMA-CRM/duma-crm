@@ -44,7 +44,7 @@ export const GLOSSARY: readonly GlossaryTerm[] = [
     title: 'What is food cost percentage?',
     term: 'Food cost percentage',
     short: 'The share of your food sales that went on the ingredients to make it — the first number a kitchen is run on.',
-    updated: '2026-10-31',
+    updated: '2026-11-03',
     related: ['gross-profit-margin', 'prime-cost', 'margin-vs-markup', 'wastage'],
     seeIt: { path: '/solutions/cafes', label: 'Food cost and recipe margin for cafés and restaurants' },
     body: `
@@ -86,6 +86,8 @@ There is no single right number — a coffee shop and a steakhouse live in diffe
 ## Tracking it in DUMA
 
 Add a recipe to each menu item and DUMA works out the cost of every dish from its ingredients, and its margin with VAT taken out of the price when you are VAT-registered. The **Prime cost** report shows food and labour as a share of sales over any period, and **Stock usage** shows what was used, item by item.
+
+Work out the food cost of one dish, with the VAT taken out, in the free [menu margin calculator](/tools/margin-calculator).
 `,
     faq: [
       {
@@ -107,7 +109,7 @@ Add a recipe to each menu item and DUMA works out the cost of every dish from it
     title: 'What is gross profit margin (GP)?',
     term: 'Gross profit margin (GP)',
     short: 'What is left of each sale after the cost of the goods sold, as a percentage of the sale.',
-    updated: '2026-10-31',
+    updated: '2026-11-03',
     related: ['food-cost-percentage', 'margin-vs-markup', 'prime-cost', 'menu-engineering'],
     seeIt: { path: '/solutions/cafes', label: 'Margin per dish, after VAT, for cafés and restaurants' },
     body: `
@@ -148,6 +150,8 @@ Gross profit pays for everything else: wages, rent, energy, card fees, insurance
 ## Tracking it in DUMA
 
 Every menu item with a recipe shows its cost and margin, with VAT taken out when you are VAT-registered, so the number matches what you keep. The **Menu engineering** report sets each item's margin against how often it sells, and **Item & category sales** shows units and sales for every item.
+
+Check the GP of one dish or drink, after VAT, with the free [menu margin and GP calculator](/tools/margin-calculator).
 `,
     faq: [
       {
@@ -169,7 +173,7 @@ Every menu item with a recipe shows its cost and margin, with VAT taken out when
     title: 'Margin vs markup: what is the difference?',
     term: 'Margin vs markup',
     short: 'Two ways to describe the same profit: margin divides it by the price, markup divides it by the cost.',
-    updated: '2026-10-31',
+    updated: '2026-11-03',
     related: ['gross-profit-margin', 'food-cost-percentage'],
     seeIt: { path: '/solutions/cafes', label: 'VAT-aware margin on every dish for cafés and restaurants' },
     body: `
@@ -212,6 +216,8 @@ Say you want a 50% margin and you "add 50%" to a £10 cost. You charge £15 and 
 ## In DUMA
 
 DUMA shows the cost and margin of every product with a recipe, worked out from its ingredients, with VAT taken out of the selling price when you are VAT-registered — so you set prices against the money you keep. More in [gross profit margin](/glossary/gross-profit-margin).
+
+Try it on a real dish: the free [menu margin calculator](/tools/margin-calculator) shows the margin after VAT and the price you need for the one you want.
 `,
     faq: [
       {
@@ -353,7 +359,7 @@ The **Labour vs sales** report shows labour cost, labour % and sales per labour 
     title: 'What is menu engineering?',
     term: 'Menu engineering',
     short: 'Sorting every dish by how often it sells and how much it earns, to decide what to promote, re-cost or cut.',
-    updated: '2026-10-31',
+    updated: '2026-11-03',
     related: ['gross-profit-margin', 'food-cost-percentage', 'average-order-value'],
     seeIt: { path: '/solutions/cafes', label: 'Menu margins and top sellers for cafés and restaurants' },
     body: `
@@ -390,6 +396,8 @@ A menu is a sales tool. Most businesses grow by selling more of the right things
 ## Tracking it in DUMA
 
 The **Menu engineering** report places every costed item in one of four groups — Stars, Workhorses, Opportunities and Low performers — by setting its margin against how many it sold, split at the menu's median for each. Items without a complete recipe cost are left out rather than guessed.
+
+To find a dish's margin before you place it, use the free [menu margin calculator](/tools/margin-calculator).
 `,
     faq: [
       {
@@ -846,7 +854,7 @@ Every menu item with a recipe has its ingredient cost worked out, so each sale c
     title: 'What is recipe costing?',
     term: 'Recipe costing',
     short: 'Working out exactly what one portion of a dish costs from the quantity and price of every ingredient in it.',
-    updated: '2026-10-31',
+    updated: '2026-11-03',
     related: ['food-cost-percentage', 'gross-profit-margin', 'modifiers', 'menu-engineering'],
     seeIt: { path: '/solutions/cafes', label: 'Recipe costing for cafés and restaurants' },
     body: `
@@ -892,6 +900,8 @@ Trimming, peeling and cooking all lose weight. If a 1kg piece of salmon gives 82
 ## Tracking it in DUMA
 
 Give a menu item a recipe from your stock items and DUMA works out its cost, and its margin with VAT taken out of the price when you are VAT-registered. Modifiers can carry their own recipes, so an extra shot or a swapped milk is costed too. Sales then use up stock from the same recipes.
+
+Cost a single recipe now, and see its margin after VAT, in the free [menu margin calculator](/tools/margin-calculator).
 `,
     faq: [
       {
@@ -1034,7 +1044,7 @@ The **Sales summary** report shows gross and net sales, refunds, orders and aver
     title: 'What is VAT-inclusive pricing?',
     term: 'VAT-inclusive pricing',
     short: 'Showing customers prices with VAT already included — and knowing how much of each price is really yours.',
-    updated: '2026-10-31',
+    updated: '2026-11-03',
     related: ['net-sales', 'gross-profit-margin', 'margin-vs-markup'],
     seeIt: { path: '/solutions/bakeries', label: 'Recipe costing with the right VAT on every bake' },
     metaTitle: 'What is VAT-Inclusive Pricing? A UK Guide | DUMA',
@@ -1078,6 +1088,8 @@ You want a 70% margin on a dish costing £2.40. The price before VAT is £2.40 �
 ## Tracking it in DUMA
 
 DUMA takes VAT out of the selling price when it works out an item's margin, if your business is VAT-registered — so the margin matches what you keep. The **VAT** report shows the VAT charged on your sales, split by rate, for your return.
+
+See what the VAT does to one dish's margin in the free [menu margin calculator](/tools/margin-calculator): switch between VAT in the price, on top, and not registered.
 `,
     faq: [
       {

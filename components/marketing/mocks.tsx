@@ -38,7 +38,11 @@ export function OfflineQueueMock() {
           <li key={row.order} className="flex items-center justify-between gap-4 px-4 py-2.5">
             <span className="font-mono font-semibold tabular-nums">{row.order}</span>
             <span className="flex items-center gap-2 text-[var(--mkt-ink-2)]">
-              {row.waiting ? <span className="queue-wait size-2 rounded-[2px] bg-stock" aria-hidden="true" /> : <Check className="size-3.5 text-primary" aria-hidden="true" />}
+              {row.waiting ? (
+                <span className="queue-wait size-2 rounded-[2px] bg-stock" aria-hidden="true" />
+              ) : (
+                <Check className="size-3.5 text-primary" aria-hidden="true" />
+              )}
               {row.waiting ? 'Saved on this device' : 'Sent'}
             </span>
           </li>
@@ -75,7 +79,14 @@ export function SaleTrailMock() {
 
 const KITCHEN = [
   { lane: 'New', tone: 'orders' as const, tickets: [{ id: '#52', items: '2 × Flat white, 1 × Banana bread', age: '0:40' }] },
-  { lane: 'Preparing', tone: 'stock' as const, tickets: [{ id: '#51', items: 'Full breakfast, Latte', age: '4:12' }, { id: '#50', items: '3 × Croissant', age: '5:03' }] },
+  {
+    lane: 'Preparing',
+    tone: 'stock' as const,
+    tickets: [
+      { id: '#51', items: 'Full breakfast, Latte', age: '4:12' },
+      { id: '#50', items: '3 × Croissant', age: '5:03' },
+    ],
+  },
   { lane: 'Ready', tone: 'team' as const, tickets: [{ id: '#49', items: 'Iced mocha', age: '6:30' }] },
 ];
 
@@ -122,28 +133,48 @@ function costItem(item: CostedItem) {
   });
 }
 
-/** An example item, costed by lib/menu/costing.ts — the product's own margin calculation. */
-export function MarginMock({ bleed = true, item = EXAMPLE_DISH }: { bleed?: boolean; item?: CostedItem }) {
-  const costing = costItem(item);
-  const body = (
+/**
+ * A dish costed line by line, ending on what you keep: the home page's recipe
+ * tile, and the live result of the margin calculator. Figures come in already
+ * worked out by lib/menu/costing.ts. `vatLabel` null hides the VAT line (not
+ * VAT-registered); `children` adds rows under "You keep".
+ */
+export function CostingCard({
+  name,
+  price,
+  ingredients,
+  vatLabel,
+  costing,
+  children,
+}: {
+  name: string;
+  price: number;
+  ingredients: readonly { name: string; quantity?: string; cost: number }[];
+  vatLabel: string | null;
+  costing: { vat: number; margin: number; marginPct: number };
+  children?: React.ReactNode;
+}) {
+  return (
     <>
       <div className="flex items-baseline justify-between gap-4 border-b border-[var(--mkt-line)] px-4 py-3">
-        <p className="text-[13px] font-semibold">{item.name}</p>
-        <p className="font-mono text-sm font-semibold tabular-nums">{fmtGbpExact(costing.price)}</p>
+        <p className="text-[13px] font-semibold">{name}</p>
+        <p className="font-mono text-sm font-semibold tabular-nums">{fmtGbpExact(price)}</p>
       </div>
       <dl className="divide-y divide-[var(--mkt-line)] text-[13px]">
-        {item.ingredients.map((ingredient) => (
-          <div key={ingredient.name} className="flex justify-between gap-4 px-4 py-2">
+        {ingredients.map((ingredient, index) => (
+          <div key={`${ingredient.name}-${index}`} className="flex justify-between gap-4 px-4 py-2">
             <dt>
-              {ingredient.name} <span className="text-[11px] text-[var(--mkt-ink-3)]">{ingredient.quantity}</span>
+              {ingredient.name} {ingredient.quantity && <span className="text-[11px] text-[var(--mkt-ink-3)]">{ingredient.quantity}</span>}
             </dt>
             <dd className="font-mono tabular-nums">{fmtGbpExact(ingredient.cost)}</dd>
           </div>
         ))}
-        <div className="flex justify-between gap-4 px-4 py-2 text-[var(--mkt-ink-2)]">
-          <dt>VAT in the price ({costing.vatRate}%)</dt>
-          <dd className="font-mono tabular-nums">{fmtGbpExact(costing.vat)}</dd>
-        </div>
+        {vatLabel && (
+          <div className="flex justify-between gap-4 px-4 py-2 text-[var(--mkt-ink-2)]">
+            <dt>{vatLabel}</dt>
+            <dd className="font-mono tabular-nums">{fmtGbpExact(costing.vat)}</dd>
+          </div>
+        )}
         <div className="flex items-center justify-between gap-4 px-4 py-3">
           <dt className="font-semibold">You keep</dt>
           <dd className="text-right">
@@ -151,8 +182,23 @@ export function MarginMock({ bleed = true, item = EXAMPLE_DISH }: { bleed?: bool
             <span className="ml-2 text-[12px] text-[var(--mkt-ink-2)]">{Math.round(costing.marginPct)}% margin</span>
           </dd>
         </div>
+        {children}
       </dl>
     </>
+  );
+}
+
+/** An example item, costed by lib/menu/costing.ts — the product's own margin calculation. */
+export function MarginMock({ bleed = true, item = EXAMPLE_DISH }: { bleed?: boolean; item?: CostedItem }) {
+  const costing = costItem(item);
+  const body = (
+    <CostingCard
+      name={item.name}
+      price={costing.price}
+      ingredients={item.ingredients}
+      vatLabel={`VAT in the price (${costing.vatRate}%)`}
+      costing={costing}
+    />
   );
   return bleed ? <Bleed>{body}</Bleed> : <div className="mkt-mock overflow-hidden">{body}</div>;
 }
@@ -214,7 +260,11 @@ export function CustomerMock() {
         <p className={cn(label, 'mt-3')}>Loyalty</p>
         <div className="mt-1.5 flex gap-1" aria-label="12 of 13 stamps">
           {Array.from({ length: 13 }, (_, index) => (
-            <span key={index} className={cn('size-3.5 rounded-full', index < 12 ? 'bg-measured' : 'ring-1 ring-measured/50')} aria-hidden="true" />
+            <span
+              key={index}
+              className={cn('size-3.5 rounded-full', index < 12 ? 'bg-measured' : 'ring-1 ring-measured/50')}
+              aria-hidden="true"
+            />
           ))}
         </div>
         <p className="mt-2 text-[12px] text-[var(--mkt-ink-2)]">One more visit unlocks a free drink</p>
@@ -238,7 +288,10 @@ export function StockMock() {
           <li key={row.item} className="grid grid-cols-[minmax(0,1fr)_5rem_3.5rem] items-center gap-3 px-4 py-2.5">
             <span className="font-medium">{row.item}</span>
             <span className="h-1.5 overflow-hidden rounded-full bg-[var(--mkt-line)]" aria-hidden="true">
-              <span className={cn('block h-full rounded-full', row.low ? 'bg-stock' : 'bg-primary/60')} style={{ width: `${row.share * 100}%` }} />
+              <span
+                className={cn('block h-full rounded-full', row.low ? 'bg-stock' : 'bg-primary/60')}
+                style={{ width: `${row.share * 100}%` }}
+              />
             </span>
             <span className={cn('text-right font-mono tabular-nums', row.low && 'font-semibold text-stock')}>{row.left}</span>
           </li>
@@ -280,7 +333,9 @@ export function LocationsMock() {
         <span className="mkt-mock inline-flex h-7 items-center gap-1.5 rounded-[6px] px-2.5 text-[12px] font-medium">
           Location is <span className="font-semibold">Bridge Street</span>
         </span>
-        <span className="inline-flex h-7 items-center rounded-[6px] px-2.5 text-[12px] text-[var(--mkt-ink-2)] ring-1 ring-[var(--mkt-line)]">All locations</span>
+        <span className="inline-flex h-7 items-center rounded-[6px] px-2.5 text-[12px] text-[var(--mkt-ink-2)] ring-1 ring-[var(--mkt-line)]">
+          All locations
+        </span>
       </div>
       <div className="mkt-mock mt-3 p-4">
         <p className="flex items-baseline justify-between text-[12px] font-semibold">
@@ -310,16 +365,64 @@ function ScreenFrame({ title, meta, children }: { title: string; meta: string; c
 }
 
 const ORDERS = [
-  { id: '#1058', time: '08:42', channel: 'Till', items: 'Oat flat white, almond croissant', total: '£4.85', status: 'Paid', tone: 'team' as const },
-  { id: '#1057', time: '08:39', channel: 'QR', items: 'Iced latte, banana bread', total: '£6.70', status: 'Preparing', tone: 'stock' as const },
-  { id: '#1056', time: '08:31', channel: 'Till', items: 'Full breakfast, English breakfast tea', total: '£12.40', status: 'Ready', tone: 'reference' as const },
+  {
+    id: '#1058',
+    time: '08:42',
+    channel: 'Till',
+    items: 'Oat flat white, almond croissant',
+    total: '£4.85',
+    status: 'Paid',
+    tone: 'team' as const,
+  },
+  {
+    id: '#1057',
+    time: '08:39',
+    channel: 'QR',
+    items: 'Iced latte, banana bread',
+    total: '£6.70',
+    status: 'Preparing',
+    tone: 'stock' as const,
+  },
+  {
+    id: '#1056',
+    time: '08:31',
+    channel: 'Till',
+    items: 'Full breakfast, English breakfast tea',
+    total: '£12.40',
+    status: 'Ready',
+    tone: 'reference' as const,
+  },
   { id: '#1055', time: '08:24', channel: 'Phone', items: '6 × Pain au chocolat', total: '£15.60', status: 'Paid', tone: 'team' as const },
   { id: '#1054', time: '08:12', channel: 'QR', items: 'Chai latte', total: '£3.60', status: 'Paid', tone: 'team' as const },
   { id: '#1053', time: '07:58', channel: 'Till', items: 'Flat white', total: '£3.40', status: 'Refunded', tone: 'orders' as const },
-  { id: '#1052', time: '07:46', channel: 'Till', items: 'Americano, cheese toastie', total: '£8.20', status: 'Paid', tone: 'team' as const },
-  { id: '#1051', time: '07:41', channel: 'QR', items: '2 × Cappuccino, cinnamon bun', total: '£9.70', status: 'Paid', tone: 'team' as const },
+  {
+    id: '#1052',
+    time: '07:46',
+    channel: 'Till',
+    items: 'Americano, cheese toastie',
+    total: '£8.20',
+    status: 'Paid',
+    tone: 'team' as const,
+  },
+  {
+    id: '#1051',
+    time: '07:41',
+    channel: 'QR',
+    items: '2 × Cappuccino, cinnamon bun',
+    total: '£9.70',
+    status: 'Paid',
+    tone: 'team' as const,
+  },
   { id: '#1050', time: '07:33', channel: 'Till', items: 'Hot chocolate', total: '£3.50', status: 'Paid', tone: 'team' as const },
-  { id: '#1049', time: '07:25', channel: 'Phone', items: 'Sourdough loaf, 4 × Croissant', total: '£14.20', status: 'Ready', tone: 'reference' as const },
+  {
+    id: '#1049',
+    time: '07:25',
+    channel: 'Phone',
+    items: 'Sourdough loaf, 4 × Croissant',
+    total: '£14.20',
+    status: 'Ready',
+    tone: 'reference' as const,
+  },
   { id: '#1048', time: '07:18', channel: 'Till', items: 'Oat latte, granola pot', total: '£7.90', status: 'Paid', tone: 'team' as const },
   { id: '#1047', time: '07:09', channel: 'Till', items: 'Espresso', total: '£2.40', status: 'Paid', tone: 'team' as const },
 ];
@@ -330,13 +433,24 @@ export function OrdersScreen() {
     <ScreenFrame title="Orders" meta="Today · Bridge Street">
       <div className="flex flex-wrap gap-1.5 pb-3">
         {['All channels', 'Till', 'QR', 'Phone'].map((chip, index) => (
-          <span key={chip} className={cn('rounded-[6px] px-2.5 py-1 text-[11px] sm:text-xs', index === 0 ? 'bg-[var(--mkt-card)] font-semibold shadow-sm ring-1 ring-[var(--mkt-line)]' : 'text-[var(--mkt-ink-2)]')}>
+          <span
+            key={chip}
+            className={cn(
+              'rounded-[6px] px-2.5 py-1 text-[11px] sm:text-xs',
+              index === 0 ? 'bg-[var(--mkt-card)] font-semibold shadow-sm ring-1 ring-[var(--mkt-line)]' : 'text-[var(--mkt-ink-2)]',
+            )}
+          >
             {chip}
           </span>
         ))}
       </div>
       <div className="mkt-mock overflow-hidden">
-        <div className={cn(label, 'grid grid-cols-[3.5rem_3rem_minmax(0,1fr)_4.5rem] gap-3 border-b border-[var(--mkt-line)] px-4 py-2 sm:grid-cols-[4rem_3.5rem_4rem_minmax(0,1fr)_5rem_6rem]')}>
+        <div
+          className={cn(
+            label,
+            'grid grid-cols-[3.5rem_3rem_minmax(0,1fr)_4.5rem] gap-3 border-b border-[var(--mkt-line)] px-4 py-2 sm:grid-cols-[4rem_3.5rem_4rem_minmax(0,1fr)_5rem_6rem]',
+          )}
+        >
           <span>Order</span>
           <span>Time</span>
           <span className="hidden sm:block">Channel</span>
@@ -346,7 +460,10 @@ export function OrdersScreen() {
         </div>
         <ul className="divide-y divide-[var(--mkt-line)] text-[12px] sm:text-[13px]">
           {ORDERS.map((order) => (
-            <li key={order.id} className="grid grid-cols-[3.5rem_3rem_minmax(0,1fr)_4.5rem] items-center gap-3 px-4 py-2 sm:grid-cols-[4rem_3.5rem_4rem_minmax(0,1fr)_5rem_6rem] sm:py-2.5">
+            <li
+              key={order.id}
+              className="grid grid-cols-[3.5rem_3rem_minmax(0,1fr)_4.5rem] items-center gap-3 px-4 py-2 sm:grid-cols-[4rem_3.5rem_4rem_minmax(0,1fr)_5rem_6rem] sm:py-2.5"
+            >
               <span className="font-mono font-semibold tabular-nums">{order.id}</span>
               <span className="font-mono text-[var(--mkt-ink-2)] tabular-nums">{order.time}</span>
               <span className="hidden text-[var(--mkt-ink-2)] sm:block">{order.channel}</span>
@@ -392,7 +509,13 @@ export function CustomersScreen() {
           </div>
           <ul className="divide-y divide-[var(--mkt-line)] text-[12px] sm:text-[13px]">
             {CUSTOMERS.map((customer, index) => (
-              <li key={customer.name} className={cn('grid grid-cols-[minmax(0,1fr)_3rem_4.5rem_4rem] items-center gap-3 px-4 py-2 sm:py-2.5', index === 0 && 'bg-[var(--mkt-marker)]/50')}>
+              <li
+                key={customer.name}
+                className={cn(
+                  'grid grid-cols-[minmax(0,1fr)_3rem_4.5rem_4rem] items-center gap-3 px-4 py-2 sm:py-2.5',
+                  index === 0 && 'bg-[var(--mkt-marker)]/50',
+                )}
+              >
                 <span className="truncate font-medium">{customer.name}</span>
                 <span className="text-right font-mono tabular-nums">{customer.visits}</span>
                 <span className="text-[var(--mkt-ink-2)]">{customer.last}</span>
@@ -422,7 +545,11 @@ export function CustomersScreen() {
           <p className={cn(label, 'mt-4')}>Loyalty</p>
           <div className="mt-1.5 flex flex-wrap gap-1" aria-label="12 of 13 stamps">
             {Array.from({ length: 13 }, (_, index) => (
-              <span key={index} className={cn('size-3.5 rounded-full', index < 12 ? 'bg-measured' : 'ring-1 ring-measured/50')} aria-hidden="true" />
+              <span
+                key={index}
+                className={cn('size-3.5 rounded-full', index < 12 ? 'bg-measured' : 'ring-1 ring-measured/50')}
+                aria-hidden="true"
+              />
             ))}
           </div>
           <p className="mt-2 text-[12px] text-[var(--mkt-ink-2)]">One more visit unlocks a free drink</p>
@@ -465,7 +592,11 @@ export function VariantStockMock({ bleed = true }: { bleed?: boolean }) {
                 key={index}
                 className={cn(
                   'rounded-[4px] py-1 text-center font-mono text-[11px] tabular-nums',
-                  count === 0 ? 'bg-destructive/10 text-destructive' : count < 4 ? 'bg-stock/15 font-semibold text-stock' : 'bg-[var(--mkt-ground)]',
+                  count === 0
+                    ? 'bg-destructive/10 text-destructive'
+                    : count < 4
+                      ? 'bg-stock/15 font-semibold text-stock'
+                      : 'bg-[var(--mkt-ground)]',
                 )}
               >
                 {count}
@@ -512,11 +643,18 @@ export function ContentEditorMock({ bleed = true }: { bleed?: boolean }) {
     <>
       <div className="flex items-center justify-between gap-4 border-b border-[var(--mkt-line)] px-4 py-3">
         <p className="flex items-center gap-2 text-[13px] font-semibold">
-          Blog post <span className="rounded-[4px] bg-success-highlight px-1.5 py-0.5 text-[10px] font-semibold text-success">Published</span>
+          Blog post{' '}
+          <span className="rounded-[4px] bg-success-highlight px-1.5 py-0.5 text-[10px] font-semibold text-success">Published</span>
         </p>
         <div className="flex gap-1 text-[11px]">
           {['EN', 'UK', 'PL'].map((locale, index) => (
-            <span key={locale} className={cn('rounded-[4px] px-1.5 py-0.5', index === 0 ? 'bg-foreground font-semibold text-background' : 'bg-[var(--mkt-ground)] text-[var(--mkt-ink-2)]')}>
+            <span
+              key={locale}
+              className={cn(
+                'rounded-[4px] px-1.5 py-0.5',
+                index === 0 ? 'bg-foreground font-semibold text-background' : 'bg-[var(--mkt-ground)] text-[var(--mkt-ink-2)]',
+              )}
+            >
               {locale}
             </span>
           ))}

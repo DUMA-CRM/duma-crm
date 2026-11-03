@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { Github, Linkedin, MapPin, XLogo } from '@/components/icons';
 import { Logo } from '@/components/shared/Logo';
 
-import { CONTACT_EMAIL, FOUNDER_PROFILES, PAGES, STATUS_URL, linkTo, modulePath, publishedModules, publishedPage } from '@/lib/marketing/site';
+import { CONTACT_EMAIL, FOUNDER_PROFILES, PAGES, STATUS_URL, linkTo, publishedPage } from '@/lib/marketing/site';
 
 /** `status` puts the status page's green dot before the label; `external` opens the link in a new tab. */
 type FooterLink = { path: string; label: string; status?: boolean; external?: boolean };
@@ -16,7 +16,8 @@ const NETWORK_ICON = { github: Github, x: XLogo, linkedin: Linkedin } as const;
  * first column, then four columns that each stack one or two link groups, and
  * a quiet line underneath. Its groups are the site's internal-linking backbone
  * — every published page is reachable from every other in one hop — so they
- * list everything published; an empty group, and then an empty column, is
+ * list everything published — except the module pages, which are one hop
+ * down from All features; an empty group, and then an empty column, is
  * dropped. Audience and pricing links follow linkTo(): the page once
  * published, its home section until then.
  */
@@ -30,7 +31,6 @@ export function MarketingFooter() {
         title: 'Product',
         links: [
           ...(features ? [{ path: features.path, label: features.label }] : []),
-          ...publishedModules().map((m) => ({ path: modulePath(m.slug), label: m.name })),
           { path: linkTo('/pricing'), label: 'Pricing' },
           ...pages(['/developers', '/developers/mcp', '/developers/webhooks']),
           { path: STATUS_URL, label: 'Status page', status: true, external: true },
@@ -55,6 +55,10 @@ export function MarketingFooter() {
     ],
     [
       { title: 'Resources', links: pages(['/blog', '/glossary']) },
+      // Every published tool, so a new one is in the footer the day it ships.
+      { title: 'Tools', links: PAGES.filter((p) => p.published && p.path.startsWith('/tools/')) },
+      // Every published comparison, so a new one is in the footer the day it ships.
+      { title: 'Compare', links: PAGES.filter((p) => p.published && p.path.startsWith('/compare/')) },
     ],
     [
       { title: 'Legal', links: pages(['/terms', '/privacy', '/dpa', '/gdpr', '/legal']) },

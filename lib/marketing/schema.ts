@@ -80,6 +80,30 @@ export function softwareApplicationSchema({ description }: { description: string
   };
 }
 
+/**
+ * A free tool on the site — the menu margin calculator — as the WebApplication
+ * it is: its own name and URL, free, runs in a browser. `featureList` must be
+ * what the page visibly does.
+ */
+export function webApplicationSchema({ name, path, description, features }: { name: string; path: string; description: string; features: string[] }) {
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'WebApplication',
+    '@id': `${absoluteUrl(path)}#app`,
+    name,
+    url: absoluteUrl(path),
+    description,
+    applicationCategory: 'BusinessApplication',
+    operatingSystem: 'Any (runs in a web browser)',
+    browserRequirements: 'Requires JavaScript',
+    inLanguage: 'en-GB',
+    isAccessibleForFree: true,
+    offers: { '@type': 'Offer', price: '0', priceCurrency: 'GBP' },
+    featureList: features,
+    publisher: { '@id': ORGANIZATION_ID },
+  };
+}
+
 /** `trail` runs from the top level down to the current page, home excluded. */
 export function breadcrumbSchema(trail: { name: string; path: string }[]) {
   return {

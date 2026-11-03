@@ -16,10 +16,9 @@ import { MediaPanel } from '@/components/cms/MediaPanel';
 import { ModelEditor } from '@/components/cms/ModelEditor';
 import { ModelsPanel } from '@/components/cms/ModelsPanel';
 import { NewEntryDialog } from '@/components/cms/NewEntryDialog';
-import { PasteEntryDialog } from '@/components/cms/PasteEntryDialog';
 import { ContentStorageUsage } from '@/components/cms/StorageUsage';
 import { useCmsAccess } from '@/components/cms/useCmsAccess';
-import { ClipboardPaste, Languages, Layers, Plus, SlidersHorizontal, UploadCloud } from '@/components/icons';
+import { Languages, Layers, Plus, SlidersHorizontal, UploadCloud } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
@@ -65,9 +64,8 @@ function ContentView() {
   const contentTabs: SectionTab<ContentTab>[] =
     isSuperadmin && !isAdminContent ? [...CONTENT_TABS, { value: 'updates', label: 'DUMA Updates' }] : CONTENT_TABS;
   const [creating, setCreating] = useState<{ contentTypeId?: string } | null>(null);
-  const [importing, setImporting] = useState(false);
-  // null: closed; otherwise the text it opens with (⌘V on the Entries tab fills it).
-  const [pasting, setPasting] = useState<string | null>(null);
+  // `paste`: opened by ⌘V on the Entries tab, on the paste side with that text.
+  const [importing, setImporting] = useState<{ paste?: string } | null>(null);
   // Media renders its own header actions (Upload, storage) into this slot.
   const [mediaActions, setMediaActions] = useState<HTMLElement | null>(null);
 
@@ -94,7 +92,7 @@ function ContentView() {
 
   // ⌘V / Ctrl+V on the Entries tab, outside a text field, pastes a copied entry.
   const canPaste = tab === 'entries' && !entryParam && !modelParam && access.canWrite && !!tenantId;
-  const dialogOpen = importing || pasting !== null || creating !== null;
+  const dialogOpen = importing !== null || creating !== null;
   useEffect(() => {
     if (!canPaste || dialogOpen) return;
     const onPaste = (event: ClipboardEvent) => {
@@ -103,7 +101,7 @@ function ContentView() {
       const text = event.clipboardData?.getData('text/plain') ?? '';
       if (!parseEntryClipboard(text)) return;
       event.preventDefault();
-      setPasting(text);
+      setImporting({ paste: text });
     };
     document.addEventListener('paste', onPaste);
     return () => document.removeEventListener('paste', onPaste);
@@ -212,15 +210,9 @@ function ContentView() {
             )}
             {tab === 'overview' && <ContentStorageUsage />}
             {tab === 'entries' && access.canWrite && (
-              <Button variant="outline" className="h-9 gap-1.5" aria-label="Import entries" onClick={() => setImporting(true)}>
+              <Button variant="outline" className="h-9 gap-1.5" aria-label="Import entries" onClick={() => setImporting({})}>
                 <UploadCloud size={15} aria-hidden="true" />
                 <span className="hidden md:inline">Import</span>
-              </Button>
-            )}
-            {tab === 'entries' && access.canWrite && (
-              <Button variant="outline" className="h-9 gap-1.5" aria-label="Paste entry" onClick={() => setPasting('')}>
-                <ClipboardPaste size={15} aria-hidden="true" />
-                <span className="hidden md:inline">Paste</span>
               </Button>
             )}
             {action && (
@@ -278,13 +270,13 @@ function ContentView() {
         {tab === 'configure' && section === 'settings' && access.canManageKeys && <ContentSettingsPanel />}
       </div>
 
-      {importing && <ImportDialog initialTypeId={searchParams.get('type') || undefined} onClose={() => setImporting(false)} />}
-      {pasting !== null && (
-        <PasteEntryDialog
-          initialText={pasting}
-          onClose={() => setPasting(null)}
+      {importing && (
+        <ImportDialog
+          initialTypeId={searchParams.get('type') || undefined}
+          initialPaste={importing.paste}
+          onClose={() => setImporting(null)}
           onCreated={(id) => {
-            setPasting(null);
+            setImporting(null);
             openEntry(id);
           }}
         />

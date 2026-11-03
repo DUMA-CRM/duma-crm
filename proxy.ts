@@ -9,14 +9,10 @@
 //   CRM layout = validates the session is still active/not expired.
 import { NextRequest, NextResponse } from 'next/server';
 
+import { hasSessionCookie } from '@/lib/auth/session-cookie';
 import { CSP_IMAGE_HOSTS } from '@/lib/utils/image-src';
 import { MARKDOWN_RENDER_HEADER, prefersMarkdown, servesMarkdown } from '@/lib/utils/markdown-for-agents';
 import { needsSignIn } from '@/lib/utils/public-paths';
-
-// better-auth's session cookie. The exact name varies with configuration —
-// `better-auth.session_token` plain, `__Secure-better-auth.session_token` on
-// HTTPS, or a custom cookiePrefix — so match by suffix, not equality.
-const SESSION_COOKIE_SUFFIX = 'session_token';
 
 /**
  * The home page's Link header: same-origin, so the proxy needs none of the
@@ -99,7 +95,7 @@ export function proxy(req: NextRequest) {
     return NextResponse.redirect(url, 301);
   }
 
-  const hasSession = req.cookies.getAll().some((c) => c.name.endsWith(SESSION_COOKIE_SUFFIX) && c.value.length > 0);
+  const hasSession = hasSessionCookie(req.cookies.getAll());
   // Which routes need a session, and which are public: lib/utils/public-paths.ts.
   // Unauthenticated user visiting an app section → send to sign-in. An unknown
   // URL falls through to the real 404 instead (needsSignIn), so a crawler never
