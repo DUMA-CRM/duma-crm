@@ -136,7 +136,8 @@ function AsOfNote({ content }: { content: Comparison }) {
 export function ComparePage({ content }: { content: Comparison }) {
   const { hero } = content;
   const key = content.slug;
-  const billTotal = content.pricing.bill.lines.reduce((sum, line) => sum + line.pounds, 0);
+  const { bill } = content.pricing;
+  const billTotal = 'lines' in bill ? bill.lines.reduce((sum, line) => sum + line.pounds, 0) : null;
 
   return (
     <>
@@ -255,25 +256,37 @@ export function ComparePage({ content }: { content: Comparison }) {
       <Section spacing="normal" aria-labelledby={`${key}-pricing`}>
         <SectionHeading id={`${key}-pricing`} title={content.pricing.title} intro={<p>{content.pricing.intro}</p>} />
         <div className="mt-10 grid gap-4 md:grid-cols-2">
-          <article className="mkt-card flex flex-col px-6 py-6 sm:px-7" data-reveal="">
-            <h3 className="text-lg font-semibold tracking-display">{content.pricing.bill.title}</h3>
-            <dl className="mt-4 flex flex-col">
-              {content.pricing.bill.lines.map((line) => (
-                <div key={line.label} className="flex items-start justify-between gap-4 border-b border-[var(--mkt-line)] py-3">
-                  <dt>
-                    <span className="block text-[0.9375rem]">{line.label}</span>
-                    <Source href={line.source} />
-                  </dt>
-                  <dd className="font-mono tabular-nums">£{line.pounds}</dd>
+          {'lines' in bill ? (
+            <article className="mkt-card flex flex-col px-6 py-6 sm:px-7" data-reveal="">
+              <h3 className="text-lg font-semibold tracking-display">{bill.title}</h3>
+              <dl className="mt-4 flex flex-col">
+                {bill.lines.map((line) => (
+                  <div key={line.label} className="flex items-start justify-between gap-4 border-b border-[var(--mkt-line)] py-3">
+                    <dt>
+                      <span className="block text-[0.9375rem]">{line.label}</span>
+                      <Source href={line.source} />
+                    </dt>
+                    <dd className="font-mono tabular-nums">£{line.pounds}</dd>
+                  </div>
+                ))}
+                <div className="flex items-baseline justify-between gap-4 pt-4">
+                  <dt className="font-semibold">Each month</dt>
+                  <dd className="font-mono text-3xl font-semibold tabular-nums">£{billTotal}</dd>
                 </div>
-              ))}
-              <div className="flex items-baseline justify-between gap-4 pt-4">
-                <dt className="font-semibold">Each month</dt>
-                <dd className="font-mono text-3xl font-semibold tabular-nums">£{billTotal}</dd>
-              </div>
-            </dl>
-            <p className="mt-3 text-sm text-pretty text-[var(--mkt-ink-2)]">{content.pricing.bill.note}</p>
-          </article>
+              </dl>
+              <p className="mt-3 text-sm text-pretty text-[var(--mkt-ink-2)]">{bill.note}</p>
+            </article>
+          ) : (
+            // No published prices: say what their site says instead, and never estimate.
+            <article className="mkt-card flex flex-col px-6 py-6 sm:px-7" data-reveal="">
+              <h3 className="text-lg font-semibold tracking-display">{content.competitor} doesn’t publish its prices</h3>
+              <p className="mt-4 font-mono text-3xl font-semibold text-[var(--mkt-ink-3)]">On request</p>
+              <p className="mt-3 text-pretty text-[var(--mkt-ink-2)]">{bill.unpublished}</p>
+              <span className="mt-2">
+                <Source href={bill.source} />
+              </span>
+            </article>
+          )}
 
           <article
             className="mkt-card flex flex-col border-2 border-primary/60 bg-[var(--mkt-marker)]/25 px-6 py-6 sm:px-7"
@@ -301,15 +314,19 @@ export function ComparePage({ content }: { content: Comparison }) {
           </article>
         </div>
 
-        <h3 className="mt-12 text-sm font-semibold text-[var(--mkt-heading)]">{content.competitor}’s UK price list</h3>
-        <ul className="mt-4 grid gap-x-10 gap-y-4 md:grid-cols-2">
-          {content.pricing.facts.map((fact) => (
-            <li key={fact.text} className="border-l-2 border-[var(--mkt-line)] pl-4 text-[0.9375rem]">
-              <p className="text-pretty">{fact.text}</p>
-              <Source href={fact.source} />
-            </li>
-          ))}
-        </ul>
+        {content.pricing.facts.length > 0 && (
+          <>
+            <h3 className="mt-12 text-sm font-semibold text-[var(--mkt-heading)]">{content.competitor}’s UK price list</h3>
+            <ul className="mt-4 grid gap-x-10 gap-y-4 md:grid-cols-2">
+              {content.pricing.facts.map((fact) => (
+                <li key={fact.text} className="border-l-2 border-[var(--mkt-line)] pl-4 text-[0.9375rem]">
+                  <p className="text-pretty">{fact.text}</p>
+                  <Source href={fact.source} />
+                </li>
+              ))}
+            </ul>
+          </>
+        )}
       </Section>
 
       {/* ── Where the competitor is stronger, and where DUMA is different ── */}
@@ -388,7 +405,7 @@ export function ComparePage({ content }: { content: Comparison }) {
         <figure className="mx-auto mt-12 max-w-4xl" data-reveal="">
           <ConnectionBeams connections={content.together.connections} />
           <figcaption className="mt-6 text-center text-sm text-[var(--mkt-ink-2)]">
-            What connects to DUMA, and what a sale updates.
+            {content.together.connections.caption ?? 'What connects to DUMA, and what a sale updates.'}
           </figcaption>
         </figure>
         <ol className="mt-14 grid gap-x-10 gap-y-7 md:grid-cols-2">

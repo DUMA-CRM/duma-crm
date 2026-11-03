@@ -231,6 +231,10 @@ export const PAGES: readonly MarketingPage[] = [
   { path: '/solutions/any-business', label: 'Any business', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/compare/duma-vs-square', label: 'DUMA vs Square', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/compare/duma-vs-shopify', label: 'DUMA vs Shopify', published: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/compare/duma-vs-lightspeed', label: 'DUMA vs Lightspeed', published: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/compare/duma-vs-sevenrooms', label: 'DUMA vs SevenRooms', published: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/compare/duma-vs-sunday', label: 'DUMA vs Sunday', published: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/compare/duma-vs-zavo', label: 'DUMA vs Zavo', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/tools/margin-calculator', label: 'Menu margin calculator', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/tools/cash-up-calculator', label: 'Cash-up calculator', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/developers', label: 'Public API', published: true, changeFrequency: 'monthly', priority: 0.6 },
@@ -338,7 +342,9 @@ export function headerNav(): { links: NavLink[]; resources: NavLink[] } {
     links: [{ label: 'Pricing', path: linkTo('/pricing') }, ...(about ? [{ label: 'About us', path: about.path }] : [])],
     resources: [
       { label: 'Public API', path: '/developers', description: 'Build on DUMA, or connect an AI assistant', icon: 'api' as const },
-      ...(blog ? [{ label: 'Blog', path: blog.path, description: 'Guides for cafés, restaurants and small shops', icon: 'blog' as const }] : []),
+      ...(blog
+        ? [{ label: 'Blog', path: blog.path, description: 'Guides for cafés, restaurants and small shops', icon: 'blog' as const }]
+        : []),
     ],
   };
 }

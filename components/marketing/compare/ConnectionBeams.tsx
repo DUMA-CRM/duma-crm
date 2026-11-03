@@ -3,7 +3,7 @@
 import { useReducedMotion } from 'motion/react';
 import { createRef, useRef, useState } from 'react';
 
-import { BarChart3, Calculator, Clock, Code, CreditCard, FileText, Gift, Package, Users } from '@/components/icons';
+import { BarChart3, Calculator, CalendarDays, Clock, Code, CreditCard, FileText, Gift, Package, QrCode, Users } from '@/components/icons';
 import { Logo } from '@/components/shared/Logo';
 import { AnimatedBeam } from '@/components/ui/animated-beam';
 
@@ -11,7 +11,7 @@ import type { Connections } from '@/lib/marketing/compare';
 import { INTEGRATION_LOGOS } from '@/lib/marketing/integration-logos';
 import { cn } from '@/lib/utils/cn';
 
-const KIND_ICON = { card: CreditCard, file: FileText, api: Code } as const;
+const KIND_ICON = { card: CreditCard, file: FileText, api: Code, qr: QrCode, booking: CalendarDays, walkin: Users } as const;
 const UPDATE_ICON = { stock: Package, margin: Calculator, customers: Users, reports: BarChart3, rotas: Clock, loyalty: Gift } as const;
 
 // SVG gradient stops take colours, not CSS variables: the brand green into apricot (DESIGN.md).
