@@ -3,11 +3,11 @@
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 
-import { EnableAdminConnector } from '@/components/admin/EnableAdminConnector';
-import { useSettingsScope, useSettingsTenantId } from '@/components/settings/SettingsScope';
+import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { SocialConnector } from '@/components/social-marketing/SocialConnector';
 
 import { canAccessConnector } from '@/lib/auth/connector-access';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
@@ -21,7 +21,7 @@ import { PaymentsConnectWizard, PaymentsConnectorPage } from './PaymentsConnecto
 import { StorageConnectWizard } from './StorageConnector';
 import { StorageConnectorPage } from './StorageConnectorPage';
 import { TelegramConnectWizard, TelegramConnectorPage } from './TelegramConnector';
-import { ADMIN_CONNECTOR_IDS, CONNECTORS_BY_ID, type ConnectorId } from './registry';
+import { CONNECTORS_BY_ID, type ConnectorId } from './registry';
 
 /**
  * Connectors is URL-driven: `?connector=email` opens its manage page and
@@ -32,8 +32,7 @@ import { ADMIN_CONNECTOR_IDS, CONNECTORS_BY_ID, type ConnectorId } from './regis
  */
 export function ConnectorsRoute() {
   const router = useRouter();
-  const scope = useSettingsScope();
-  const LIST = scope?.connectorsPath ?? '/settings/connectors';
+  const LIST = '/settings/connectors';
   const capabilities = useAuthStore((state) => state.capabilities);
   const tenantId = useSettingsTenantId();
   const modules = useQuery({
@@ -49,13 +48,6 @@ export function ConnectorsRoute() {
   const toManage = (id: ConnectorId) => router.replace(`${LIST}?connector=${id}`);
   const toConnect = (id: ConnectorId) => router.push(`${LIST}?connector=${id}&mode=connect`);
 
-  if (scope && connector && !ADMIN_CONNECTOR_IDS.includes(connector)) {
-    return (
-      <EditorShell title="Connections" onClose={() => router.push('/admin/settings')}>
-        <ErrorState title="This connection belongs in workspace or personal settings" />
-      </EditorShell>
-    );
-  }
   const definition = connector ? CONNECTORS_BY_ID[connector] : undefined;
   if (definition?.moduleId && modules.isPending) {
     return (
@@ -71,13 +63,6 @@ export function ConnectorsRoute() {
       </EditorShell>
     );
   }
-  if (
-    scope &&
-    definition?.moduleId &&
-    !modules.data?.modules.some((item) => item.moduleId === definition.moduleId && item.status === 'enabled')
-  ) {
-    return <EnableAdminConnector tenantId={scope.tenantId} moduleId={definition.moduleId} name={definition.name} onClose={toList} />;
-  }
   if (definition && !canAccessConnector(capabilities, definition, modules.data?.modules)) {
     return (
       <EditorShell title={definition.name} onClose={toList}>
@@ -88,6 +73,9 @@ export function ConnectorsRoute() {
       </EditorShell>
     );
   }
+
+  if (connector === 'youtube' || connector === 'facebook' || connector === 'instagram' || connector === 'tiktok')
+    return <SocialConnector provider={connector} onClose={toList} />;
 
   if (connector === 'telegram') {
     return connecting ? (
@@ -129,11 +117,5 @@ export function ConnectorsRoute() {
     );
   }
 
-  return scope ? (
-    <EditorShell title="Connections" onClose={() => router.push('/admin/settings')}>
-      <ConnectorsGrid />
-    </EditorShell>
-  ) : (
-    <ConnectorsGrid />
-  );
+  return <ConnectorsGrid />;
 }

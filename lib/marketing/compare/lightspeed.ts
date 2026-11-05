@@ -42,7 +42,7 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
       },
       {
         job: 'Card machine',
-        duma: 'Keep yours. Square and SumUp connect directly; any other machine works with the amount keyed in.',
+        duma: 'Keep yours. Square, SumUp and Stripe connect directly; any other machine works with the amount keyed in.',
         them: 'Lightspeed Payments. Lightspeed says you can’t use existing terminal hardware, and its hardware is sold separately.',
         source: LS_PAYMENTS,
         marks: { duma: 'yes', them: 'no' },
@@ -205,7 +205,7 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
         title: 'Keep your card machine',
         icon: 'card',
         tone: 'stock',
-        body: 'Square and SumUp connect directly; any other machine works with the amount keyed in, offline too.',
+        body: 'Square, SumUp and Stripe connect directly; any other machine works with the amount keyed in, offline too.',
       },
       {
         title: 'Every sale updates everything',
@@ -231,7 +231,7 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
       },
       {
         title: 'Connect your card machine',
-        body: 'Square Terminal and SumUp connect directly. Any other machine works through the till’s Card machine method, with the amount keyed in.',
+        body: 'Square Terminal, SumUp and Stripe Terminal connect directly. Any other machine works through the till’s Card machine method, with the amount keyed in.',
       },
       {
         title: 'Add recipes and stock',
@@ -266,7 +266,7 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
     {
       question: 'Can I keep my card machine?',
       answer:
-        'With DUMA, yes. Square and SumUp connect directly, and any other machine works with the amount keyed in. Lightspeed says its payments can’t use existing terminal hardware, so check your Lightspeed agreement before you move.',
+        'With DUMA, yes. Square, SumUp and Stripe connect directly, and any other machine works with the amount keyed in. Lightspeed says its payments can’t use existing terminal hardware, so check your Lightspeed agreement before you move.',
     },
     {
       question: 'Does DUMA work offline like Lightspeed?',

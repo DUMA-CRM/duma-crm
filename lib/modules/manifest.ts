@@ -29,6 +29,7 @@ export const MODULE_IDS = [
   'notes',
   'reservations',
   'forms',
+  'marketing',
 ] as const;
 
 export type ModuleId = (typeof MODULE_IDS)[number];
@@ -125,6 +126,7 @@ export const CRM_MODULE_CAPABILITIES = {
   // Bookings and the waitlist are the door's; the floor plan and the booking rules are a manager's.
   reservations: ['reservations:read', 'reservations:write', 'reservations.floor:write', 'reservations.settings:write'],
   // Building forms; reading what people sent is separate, because responses are personal data.
+  marketing: ['marketing:read', 'marketing:write', 'marketing:publish', 'marketing.connections:read', 'marketing.connections:write'],
   forms: ['forms:read', 'forms:write', 'forms.responses:read', 'forms.responses:write'],
 } as const satisfies Record<ModuleId, readonly string[]>;
 
@@ -193,6 +195,9 @@ const pages: Record<ModuleId, readonly string[]> = {
   organization: [
     '/dashboard',
     '/settings',
+    // Hubs: each tile or connector card follows its own module.
+    '/settings/configuration',
+    '/settings/connectors',
     '/settings/configuration/dashboard',
     '/settings/modules',
     '/settings/trading',
@@ -211,7 +216,7 @@ const pages: Record<ModuleId, readonly string[]> = {
     '/menu/modifiers/[id]',
     '/menu/modifiers/new',
   ],
-  ordering: ['/orders', '/settings/configuration', '/settings/configuration/orders'],
+  ordering: ['/orders', '/settings/configuration/orders'],
   kds: ['/kds', '/settings/configuration/kitchen'],
   pos: ['/pos', '/settings/configuration/pos'],
   'qr-ordering': ['/order/[token]', '/settings/qr-ordering'],
@@ -221,7 +226,7 @@ const pages: Record<ModuleId, readonly string[]> = {
   workforce: ['/scheduling', '/staff/rota', '/staff/shifts'],
   people: ['/my-hr', '/staff', '/staff/[userId]', '/staff/requests', '/staff/team'],
   payroll: ['/staff/payroll'],
-  communications: ['/communications', '/settings/connectors'],
+  communications: ['/communications'],
   automation: ['/automation'],
   compliance: ['/compliance'],
   audit: ['/audit-log'],
@@ -236,6 +241,7 @@ const pages: Record<ModuleId, readonly string[]> = {
   reservations: ['/reservations', '/book/[token]', '/book/manage/[token]'],
   // The hosted form is public, like the booking page.
   forms: ['/forms', '/f/[publicId]'],
+  marketing: ['/marketing'],
 };
 
 const dependencies: Record<ModuleId, readonly ModuleId[]> = {
@@ -268,6 +274,7 @@ const dependencies: Record<ModuleId, readonly ModuleId[]> = {
   // Communications sends the guest emails when it's on; it isn't required.
   reservations: ['communications', 'customers', 'organization'],
   forms: ['customers', 'organization'],
+  marketing: ['identity', 'organization', 'cms'],
 };
 
 const navigation: Record<ModuleId, readonly string[]> = {
@@ -300,6 +307,7 @@ const navigation: Record<ModuleId, readonly string[]> = {
   notes: ['/notes'],
   reservations: ['/reservations'],
   forms: ['/forms'],
+  marketing: ['/marketing'],
 };
 
 export const CRM_MODULE_MANIFESTS: readonly ModuleManifest[] = MODULE_IDS.map((id) => ({

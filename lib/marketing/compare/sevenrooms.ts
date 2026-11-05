@@ -223,7 +223,7 @@ export const DUMA_VS_SEVENROOMS: Comparison = {
       sources: [
         { name: 'Online booking page', how: 'Guests book themselves', kind: 'booking' },
         { name: 'Phone and walk-ins', how: 'Added by your team', kind: 'walkin' },
-        { name: 'Your card machine', how: 'Square or SumUp, or keyed in', kind: 'card', logo: 'Square' },
+        { name: 'Your card machine', how: 'Square, SumUp, Stripe or keyed in', kind: 'card', logo: 'Square' },
       ],
       updates: [
         { label: 'Customers', icon: 'customers' },

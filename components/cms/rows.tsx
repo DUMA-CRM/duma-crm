@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { ChevronDown, ChevronRight, Info, Loader2, MoreHorizontal } from '@/components/icons';
+import { AlertTriangle, ChevronDown, ChevronRight, Info, Loader2, MoreHorizontal } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
@@ -37,15 +37,45 @@ export function RowTile({ icon: Icon, tone = 'default' }: { icon: IconComponent;
   );
 }
 
+/** `RowTile`'s size, for a brand: its mark in white on its own colour. State goes in a badge beside it. */
+export function BrandTile({ brand }: { brand: { background: string; path: string } }) {
+  return (
+    <span
+      className="flex size-8 shrink-0 items-center justify-center rounded-md text-white ring-1 ring-inset ring-black/5 dark:ring-white/15"
+      style={{ background: brand.background }}
+    >
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-4">
+        <path d={brand.path} />
+      </svg>
+    </span>
+  );
+}
+
+/** Something that stops a row working, at the foot of its section — say what breaks and where to fix it. */
+export function RowWarning({ children, className }: { children: React.ReactNode; className?: string }) {
+  return (
+    <p
+      role="alert"
+      className={cn('flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured', className)}
+    >
+      <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
+      <span>{children}</span>
+    </p>
+  );
+}
+
 /** A fact: tile and title on the left, its value (or a small control) on the right. */
 export function InfoRow({
   icon,
+  tile,
   title,
   description,
   tone,
   children,
 }: {
-  icon: IconComponent;
+  icon?: IconComponent;
+  /** In place of the icon tile — a `BrandTile`, when the row belongs to a brand. */
+  tile?: React.ReactNode;
   title: string;
   /** One line under the title saying what the thing is — for a list of things rather than a fact. */
   description?: string;
@@ -56,7 +86,7 @@ export function InfoRow({
   return (
     <div className="flex items-center justify-between gap-3">
       <div className="flex min-w-0 items-center gap-3">
-        <RowTile icon={icon} tone={tone} />
+        {tile ?? (icon && <RowTile icon={icon} tone={tone} />)}
         {description ? (
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground">{title}</p>

@@ -184,7 +184,7 @@ const COMPARE: Row[] = [
     stack: { mark: 'yes' },
   },
   {
-    label: 'Card machines beyond Square and SumUp',
+    label: 'Card machines beyond Square, SumUp and Stripe',
     icon: CreditCard,
     duma: { mark: 'part', note: 'Amount keyed in by hand' },
     till: { mark: 'yes', note: 'Their own' },
@@ -414,8 +414,8 @@ export default function HomePage() {
         <div className="mt-4 grid items-start gap-4 md:grid-cols-[minmax(0,1.6fr)_minmax(0,1fr)]">
           <div className="pt-6 md:pt-10" data-reveal="">
             <p className="text-pretty text-lg leading-relaxed text-[var(--mkt-ink-2)]">
-              No new hardware. DUMA runs in the browser and installs like an app, and <Mark>your card machine keeps working</Mark> — Square
-              and SumUp connect directly, any other works with the amount keyed in, all with the rates you already have.
+              No new hardware. DUMA runs in the browser and installs like an app, and <Mark>your card machine keeps working</Mark> — Square,
+              SumUp and Stripe connect directly, any other works with the amount keyed in, all with the rates you already have.
             </p>
             <p className="mt-5 flex items-center gap-3 text-sm text-[var(--mkt-ink-3)]">
               <Smartphone className="size-5" aria-hidden="true" /> Any tablet, phone or computer
@@ -700,7 +700,7 @@ export default function HomePage() {
           title="An EPOS that works with the tools you already use"
           intro={<p>Connect your card terminal, web analytics, storage and everyday tools — or build your own with the API.</p>}
         />
-        {/* Two centred rows of four from sm up: a zero-height, full-width break after the fourth chip. */}
+        {/* Two centred rows from sm up: a zero-height, full-width break halfway through the chips. */}
         <ul className="mx-auto mt-10 flex max-w-4xl flex-wrap justify-center gap-3" data-reveal="">
           {INTEGRATION_LOGOS.map((logo, index) => [
             <li
@@ -715,7 +715,7 @@ export default function HomePage() {
               )}
               {logo.name}
             </li>,
-            index === 3 && <li key="row-break" aria-hidden="true" className="hidden h-0 basis-full sm:block" />,
+            index === Math.ceil(INTEGRATION_LOGOS.length / 2) - 1 && <li key="row-break" aria-hidden="true" className="hidden h-0 basis-full sm:block" />,
           ])}
         </ul>
         <p className="mt-10 text-center text-sm text-[var(--mkt-ink-2)]">

@@ -1,4 +1,4 @@
-import { Activity, Building2, Gauge, Layers, LayoutDashboard, Megaphone, Server, Settings } from '@/components/icons';
+import { Activity, Building2, Gauge, LayoutDashboard, Server } from '@/components/icons';
 
 import type { NavItem } from '@/lib/constants/nav';
 
@@ -10,12 +10,9 @@ import type { NavItem } from '@/lib/constants/nav';
  */
 export const adminNavItems: NavItem[] = [
   { module: 'identity', label: 'Overview', href: '/admin/overview', icon: LayoutDashboard },
-  { module: 'identity', label: 'Content', href: '/admin/content', icon: Layers },
   { module: 'identity', label: 'Workspaces', href: '/admin/workspaces', icon: Building2 },
   { module: 'identity', label: 'Usage', href: '/admin/usage', icon: Gauge },
   { module: 'identity', label: 'System', href: '/admin/system', icon: Server },
-  { module: 'identity', label: 'Updates', href: '/admin/updates', icon: Megaphone },
-  { module: 'identity', label: 'Settings', href: '/admin/settings', icon: Settings },
   { module: 'identity', label: 'Activity', href: '/admin/activity', icon: Activity },
 ];
 
@@ -26,3 +23,12 @@ export const isAdminRoute = (pathname: string) => pathname === '/admin' || pathn
 
 export const isPersonalRoute = (pathname: string) =>
   PERSONAL_ROUTES.some((route) => pathname === route || pathname.startsWith(`${route}/`));
+
+/** Legacy workspace tools now open in the actual internal workspace context. */
+export const INTERNAL_WORKSPACE_ROUTES: Record<string, string> = {
+  '/admin/content': '/content',
+  '/admin/content/storage': '/settings/connectors',
+  '/admin/updates': '/content',
+  '/admin/settings': '/settings',
+  '/admin/settings/connectors': '/settings/connectors',
+};

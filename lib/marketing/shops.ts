@@ -149,7 +149,7 @@ export const SHOP_FAQS: { question: string; answer: string }[] = [
   {
     question: 'Can I keep my card machine?',
     answer:
-      'Yes. Square and SumUp connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card in DUMA — it still lands in your reports.',
+      'Yes. Square, SumUp and Stripe connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card in DUMA — it still lands in your reports.',
   },
   {
     question: 'Can you help me set it up?',

@@ -132,7 +132,7 @@ const INTRO = `# DUMA
 
 - Works in the browser on any tablet, phone or computer, and installs like an app.
 - The till keeps taking orders offline and sends them when the connection is back.
-- Square and SumUp card terminals connect directly; any other card machine works with the amount keyed in.
+- Square, SumUp and Stripe card terminals connect directly; any other card machine works with the amount keyed in.
 - Hosted in the United Kingdom.
 - Built and supported by ${BLOG_AUTHOR.name}, founder.`;
 

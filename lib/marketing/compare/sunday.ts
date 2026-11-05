@@ -224,7 +224,7 @@ export const DUMA_VS_SUNDAY: Comparison = {
       },
       {
         title: 'Connect your card machine',
-        body: 'Square Terminal and SumUp connect directly. Any other machine works through the till’s Card machine method, with the amount keyed in.',
+        body: 'Square Terminal, SumUp and Stripe Terminal connect directly. Any other machine works through the till’s Card machine method, with the amount keyed in.',
       },
       {
         title: 'Turn on QR ordering for collection',

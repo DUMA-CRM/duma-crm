@@ -82,7 +82,7 @@ const POS: FeatureContent = {
       },
       {
         title: 'Keeps your card machine',
-        body: 'Square Terminal and SumUp readers connect directly, so the till sends them the amount. Any other card machine works through the Card machine method: key the amount in, take the payment, and the sale is recorded.',
+        body: 'Square Terminal, SumUp and Stripe Terminal readers connect directly, so the till sends them the amount. Any other card machine works through the Card machine method: key the amount in, take the payment, and the sale is recorded.',
       },
       {
         title: 'Runs on what you own',
@@ -159,7 +159,7 @@ const POS: FeatureContent = {
     {
       question: 'Which card machines work with the DUMA till?',
       answer:
-        'Any. Square Terminal and SumUp readers connect directly, so the till sends them the amount. Any other card machine works through the Card machine method: you key the amount into the machine and the sale is recorded in DUMA.',
+        'Any. Square Terminal, SumUp and Stripe Terminal readers connect directly, so the till sends them the amount. Any other card machine works through the Card machine method: you key the amount into the machine and the sale is recorded in DUMA.',
     },
     {
       question: 'Is the DUMA till free?',

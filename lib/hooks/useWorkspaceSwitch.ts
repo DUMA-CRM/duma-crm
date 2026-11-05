@@ -26,13 +26,17 @@ export function useWorkspaceSwitch() {
   const userId = useAuthStore((state) => state.user?.id ?? null);
 
   return useCallback(
-    async (target: Exclude<WorkspaceContext, { kind: 'unresolved' }>, options: { href?: string; discardUnsaved?: boolean } = {}) => {
+    async (
+      target: Exclude<WorkspaceContext, { kind: 'unresolved' }>,
+      options: { href?: string; discardUnsaved?: boolean; replace?: boolean } = {},
+    ) => {
       const { context, tenantId } = useWorkspaceStore.getState();
       const account = role === 'super_admin' ? 'platform' : 'member';
       const href = options.href ?? (target.kind === 'platform' ? '/admin/overview' : '/dashboard');
       if (!canSelect(account, tenantId, target)) return false;
       if (sameContext(context, target)) {
-        router.push(href);
+        if (options.replace) router.replace(href);
+        else router.push(href);
         return true;
       }
       // Callers with their own confirmation (ContextSwitcher) pass discardUnsaved.
@@ -43,7 +47,8 @@ export function useWorkspaceSwitch() {
       await qc.cancelQueries();
       useWorkspaceStore.getState().setContext(userId, target.kind === 'workspace' ? { ...target, locationId: null } : target);
       track('workspace_switched', { to: target.kind });
-      router.push(href);
+      if (options.replace) router.replace(href);
+      else router.push(href);
       return true;
     },
     [qc, role, router, userId],

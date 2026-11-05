@@ -161,7 +161,7 @@ const content: SolutionContent = {
     { question: 'How do I track waste?', answer: 'Log unsold bakes and out-of-date stock as they go. DUMA values them at cost, takes them off stock and shows what they cost you.' },
     { question: 'Can I take orders for collection?', answer: 'Yes. Phone and collection orders sit with the rest of the day’s orders, so they are ready when the customer arrives.' },
     { question: 'Can I order from my suppliers in DUMA?', answer: 'Yes. Raise purchase orders to your suppliers and check deliveries in against them, so stock goes up by what actually arrived.' },
-    { question: 'Can I keep my card machine?', answer: 'Yes. Square and SumUp connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.' },
+    { question: 'Can I keep my card machine?', answer: 'Yes. Square, SumUp and Stripe connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.' },
     { question: 'Can you help me set it up?', answer: 'Yes, for free. We help you bring in your bakes, recipes and suppliers so you can open on DUMA quickly.' },
   ],
   closing: { title: 'The one place to run your bakery.', muted: 'One simple bill, or none at all.', body: 'Get started in minutes, completely free. No card required, and we’re here to help you every step of the way.' },

@@ -1,9 +1,10 @@
 'use client';
 
-import { RowTile } from '@/components/cms/rows';
+import { BrandTile, RowTile } from '@/components/cms/rows';
 import { ChevronRight } from '@/components/icons';
 import { Badge } from '@/components/ui/badge';
 
+import { CONNECTOR_BRANDS } from './brands';
 import { type ConnectorDefinition, type ConnectorState, STATE_BADGE } from './registry';
 
 /** A connected account/device shown on the row. */
@@ -48,6 +49,7 @@ export function ConnectorRow({
     ? [`${account.label}${extraAccountCount > 0 ? ` +${extraAccountCount}` : ''}`, account.meta].filter(Boolean).join(' · ')
     : definition.description;
   const badge = STATE_BADGE[state];
+  const brand = CONNECTOR_BRANDS[definition.id];
 
   return (
     <button
@@ -56,7 +58,11 @@ export function ConnectorRow({
       disabled={!action || action.disabled}
       className="group flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-band/50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"
     >
-      <RowTile icon={definition.icon} tone={state === 'attention' ? 'danger' : state === 'connected' ? 'success' : 'default'} />
+      {brand ? (
+        <BrandTile brand={brand} />
+      ) : (
+        <RowTile icon={definition.icon} tone={state === 'attention' ? 'danger' : state === 'connected' ? 'success' : 'default'} />
+      )}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold text-foreground">{definition.name}</span>
         <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>

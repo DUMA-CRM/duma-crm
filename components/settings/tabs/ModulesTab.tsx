@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
+import { WORKSPACE_CONTEXT_KEY } from '@/lib/hooks/useWorkspaceContext';
 import {
   type ModuleChangePreview,
   type WorkspaceModuleId,
@@ -468,6 +469,7 @@ function Proposal({
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId) });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenant-modules', tenantId) });
       void qc.invalidateQueries({ queryKey: ['workspace-setup', tenantId] });
+      void qc.invalidateQueries({ queryKey: WORKSPACE_CONTEXT_KEY });
       toast('success', 'Setup updated.');
       onApplied();
     },

@@ -10,7 +10,7 @@ import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton'
 import { Button } from '@/components/ui/button';
 
 import { ApiError } from '@/lib/api/client';
-import { isAdminRoute, isPersonalRoute } from '@/lib/constants/admin-nav';
+import { INTERNAL_WORKSPACE_ROUTES, isAdminRoute, isPersonalRoute } from '@/lib/constants/admin-nav';
 import { useWorkspaceContext } from '@/lib/hooks/useWorkspaceContext';
 import { useWorkspaceSwitch } from '@/lib/hooks/useWorkspaceSwitch';
 import { moduleForPage } from '@/lib/modules/manifest';
@@ -78,7 +78,7 @@ export function ContextBoundary({ children }: { children: React.ReactNode }) {
     );
   }
 
-  if (context.kind === 'workspace' && admin && isPlatformAccount) {
+  if (context.kind === 'workspace' && admin && isPlatformAccount && !INTERNAL_WORKSPACE_ROUTES[pathname]) {
     // A typed URL or the back button into DUMA Admin from a workspace.
     return (
       <EmptyState

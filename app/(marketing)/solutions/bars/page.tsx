@@ -158,7 +158,7 @@ const content: SolutionContent = {
     { question: 'Is there a waitlist for walk-ins?', answer: 'Yes. Add a party to the waitlist, and seat them when a table on your floor plan frees up.' },
     { question: 'Can I cost drinks by the measure?', answer: 'Yes. Add a recipe with the measures and what each costs. DUMA takes VAT out of the price if you are registered and shows the margin you keep.' },
     { question: 'How does cash-up work?', answer: 'Count the drawer at close, and DUMA shows what it expected in cash and card from the day’s sales, so any difference shows up the same night.' },
-    { question: 'Can I keep my card machine?', answer: 'Yes. Square and SumUp connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.' },
+    { question: 'Can I keep my card machine?', answer: 'Yes. Square, SumUp and Stripe connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.' },
     { question: 'Does the bar EPOS keep working if the Wi-Fi goes down?', answer: 'Yes, the till keeps taking orders. They are saved on the device and sent when the connection is back, and a sale that cannot be sent is kept for you to check.' },
   ],
   closing: { title: 'The one place to run your bar.', muted: 'One simple bill, or none at all.', body: 'Get started in minutes, completely free. No card required, and we’re here to help you every step of the way.' },

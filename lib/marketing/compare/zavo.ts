@@ -51,7 +51,7 @@ export const DUMA_VS_ZAVO: Comparison = {
       },
       {
         job: 'Card payments',
-        duma: 'DUMA doesn’t process cards. Keep your machine: Square and SumUp connect directly; any other works with the amount keyed in.',
+        duma: 'DUMA doesn’t process cards. Keep your machine: Square, SumUp and Stripe connect directly; any other works with the amount keyed in.',
         them: 'Its own payments, powered by Adyen.',
         source: ZAVO_HOME,
       },
@@ -194,7 +194,7 @@ export const DUMA_VS_ZAVO: Comparison = {
         title: 'Keep your card machine',
         icon: 'card',
         tone: 'stock',
-        body: 'Square and SumUp connect directly; any other machine works with the amount keyed in, offline too.',
+        body: 'Square, SumUp and Stripe connect directly; any other machine works with the amount keyed in, offline too.',
       },
       {
         title: 'Free setup help',
@@ -214,7 +214,7 @@ export const DUMA_VS_ZAVO: Comparison = {
       },
       {
         title: 'Connect your card machine',
-        body: 'Square Terminal and SumUp connect directly. Any other machine works through the till’s Card machine method, with the amount keyed in.',
+        body: 'Square Terminal, SumUp and Stripe Terminal connect directly. Any other machine works through the till’s Card machine method, with the amount keyed in.',
       },
       {
         title: 'Add recipes and stock',
@@ -252,7 +252,7 @@ export const DUMA_VS_ZAVO: Comparison = {
     {
       question: 'Does DUMA process card payments like Zavo?',
       answer:
-        'No. DUMA works with your existing card machine: Square and SumUp connect directly, and any other machine works with the amount keyed in. DUMA takes no cut of your card payments.',
+        'No. DUMA works with your existing card machine: Square, SumUp and Stripe connect directly, and any other machine works with the amount keyed in. DUMA takes no cut of your card payments.',
     },
     {
       question: 'Does Zavo have stock management?',

@@ -155,7 +155,7 @@ const content: SolutionContent = {
     { question: 'How do stocktakes work?', answer: 'Start a stocktake, record what you count, and DUMA compares it with what it expected. When you complete it, stock is set to what you counted.' },
     { question: 'Can I order from my suppliers in DUMA?', answer: 'Yes. Raise purchase orders to your suppliers and check each delivery in against its order, so stock goes up by what actually arrived.' },
     { question: 'Can I sell online too?', answer: 'Yes. A website built on DUMA’s storefront API shares the same stock and customers as the till. See DUMA for shops and online stores.' },
-    { question: 'Can I keep my card machine?', answer: 'Yes. Square and SumUp connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.' },
+    { question: 'Can I keep my card machine?', answer: 'Yes. Square, SumUp and Stripe connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.' },
     { question: 'Does the retail EPOS keep working if the Wi-Fi goes down?', answer: 'Yes, the till keeps taking sales. They are saved on the device and sent when the connection is back, and a sale that cannot be sent is kept for you to check.' },
   ],
   closing: { title: 'The one place to run your shops.', muted: 'One simple bill, or none at all.', body: 'Get started in minutes, completely free. No card required, and we’re here to help you every step of the way.' },

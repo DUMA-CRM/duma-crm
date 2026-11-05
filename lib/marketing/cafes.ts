@@ -139,7 +139,7 @@ export const CAFE_FAQS: { question: string; answer: string }[] = [
   {
     question: 'Can I keep my card reader?',
     answer:
-      'Yes, whichever you have. Square and SumUp connect to DUMA directly. With any other card machine, staff key the amount into it and mark the sale as card in DUMA — it still lands in your reports, and it works offline too. Card fees are charged by your card machine provider, not by DUMA.',
+      'Yes, whichever you have. Square, SumUp and Stripe connect to DUMA directly. With any other card machine, staff key the amount into it and mark the sale as card in DUMA — it still lands in your reports, and it works offline too. Card fees are charged by your card machine provider, not by DUMA.',
   },
   {
     question: 'Does the café EPOS keep working if the Wi-Fi goes down mid-rush?',

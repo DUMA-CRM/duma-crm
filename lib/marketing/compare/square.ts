@@ -58,7 +58,7 @@ export const DUMA_VS_SQUARE: Comparison = {
       },
       {
         job: 'Card hardware',
-        duma: 'Keep your card machine. Square Terminal and SumUp readers connect directly. Any other machine works with the amount keyed in.',
+        duma: 'Keep your card machine. Square Terminal, SumUp and Stripe Terminal readers connect directly. Any other machine works with the amount keyed in.',
         them: 'Its own range. Square Reader is £19 + VAT and Square Terminal is £149 + VAT.',
         source: SQUARE_PRICING,
       },

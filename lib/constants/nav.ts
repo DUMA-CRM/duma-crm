@@ -89,6 +89,7 @@ export const mainNavItems: NavItem[] = [
   // Promo codes the till and checkout honour, with their limits and usage.
   { module: 'promotions', label: 'Promotions', href: '/promotions', icon: TicketPercent, capabilities: ['promotions:read'] },
   // Sign-ups, enquiries and feedback, on DUMA's own page, an embed or the API.
+  { module: 'marketing', label: 'Marketing', href: '/marketing', icon: CalendarDays, capabilities: ['marketing:read'] },
   { module: 'forms', label: 'Forms', href: '/forms', icon: ClipboardList, capabilities: ['forms:read'] },
   // Website and app content, served to the tenant's own sites over an API key.
   { module: 'cms', label: 'Content', href: '/content', icon: Layers, capabilities: ['cms:read'] },

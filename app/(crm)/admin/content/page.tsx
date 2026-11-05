@@ -1,1 +1,1 @@
-export { default } from '../../content/page';
+export { InternalWorkspaceRedirect as default } from '@/components/admin/InternalWorkspaceRedirect';

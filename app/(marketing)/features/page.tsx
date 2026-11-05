@@ -65,7 +65,7 @@ const FAQS = [
   {
     question: 'Do I need new hardware?',
     answer:
-      'No. DUMA runs in a browser on the tablet, phone or laptop you already have, and can be installed like an app. Keep your card machine: Square and SumUp connect directly, and any other works with the amount keyed in.',
+      'No. DUMA runs in a browser on the tablet, phone or laptop you already have, and can be installed like an app. Keep your card machine: Square, SumUp and Stripe connect directly, and any other works with the amount keyed in.',
   },
 ];
 

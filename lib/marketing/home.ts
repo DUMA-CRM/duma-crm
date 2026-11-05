@@ -6,7 +6,7 @@
  * Source of truth for every claim: the "DUMA Business Profile" note in the
  * Obsidian vault (Permanent/Platform), section 10 "What may be claimed". If a
  * line here is not true of the product today, it does not ship. In particular:
- * Square and SumUp terminals connect directly and any other card machine works
+ * Square, SumUp and Stripe terminals connect directly and any other card machine works
  * with the amount keyed in (the till's 'Card machine' method), receipts print from the browser,
  * there is no hosted storefront, and payroll is prepared here and submitted
  * elsewhere.
@@ -49,7 +49,7 @@ export const FOOD_PAINS: readonly Pain[] = [
   },
   {
     pain: 'A card reader that only takes payments',
-    answer: 'Keep your card machine — Square and SumUp connect directly, any other works with the amount keyed in. DUMA adds the stock, margin, rotas and loyalty around it.',
+    answer: 'Keep your card machine — Square, SumUp and Stripe connect directly, any other works with the amount keyed in. DUMA adds the stock, margin, rotas and loyalty around it.',
   },
 ];
 
@@ -75,7 +75,7 @@ export const SHOP_PAINS: readonly Pain[] = [
 /** Devices and services DUMA works with today — each one checked against the code. */
 export const WORKS_WITH: readonly { group: string; items: string[] }[] = [
   { group: 'Devices', items: ['Any tablet', 'Phones', 'Laptops and computers', 'Installs like an app'] },
-  { group: 'Card machines', items: ['Square', 'SumUp', 'Any other, keyed in'] },
+  { group: 'Card machines', items: ['Square', 'SumUp', 'Stripe', 'Any other, keyed in'] },
   { group: 'Web analytics', items: ['Umami', 'PostHog'] },
   { group: 'Your own storage', items: ['Cloudflare R2', 'Vercel Blob'] },
   { group: 'Everyday tools', items: ['Google Drive', 'Telegram', 'Email'] },
@@ -98,7 +98,7 @@ export const FAQS: { question: string; answer: string }[] = [
   {
     question: 'Do I need new EPOS hardware?',
     answer:
-      'No. DUMA runs in the browser on the tablet, phone or computer you already have, and you can keep your card machine: Square and SumUp connect directly, and with any other you key in the amount and the sale still lands in your reports. Receipts print from the browser today; dedicated receipt printer and cash drawer support is coming soon.',
+      'No. DUMA runs in the browser on the tablet, phone or computer you already have, and you can keep your card machine: Square, SumUp and Stripe connect directly, and with any other you key in the amount and the sale still lands in your reports. Receipts print from the browser today; dedicated receipt printer and cash drawer support is coming soon.',
   },
   {
     question: 'What happens if the internet goes down?',

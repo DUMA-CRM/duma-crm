@@ -16,6 +16,10 @@ import type { Capability } from '@/lib/auth/capabilities';
 import type { WorkspaceModuleId } from '@/lib/modules/organization/client';
 
 export type ConnectorId =
+  | 'youtube'
+  | 'facebook'
+  | 'instagram'
+  | 'tiktok'
   | 'telegram'
   | 'email'
   | 'card-payments'
@@ -57,6 +61,20 @@ export interface ConnectorDefinition {
 }
 
 export const CONNECTORS: ConnectorDefinition[] = [
+  ...(['youtube', 'facebook', 'instagram', 'tiktok'] as const).map(
+    (id): ConnectorDefinition => ({
+      id,
+      name: { youtube: 'YouTube', facebook: 'Facebook', instagram: 'Instagram', tiktok: 'TikTok' }[id],
+      icon: Send,
+      description: 'Schedule and publish social content from your marketing calendar.',
+      tags: ['Marketing', 'Scheduled posts'],
+      tagline: 'Connect the accounts your workspace publishes to.',
+      requirements: ['An account with permission to publish', 'Provider authorization'],
+      available: true,
+      readCapability: 'marketing.connections:read',
+      moduleId: 'marketing',
+    }),
+  ),
   {
     id: 'telegram',
     name: 'Telegram',
@@ -204,6 +222,3 @@ export const STATE_BADGE: Record<ConnectorState, { label: string; variant: 'succ
 
 /** Which filter chip a card belongs under. `unavailable` never counts as set up. */
 export type ConnectorFilter = 'all' | 'connected' | 'attention' | 'disconnected';
-
-/** Workspace-wide integrations used by DUMA itself. */
-export const ADMIN_CONNECTOR_IDS: readonly ConnectorId[] = ['media-storage', 'email', 'telegram', 'analytics'];

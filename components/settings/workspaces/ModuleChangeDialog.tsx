@@ -22,6 +22,7 @@ import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 
 import { DASHBOARD_WIDGETS } from '@/lib/dashboard/widget-registry';
+import { WORKSPACE_CONTEXT_KEY } from '@/lib/hooks/useWorkspaceContext';
 import { CRM_MODULE_MANIFESTS, type ModuleId } from '@/lib/modules/manifest';
 import { type ModuleChangePreview, changeTenantModule } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -119,6 +120,7 @@ export function ModuleChangeDialog({ preview, onClose }: { preview: ModuleChange
     mutationFn: () => changeTenantModule(tenantId, preview, reason.trim()),
     onSuccess: async () => {
       await Promise.all([
+        queryClient.invalidateQueries({ queryKey: WORKSPACE_CONTEXT_KEY }),
         queryClient.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenant-modules', tenantId) }),
         queryClient.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId) }),
       ]);

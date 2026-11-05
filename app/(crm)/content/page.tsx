@@ -11,6 +11,7 @@ import { ContentSettingsPanel } from '@/components/cms/ContentSettingsPanel';
 import { EntriesPanel } from '@/components/cms/EntriesPanel';
 import { EntryEditor } from '@/components/cms/EntryEditor';
 import { ImportDialog } from '@/components/cms/ImportDialog';
+import { InternalBlogSetup } from '@/components/cms/InternalBlogSetup';
 import { LocalesPanel } from '@/components/cms/LocalesPanel';
 import { MediaPanel } from '@/components/cms/MediaPanel';
 import { ModelEditor } from '@/components/cms/ModelEditor';
@@ -25,6 +26,7 @@ import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 import { UpdatesAdmin } from '@/components/updates/UpdatesAdmin';
 
+import { useWorkspaceContext } from '@/lib/hooks/useWorkspaceContext';
 import { parseEntryClipboard } from '@/lib/utils/cms-entry-clipboard';
 import { type ContentTab, contentLocation, contentNavigation } from '@/lib/utils/cms-navigation';
 import { useAuthStore } from '@/stores/authStore';
@@ -59,10 +61,11 @@ function ContentView() {
   const searchParams = useSearchParams();
   const tenantId = useCmsTenantId();
   const access = useCmsAccess();
-  const isAdminContent = pathname.startsWith('/admin/content');
+  const { workspace } = useWorkspaceContext();
+  const isInternal = workspace?.classification === 'internal';
   const isSuperadmin = useAuthStore((state) => state.role === 'super_admin');
   const contentTabs: SectionTab<ContentTab>[] =
-    isSuperadmin && !isAdminContent ? [...CONTENT_TABS, { value: 'updates', label: 'DUMA Updates' }] : CONTENT_TABS;
+    isSuperadmin && isInternal ? [...CONTENT_TABS, { value: 'updates', label: 'DUMA Updates' }] : CONTENT_TABS;
   const [creating, setCreating] = useState<{ contentTypeId?: string } | null>(null);
   // `paste`: opened by ⌘V on the Entries tab, on the paste side with that text.
   const [importing, setImporting] = useState<{ paste?: string } | null>(null);
@@ -71,7 +74,7 @@ function ContentView() {
 
   const requestedTab = searchParams.get('tab');
   const { tab: requestedContentTab, section: requestedSection } = contentLocation(requestedTab, searchParams.get('section'));
-  const tab = requestedContentTab === 'updates' && !isSuperadmin ? 'overview' : requestedContentTab;
+  const tab = requestedContentTab === 'updates' && !(isSuperadmin && isInternal) ? 'overview' : requestedContentTab;
   const section = requestedSection === 'settings' && !access.canManageKeys ? null : requestedSection;
   const entryParam = searchParams.get('entry');
   const modelParam = searchParams.get('model');
@@ -195,15 +198,12 @@ function ContentView() {
           <div ref={setMediaActions} className="flex items-center gap-1.5 md:gap-2" />
         ) : tab === 'overview' || action ? (
           <div className="flex items-center gap-1.5 md:gap-2">
-            {isAdminContent && (
+            {isInternal && (
               <>
                 <Link href="/blog" target="_blank" rel="noopener noreferrer" className="text-sm font-medium text-primary hover:underline">
                   View blog
                 </Link>
-                <Link
-                  href="/admin/settings/connectors?connector=media-storage"
-                  className="text-sm font-medium text-primary hover:underline"
-                >
+                <Link href="/settings/connectors?connector=media-storage" className="text-sm font-medium text-primary hover:underline">
                   Storage
                 </Link>
               </>
@@ -234,6 +234,7 @@ function ContentView() {
       }
     >
       <div className="flex flex-1 flex-col gap-5">
+        {isInternal && tab === 'overview' && access.canModel && <InternalBlogSetup />}
         {tab === 'overview' && (
           <CmsOverviewPanel
             onOpenEntry={openEntry}

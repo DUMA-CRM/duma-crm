@@ -11,9 +11,10 @@
  *    re-check each source and move `checked` when you edit a page.
  * 2. Every DUMA fact is true of the product today (the till's offline queue,
  *    recipe costing in lib/menu/costing.ts, the rota in components/scheduling,
- *    the Square and SumUp reader connections in duma-api payments.ts). Say
- *    where the competitor is stronger. Never say DUMA replaces Shopify, and
- *    never name Stripe.
+ *    the Square, SumUp and Stripe Terminal reader connections in duma-api
+ *    payment-connections.ts). Say where the competitor is stronger, and never
+ *    say DUMA replaces Shopify. Readers are confirmed by staff on the till, so
+ *    never claim payments reconcile automatically.
  */
 import { DUMA_VS_LIGHTSPEED } from '@/lib/marketing/compare/lightspeed';
 import { DUMA_VS_SEVENROOMS } from '@/lib/marketing/compare/sevenrooms';
@@ -57,7 +58,7 @@ export type DifferentIcon = 'bill' | 'margin' | 'team' | 'sync' | 'api' | 'help'
  * amount keyed in).
  */
 export type Connections = {
-  sources: readonly { name: string; how: string; kind: 'card' | 'file' | 'api' | 'qr' | 'booking' | 'walkin'; logo?: 'Square' | 'SumUp' }[];
+  sources: readonly { name: string; how: string; kind: 'card' | 'file' | 'api' | 'qr' | 'booking' | 'walkin'; logo?: 'Square' | 'SumUp' | 'Stripe' }[];
   updates: readonly { label: string; icon: 'stock' | 'margin' | 'customers' | 'reports' | 'rotas' | 'loyalty' }[];
   /** Under the picture; defaults to what connects and what a sale updates. */
   caption?: string;

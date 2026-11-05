@@ -100,6 +100,11 @@ export const MODULE_COPY: Record<WorkspaceModuleId, { name: string; detail: stri
     detail: 'Recipes, opening and closing checklists, SOPs and your own notes — shared by folder, searchable, and readable by Ask DUMA.',
     icon: NotebookPen,
   },
+  marketing: {
+    name: 'Marketing',
+    detail: 'Plan and publish social posts across YouTube, Facebook, Instagram and TikTok. Uses Content for media storage.',
+    icon: CalendarCheck,
+  },
   forms: {
     name: 'Forms',
     detail: 'Enquiry, feedback and sign-up forms on your own page, your website or the API — responses become customers.',

@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 
 import { InfoRow, InfoRows, RowTile } from '@/components/cms/rows';
 import { AlertTriangle, ChevronRight, Code, CreditCard, Database, MapPin, Plug } from '@/components/icons';
-import { useSettingsScope, useSettingsTenantId } from '@/components/settings/SettingsScope';
+import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
@@ -23,6 +23,7 @@ import { getAnalyticsConnection } from '@/lib/modules/analytics/client';
 import { getCmsStorage } from '@/lib/modules/cms/client';
 import { getTelegramConnection, telegramQueryKey } from '@/lib/modules/communications/client';
 import { getEmailConnection } from '@/lib/modules/communications/client';
+import { type Platform, connections, marketingKey, startConnect } from '@/lib/modules/marketing/client';
 import { disconnectGoogleDrive, getGoogleDriveStatus, startGoogleDriveConnect } from '@/lib/modules/notes/client';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { getPaymentConnections } from '@/lib/modules/payments/client';
@@ -38,7 +39,7 @@ import { emailConnectorState } from './EmailConnector';
 import { PROVIDER_LABELS, paymentsConnectorState } from './PaymentsConnector';
 import { storageConnectorState, storageProviderLabel } from './StorageConnector';
 import { telegramConnectorState } from './TelegramConnector';
-import { ADMIN_CONNECTOR_IDS, CONNECTORS, type ConnectorId, type ConnectorState } from './registry';
+import { CONNECTORS, type ConnectorId, type ConnectorState } from './registry';
 import { relativeTime } from './shared';
 
 /**
@@ -50,23 +51,34 @@ import { relativeTime } from './shared';
  */
 export function ConnectorsGrid() {
   const router = useRouter();
-  const scope = useSettingsScope();
   const tenantId = useSettingsTenantId();
-  const selectedLocationId = useWorkspaceStore((state) => state.locationId);
-  const locationId = scope ? null : selectedLocationId;
-  const listPath = scope?.connectorsPath ?? '/settings/connectors';
+  const locationId = useWorkspaceStore((state) => state.locationId);
+  const listPath = '/settings/connectors';
   const capabilities = useAuthStore((state) => state.capabilities);
   const workspace = useCurrentWorkspace();
   // The same rule as the Developers tab.
-  const canUseApi = !scope && hasAnyCapability(capabilities, 'settings:write', 'cms.keys:write');
+  const canUseApi = hasAnyCapability(capabilities, 'settings:write', 'cms.keys:write');
 
   const modules = useQuery({
     queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
     queryFn: () => getCurrentTenantModules(tenantId ?? undefined),
     staleTime: 30_000,
   });
-  const visible = (definition: (typeof CONNECTORS)[number]) =>
-    (!scope || ADMIN_CONNECTOR_IDS.includes(definition.id)) && canAccessConnector(capabilities, definition, modules.data?.modules);
+  const visible = (definition: (typeof CONNECTORS)[number]) => canAccessConnector(capabilities, definition, modules.data?.modules);
+
+  const social = useQuery({
+    queryKey: marketingKey(tenantId, 'connections'),
+    queryFn: connections,
+    enabled: !!tenantId && visible(CONNECTORS.find((d) => d.id === 'youtube')!),
+    retry: false,
+  });
+
+  // Like Google Drive: a row with nothing connected goes straight to the provider's sign-in.
+  const connectSocial = useMutation({
+    mutationFn: (provider: Platform) => startConnect(provider),
+    onSuccess: ({ url }) => window.location.assign(url),
+    onError: (error) => toast('error', error.message),
+  });
 
   const telegram = useQuery({
     queryKey: telegramQueryKey(tenantId),
@@ -75,7 +87,12 @@ export function ConnectorsGrid() {
     retry: false,
   });
 
-  const { data: emailConnection, isLoading: emailLoading } = useQuery({
+  const {
+    data: emailConnection,
+    isLoading: emailLoading,
+    isError: emailError,
+    refetch: retryEmail,
+  } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
     enabled: !!tenantId && visible(CONNECTORS.find((definition) => definition.id === 'email')!),
@@ -85,7 +102,12 @@ export function ConnectorsGrid() {
   // Every reader, paused ones included: the till list (payment-methods) hides
   // paused readers, which made a paused-only location look unconnected and sent
   // "Connect" into the add flow instead of to the reader you already have.
-  const { data: paymentMethods, isLoading: paymentsLoading } = useQuery({
+  const {
+    data: paymentMethods,
+    isLoading: paymentsLoading,
+    isError: paymentsError,
+    refetch: retryPayments,
+  } = useQuery({
     queryKey: moduleQueryKeys.payments.key('payment-connections', locationId),
     queryFn: () => getPaymentConnections(locationId!),
     enabled: !!locationId && visible(CONNECTORS.find((definition) => definition.id === 'card-payments')!),
@@ -94,13 +116,23 @@ export function ConnectorsGrid() {
 
   const paymentsVisible = visible(CONNECTORS.find((definition) => definition.id === 'card-payments')!);
   const storageVisible = visible(CONNECTORS.find((definition) => definition.id === 'media-storage')!);
-  const { data: storage, isLoading: storageLoading } = useQuery({
+  const {
+    data: storage,
+    isLoading: storageLoading,
+    isError: storageError,
+    refetch: retryStorage,
+  } = useQuery({
     queryKey: moduleQueryKeys.cms.key('storage', tenantId),
     queryFn: () => getCmsStorage(tenantId ?? undefined),
     enabled: !!tenantId && storageVisible,
   });
   const analyticsVisible = visible(CONNECTORS.find((definition) => definition.id === 'analytics')!);
-  const { data: analyticsConnection, isLoading: analyticsLoading } = useQuery({
+  const {
+    data: analyticsConnection,
+    isLoading: analyticsLoading,
+    isError: analyticsError,
+    refetch: retryAnalytics,
+  } = useQuery({
     queryKey: moduleQueryKeys.analytics.key('external-connection', tenantId),
     queryFn: () => getAnalyticsConnection(tenantId ?? undefined),
     enabled: !!tenantId && analyticsVisible,
@@ -113,7 +145,12 @@ export function ConnectorsGrid() {
   const googleKey = moduleQueryKeys.notes.key('google-status');
   const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const driveVisible = visible(CONNECTORS.find((definition) => definition.id === 'google-drive')!);
-  const { data: google, isLoading: googleLoading } = useQuery({
+  const {
+    data: google,
+    isLoading: googleLoading,
+    isError: googleError,
+    refetch: retryGoogle,
+  } = useQuery({
     queryKey: googleKey,
     queryFn: getGoogleDriveStatus,
     enabled: driveVisible,
@@ -152,6 +189,37 @@ export function ConnectorsGrid() {
   const cards = CONNECTORS.filter(visible)
     .filter((definition) => definition.id !== 'google-drive' || google?.configured === true)
     .map((definition) => {
+      if (['youtube', 'facebook', 'instagram', 'tiktok'].includes(definition.id)) {
+        const provider = definition.id as Platform;
+        const accounts = social.data?.accounts.filter((a) => a.provider === provider) ?? [];
+        const live = accounts.filter((a) => a.state === 'connected');
+        const lapsed = accounts.length > 0 && live.length === 0;
+        const state: ConnectorState = social.isError || lapsed ? 'attention' : live.length ? 'connected' : 'disconnected';
+        // Not set up by the DUMA administrator, or read-only: the manage page explains.
+        const direct =
+          !social.isError &&
+          live.length === 0 &&
+          social.data?.providers.find((p) => p.provider === provider)?.configured === true &&
+          hasAnyCapability(capabilities, 'marketing.connections:write');
+        return {
+          definition,
+          state,
+          accounts: accounts.map((a) => ({ label: a.name, meta: a.state === 'connected' ? 'Connected' : 'Needs reconnecting' })),
+          loading: social.isLoading,
+          action: direct
+            ? {
+                label: lapsed ? 'Re-connect' : 'Connect',
+                onClick: () => connectSocial.mutate(provider),
+                disabled: connectSocial.isPending,
+              }
+            : { label: 'Manage', onClick: () => open(definition.id) },
+          alert: social.isError
+            ? { title: 'Couldn’t load social accounts' }
+            : lapsed
+              ? { title: 'Disconnected', detail: 'Connect again to keep publishing here.' }
+              : undefined,
+        };
+      }
       if (definition.id === 'telegram') {
         const connection = telegram.data;
         const state: ConnectorState = telegram.isError ? 'attention' : telegramConnectorState(connection);
@@ -292,10 +360,23 @@ export function ConnectorsGrid() {
   }
   if (modules.isError) return <ErrorState title="Couldn’t load your connections" onRetry={() => void modules.refetch()} />;
 
+  if (emailError || paymentsError || storageError || analyticsError || googleError) {
+    return (
+      <ErrorState
+        title="Couldn’t load connection status"
+        description="Try again to see which services are connected."
+        onRetry={() => {
+          if (emailError) void retryEmail();
+          if (paymentsError) void retryPayments();
+          if (storageError) void retryStorage();
+          if (analyticsError) void retryAnalytics();
+          if (googleError) void retryGoogle();
+        }}
+      />
+    );
+  }
+
   // Most urgent first: broken, then working, then not set up — each its own section.
-  const disabledAdminConnectors = scope
-    ? CONNECTORS.filter((definition) => ADMIN_CONNECTOR_IDS.includes(definition.id) && !visible(definition))
-    : [];
   const live = cards.filter((card) => card.definition.available);
   const attention = live.filter((card) => card.state === 'attention');
   const connected = live.filter((card) => card.state === 'connected' || card.state === 'paused');
@@ -358,6 +439,11 @@ export function ConnectorsGrid() {
               <span>The free media storage is nearly full — connect your own bucket under Media storage.</span>
             </p>
           )}
+          {hasAnyCapability(capabilities, 'settings:write') && (
+            <Link href="/settings/modules" className="mt-4 block text-sm font-medium text-primary hover:underline">
+              Manage modules and available connections
+            </Link>
+          )}
           {canUseApi && (
             <div className="-mx-2 mt-4 flex flex-col gap-0.5">
               <Link
@@ -383,11 +469,10 @@ export function ConnectorsGrid() {
       {live.length === 0 ? (
         <EmptyState
           icon={Plug}
-          title={scope ? 'Choose a connection to enable' : 'No connections for you here'}
-          description={
-            scope
-              ? 'Enable a service below to configure it for DUMA.'
-              : 'Connections appear when their module is on and your role can manage them. Ask a workspace administrator.'
+          title="No connections available"
+          description="Connections appear when their module is on and your role can manage them."
+          action={
+            hasAnyCapability(capabilities, 'settings:write') ? { label: 'Open module settings', href: '/settings/modules' } : undefined
           }
         />
       ) : (
@@ -402,21 +487,6 @@ export function ConnectorsGrid() {
         </>
       )}
 
-      {disabledAdminConnectors.length > 0 && (
-        <SettingsSection title="More connections">
-          <div className="-mx-2 flex flex-col gap-0.5">
-            {disabledAdminConnectors.map((definition) => (
-              <ConnectorRow
-                key={definition.id}
-                definition={definition}
-                state="disconnected"
-                accounts={[]}
-                action={{ label: 'Enable', onClick: () => open(definition.id) }}
-              />
-            ))}
-          </div>
-        </SettingsSection>
-      )}
       {confirmDisconnect && (
         <ConfirmModal
           title="Disconnect Google Drive?"

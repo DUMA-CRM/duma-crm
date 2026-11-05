@@ -58,7 +58,7 @@ export const DUMA_VS_SHOPIFY: Comparison = {
       },
       {
         job: 'Card fees',
-        duma: 'DUMA does not process cards. Keep your card machine: Square and SumUp connect directly, and any other works with the amount keyed in.',
+        duma: 'DUMA does not process cards. Keep your card machine: Square, SumUp and Stripe connect directly, and any other works with the amount keyed in.',
         them: 'In person from 1.5% to 1.7% by plan with Shopify Payments. Online from 1.3% + 25p to 2% + 25p.',
         source: SHOPIFY_PRICING,
       },
@@ -207,7 +207,7 @@ export const DUMA_VS_SHOPIFY: Comparison = {
         title: 'No fee for your own card machine',
         icon: 'card',
         tone: 'stock',
-        body: 'Keep the card machine you have. Square and SumUp connect directly, and any other works with the amount keyed in.',
+        body: 'Keep the card machine you have. Square, SumUp and Stripe connect directly, and any other works with the amount keyed in.',
       },
       {
         title: 'Free setup help',
@@ -241,7 +241,7 @@ export const DUMA_VS_SHOPIFY: Comparison = {
     connections: {
       sources: [
         { name: 'Shopify products', how: 'CSV export, imported', kind: 'file' },
-        { name: 'Your card machine', how: 'Square or SumUp, or keyed in', kind: 'card', logo: 'SumUp' },
+        { name: 'Your card machine', how: 'Square, SumUp, Stripe or keyed in', kind: 'card', logo: 'SumUp' },
         { name: 'A custom-built site', how: 'Through DUMA’s API', kind: 'api' },
       ],
       updates: [
@@ -277,7 +277,7 @@ export const DUMA_VS_SHOPIFY: Comparison = {
     {
       question: 'Which card machine can I use with DUMA?',
       answer:
-        'The one you have. Square and SumUp readers connect directly. Any other card machine works through the till’s Card machine method, with the amount keyed in.',
+        'The one you have. Square, SumUp and Stripe readers connect directly. Any other card machine works through the till’s Card machine method, with the amount keyed in.',
     },
     {
       question: 'How much does DUMA cost?',

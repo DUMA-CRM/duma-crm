@@ -207,7 +207,9 @@ const searchNotes: ToolDefinition = {
     'Search the team’s shared notes — SOPs, recipes, opening and closing checklists, how-tos — for how this business does something. Returns the best matches with the passage that matched, and the full text of the top three. Only shared folders the operator can read; private notes are never searched. Quote the note and link to it.',
   capability: 'notes:read',
   step: 'Searching the team’s notes',
-  parameters: schema({ query: { type: 'string', description: 'What to look for, in a few words — e.g. "close the till", "oat milk order".' } }),
+  parameters: schema({
+    query: { type: 'string', description: 'What to look for, in a few words — e.g. "close the till", "oat milk order".' },
+  }),
   async run(args, runtime) {
     const search = optionalText(args.query, 120);
     if (!search) return { output: { notes: [] }, evidence: 'No search words given' };
@@ -215,7 +217,12 @@ const searchNotes: ToolDefinition = {
     const response = await runtime.get<NotesSearchResponse>(`/notes?${query}`);
     const found = response.data ?? [];
     const full = await Promise.all(
-      found.slice(0, 3).map((note) => runtime.get<NoteResponse>(`/notes/${note.id}`).then((detail) => detail.data ?? null).catch(() => null)),
+      found.slice(0, 3).map((note) =>
+        runtime
+          .get<NoteResponse>(`/notes/${note.id}`)
+          .then((detail) => detail.data ?? null)
+          .catch(() => null),
+      ),
     );
     return {
       output: {
@@ -314,6 +321,7 @@ const MODULE_NAMES: Record<ModuleId, string> = {
   notes: 'Notes',
   reservations: 'Reservations',
   forms: 'Forms',
+  marketing: 'Marketing',
 };
 
 const getWorkspaceModules: ToolDefinition = {
