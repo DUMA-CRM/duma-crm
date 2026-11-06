@@ -32,7 +32,8 @@ export function destinationGaps(t: ComposeTarget, provider: string, connected: b
     if (t.options.madeForKids === undefined) gaps.push('Say whether it’s made for kids');
   }
   if (provider === 'tiktok') {
-    if (!t.options.privacy) gaps.push('Choose who can see it');
+    // Sent to TikTok drafts, the creator chooses who sees it in TikTok; only the consent is ours to ask.
+    if (t.options.tiktokMode !== 'inbox' && !t.options.privacy) gaps.push('Choose who can see it');
     if (t.options.consent !== true) gaps.push('Give TikTok’s consent');
   }
   return gaps;

@@ -2,7 +2,7 @@
 import { useMutation, useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import Link from 'next/link';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import { BrandTile, FieldRow, InfoRow, PickerRow, RowTile, RowWarning } from '@/components/cms/rows';
 import {
@@ -51,6 +51,7 @@ import {
   type Post,
   type TargetDraft,
   assetSrc,
+  connections,
   getCreator,
   marketingKey,
   savePost,
@@ -128,6 +129,14 @@ function TikTokFields({
   });
   const [privacyOpen, setPrivacyOpen] = useState(false);
   const o = target.options;
+  // Before TikTok approves Direct Post, a video can only go to the creator's TikTok drafts.
+  const setup = useQuery({ queryKey: marketingKey(tid, 'connections'), queryFn: connections });
+  const directPost = setup.data?.providers.find((p) => p.provider === 'tiktok')?.directPost === true;
+  const inbox = o.tiktokMode === 'inbox' || (setup.isSuccess && !directPost);
+  useEffect(() => {
+    if (setup.isSuccess && !directPost && o.tiktokMode !== 'inbox') onChange({ ...o, tiktokMode: 'inbox' });
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- only when what TikTok allows is known
+  }, [setup.isSuccess, directPost]);
   if (q.isPending) return <Bone className="h-40 w-full rounded-md" />;
   if (q.error)
     return (
@@ -160,33 +169,58 @@ function TikTokFields({
       <InfoRow icon={Timer} title="Longest video">
         <span className="text-sm text-muted-foreground">{q.data.max_video_post_duration_sec} s</span>
       </InfoRow>
-      <PickerRow
-        icon={Eye}
-        title="Who can see it"
-        value={o.privacy ? privacyWords(String(o.privacy)) : 'Choose'}
-        tone={o.privacy ? undefined : 'warning'}
-        open={privacyOpen}
-        onToggle={() => setPrivacyOpen((v) => !v)}
-      >
+      {directPost ? (
         <ChoiceCards
           appearance="settings"
-          options={q.data.privacy_level_options.map((v) => ({ value: v, label: privacyWords(v) }))}
-          value={String(o.privacy ?? '')}
-          onChange={(v) => {
-            onChange({ ...o, privacy: v });
-            setPrivacyOpen(false);
-          }}
+          value={inbox ? 'inbox' : 'direct'}
+          onChange={(mode) => onChange({ ...o, tiktokMode: mode })}
+          options={[
+            { value: 'direct', label: 'Post directly' },
+            { value: 'inbox', label: 'Send to TikTok drafts' },
+          ]}
         />
-      </PickerRow>
-      {toggle('allowComment', Users, 'Allow comments', q.data.comment_disabled)}
-      {toggle('allowDuet', Repeat, 'Allow duets', q.data.duet_disabled)}
-      {toggle('allowStitch', Scissors, 'Allow stitches', q.data.stitch_disabled)}
-      {toggle('ownBrand', Megaphone, 'Promotes my own brand')}
-      {toggle('brandedContent', Tag, 'Paid partnership')}
-      {(o.ownBrand === true || o.brandedContent === true) && (
+      ) : (
+        setup.isSuccess && (
+          <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+            Direct posting awaits TikTok’s approval, so this video goes to your TikTok drafts.
+          </p>
+        )
+      )}
+      {inbox ? (
         <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-          TikTok will label this {o.brandedContent ? '“Paid partnership”' : '“Promotional content”'}.
+          At the selected time, the video arrives in your TikTok inbox. Open TikTok to add the caption, choose who can see it and post it.
         </p>
+      ) : (
+        <>
+          <PickerRow
+            icon={Eye}
+            title="Who can see it"
+            value={o.privacy ? privacyWords(String(o.privacy)) : 'Choose'}
+            tone={o.privacy ? undefined : 'warning'}
+            open={privacyOpen}
+            onToggle={() => setPrivacyOpen((v) => !v)}
+          >
+            <ChoiceCards
+              appearance="settings"
+              options={q.data.privacy_level_options.map((v) => ({ value: v, label: privacyWords(v) }))}
+              value={String(o.privacy ?? '')}
+              onChange={(v) => {
+                onChange({ ...o, privacy: v });
+                setPrivacyOpen(false);
+              }}
+            />
+          </PickerRow>
+          {toggle('allowComment', Users, 'Allow comments', q.data.comment_disabled)}
+          {toggle('allowDuet', Repeat, 'Allow duets', q.data.duet_disabled)}
+          {toggle('allowStitch', Scissors, 'Allow stitches', q.data.stitch_disabled)}
+          {toggle('ownBrand', Megaphone, 'Promotes my own brand')}
+          {toggle('brandedContent', Tag, 'Paid partnership')}
+          {(o.ownBrand === true || o.brandedContent === true) && (
+            <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
+              TikTok will label this {o.brandedContent ? '“Paid partnership”' : '“Promotional content”'}.
+            </p>
+          )}
+        </>
       )}
       <label
         className={cn(
@@ -201,7 +235,9 @@ function TikTokFields({
           onChange={(e) => onChange({ ...o, consent: e.target.checked })}
         />
         <span className="text-foreground">
-          I consent to uploading this content at the selected time. By posting, I agree to TikTok’s{' '}
+          {inbox
+            ? 'I consent to sending this video to my TikTok drafts at the selected time. By posting it, I agree to TikTok’s '
+            : 'I consent to uploading this content at the selected time. By posting, I agree to TikTok’s '}
           <a
             className="underline underline-offset-2"
             href="https://www.tiktok.com/legal/page/global/music-usage-confirmation/en"

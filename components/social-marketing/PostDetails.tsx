@@ -51,6 +51,7 @@ import {
   durationLabel,
   marketingStatusBadge,
   marketingStatusLabel,
+  targetStatusLabel,
 } from '@/lib/utils/marketing-status';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
@@ -477,7 +478,7 @@ function Destination({
             {marketingStatusLabel(t.format)}
           </p>
         </div>
-        <Badge variant={marketingStatusBadge(t.status)}>{marketingStatusLabel(t.status)}</Badge>
+        <Badge variant={marketingStatusBadge(t.status)}>{targetStatusLabel(t.status, t.options)}</Badge>
         {menu.length > 0 && <RowMenu label={`${account?.name ?? 'Destination'} actions`} items={menu} />}
       </div>
 
@@ -625,7 +626,7 @@ function DestinationActivity({
             {marketingStatusLabel(target.format)}
           </p>
         </div>
-        <Badge variant={marketingStatusBadge(target.status)}>{marketingStatusLabel(target.status)}</Badge>
+        <Badge variant={marketingStatusBadge(target.status)}>{targetStatusLabel(target.status, target.options)}</Badge>
       </div>
 
       <ol className="mt-4 grid grid-cols-4" aria-label="Publishing steps">

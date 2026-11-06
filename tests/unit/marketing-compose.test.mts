@@ -22,6 +22,14 @@ test('a destination lists every gap: account, time, media and the platform’s o
   assert.deepEqual(destinationGaps({ ...base, format: 'text', mediaCount: 0 }, 'facebook', true), []);
 });
 
+test('a TikTok drafts post asks only for consent — who sees it is chosen in TikTok', () => {
+  assert.deepEqual(destinationGaps({ ...base, options: { tiktokMode: 'inbox', consent: true } }, 'tiktok', true), []);
+  assert.deepEqual(destinationGaps({ ...base, options: { tiktokMode: 'inbox' } }, 'tiktok', true), ['Give TikTok’s consent']);
+  assert.deepEqual(destinationGaps({ ...base, options: { tiktokMode: 'direct', consent: true } }, 'tiktok', true), [
+    'Choose who can see it',
+  ]);
+});
+
 test('a time skipped by the clocks going forward, or one that happens twice, is a gap until resolved', () => {
   // 30 March 2025, 01:30 does not exist in London; 26 October 2025, 01:30 happens twice.
   assert.deepEqual(destinationGaps({ ...base, local: '2025-03-30T01:30' }, 'instagram', true), ['Pick a time that exists']);

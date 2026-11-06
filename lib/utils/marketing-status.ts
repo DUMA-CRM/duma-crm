@@ -7,6 +7,10 @@ const WORDS: Record<string, string> = {
 
 export const marketingStatusLabel = (status: string) => WORDS[status] ?? status.charAt(0).toUpperCase() + status.slice(1);
 
+/** A destination's status in words: a TikTok drafts post is done once it's in the creator's inbox, not published. */
+export const targetStatusLabel = (status: string, options: { tiktokMode?: unknown } = {}) =>
+  status === 'published' && options.tiktokMode === 'inbox' ? 'Sent to TikTok drafts' : marketingStatusLabel(status);
+
 export const marketingStatusBadge = (status: string) =>
   status === 'published'
     ? ('success' as const)
@@ -98,7 +102,8 @@ export function destinationTimeline(
   if (status === 'uploading') {
     upTo(1);
     steps[1]!.state = 'current';
-    const began = last && target.scheduledAt && Date.parse(last.createdAt) > Date.parse(target.scheduledAt) ? last.createdAt : target.scheduledAt;
+    const began =
+      last && target.scheduledAt && Date.parse(last.createdAt) > Date.parse(target.scheduledAt) ? last.createdAt : target.scheduledAt;
     return { steps, clock: began ? { mode: 'since', at: began } : null };
   }
   if (status === 'processing') {
