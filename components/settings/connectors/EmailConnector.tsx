@@ -1,18 +1,31 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useState } from 'react';
 
-import { AlertCircle, Building2, CheckCircle2, Clock3, Loader2, Mail, Send, Server, ShieldOff, Sparkles, Zap } from '@/components/icons';
+import { InfoRow, InfoRows } from '@/components/cms/rows';
+import {
+  AlertCircle,
+  Building2,
+  CheckCircle2,
+  Clock3,
+  ExternalLink,
+  KeyRound,
+  Loader2,
+  Mail,
+  Plug,
+  Send,
+  Server,
+  ShieldOff,
+  Sparkles,
+  Zap,
+} from '@/components/icons';
 import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SaveBar, Switch } from '@/components/settings/controls';
-import { EditorShell } from '@/components/shared/EditorShell';
-import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -25,11 +38,14 @@ import {
 } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
-import { cn } from '@/lib/utils/cn';
+import { emailConnectorState } from '@/lib/utils/connector-state';
 import { useAuthStore } from '@/stores/authStore';
 
-import { ConnectWizard, ProviderGrid, WizardRail, type WizardStep } from './ConnectWizard';
-import { CONNECTORS_BY_ID, type ConnectorState } from './registry';
+import { ConnectWizard, ProviderGrid, WizardInstruction, WizardRail, type WizardStep } from './ConnectWizard';
+import { ConnectorManagePage, type ConnectorStatus } from './ConnectorManagePage';
+import { PROVIDER_BRANDS, PROVIDER_COLOURS } from './brands';
+import { useStoredDraft } from './draft';
+import { CONNECTORS_BY_ID } from './registry';
 import { panelClass, relativeTime } from './shared';
 
 const DEFINITION = CONNECTORS_BY_ID.email;
@@ -43,7 +59,7 @@ const PROVIDERS = [
     host: 'smtp.gmail.com',
     port: 587,
     security: 'starttls' as const,
-    hint: 'Google blocks normal passwords over SMTP — generate an App Password in your Google account first.',
+    hint: 'Needs an App Password',
   },
   {
     value: 'microsoft',
@@ -52,7 +68,7 @@ const PROVIDERS = [
     host: 'smtp.office365.com',
     port: 587,
     security: 'starttls' as const,
-    hint: 'Your username is the full email address. SMTP AUTH must be enabled for the mailbox.',
+    hint: 'SMTP AUTH must be on',
   },
   {
     value: 'other',
@@ -61,25 +77,20 @@ const PROVIDERS = [
     host: '',
     port: 587,
     security: 'starttls' as const,
-    hint: 'Your host will have given you a server name, port, username and password.',
+    hint: 'Your host’s SMTP details',
   },
 ];
 
 type ProviderKey = (typeof PROVIDERS)[number]['value'];
 
-export function emailConnectorState(connection: EmailConnection | null | undefined): ConnectorState {
-  if (!connection) return 'disconnected';
-  if (connection.lastTestSucceeded === false) return 'attention';
-  if (!connection.isEnabled) return 'paused';
-  return 'connected';
-}
+export { emailConnectorState };
 
 /**
  * The saved connection plus whatever the person is currently typing, as one
  * object. Both the wizard and the manage page drive the same fields, so they
  * share the form rather than each keeping their own copy of the rules.
  */
-function useEmailConnectionForm() {
+function useEmailConnectionForm({ keep = false }: { keep?: boolean } = {}) {
   const capabilities = useAuthStore((state) => state.capabilities);
   const tenantId = useSettingsTenantId();
   const queryClient = useQueryClient();
@@ -91,7 +102,15 @@ function useEmailConnectionForm() {
     meta: { silentForbidden: true },
   });
 
-  const [overrides, setOverrides] = useState<Partial<EmailConnectionPayload>>({});
+  // Everything but the password survives leaving the wizard; the password is a secret, so it never does.
+  const kept = useStoredDraft<Partial<Omit<EmailConnectionPayload, 'password'>>>(keep && tenantId ? `email:${tenantId}` : null, {});
+  const [password, setPassword] = useState<string | undefined>(undefined);
+  const overrides: Partial<EmailConnectionPayload> = { ...kept.value, ...(password !== undefined ? { password } : {}) };
+  const setOverrides = (next: (current: Partial<EmailConnectionPayload>) => Partial<EmailConnectionPayload>) => {
+    const { password: nextPassword, ...rest } = next(overrides);
+    kept.set(rest);
+    setPassword(nextPassword);
+  };
 
   const form: EmailConnectionPayload = {
     host: connection?.host ?? '',
@@ -128,7 +147,8 @@ function useEmailConnectionForm() {
       }),
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.communications.key('email-connection') });
-      setOverrides((current) => ({ ...current, password: '' }));
+      kept.clear();
+      setPassword(undefined);
     },
   });
 
@@ -157,7 +177,10 @@ function useEmailConnectionForm() {
     serverReady,
     senderReady,
     dirty: Object.keys(overrides).length > 0,
-    reset: () => setOverrides({}),
+    reset: () => {
+      kept.clear();
+      setPassword(undefined);
+    },
   };
 }
 
@@ -217,13 +240,12 @@ function TestPanel({ connection }: { connection: EmailConnection | null }) {
         value={testEmail}
         onChange={(event) => setTestEmail(event.target.value)}
         placeholder={user?.email ?? 'you@example.com'}
-        hint="Leave blank to check the connection without sending anything."
+        hint="Leave blank to check without sending."
       />
       <Button variant="outline" disabled={!connection || test.isPending} onClick={() => test.mutate()} className="gap-2">
         {test.isPending ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Send size={15} aria-hidden="true" />}
         {test.isPending ? 'Checking…' : testEmail ? 'Check and send test' : 'Check connection'}
       </Button>
-      {!connection && <p className="text-xs text-muted-foreground">Save the settings first, then run a check.</p>}
     </div>
   );
 }
@@ -235,62 +257,71 @@ function ServerFields({
   update,
   hasPassword,
   idPrefix,
+  passwordAction,
 }: {
   form: EmailConnectionPayload;
   update: <K extends keyof EmailConnectionPayload>(key: K, value: EmailConnectionPayload[K]) => void;
   hasPassword: boolean;
   idPrefix: string;
+  /** A link inside the password field — where to make an app password. */
+  passwordAction?: React.ReactNode;
 }) {
   return (
-    <div className="space-y-4">
-      <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
+    <div className="space-y-6">
+      {/* Where the mail goes out from. */}
+      <div className="space-y-3">
+        <div className="grid gap-3 sm:grid-cols-[1fr_8rem]">
+          <Input
+            id={`${idPrefix}-host`}
+            label="Mail server"
+            value={form.host}
+            onChange={(event) => update('host', event.target.value)}
+            placeholder="smtp.yourprovider.com"
+          />
+          <Input
+            id={`${idPrefix}-port`}
+            label="Port"
+            type="number"
+            value={form.port}
+            onChange={(event) => update('port', Number(event.target.value))}
+          />
+        </div>
+        <div className="flex flex-col gap-1.5">
+          <FieldLabel htmlFor={`${idPrefix}-security`}>Encryption</FieldLabel>
+          <Select
+            id={`${idPrefix}-security`}
+            value={form.security}
+            onValueChange={(value) => update('security', value as EmailConnectionPayload['security'])}
+            options={[
+              { value: 'starttls', label: 'STARTTLS — usual choice (port 587)' },
+              { value: 'tls', label: 'TLS/SSL (port 465)' },
+              { value: 'none', label: 'None — development only' },
+            ]}
+            ariaLabel="Encryption"
+            className="w-full"
+          />
+        </div>
+      </div>
+      {/* Who it signs in as. */}
+      <div className="space-y-3">
         <Input
-          id={`${idPrefix}-host`}
-          label="Mail server"
-          value={form.host}
-          onChange={(event) => update('host', event.target.value)}
-          placeholder="smtp.yourprovider.com"
+          id={`${idPrefix}-username`}
+          label="Username"
+          value={form.username}
+          onChange={(event) => update('username', event.target.value)}
+          hint="Usually the full email address."
         />
         <Input
-          id={`${idPrefix}-port`}
-          label="Port"
-          type="number"
-          value={form.port}
-          onChange={(event) => update('port', Number(event.target.value))}
+          id={`${idPrefix}-password`}
+          label="Password"
+          type="password"
+          value={form.password ?? ''}
+          onChange={(event) => update('password', event.target.value)}
+          placeholder={hasPassword ? 'Leave blank to keep the saved password' : ''}
+          className={passwordAction ? 'pr-44' : undefined}
+          rightAction={passwordAction}
         />
       </div>
-      <div className="space-y-1.5">
-        <label htmlFor={`${idPrefix}-security`} className="block text-label uppercase text-muted-foreground">
-          Encryption
-        </label>
-        <Select
-          id={`${idPrefix}-security`}
-          value={form.security}
-          onValueChange={(value) => update('security', value as EmailConnectionPayload['security'])}
-          options={[
-            { value: 'starttls', label: 'STARTTLS — usual choice (port 587)' },
-            { value: 'tls', label: 'TLS/SSL (port 465)' },
-            { value: 'none', label: 'None — development only' },
-          ]}
-          ariaLabel="Encryption"
-          className="w-full"
-        />
-      </div>
-      <Input
-        id={`${idPrefix}-username`}
-        label="Username"
-        value={form.username}
-        onChange={(event) => update('username', event.target.value)}
-        hint="Usually the full email address."
-      />
-      <Input
-        id={`${idPrefix}-password`}
-        label="Password"
-        type="password"
-        value={form.password ?? ''}
-        onChange={(event) => update('password', event.target.value)}
-        placeholder={hasPassword ? 'Leave blank to keep the saved password' : ''}
-      />
     </div>
   );
 }
@@ -299,20 +330,22 @@ function SenderFields({
   form,
   update,
   idPrefix,
+  showSwitch = true,
 }: {
   form: EmailConnectionPayload;
   update: <K extends keyof EmailConnectionPayload>(key: K, value: EmailConnectionPayload[K]) => void;
   idPrefix: string;
+  /** A new connection always sends; only the manage page pauses it. */
+  showSwitch?: boolean;
 }) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       <div className="grid gap-3 sm:grid-cols-2">
         <Input
           id={`${idPrefix}-from-name`}
           label="From name"
           value={form.fromName}
           onChange={(event) => update('fromName', event.target.value)}
-          hint="Shown as the sender."
         />
         <Input
           id={`${idPrefix}-from-email`}
@@ -328,15 +361,17 @@ function SenderFields({
         type="email"
         value={form.replyTo ?? ''}
         onChange={(event) => update('replyTo', event.target.value)}
-        hint="Where customer replies should land, if different."
+        hint="If replies should go somewhere else."
       />
-      <div className="flex items-center justify-between gap-4 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
-        <span className="min-w-0">
-          <span className="block text-sm font-semibold text-foreground">Send emails</span>
-          <span className="block text-xs text-muted-foreground">Off holds everything — automations wait until you turn it back on.</span>
-        </span>
-        <Switch label="Send emails" checked={form.isEnabled} onChange={(value) => update('isEnabled', value)} />
-      </div>
+      {showSwitch && (
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-rule/50 bg-field px-3 py-2.5">
+          <span className="min-w-0">
+            <span className="block text-sm font-semibold text-foreground">Send emails</span>
+            <span className="block text-xs text-muted-foreground">Off holds everything — automations wait until you turn it back on.</span>
+          </span>
+          <Switch label="Send emails" checked={form.isEnabled} onChange={(value) => update('isEnabled', value)} />
+        </div>
+      )}
     </div>
   );
 }
@@ -344,19 +379,33 @@ function SenderFields({
 // ── Connect wizard ────────────────────────────────────────────────────────────
 
 export function EmailConnectWizard({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const { connection, form, update, applyProvider, trySave, serverReady, senderReady, dirty } = useEmailConnectionForm();
-  const [provider, setProvider] = useState<ProviderKey | null>(null);
+  const { connection, form, update, applyProvider, trySave, serverReady, senderReady, reset } = useEmailConnectionForm({ keep: true });
+  const tenantId = useSettingsTenantId();
+  const picked = useStoredDraft<{ provider: ProviderKey | null }>(tenantId ? `email-provider:${tenantId}` : null, { provider: null });
+  const provider = picked.value.provider;
+  const setProvider = (value: ProviderKey) => picked.set({ provider: value });
 
   const steps: WizardStep[] = [
     {
       key: 'provider',
-      title: 'Who sends your email?',
-      description: 'Pick your mail provider and we’ll fill in the server settings it expects. Nothing is saved yet.',
+      label: 'Provider',
+      title: 'Choose your email provider',
       ready: provider !== null,
       content: (
         <ProviderGrid
           ariaLabel="Mail provider"
-          options={PROVIDERS.map(({ value, label, icon, hint }) => ({ value, label, icon, hint }))}
+          options={PROVIDERS.map(({ value, label, icon, hint }) => ({
+            value,
+            label,
+            icon,
+            hint,
+            brand:
+              value === 'gmail'
+                ? PROVIDER_BRANDS.gmail
+                : value === 'microsoft'
+                  ? { background: PROVIDER_COLOURS.microsoft, icon: Mail }
+                  : undefined,
+          }))}
           value={provider}
           onChange={(value) => {
             setProvider(value);
@@ -368,28 +417,56 @@ export function EmailConnectWizard({ onClose, onDone }: { onClose: () => void; o
     },
     {
       key: 'server',
+      label: 'Mailbox',
       title: 'Sign in to the mailbox',
-      description: 'These are the outgoing (SMTP) details from your provider — not your website or POS login.',
       ready: serverReady,
-      content: <ServerFields form={form} update={update} hasPassword={Boolean(connection?.hasPassword)} idPrefix="wizard" />,
+      content: (
+        <div className="space-y-3">
+          <WizardInstruction icon={provider === 'other' ? Server : KeyRound}>
+            {provider === 'gmail'
+              ? 'Create an App Password in your Google account, then paste it as the password.'
+              : provider === 'microsoft'
+                ? 'Use the full email address. SMTP AUTH must be turned on for this mailbox.'
+                : 'Use the outgoing (SMTP) settings from your email host.'}
+          </WizardInstruction>
+          <ServerFields
+            form={form}
+            update={update}
+            hasPassword={Boolean(connection?.hasPassword)}
+            idPrefix="wizard"
+            passwordAction={
+              provider === 'gmail' ? (
+                <a
+                  href="https://myaccount.google.com/apppasswords"
+                  target="_blank"
+                  rel="noreferrer"
+                  className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/8"
+                >
+                  Create App Password <ExternalLink size={12} aria-hidden="true" />
+                </a>
+              ) : undefined
+            }
+          />
+        </div>
+      ),
     },
     {
       key: 'sender',
+      label: 'Sender',
       title: 'How customers see you',
-      description: 'The name and address on every email that goes out. Save this and we can run a real check next.',
       ready: senderReady,
       continueLabel: 'Save and continue',
       onContinue: trySave,
-      content: <SenderFields form={form} update={update} idPrefix="wizard" />,
+      content: <SenderFields form={form} update={update} idPrefix="wizard" showSwitch={false} />,
     },
     {
       key: 'test',
-      title: 'Prove it works',
-      description: 'Send yourself one email. If it lands, every template and automation will too.',
+      label: 'Test',
+      title: 'Send a test',
       skippable: true,
       continueLabel: 'Finish setup',
       content: (
-        <div className="space-y-5">
+        <div className="space-y-3">
           <div className={panelClass}>
             <ConnectionStatus connection={connection} />
           </div>
@@ -404,27 +481,20 @@ export function EmailConnectWizard({ onClose, onDone }: { onClose: () => void; o
       eyebrow="Connect"
       title="Email"
       icon={<Mail size={20} aria-hidden="true" />}
-      dirty={dirty}
+      // Only the password is lost on leaving; the rest is kept for next time.
+      dirty={Boolean(form.password)}
       steps={steps}
       onClose={onClose}
-      onFinish={onDone}
-      rail={
-        <WizardRail
-          icon={Mail}
-          name={DEFINITION.name}
-          tagline={DEFINITION.tagline}
-          requirements={DEFINITION.requirements}
-          footnote={
-            <>
-              Templates, automations and the delivery log live in{' '}
-              <Link href="/communications" className="font-medium text-primary hover:underline">
-                Communications
-              </Link>
-              .
-            </>
-          }
-        />
-      }
+      onFinish={() => {
+        picked.clear();
+        onDone();
+      }}
+      resumeKey={tenantId ? `email:${tenantId}` : null}
+      onStartOver={() => {
+        reset();
+        picked.clear();
+      }}
+      rail={<WizardRail requirements={DEFINITION.requirements} />}
     />
   );
 }
@@ -445,144 +515,96 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
   const checked = relativeTime(connection?.lastTestedAt);
   const security = { starttls: 'STARTTLS', tls: 'TLS/SSL', none: 'No encryption' }[form.security];
 
-  const status =
+  const status: ConnectorStatus =
     state === 'attention'
-      ? { dot: 'bg-exception', text: 'The last check failed' }
+      ? { tone: 'danger', text: 'The last check failed' }
       : state === 'paused'
-        ? { dot: 'bg-stock', text: 'Paused — nothing is being sent' }
+        ? { tone: 'warning', text: 'Paused — nothing is being sent' }
         : connection?.lastTestSucceeded
-          ? { dot: 'bg-success', text: `Working${checked ? ` · checked ${checked}` : ''}` }
-          : { dot: 'bg-muted-foreground/60', text: 'Not checked yet — send a test to be sure' };
+          ? { tone: 'success', text: 'Working' }
+          : { tone: 'muted', text: 'Not checked yet' };
 
   return (
-    <EditorShell
-      eyebrow="Connector"
-      title="Email"
-      icon={<Mail size={20} aria-hidden="true" />}
-      onClose={onClose}
+    <ConnectorManagePage
+      definition={DEFINITION}
+      status={connection ? status : undefined}
+      loading={isLoading}
+      notSetUp={
+        !connection ? (
+          <div className={panelClass}>
+            <p className="text-sm text-muted-foreground">Send order confirmations and offers from your own mailbox.</p>
+            <Button className="mt-4 gap-1.5" onClick={onReconnect}>
+              <Plug size={15} aria-hidden="true" /> Connect email
+            </Button>
+          </div>
+        ) : undefined
+      }
+      health={
+        connection
+          ? {
+              facts: [
+                { icon: Mail, title: 'Sending from', value: connection.fromEmail || connection.username },
+                { icon: Clock3, title: 'Last check', value: checked ?? 'Not checked yet', tone: checked ? undefined : 'warning' },
+                { icon: Send, title: 'Emails', value: form.isEnabled ? 'Sending' : 'Paused' },
+              ],
+              problem: state === 'attention' ? connection.lastTestError : null,
+              extra: <TestPanel connection={connection} />,
+            }
+          : undefined
+      }
+      usedBy={USES.map(({ href, icon, title }) => ({ icon, label: title, href }))}
+      actions={[{ icon: Zap, label: 'Run setup again', onClick: onReconnect }]}
       dirty={dirty}
-      actions={
-        <Button variant="outline" className="h-9 gap-1.5" onClick={onReconnect}>
-          <Zap size={15} aria-hidden="true" />
-          <span className="hidden md:inline">Run setup again</span>
-        </Button>
+      onClose={onClose}
+      footer={
+        <SaveBar
+          dirty={dirty}
+          saving={save.isPending}
+          disabled={!serverReady || !senderReady || isLoading}
+          onSave={() =>
+            save.mutate(undefined, {
+              onSuccess: () => {
+                toast('success', 'Email settings saved.');
+                reset();
+                setEditingServer(false);
+              },
+              onError: (error) => toast('error', error.message),
+            })
+          }
+          onDiscard={() => {
+            reset();
+            setEditingServer(false);
+          }}
+        />
       }
     >
-      <div className="flex flex-col gap-6">
-        {/* Who emails come from, and whether it works — no card, it is the page's headline. */}
-        <div className="flex items-center gap-4">
-          <span
-            className={cn(
-              'flex size-14 shrink-0 items-center justify-center rounded-xl',
-              state === 'attention' ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary',
-            )}
-          >
-            <Mail size={26} aria-hidden="true" />
-          </span>
-          <div className="min-w-0">
-            <p className="truncate text-xl font-semibold tracking-headline text-foreground">
-              {isLoading ? (
-                // The headline's own line, waiting for the sender — not a word standing in for it.
-                <span role="status" aria-busy="true" aria-label="Loading the email connection" className="flex h-7 items-center">
-                  <Bone className="h-5 w-64 max-w-full" />
-                </span>
-              ) : connection ? (
-                `Sending from ${connection.fromEmail || connection.username}`
-              ) : (
-                'Email isn’t set up'
-              )}
-            </p>
-            <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-              <span className={cn('size-1.5 rounded-full', status.dot)} aria-hidden="true" />
-              {status.text}
-            </p>
-            {connection?.lastTestError && state === 'attention' && (
-              <p className="mt-1 text-xs text-exception">{connection.lastTestError}</p>
-            )}
-          </div>
-        </div>
+      <SettingsSection title="Sender">
+        <SenderFields form={form} update={update} idPrefix="manage" />
+      </SettingsSection>
 
-        <SettingsTabBody
-          aside={
-            <>
-              <SettingsSection title="Send a test">
-                <TestPanel connection={connection} />
-              </SettingsSection>
-              <SettingsSection title="Used for">
-                <ul className="grid gap-2 sm:grid-cols-2 lg:grid-cols-1 xl:grid-cols-2">
-                  {USES.map(({ href, icon: Icon, title, description }) => (
-                    <li key={href}>
-                      <Link
-                        href={href}
-                        className="flex h-full items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3 py-2.5 transition-colors hover:border-rule hover:bg-band/45"
-                      >
-                        <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
-                          <Icon size={15} aria-hidden="true" />
-                        </span>
-                        <span className="min-w-0">
-                          <span className="block text-sm font-semibold text-foreground">{title}</span>
-                          <span className="block truncate text-xs text-muted-foreground">{description}</span>
-                        </span>
-                      </Link>
-                    </li>
-                  ))}
-                </ul>
-              </SettingsSection>
-            </>
-          }
-        >
-          <SettingsSection title="Sender">
-            <SenderFields form={form} update={update} idPrefix="manage" />
-          </SettingsSection>
-
-          <SettingsSection
-            title="Mail server"
-            actions={
-              <Button variant={editingServer ? 'ghost' : 'outline'} size="sm" onClick={() => setEditingServer((open) => !open)}>
-                {editingServer ? 'Close' : 'Change'}
-              </Button>
-            }
-          >
-            {editingServer ? (
-              <ServerFields form={form} update={update} hasPassword={Boolean(connection?.hasPassword)} idPrefix="manage" />
-            ) : (
-              // It rarely changes, so it reads as one line until you ask to edit it.
-              <div className="flex items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
-                  <Server size={18} aria-hidden="true" />
-                </span>
-                <span className="min-w-0">
-                  <span className="block truncate text-sm font-semibold text-foreground">{form.host || 'No server set'}</span>
-                  <span className="block truncate text-xs text-muted-foreground">
-                    Port {form.port} · {security}
-                    {form.username ? ` · ${form.username}` : ''}
-                  </span>
-                </span>
-              </div>
-            )}
-          </SettingsSection>
-        </SettingsTabBody>
-      </div>
-
-      <SaveBar
-        dirty={dirty}
-        saving={save.isPending}
-        disabled={!serverReady || !senderReady || isLoading}
-        onSave={() =>
-          save.mutate(undefined, {
-            onSuccess: () => {
-              toast('success', 'Email settings saved.');
-              reset();
-              setEditingServer(false);
-            },
-            onError: (error) => toast('error', error.message),
-          })
+      <SettingsSection
+        title="Mail server"
+        actions={
+          <Button variant={editingServer ? 'ghost' : 'outline'} size="sm" onClick={() => setEditingServer((open) => !open)}>
+            {editingServer ? 'Close' : 'Change'}
+          </Button>
         }
-        onDiscard={() => {
-          reset();
-          setEditingServer(false);
-        }}
-      />
-    </EditorShell>
+      >
+        {editingServer ? (
+          <ServerFields form={form} update={update} hasPassword={Boolean(connection?.hasPassword)} idPrefix="manage" />
+        ) : (
+          // It rarely changes, so it reads as one row until you ask to edit it.
+          <InfoRows>
+            <InfoRow
+              icon={Server}
+              title={form.host || 'No server set'}
+              description={`Port ${form.port} · ${security}${form.username ? ` · ${form.username}` : ''}`}
+            >
+              {null}
+            </InfoRow>
+          </InfoRows>
+        )}
+      </SettingsSection>
+    </ConnectorManagePage>
   );
 }

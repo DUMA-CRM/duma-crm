@@ -15,7 +15,7 @@ import { MARKETING_PATHS } from './public-paths.ts';
 export const MARKDOWN_RENDER_HEADER = 'x-duma-markdown-render';
 
 /** Pages with a Markdown version: the marketing site and the legal pages — never the app or the guest pages. */
-const MARKDOWN_PATHS = [...MARKETING_PATHS, '/privacy', '/terms', '/dpa', '/gdpr', '/legal'];
+const MARKDOWN_PATHS = [...MARKETING_PATHS, '/privacy', '/terms', '/dpa', '/gdpr', '/legal', '/data-deletion'];
 
 export function servesMarkdown(pathname: string): boolean {
   // A dot means a file — sitemap.xml, llms.txt, feed.xml, /.well-known/* — which already has its own format.

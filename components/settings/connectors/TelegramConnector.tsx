@@ -1,21 +1,31 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useState } from 'react';
 
-import { AlertCircle, CheckCircle2, Clock3, ExternalLink, Loader2, Plug, Search, Send, Sparkles, Trash2, Zap } from '@/components/icons';
+import { InfoRow, InfoRows } from '@/components/cms/rows';
+import {
+  AlertCircle,
+  Bell,
+  CheckCircle2,
+  Clock3,
+  ExternalLink,
+  KeyRound,
+  Loader2,
+  Plug,
+  Search,
+  Send,
+  Sparkles,
+  UserPlus,
+  Zap,
+} from '@/components/icons';
 import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SaveBar, Switch } from '@/components/settings/controls';
-import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 
 import {
   type TelegramConnection,
@@ -28,20 +38,17 @@ import {
 } from '@/lib/modules/communications/client';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
+import { telegramConnectorState } from '@/lib/utils/connector-state';
 
-import { ConnectWizard, WizardRail, type WizardStep } from './ConnectWizard';
-import { CONNECTORS_BY_ID, type ConnectorState } from './registry';
+import { Command, ConnectWizard, WizardInstruction, WizardRail, type WizardStep } from './ConnectWizard';
+import { ConnectorManagePage, type ConnectorStatus } from './ConnectorManagePage';
+import { useStoredDraft } from './draft';
+import { CONNECTORS_BY_ID } from './registry';
 import { panelClass, relativeTime } from './shared';
 
 const DEFINITION = CONNECTORS_BY_ID.telegram;
 
-/** A connection that has never delivered a test still needs someone to look at it. */
-export function telegramConnectorState(connection: TelegramConnection | null | undefined): ConnectorState {
-  if (!connection) return 'disconnected';
-  if (connection.lastError) return 'attention';
-  if (!connection.isEnabled) return 'paused';
-  return connection.lastTestedAt ? 'connected' : 'attention';
-}
+export { telegramConnectorState };
 
 interface TelegramForm {
   botToken: string;
@@ -53,7 +60,7 @@ interface TelegramForm {
  * The saved connection plus whatever the person is typing, shared by the wizard
  * and the manage page. An empty token means "keep the saved one".
  */
-function useTelegramForm() {
+function useTelegramForm({ keep = false }: { keep?: boolean } = {}) {
   const tenantId = useSettingsTenantId();
   const queryClient = useQueryClient();
   const query = useQuery({
@@ -62,15 +69,23 @@ function useTelegramForm() {
     enabled: !!tenantId,
   });
   const connection = query.data ?? null;
-  const [overrides, setOverrides] = useState<Partial<TelegramForm>>({});
+  // The chat and the switch survive leaving the wizard; the bot token is a secret, so it never does.
+  const kept = useStoredDraft<Partial<Omit<TelegramForm, 'botToken'>>>(keep && tenantId ? `telegram:${tenantId}` : null, {});
+  const [botToken, setBotToken] = useState('');
   const form: TelegramForm = {
-    botToken: '',
+    botToken,
     chatId: connection?.chatId ?? '',
     isEnabled: connection?.isEnabled ?? true,
-    ...overrides,
+    ...kept.value,
   };
-  const update = <K extends keyof TelegramForm>(key: K, value: TelegramForm[K]) =>
-    setOverrides((current) => ({ ...current, [key]: value }));
+  const update = <K extends keyof TelegramForm>(key: K, value: TelegramForm[K]) => {
+    if (key === 'botToken') setBotToken(value as string);
+    else kept.set({ ...kept.value, [key]: value });
+  };
+  const reset = () => {
+    kept.clear();
+    setBotToken('');
+  };
   const invalidate = () => queryClient.invalidateQueries({ queryKey: telegramQueryKey(tenantId) });
   const token = form.botToken.trim();
 
@@ -78,7 +93,7 @@ function useTelegramForm() {
     mutationFn: () =>
       saveTelegramConnection(tenantId!, { chatId: form.chatId.trim(), isEnabled: form.isEnabled, ...(token ? { botToken: token } : {}) }),
     onSuccess: async () => {
-      setOverrides({});
+      reset();
       await invalidate();
     },
   });
@@ -107,7 +122,7 @@ function useTelegramForm() {
     tokenReady: Boolean(token || connection),
     chatReady: Boolean(form.chatId.trim()),
     dirty: Boolean(token) || form.chatId !== (connection?.chatId ?? '') || form.isEnabled !== (connection?.isEnabled ?? true),
-    reset: () => setOverrides({}),
+    reset,
   };
 }
 
@@ -133,7 +148,17 @@ function TokenField({
       value={value}
       onChange={(event) => onChange(event.target.value)}
       placeholder={hasToken ? 'Leave blank to keep the saved token' : '123456789:AA…'}
-      hint="BotFather sends it after /newbot. It’s encrypted when saved and never shown again."
+      className="pr-32"
+      rightAction={
+        <a
+          href="https://t.me/BotFather"
+          target="_blank"
+          rel="noreferrer"
+          className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/8"
+        >
+          Open BotFather <ExternalLink size={12} aria-hidden="true" />
+        </a>
+      }
     />
   );
 }
@@ -156,36 +181,34 @@ function ChatFields({
 }) {
   const findChats = useMutation({ mutationFn: () => findTelegramChats(tenantId, token || undefined) });
   return (
-    <div className="space-y-4">
-      <ol className="space-y-1.5 text-sm text-muted-foreground">
-        {['Add your bot to the staff group.', 'Send /start@your_bot_username in that group.', 'Choose “Find chats” below.'].map(
-          (line, index) => (
-            <li key={line} className="flex gap-2.5">
-              <span className="flex size-5 shrink-0 items-center justify-center rounded-full bg-primary/8 text-micro font-semibold text-primary">
-                {index + 1}
-              </span>
-              {line}
-            </li>
-          ),
-        )}
-      </ol>
-      <div className="flex flex-wrap items-center gap-2">
-        <Button
-          type="button"
-          variant="outline"
-          className="gap-1.5"
-          disabled={!canSearch || findChats.isPending}
-          onClick={() => findChats.mutate()}
-        >
-          {findChats.isPending ? (
-            <Loader2 size={15} className="animate-spin" aria-hidden="true" />
-          ) : (
-            <Search size={15} aria-hidden="true" />
-          )}
-          {findChats.isPending ? 'Finding chats…' : 'Find chats'}
-        </Button>
-        {!canSearch && <span className="text-xs text-muted-foreground">Add the bot token first.</span>}
-      </div>
+    <div className="space-y-3">
+      <WizardInstruction icon={UserPlus}>
+        Add the bot to your staff group, then send <Command>/start</Command> there.
+      </WizardInstruction>
+      {/* One field: find the chat from inside it, or type a known ID. */}
+      <Input
+        id={`${idPrefix}-telegram-chat`}
+        label="Staff chat"
+        value={chatId}
+        onChange={(event) => onChange(event.target.value)}
+        placeholder="-1001234567890 or @channel"
+        className="pr-32"
+        rightAction={
+          <button
+            type="button"
+            disabled={!canSearch || findChats.isPending}
+            onClick={() => findChats.mutate()}
+            className="inline-flex h-7 items-center gap-1 rounded-sm px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/8 disabled:pointer-events-none disabled:opacity-50"
+          >
+            {findChats.isPending ? (
+              <Loader2 size={12} className="animate-spin" aria-hidden="true" />
+            ) : (
+              <Search size={12} aria-hidden="true" />
+            )}
+            {findChats.isPending ? 'Finding…' : 'Find chats'}
+          </button>
+        }
+      />
       {findChats.isError && (
         <p role="alert" className="text-xs text-exception">
           {findChats.error.message}
@@ -193,34 +216,35 @@ function ChatFields({
       )}
       {findChats.isSuccess &&
         (findChats.data.length ? (
-          <div className="space-y-1.5">
-            <label htmlFor={`${idPrefix}-telegram-found-chat`} className="block text-label uppercase text-muted-foreground">
-              Choose a chat
-            </label>
-            <Select
-              id={`${idPrefix}-telegram-found-chat`}
-              ariaLabel="Choose a chat"
-              placeholder="Select your staff chat"
-              value={findChats.data.some((chat) => chat.id === chatId) ? chatId : ''}
-              onValueChange={onChange}
-              options={findChats.data.map((chat) => ({ value: chat.id, label: `${chat.title} (${chat.id})` }))}
-              className="w-full"
-            />
+          <div role="radiogroup" aria-label="Chats the bot can see" className="flex flex-col gap-2">
+            {findChats.data.map((chat) => {
+              const selected = chat.id === chatId;
+              return (
+                <button
+                  key={chat.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={selected}
+                  onClick={() => onChange(chat.id)}
+                  className={cn(
+                    'flex items-center gap-3 rounded-lg border bg-field px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-ring',
+                    selected ? 'border-primary' : 'border-rule/50 hover:border-rule',
+                  )}
+                >
+                  <span className="min-w-0 flex-1">
+                    <span className="block truncate text-sm font-semibold text-foreground">{chat.title}</span>
+                    <span className="block truncate text-xs text-muted-foreground">{chat.id}</span>
+                  </span>
+                  {selected && <CheckCircle2 size={16} className="shrink-0 text-primary" aria-hidden="true" />}
+                </button>
+              );
+            })}
           </div>
         ) : (
           <p role="status" className="text-xs text-muted-foreground">
-            No recent chats found. Send /start@your_bot_username in the group, then try again. A bot used by another service may need the
-            chat ID typed in.
+            No chats found. Send <Command>/start</Command> in the group, then try again.
           </p>
         ))}
-      <Input
-        id={`${idPrefix}-telegram-chat`}
-        label="Destination chat ID"
-        value={chatId}
-        onChange={(event) => onChange(event.target.value)}
-        placeholder="-1001234567890"
-        hint="Filled in when you pick a chat. A known chat ID or @channelname works too — the bot needs permission to post."
-      />
     </div>
   );
 }
@@ -252,17 +276,9 @@ function ConnectionStatus({ connection }: { connection: TelegramConnection | nul
 }
 
 /** Send-a-test — a message in the chat is the only proof the bot can post there. */
-function TestPanel({
-  connection,
-  dirty,
-  onSent,
-}: {
-  connection: TelegramConnection | null;
-  dirty: boolean;
-  onSent: () => Promise<unknown>;
-}) {
+function useTelegramTest(connection: TelegramConnection | null, onSent: () => Promise<unknown>) {
   const tenantId = useSettingsTenantId();
-  const test = useMutation({
+  return useMutation({
     mutationFn: () => testTelegramConnection(tenantId!),
     onSuccess: async () => {
       await onSent();
@@ -273,6 +289,18 @@ function TestPanel({
       toast('error', error.message);
     },
   });
+}
+
+function TestPanel({
+  connection,
+  dirty,
+  onSent,
+}: {
+  connection: TelegramConnection | null;
+  dirty: boolean;
+  onSent: () => Promise<unknown>;
+}) {
+  const test = useTelegramTest(connection, onSent);
   return (
     <div className="space-y-3">
       <ConnectionStatus connection={connection} />
@@ -288,7 +316,7 @@ function TestPanel({
 // ── Connect wizard ────────────────────────────────────────────────────────────
 
 export function TelegramConnectWizard({ onClose, onDone }: { onClose: () => void; onDone: () => void }) {
-  const { tenantId, connection, form, update, trySave, invalidate, tokenReady, chatReady, dirty } = useTelegramForm();
+  const { tenantId, connection, form, update, trySave, invalidate, tokenReady, chatReady, reset } = useTelegramForm({ keep: true });
   if (!tenantId) {
     return (
       <EditorShell eyebrow="Connect" title="Telegram" onClose={onClose}>
@@ -300,27 +328,22 @@ export function TelegramConnectWizard({ onClose, onDone }: { onClose: () => void
   const steps: WizardStep[] = [
     {
       key: 'bot',
+      label: 'Bot token',
       title: 'Create your Telegram bot',
-      description: 'The bot is who posts in your staff chat. Open BotFather, send /newbot, and paste the token it gives you.',
       ready: tokenReady,
       content: (
         <div className="space-y-3">
+          <WizardInstruction icon={KeyRound}>
+            Send <Command>/newbot</Command> to BotFather and copy the token it replies with.
+          </WizardInstruction>
           <TokenField value={form.botToken} onChange={(value) => update('botToken', value)} hasToken={!!connection} idPrefix="wizard" />
-          <a
-            href="https://t.me/BotFather"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-1 text-sm font-medium text-primary underline-offset-4 hover:underline"
-          >
-            Open @BotFather <ExternalLink size={13} aria-hidden="true" />
-          </a>
         </div>
       ),
     },
     {
       key: 'chat',
-      title: 'Where should messages go?',
-      description: 'Pick the group your team reads. DUMA checks the bot can post there before saving.',
+      label: 'Staff chat',
+      title: 'Choose the staff chat',
       ready: chatReady,
       continueLabel: 'Verify and save',
       onContinue: trySave,
@@ -337,8 +360,8 @@ export function TelegramConnectWizard({ onClose, onDone }: { onClose: () => void
     },
     {
       key: 'test',
-      title: 'Prove it works',
-      description: connection ? `Send one message to ${connection.chatTitle}. If it lands, your automations will too.` : undefined,
+      label: 'Test',
+      title: 'Send a test',
       skippable: true,
       continueLabel: 'Finish setup',
       content: (
@@ -354,24 +377,14 @@ export function TelegramConnectWizard({ onClose, onDone }: { onClose: () => void
       eyebrow="Connect"
       title="Telegram"
       icon={<Send size={20} aria-hidden="true" />}
-      dirty={dirty}
+      // Only the token is lost on leaving; the rest is kept for next time.
+      dirty={Boolean(form.botToken.trim())}
       steps={steps}
       onClose={onClose}
       onFinish={onDone}
-      rail={
-        <WizardRail
-          requirements={DEFINITION.requirements}
-          footnote={
-            <>
-              Choose when it sends messages in{' '}
-              <Link href="/automation" className="font-medium text-primary hover:underline">
-                Automations
-              </Link>
-              .
-            </>
-          }
-        />
-      }
+      resumeKey={`telegram:${tenantId}`}
+      onStartOver={reset}
+      rail={<WizardRail requirements={DEFINITION.requirements} />}
     />
   );
 }
@@ -381,12 +394,11 @@ export function TelegramConnectWizard({ onClose, onDone }: { onClose: () => void
 export function TelegramConnectorPage({ onClose, onConnect }: { onClose: () => void; onConnect: () => void }) {
   const { tenantId, query, connection, form, update, save, invalidate, chatReady, dirty, reset } = useTelegramForm();
   const [editingBot, setEditingBot] = useState(false);
-  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
+  const test = useTelegramTest(connection, invalidate);
   const disconnect = useMutation({
     mutationFn: () => deleteTelegramConnection(tenantId!),
     onSuccess: async () => {
       await invalidate();
-      setConfirmDisconnect(false);
       toast('success', 'Telegram disconnected.');
       onClose();
     },
@@ -395,195 +407,140 @@ export function TelegramConnectorPage({ onClose, onConnect }: { onClose: () => v
 
   const state = telegramConnectorState(connection);
   const tested = relativeTime(connection?.lastTestedAt);
-  const status =
+  const status: ConnectorStatus =
     state === 'paused'
-      ? { dot: 'bg-stock', text: 'Paused — automation messages are skipped' }
+      ? { tone: 'warning', text: 'Paused — automation messages are skipped' }
       : connection?.lastError
-        ? { dot: 'bg-exception', text: 'The last message failed' }
+        ? { tone: 'danger', text: 'The last message failed' }
         : connection?.lastTestedAt
-          ? { dot: 'bg-success', text: `Working${tested ? ` · tested ${tested}` : ''}` }
-          : { dot: 'bg-muted-foreground/60', text: 'Not tested yet — send a test to be sure' };
+          ? { tone: 'success', text: 'Working' }
+          : { tone: 'muted', text: 'Not tested yet' };
+
+  if (!tenantId) {
+    return (
+      <EditorShell eyebrow="Connection" title="Telegram" onClose={onClose}>
+        <ErrorState title="Choose a workspace first" />
+      </EditorShell>
+    );
+  }
 
   return (
-    <EditorShell
-      eyebrow="Connector"
-      title="Telegram"
-      icon={<Send size={20} aria-hidden="true" />}
-      onClose={onClose}
-      dirty={dirty}
-      actions={
-        connection ? (
-          <div className="flex gap-2">
-            <Button variant="outline" className="h-9 gap-1.5" onClick={onConnect}>
-              <Zap size={15} aria-hidden="true" />
-              <span className="hidden md:inline">Run setup again</span>
-            </Button>
-            <Button variant="outline" className="h-9 gap-1.5" onClick={() => setConfirmDisconnect(true)}>
-              <Trash2 size={15} aria-hidden="true" />
-              <span className="hidden md:inline">Disconnect</span>
+    <ConnectorManagePage
+      definition={DEFINITION}
+      status={connection ? status : undefined}
+      loading={query.isPending}
+      error={query.isError ? { title: 'Couldn’t load Telegram', onRetry: () => void query.refetch() } : undefined}
+      notSetUp={
+        !connection ? (
+          <div className={panelClass}>
+            <p className="text-sm text-muted-foreground">Send automation alerts to your staff chat.</p>
+            <Button className="mt-4 gap-1.5" onClick={onConnect}>
+              <Plug size={15} aria-hidden="true" /> Connect Telegram
             </Button>
           </div>
-        ) : null
+        ) : undefined
+      }
+      health={
+        connection
+          ? {
+              facts: [
+                { icon: Send, title: 'Bot', value: `@${connection.botUsername}` },
+                {
+                  icon: Clock3,
+                  title: 'Last test',
+                  value: tested ?? 'Not tested yet',
+                  tone: connection.lastTestedAt ? undefined : 'warning',
+                },
+                { icon: Bell, title: 'Automation messages', value: connection.isEnabled ? 'Allowed' : 'Paused' },
+              ],
+              problem: connection.lastError,
+              test: {
+                label: 'Send a test message',
+                icon: Send,
+                pending: test.isPending,
+                disabled: dirty,
+                note: dirty ? 'Save your changes before sending a test.' : undefined,
+                onTest: () => test.mutate(),
+              },
+            }
+          : undefined
+      }
+      usedBy={[{ icon: Sparkles, label: 'Automations', href: '/automation' }]}
+      actions={[{ icon: Zap, label: 'Run setup again', onClick: onConnect }]}
+      disconnect={{
+        consequences: [
+          'Automation steps that send Telegram messages fail until you reconnect.',
+          'Your bot and staff chat stay as they are in Telegram.',
+        ],
+        pending: disconnect.isPending,
+        onConfirm: () => disconnect.mutate(),
+      }}
+      dirty={dirty}
+      onClose={onClose}
+      footer={
+        <SaveBar
+          dirty={dirty}
+          saving={save.isPending}
+          disabled={!chatReady || query.isPending}
+          saveLabel="Verify and save"
+          onSave={() =>
+            save.mutate(undefined, {
+              onSuccess: () => {
+                toast('success', 'Telegram saved.');
+                setEditingBot(false);
+              },
+              onError: (error) => toast('error', error.message),
+            })
+          }
+          onDiscard={() => {
+            reset();
+            setEditingBot(false);
+          }}
+        />
       }
     >
-      {!tenantId ? (
-        <ErrorState title="Choose a workspace first" />
-      ) : query.isError ? (
-        <ErrorState title="Couldn’t load Telegram" onRetry={() => void query.refetch()} />
-      ) : (
-        <div className="flex flex-col gap-6">
-          {/* Where messages go, and whether they arrive — the page's headline. */}
-          <div className="flex items-center gap-4">
-            <span
-              className={cn(
-                'flex size-14 shrink-0 items-center justify-center rounded-xl',
-                state === 'attention' && connection?.lastError ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary',
-              )}
-            >
-              <Send size={26} aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-xl font-semibold tracking-headline text-foreground">
-                {query.isPending ? (
-                  <span role="status" aria-busy="true" aria-label="Loading the Telegram connection" className="flex h-7 items-center">
-                    <Bone className="h-5 w-64 max-w-full" />
-                  </span>
-                ) : connection ? (
-                  `Posting to ${connection.chatTitle}`
-                ) : (
-                  'Telegram isn’t set up'
-                )}
-              </p>
-              {connection ? (
-                <p className="mt-0.5 flex items-center gap-1.5 text-sm text-muted-foreground">
-                  <span className={cn('size-1.5 rounded-full', status.dot)} aria-hidden="true" />
-                  {status.text} · @{connection.botUsername}
-                </p>
-              ) : (
-                !query.isPending && <p className="mt-0.5 text-sm text-muted-foreground">{DEFINITION.description}</p>
-              )}
-            </div>
-          </div>
+      {connection && (
+        <>
+          <SettingsSection title="Destination">
+            <ChatFields
+              tenantId={tenantId}
+              token={form.botToken.trim()}
+              canSearch
+              chatId={form.chatId}
+              onChange={(value) => update('chatId', value)}
+              idPrefix="manage"
+            />
+          </SettingsSection>
 
-          {query.isPending ? null : !connection ? (
-            <div className={panelClass}>
-              <p className="text-sm text-muted-foreground">
-                Create a bot with BotFather, add it to your staff group, and DUMA finds the chat for you. It takes about two minutes.
-              </p>
-              <Button className="mt-4 gap-1.5" onClick={onConnect}>
-                <Plug size={15} aria-hidden="true" /> Connect Telegram
+          <SettingsSection
+            title="Bot"
+            actions={
+              <Button variant={editingBot ? 'ghost' : 'outline'} size="sm" onClick={() => setEditingBot((open) => !open)}>
+                {editingBot ? 'Close' : 'Replace token'}
               </Button>
-            </div>
-          ) : (
-            <SettingsTabBody
-              aside={
-                <>
-                  <SettingsSection title="Send a test">
-                    <TestPanel connection={connection} dirty={dirty} onSent={invalidate} />
-                  </SettingsSection>
-                  <SettingsSection title="Used for">
-                    <Link
-                      href="/automation"
-                      className="flex items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3 py-2.5 transition-colors hover:border-rule hover:bg-band/45"
-                    >
-                      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
-                        <Sparkles size={15} aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0">
-                        <span className="block text-sm font-semibold text-foreground">Automations</span>
-                        <span className="block truncate text-xs text-muted-foreground">Add a “Send Telegram message” step.</span>
-                      </span>
-                    </Link>
-                  </SettingsSection>
-                </>
-              }
-            >
-              <SettingsSection title="Destination">
-                <ChatFields
-                  tenantId={tenantId}
-                  token={form.botToken.trim()}
-                  canSearch
-                  chatId={form.chatId}
-                  onChange={(value) => update('chatId', value)}
-                  idPrefix="manage"
-                />
-              </SettingsSection>
+            }
+          >
+            {editingBot ? (
+              <TokenField value={form.botToken} onChange={(value) => update('botToken', value)} hasToken idPrefix="manage" />
+            ) : (
+              // The token never comes back, so this reads as one line until you ask to replace it.
+              <InfoRows>
+                <InfoRow icon={Send} title={`@${connection.botUsername}`} description="Token saved and encrypted">
+                  {null}
+                </InfoRow>
+              </InfoRows>
+            )}
+          </SettingsSection>
 
-              <SettingsSection
-                title="Bot"
-                actions={
-                  <Button variant={editingBot ? 'ghost' : 'outline'} size="sm" onClick={() => setEditingBot((open) => !open)}>
-                    {editingBot ? 'Close' : 'Replace token'}
-                  </Button>
-                }
-              >
-                {editingBot ? (
-                  <TokenField value={form.botToken} onChange={(value) => update('botToken', value)} hasToken idPrefix="manage" />
-                ) : (
-                  // The token never comes back, so this reads as one line until you ask to replace it.
-                  <div className="flex items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
-                    <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
-                      <Send size={18} aria-hidden="true" />
-                    </span>
-                    <span className="min-w-0">
-                      <span className="block truncate text-sm font-semibold text-foreground">@{connection.botUsername}</span>
-                      <span className="block truncate text-xs text-muted-foreground">Token saved and encrypted</span>
-                    </span>
-                  </div>
-                )}
-              </SettingsSection>
-
-              <SettingsSection title="Notifications">
-                <div className="flex items-center justify-between gap-4 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
-                  <span className="min-w-0">
-                    <span className="block text-sm font-semibold text-foreground">Allow automation notifications</span>
-                    <span className="block text-xs text-muted-foreground">
-                      Off skips Telegram steps — skipped messages aren’t sent later. Tests still work.
-                    </span>
-                  </span>
-                  <Switch
-                    label="Allow automation notifications"
-                    checked={form.isEnabled}
-                    onChange={(value) => update('isEnabled', value)}
-                  />
-                </div>
-              </SettingsSection>
-            </SettingsTabBody>
-          )}
-        </div>
+          <SettingsSection title="Notifications">
+            <InfoRows>
+              <InfoRow icon={Bell} title="Allow automation notifications" description="Skipped messages aren’t sent later.">
+                <Switch label="Allow automation notifications" checked={form.isEnabled} onChange={(value) => update('isEnabled', value)} />
+              </InfoRow>
+            </InfoRows>
+          </SettingsSection>
+        </>
       )}
-
-      <SaveBar
-        dirty={dirty}
-        saving={save.isPending}
-        disabled={!chatReady || query.isPending}
-        saveLabel="Verify and save"
-        onSave={() =>
-          save.mutate(undefined, {
-            onSuccess: () => {
-              toast('success', 'Telegram saved.');
-              setEditingBot(false);
-            },
-            onError: (error) => toast('error', error.message),
-          })
-        }
-        onDiscard={() => {
-          reset();
-          setEditingBot(false);
-        }}
-      />
-
-      {confirmDisconnect && (
-        <ConfirmModal
-          onClose={() => setConfirmDisconnect(false)}
-          title="Disconnect Telegram?"
-          message="Automations keep their Telegram steps, but those steps will fail until you reconnect."
-          confirmLabel="Disconnect"
-          onConfirm={() => disconnect.mutate()}
-          isPending={disconnect.isPending}
-          pendingLabel="Disconnecting…"
-        />
-      )}
-    </EditorShell>
+    </ConnectorManagePage>
   );
 }

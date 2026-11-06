@@ -38,13 +38,25 @@ export function RowTile({ icon: Icon, tone = 'default' }: { icon: IconComponent;
 }
 
 /** `RowTile`'s size, for a brand: its mark in white on its own colour. State goes in a badge beside it. */
-export function BrandTile({ brand }: { brand: { background: string; path: string } }) {
+export function BrandTile({
+  brand,
+  size = 'md',
+  className,
+}: {
+  brand: { background: string; path: string };
+  size?: 'md' | 'lg';
+  className?: string;
+}) {
   return (
     <span
-      className="flex size-8 shrink-0 items-center justify-center rounded-md text-white ring-1 ring-inset ring-black/5 dark:ring-white/15"
+      className={cn(
+        'flex shrink-0 items-center justify-center text-white ring-1 ring-inset ring-black/5 dark:ring-white/15',
+        size === 'lg' ? 'size-14 rounded-xl' : 'size-8 rounded-md',
+        className,
+      )}
       style={{ background: brand.background }}
     >
-      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-4">
+      <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className={size === 'lg' ? 'size-7' : 'size-4'}>
         <path d={brand.path} />
       </svg>
     </span>
@@ -71,6 +83,7 @@ export function InfoRow({
   title,
   description,
   tone,
+  wrap = false,
   children,
 }: {
   icon?: IconComponent;
@@ -81,16 +94,18 @@ export function InfoRow({
   description?: string;
   /** Tint the tile when the row means something — a state, a warning. */
   tone?: React.ComponentProps<typeof RowTile>['tone'];
+  /** Let the description run onto more lines instead of cutting it off — for a sentence in a narrow column. */
+  wrap?: boolean;
   children: React.ReactNode;
 }) {
   return (
-    <div className="flex items-center justify-between gap-3">
-      <div className="flex min-w-0 items-center gap-3">
+    <div className={cn('flex justify-between gap-3', wrap ? 'items-start' : 'items-center')}>
+      <div className={cn('flex min-w-0 gap-3', wrap ? 'items-start' : 'items-center')}>
         {tile ?? (icon && <RowTile icon={icon} tone={tone} />)}
         {description ? (
           <div className="min-w-0">
             <p className="truncate text-sm font-semibold text-foreground">{title}</p>
-            <p className="truncate text-xs text-muted-foreground">{description}</p>
+            <p className={cn('text-xs text-muted-foreground', !wrap && 'truncate')}>{description}</p>
           </div>
         ) : (
           <p className="truncate text-sm font-semibold text-foreground">{title}</p>

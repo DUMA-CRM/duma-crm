@@ -7,6 +7,11 @@ import { rememberPrinterOrigins } from '@/lib/pos-hardware/printer-access';
 interface TillHardwareStore {
   registers: Record<string, TillHardwareSettings>;
   save: (scope: string, settings: TillHardwareSettings) => void;
+  /**
+   * Forget this browser's till for a workspace and location. Its drawer claims
+   * stay (lib/pos-hardware/browser.ts), so an old payment can't open it again.
+   */
+  remove: (scope: string) => void;
 }
 
 /** Every network printer this browser's tills use — what the proxy lets this browser's CSP reach. */
@@ -21,6 +26,15 @@ export const useTillHardwareStore = create<TillHardwareStore>()(
         const error = validateHardware(settings);
         if (error) throw new Error(error);
         set((state) => ({ registers: { ...state.registers, [scope]: settings } }));
+        rememberPrinterOrigins(networkOrigins(get().registers));
+      },
+      remove: (scope) => {
+        set((state) => {
+          const registers = { ...state.registers };
+          delete registers[scope];
+          return { registers };
+        });
+        // The printer leaves this browser's CSP on the next page load.
         rememberPrinterOrigins(networkOrigins(get().registers));
       },
     }),

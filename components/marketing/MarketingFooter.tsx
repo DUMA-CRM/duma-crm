@@ -61,7 +61,7 @@ export function MarketingFooter() {
       { title: 'Compare', links: PAGES.filter((p) => p.published && p.path.startsWith('/compare/')) },
     ],
     [
-      { title: 'Legal', links: pages(['/terms', '/privacy', '/dpa', '/gdpr', '/legal']) },
+      { title: 'Legal', links: pages(['/terms', '/privacy', '/dpa', '/gdpr', '/legal', '/data-deletion']) },
     ],
   ]
     .map((column) => column.filter((group) => group.links.length > 0))

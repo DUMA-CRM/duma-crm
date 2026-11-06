@@ -42,6 +42,9 @@ export const saveAnalyticsConnection = (input: AnalyticsConnectionInput, tenantI
   });
 export const deleteAnalyticsConnection = (tenantId?: string) =>
   apiFetch<void>(`/analytics-connections${tenantQuery(tenantId)}`, { method: 'DELETE' });
+/** Prove the connection still works; the API records the check time. */
+export const checkAnalyticsConnection = (tenantId?: string) =>
+  apiFetch<{ checkedAt: string }>(`/analytics-connections/check${tenantQuery(tenantId)}`, { method: 'POST', body: '{}' });
 export const getExternalAnalyticsData = (tenantId?: string) =>
   apiFetch<ExternalAnalyticsData>(`/analytics-connections/data${tenantQuery(tenantId)}`);
 

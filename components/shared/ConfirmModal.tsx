@@ -1,5 +1,7 @@
 'use client';
 
+import { useState } from 'react';
+
 import { Modal } from '@/components/shared/Modal';
 
 interface ConfirmModalProps {
@@ -8,6 +10,11 @@ interface ConfirmModalProps {
   confirmLabel?: string;
   pendingLabel?: string;
   isPending?: boolean;
+  /**
+   * Ask for this text to be typed before confirming — for a step that loses
+   * money or files, where a reflex click is not enough.
+   */
+  confirmText?: string;
   onConfirm: () => void;
   onClose: () => void;
 }
@@ -19,13 +26,29 @@ export function ConfirmModal({
   confirmLabel = 'Delete',
   pendingLabel = 'Deleting…',
   isPending = false,
+  confirmText,
   onConfirm,
   onClose,
 }: ConfirmModalProps) {
+  const [typed, setTyped] = useState('');
+  const matched = !confirmText || typed.trim().toLowerCase() === confirmText.trim().toLowerCase();
   return (
     <Modal title={title} onClose={onClose}>
       <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">{message}</p>
+        <div className="text-sm text-muted-foreground">{message}</div>
+        {confirmText && (
+          <label className="block text-sm text-foreground">
+            Type <span className="font-semibold">{confirmText}</span> to confirm
+            <input
+              value={typed}
+              onChange={(event) => setTyped(event.target.value)}
+              autoComplete="off"
+              autoCapitalize="none"
+              spellCheck={false}
+              className="mt-1.5 h-10 w-full rounded-sm border border-input bg-control px-3 text-sm text-foreground outline-none focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-measured"
+            />
+          </label>
+        )}
         <div className="flex gap-2">
           <button
             onClick={onClose}
@@ -35,7 +58,7 @@ export function ConfirmModal({
           </button>
           <button
             onClick={onConfirm}
-            disabled={isPending}
+            disabled={isPending || !matched}
             className="flex-1 h-10 bg-destructive hover:bg-destructive/90 text-on-fill text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
           >
             {isPending ? pendingLabel : confirmLabel}

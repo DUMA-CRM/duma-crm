@@ -3,10 +3,14 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { createContext, useContext, useEffect, useRef, useState } from 'react';
 
-import { ArrowLeft, Check, type IconComponent, Loader2, Lock } from '@/components/icons';
+import { ArrowLeft, type IconComponent, Loader2, Lock } from '@/components/icons';
+import { ChalkCurve } from '@/components/marketing/Strokes';
 import { type Choice, ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Button } from '@/components/ui/button';
+import { FieldLabel } from '@/components/ui/label';
+
+import type { ConnectorRequirement } from './registry';
 
 const EASE = [0.16, 1, 0.3, 1] as const;
 /** Long enough to see the card tick, short enough not to feel like waiting. */
@@ -14,6 +18,8 @@ const AUTO_ADVANCE_MS = 280;
 
 export interface WizardStep {
   key: string;
+  /** Short name for the step list and the Back / Continue buttons ("Bot token"). Defaults to the title. */
+  label?: string;
   title: string;
   description?: string;
   content: React.ReactNode;
@@ -30,44 +36,76 @@ export interface WizardStep {
 const WizardContext = createContext<{ next: () => void } | null>(null);
 
 /**
- * What to have to hand before starting — shown under the first question, so
- * nobody gets three steps in and has to go hunting for a password.
+ * What to have to hand before starting, as tiles under the first question —
+ * so nobody gets three steps in and has to go hunting for a password.
  */
 export function WizardRail({
   requirements,
   footnote,
-  note = 'Keys are encrypted when saved and never shown again.',
+  note,
+  children,
 }: {
   icon?: IconComponent;
   name?: string;
   tagline?: string;
-  requirements: string[];
+  requirements: ConnectorRequirement[];
   footnote?: React.ReactNode;
-  /** The line beside the lock — where what's entered is kept. */
+  /** Where what's entered is kept, when that matters to know. */
   note?: React.ReactNode;
+  /** The step's instruction, full width under the tiles, in the same group. */
+  children?: React.ReactNode;
 }) {
+  if (!requirements.length && !note && !footnote && !children) return null;
   return (
-    <div className="rounded-lg border border-rule/50 bg-background/60 px-4 py-3.5">
+    <div>
       {requirements.length > 0 && (
         <>
-          <p className="text-label uppercase text-muted-foreground">Before you start</p>
-          <ul className="mt-2 space-y-1.5">
-            {requirements.map((requirement) => (
-              <li key={requirement} className="flex gap-2 text-sm text-foreground">
-                <Check size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
-                {requirement}
-              </li>
-            ))}
-          </ul>
+          <FieldLabel as="span">You need</FieldLabel>
+          <ol className="mt-1.5 space-y-2">
+            {requirements.map((requirement, index) => {
+              const { label, hint } = typeof requirement === 'string' ? { label: requirement, hint: undefined } : requirement;
+              return (
+                <li key={label} className="flex items-center gap-3">
+                  <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold tabular-nums text-primary">
+                    {index + 1}
+                  </span>
+                  <span className="min-w-0 text-sm">
+                    <span className="font-medium text-foreground">{label}</span>
+                    {hint && <span className="text-muted-foreground"> · {hint}</span>}
+                  </span>
+                </li>
+              );
+            })}
+          </ol>
+          {children && <div className="mt-3">{children}</div>}
         </>
       )}
-      <p className="mt-3 flex gap-2 text-xs text-muted-foreground">
-        <Lock size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-        {note}
-      </p>
+      {note && (
+        <p className="mt-3 flex gap-1.5 text-xs text-muted-foreground">
+          <Lock size={12} className="mt-0.5 shrink-0" aria-hidden="true" />
+          {note}
+        </p>
+      )}
       {footnote && <p className="mt-1.5 text-xs text-muted-foreground">{footnote}</p>}
     </div>
   );
+}
+
+/** The one thing to do in a step — an icon and a line, with any command set as code (`Command`). */
+export function WizardInstruction({ icon: Icon, children }: { icon: IconComponent; children: React.ReactNode }) {
+  return (
+    <div className="flex items-center gap-3 pb-3">
+      <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
+        <Icon size={16} aria-hidden="true" />
+      </span>
+      <p className="text-sm text-foreground">{children}</p>
+    </div>
+  );
+}
+
+/** A command to type, such as /newbot, set apart from the sentence around it. */
+export function Command({ children }: { children: React.ReactNode }) {
+  return <code className="mx-0.5 rounded bg-band/70 p-0.5 font-mono text-[0.8125rem] text-foreground ring-1 ring-rule/50">{children}</code>;
 }
 
 /**
@@ -89,11 +127,13 @@ export function ConnectWizard({
   dirty = false,
   lockedFrom,
   initialIndex = 0,
+  resumeKey,
+  onStartOver,
 }: {
   eyebrow: string;
   title: string;
   icon: React.ReactNode;
-  /** Shown under the first question only. */
+  /** "You need", at the foot of the first step only. */
   rail?: React.ReactNode;
   steps: WizardStep[];
   onClose: () => void;
@@ -109,17 +149,51 @@ export function ConnectWizard({
   lockedFrom?: number;
   /** The step to open on — after a reload that kept what was entered. */
   initialIndex?: number;
+  /**
+   * Remember the step on this browser, so leaving and coming back picks up
+   * where you were. The connector keeps its own fields (never its secrets).
+   */
+  resumeKey?: string | null;
+  /** "Start over" on a resumed setup: clear the connector's kept fields. */
+  onStartOver?: () => void;
 }) {
   const reduceMotion = useReducedMotion();
   const [position, setPosition] = useState({ index: initialIndex, direction: 1 });
   const [busy, setBusy] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 
+  const stepKey = resumeKey ? `duma-connect-step:${resumeKey}` : null;
+  const [resumed, setResumed] = useState(false);
+  // Restored after mount, so the server and first client render agree.
+  useEffect(() => {
+    if (!stepKey) return;
+    try {
+      const stored = Number(localStorage.getItem(stepKey));
+      if (stored > 0) {
+        setPosition({ index: stored, direction: 1 });
+        setResumed(true);
+      }
+    } catch {
+      // No storage: start at the beginning.
+    }
+  }, [stepKey]);
+
   const clamped = Math.min(position.index, steps.length - 1);
   const step = steps[clamped];
   const isLast = clamped === steps.length - 1;
   const locked = lockedFrom !== undefined && clamped >= lockedFrom;
   const canContinue = !busy && step.ready !== false;
+
+  useEffect(() => {
+    if (!stepKey) return;
+    try {
+      localStorage.setItem(stepKey, String(clamped));
+    } catch {
+      // Not remembered; nothing else depends on it.
+    }
+  }, [stepKey, clamped]);
+  const labelOf = (item: WizardStep) => item.label ?? item.title;
+  const go = (index: number) => setPosition({ index, direction: index > clamped ? 1 : -1 });
 
   // The heading takes focus on each step, unless the step focused its own field.
   useEffect(() => {
@@ -139,6 +213,12 @@ export function ConnectWizard({
       if (!ok) return;
     }
     if (isLast) {
+      if (stepKey)
+        try {
+          localStorage.removeItem(stepKey);
+        } catch {
+          // Nothing kept to clear.
+        }
       onFinish();
       return;
     }
@@ -152,8 +232,14 @@ export function ConnectWizard({
 
   return (
     <EditorShell eyebrow={eyebrow} title={title} icon={icon} onClose={onClose} dirty={dirty} flush>
-      <div className="flex flex-1 overflow-auto">
-        <div className="mx-auto flex w-full max-w-2xl flex-col px-5 py-10 sm:py-14">
+      {/* The website's chalk curves behind the setup. ChalkCurve draws in --mkt-chalk,
+          which only the marketing site defines, so the colour is set here for both themes. */}
+      <div className="relative flex flex-1 overflow-auto [--mkt-chalk:#e6e0d6] dark:[--mkt-chalk:#2a2724]">
+        <div aria-hidden="true" className="pointer-events-none absolute inset-0 overflow-hidden">
+          <ChalkCurve side="left" id="connect-left" className="absolute top-0 -left-8 hidden w-[34rem] md:block" />
+          <ChalkCurve side="right" id="connect-right" className="absolute top-40 -right-40 hidden w-[44rem] md:block" />
+        </div>
+        <div className="relative mx-auto flex w-full max-w-2xl flex-col px-5 py-10 sm:py-14">
           {/* Progress: one segment per step, filled up to where you are. */}
           <div className="flex items-center gap-4">
             <div
@@ -177,12 +263,28 @@ export function ConnectWizard({
               ))}
             </div>
             <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
-              {clamped + 1} of {steps.length}
+              {clamped + 1} of {steps.length} · {labelOf(step)}
             </span>
           </div>
+          {resumed && (
+            <p className="mt-3 flex flex-wrap items-center gap-x-2 text-xs text-muted-foreground" role="status">
+              Picked up where you left off.
+              <button
+                type="button"
+                className="font-medium text-primary underline-offset-4 hover:underline"
+                onClick={() => {
+                  onStartOver?.();
+                  setResumed(false);
+                  go(0);
+                }}
+              >
+                Start over
+              </button>
+            </p>
+          )}
 
           <form
-            className="relative mt-10 flex flex-1 flex-col"
+            className="relative mt-8 flex flex-1 flex-col"
             noValidate
             onSubmit={(event) => {
               event.preventDefault();
@@ -212,13 +314,16 @@ export function ConnectWizard({
                     {step.title}
                   </h2>
                   {step.description && <p className="mt-2 max-w-[56ch] text-sm leading-6 text-muted-foreground">{step.description}</p>}
-                  <div className="mt-8">{step.content}</div>
-                  {clamped === 0 && rail && <div className="mt-6">{rail}</div>}
+                  {/* The step's content, then — on the first step — what you need, apart from it. */}
+                  <div className="mt-6 flex flex-col gap-6">
+                    {step.content}
+                    {clamped === 0 && rail}
+                  </div>
                 </motion.div>
               </AnimatePresence>
             </WizardContext.Provider>
 
-            <div className="mt-12 flex items-center justify-between gap-4">
+            <div className="mt-10 flex items-center justify-between gap-4">
               {clamped > 0 && !locked ? (
                 <Button
                   type="button"
@@ -226,9 +331,9 @@ export function ConnectWizard({
                   size="lg"
                   className="h-11 gap-1.5 px-4 text-muted-foreground"
                   disabled={busy}
-                  onClick={() => setPosition({ index: clamped - 1, direction: -1 })}
+                  onClick={() => go(clamped - 1)}
                 >
-                  <ArrowLeft aria-hidden="true" /> Back
+                  <ArrowLeft aria-hidden="true" /> Back to {labelOf(steps[clamped - 1])}
                 </Button>
               ) : (
                 <span />
@@ -241,7 +346,7 @@ export function ConnectWizard({
                 )}
                 <Button type="submit" size="lg" className="h-11 min-w-36 gap-2 px-5" disabled={!canContinue}>
                   {busy && <Loader2 className="animate-spin" aria-hidden="true" />}
-                  {step.continueLabel ?? (isLast ? finishLabel : 'Continue')}
+                  {step.continueLabel ?? (isLast ? finishLabel : `Continue to ${labelOf(steps[clamped + 1])}`)}
                   {!busy && (
                     <kbd
                       aria-hidden="true"
@@ -270,7 +375,7 @@ export function ProviderGrid<T extends string>({
   onChange,
   ariaLabel,
 }: {
-  options: { value: T; label: string; icon: IconComponent; hint?: string }[];
+  options: { value: T; label: string; icon: IconComponent; hint?: string; brand?: Choice<T>['brand'] }[];
   value: T | null;
   onChange: (value: T) => void;
   ariaLabel: string;
@@ -281,6 +386,7 @@ export function ProviderGrid<T extends string>({
     label: option.label,
     detail: option.hint,
     icon: option.icon,
+    brand: option.brand,
   }));
   return (
     <ChoiceGrid<T>

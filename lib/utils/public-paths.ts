@@ -13,7 +13,7 @@
 // then fails JSON parsing in the client. The API enforces its own auth.
 // '/ingest' is product analytics (next.config.ts): the sign-in page reports too.
 // '/api/cms-webhook' is the CMS's signed callback that refreshes the blog — it checks its own signature.
-const APP_PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password', '/verify-email', '/order', '/book', '/f', '/privacy', '/terms', '/dpa', '/gdpr', '/legal', '/api/auth', '/api/cms-webhook', '/be', '/ingest'];
+const APP_PUBLIC_PATHS = ['/sign-in', '/sign-up', '/forgot-password', '/reset-password', '/verify-email', '/order', '/book', '/f', '/privacy', '/terms', '/dpa', '/gdpr', '/legal', '/data-deletion', '/api/auth', '/api/cms-webhook', '/be', '/ingest'];
 
 // The marketing site's sections, reserved up front — including ones with no
 // page yet — so a new page under them is public the day it ships rather than

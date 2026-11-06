@@ -3,14 +3,13 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 
 import { InfoRow, InfoRows, RowTile } from '@/components/cms/rows';
-import { AlertTriangle, ChevronRight, Code, CreditCard, Database, MapPin, Plug } from '@/components/icons';
+import { AlertTriangle, ChevronRight, Code, MapPin, Plug } from '@/components/icons';
 import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
@@ -24,14 +23,13 @@ import { getCmsStorage } from '@/lib/modules/cms/client';
 import { getTelegramConnection, telegramQueryKey } from '@/lib/modules/communications/client';
 import { getEmailConnection } from '@/lib/modules/communications/client';
 import { type Platform, connections, marketingKey, startConnect } from '@/lib/modules/marketing/client';
-import { disconnectGoogleDrive, getGoogleDriveStatus, startGoogleDriveConnect } from '@/lib/modules/notes/client';
+import { getGoogleDriveStatus, startGoogleDriveConnect } from '@/lib/modules/notes/client';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { getPaymentConnections } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { hardwareScope } from '@/lib/pos-hardware/model';
 import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
-import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useTillHardwareStore } from '@/stores/tillHardwareStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -149,7 +147,6 @@ export function ConnectorsGrid() {
   const queryClient = useQueryClient();
   const searchParams = useSearchParams();
   const googleKey = moduleQueryKeys.notes.key('google-status');
-  const [confirmDisconnect, setConfirmDisconnect] = useState(false);
   const driveVisible = visible(CONNECTORS.find((definition) => definition.id === 'google-drive')!);
   const {
     data: google,
@@ -165,15 +162,6 @@ export function ConnectorsGrid() {
   const connectGoogle = useMutation({
     mutationFn: startGoogleDriveConnect,
     onSuccess: ({ url }) => window.location.assign(url),
-    onError: (error) => toast('error', error.message),
-  });
-  const disconnectGoogle = useMutation({
-    mutationFn: disconnectGoogleDrive,
-    onSuccess: async () => {
-      setConfirmDisconnect(false);
-      await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.notes.all });
-      toast('success', 'Google Drive disconnected. Your notes stopped syncing; the Docs stay in your Drive.');
-    },
     onError: (error) => toast('error', error.message),
   });
   // Back from Google's consent screen (the API's callback redirects here).
@@ -267,7 +255,7 @@ export function ConnectorsGrid() {
           ? emailState === 'attention'
             ? { label: 'Re-connect', onClick: () => open('email', 'connect') }
             : { label: 'Manage', onClick: () => open('email') }
-          : { label: 'Choose a provider', onClick: () => open('email', 'connect') };
+          : { label: 'Connect', onClick: () => open('email', 'connect') };
         return {
           definition,
           state: emailState,
@@ -293,7 +281,7 @@ export function ConnectorsGrid() {
         const accounts: ConnectorAccount[] = first ? [{ label: first.displayName, meta: PROVIDER_LABELS[first.provider] }] : [];
         const action: ConnectorAction = first
           ? { label: 'Manage', onClick: () => open('card-payments') }
-          : { label: 'Choose a provider', onClick: () => open('card-payments', 'connect'), disabled: !locationId };
+          : { label: 'Connect', onClick: () => open('card-payments', 'connect'), disabled: !locationId };
         return { definition, state: paymentsState, accounts, extraAccountCount: rest.length, action };
       }
 
@@ -315,7 +303,7 @@ export function ConnectorsGrid() {
             ? { label: 'Fix', onClick: () => open('media-storage') }
             : (storage?.connections.length ?? 0) > 0
               ? { label: 'Manage', onClick: () => open('media-storage') }
-              : { label: 'Choose a provider', onClick: () => open('media-storage', 'connect') };
+              : { label: 'Connect', onClick: () => open('media-storage', 'connect') };
         return {
           definition,
           state,
@@ -333,7 +321,7 @@ export function ConnectorsGrid() {
         const accounts: ConnectorAccount[] = google?.email && state !== 'disconnected' ? [{ label: google.email, meta: 'Only you' }] : [];
         const action: ConnectorAction =
           state === 'connected'
-            ? { label: 'Disconnect', onClick: () => setConfirmDisconnect(true) }
+            ? { label: 'Manage', onClick: () => open('google-drive') }
             : {
                 label: state === 'attention' ? 'Re-connect' : 'Connect',
                 onClick: () => connectGoogle.mutate(),
@@ -364,46 +352,55 @@ export function ConnectorsGrid() {
             : [],
           action: connected
             ? { label: 'Manage', onClick: () => open('analytics') }
-            : { label: 'Choose a provider', onClick: () => open('analytics', 'connect') },
+            : { label: 'Connect', onClick: () => open('analytics', 'connect') },
         };
       }
 
       return { definition, state: 'unavailable' as ConnectorState, accounts: [] };
     });
 
-  if (telegram.isLoading || modules.isPending || emailLoading || paymentsLoading || storageLoading || analyticsLoading || googleLoading) {
-    return <Bone className="h-96 w-full rounded-lg" />;
-  }
+  // Which rows exist depends on the modules, so only that waits for the whole page.
+  if (modules.isPending) return <Bone className="h-96 w-full rounded-lg" />;
   if (modules.isError) return <ErrorState title="Couldn’t load your connections" onRetry={() => void modules.refetch()} />;
 
-  if (emailError || paymentsError || storageError || analyticsError || googleError) {
-    return (
-      <ErrorState
-        title="Couldn’t load connection status"
-        description="Try again to see which services are connected."
-        onRetry={() => {
-          if (emailError) void retryEmail();
-          if (paymentsError) void retryPayments();
-          if (storageError) void retryStorage();
-          if (analyticsError) void retryAnalytics();
-          if (googleError) void retryGoogle();
-        }}
-      />
-    );
-  }
+  // Each status check belongs to its row: a slow one shows a placeholder line, a failed one says so on that row alone.
+  const checks: Partial<Record<ConnectorId, { loading: boolean; error: boolean; retry: () => unknown }>> = {
+    telegram: { loading: telegram.isLoading, error: telegram.isError, retry: telegram.refetch },
+    email: { loading: emailLoading, error: emailError, retry: retryEmail },
+    'card-payments': { loading: paymentsLoading, error: paymentsError, retry: retryPayments },
+    'media-storage': { loading: storageLoading, error: storageError, retry: retryStorage },
+    analytics: { loading: analyticsLoading, error: analyticsError, retry: retryAnalytics },
+    'google-drive': { loading: googleLoading, error: googleError, retry: retryGoogle },
+    ...Object.fromEntries(
+      (['youtube', 'facebook', 'instagram', 'tiktok'] as const).map((id) => [
+        id,
+        { loading: social.isLoading, error: social.isError, retry: social.refetch },
+      ]),
+    ),
+  };
+  const rows = cards.map((card) => {
+    const check = checks[card.definition.id];
+    if (check?.error)
+      return {
+        ...card,
+        state: 'attention' as ConnectorState,
+        accounts: [],
+        alert: { title: `Couldn’t check ${card.definition.name}` },
+        action: { label: 'Try again', onClick: () => void check.retry() },
+      };
+    return check?.loading ? { ...card, loading: true } : card;
+  });
 
   // Most urgent first: broken, then working, then not set up — each its own section.
-  const live = cards.filter((card) => card.definition.available);
+  const live = rows.filter((card) => card.definition.available);
+  const soon = rows.filter((card) => !card.definition.available);
   const attention = live.filter((card) => card.state === 'attention');
-  const connected = live.filter((card) => card.state === 'connected' || card.state === 'configured' || card.state === 'paused');
+  const connected = live.filter((card) => card.state === 'connected' || card.state === 'paused');
   const notSetUp = live.filter((card) => card.state === 'disconnected');
-  const readers = paymentMethods ?? [];
-  const activeReaders = readers.filter((reader) => reader.isActive !== false).length;
-  const pausedReaders = readers.length - activeReaders;
   const activeBucket = storage?.connections.find((connection) => connection.isActive);
-  const list = (rows: typeof live) => (
+  const list = (group: typeof live) => (
     <div className="-mx-2 flex flex-col gap-0.5">
-      {rows.map((card) => (
+      {group.map((card) => (
         <ConnectorRow key={card.definition.id} {...card} />
       ))}
     </div>
@@ -420,29 +417,8 @@ export function ConnectorsGrid() {
                 <InfoRow icon={MapPin} title="Location">
                   <span className="truncate text-sm font-semibold text-foreground">{workspace.location?.name ?? 'None chosen'}</span>
                 </InfoRow>
-                <InfoRow icon={CreditCard} title="Card readers">
-                  <span className={cn('text-sm', readers.length ? 'font-semibold text-foreground' : 'text-muted-foreground/70')}>
-                    {readers.length === 0
-                      ? 'None'
-                      : [`${activeReaders} active`, pausedReaders > 0 && `${pausedReaders} paused`].filter(Boolean).join(' · ')}
-                  </span>
-                </InfoRow>
               </>
             )}
-            {storageVisible && storage && (
-              <InfoRow icon={Database} title="Media storage">
-                <span className="truncate text-sm font-semibold text-foreground">
-                  {activeBucket
-                    ? activeBucket.displayName
-                    : `${formatBytes(storage.builtIn.usedBytes)} of ${formatBytes(storage.builtIn.quotaBytes)}`}
-                </span>
-              </InfoRow>
-            )}
-            <InfoRow icon={Plug} title="Set up">
-              <span className="text-sm font-semibold text-foreground">
-                {connected.length} of {live.length}
-              </span>
-            </InfoRow>
           </InfoRows>
           {paymentsVisible && (
             <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
@@ -501,19 +477,8 @@ export function ConnectorsGrid() {
           )}
           {connected.length > 0 && <SettingsSection title="Set up">{list(connected)}</SettingsSection>}
           {notSetUp.length > 0 && <SettingsSection title="Not set up">{list(notSetUp)}</SettingsSection>}
+          {soon.length > 0 && <SettingsSection title="Coming soon">{list(soon)}</SettingsSection>}
         </>
-      )}
-
-      {confirmDisconnect && (
-        <ConfirmModal
-          title="Disconnect Google Drive?"
-          message="Your notes stop syncing to Google Docs. The Docs already in your Drive stay there, and you can connect again any time."
-          confirmLabel="Disconnect"
-          pendingLabel="Disconnecting…"
-          isPending={disconnectGoogle.isPending}
-          onConfirm={() => disconnectGoogle.mutate()}
-          onClose={() => setConfirmDisconnect(false)}
-        />
       )}
     </SettingsTabBody>
   );

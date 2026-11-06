@@ -4,6 +4,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useId } from 'react';
 
 import { Check } from '@/components/icons';
+
 import { cn } from '@/lib/utils/cn';
 
 type Icon = typeof Check;
@@ -13,6 +14,12 @@ export interface Choice<T extends string> {
   label: string;
   detail?: string;
   icon?: Icon;
+  /**
+   * A brand's colour behind its mark, in place of the icon — for a choice that
+   * is one company. `icon` stands in where the mark can't be used (Microsoft's
+   * guidelines forbid it; SumUp's isn't in Simple Icons).
+   */
+  brand?: { background: string; path: string } | { background: string; icon: Icon };
   /** Take the whole row, e.g. a "both" that combines the options above it. */
   wide?: boolean;
 }
@@ -70,15 +77,33 @@ export function ChoiceGrid<T extends string>({
           const Icon = choice.icon;
           // Three across is too narrow for icon | text | marker in a row; stack it instead.
           const stacked = columns === 3;
-          const icon = Icon && (
+          const icon = choice.brand ? (
+            // The brand keeps its colour when chosen; the marker shows the choice.
             <span
-              className={cn(
-                'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border transition-colors',
-                active ? 'border-primary/40 bg-primary text-primary-foreground' : 'border-rule/55 bg-background text-muted-foreground group-hover:text-foreground',
-              )}
+              className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md text-white ring-1 ring-inset ring-black/5 dark:ring-white/15"
+              style={{ background: choice.brand.background }}
             >
-              <Icon size={18} aria-hidden="true" />
+              {'path' in choice.brand ? (
+                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-[18px]">
+                  <path d={choice.brand.path} />
+                </svg>
+              ) : (
+                <choice.brand.icon size={18} aria-hidden="true" />
+              )}
             </span>
+          ) : (
+            Icon && (
+              <span
+                className={cn(
+                  'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border transition-colors',
+                  active
+                    ? 'border-primary/40 bg-primary text-primary-foreground'
+                    : 'border-rule/55 bg-background text-muted-foreground group-hover:text-foreground',
+                )}
+              >
+                <Icon size={18} aria-hidden="true" />
+              </span>
+            )
           );
           const marker = (
             <span

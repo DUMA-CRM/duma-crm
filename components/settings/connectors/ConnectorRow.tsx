@@ -2,6 +2,7 @@
 
 import { BrandTile, RowTile } from '@/components/cms/rows';
 import { ChevronRight } from '@/components/icons';
+import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
 import { CONNECTOR_BRANDS } from './brands';
@@ -35,6 +36,7 @@ export function ConnectorRow({
   extraAccountCount = 0,
   alert,
   action,
+  loading = false,
 }: {
   definition: ConnectorDefinition;
   state: ConnectorState;
@@ -43,6 +45,8 @@ export function ConnectorRow({
   /** What broke and what it means — shown only when it needs attention. */
   alert?: { title: string; detail?: string };
   action?: ConnectorAction;
+  /** Its status is still being checked: a placeholder line, no badge yet. */
+  loading?: boolean;
 }) {
   const account = accounts[0];
   const subtitle = account
@@ -65,7 +69,11 @@ export function ConnectorRow({
       )}
       <span className="min-w-0 flex-1">
         <span className="block truncate text-sm font-semibold text-foreground">{definition.name}</span>
-        <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
+        {loading ? (
+          <Bone className="mt-1 h-3 w-40 max-w-full" />
+        ) : (
+          <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
+        )}
         {alert && (
           <span className="mt-0.5 block text-xs font-medium text-exception">
             {alert.title}
@@ -73,9 +81,9 @@ export function ConnectorRow({
           </span>
         )}
       </span>
-      {state !== 'disconnected' && <Badge variant={badge.variant}>{badge.label}</Badge>}
+      {!loading && state !== 'disconnected' && <Badge variant={badge.variant}>{badge.label}</Badge>}
       {action && <span className="hidden shrink-0 text-xs font-medium text-primary sm:inline">{action.label}</span>}
-      <ChevronRight size={14} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
+      {action && <ChevronRight size={14} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />}
     </button>
   );
 }

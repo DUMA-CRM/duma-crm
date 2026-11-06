@@ -87,6 +87,9 @@ export const startConnect = (provider: Platform) =>
   apiFetch<{ url: string }>(`/marketing/oauth/${provider}`, { method: 'POST', body: '{}' });
 export const disconnect = (id: string) => apiFetch<void>(`/marketing/connections/${id}`, { method: 'DELETE' });
 export const getCreator = (id: string) => apiFetch<Creator>(`/marketing/accounts/${id}/creator`);
+/** One harmless read on the provider, to prove DUMA can still use the account. */
+export const checkAccount = (id: string) =>
+  apiFetch<{ checkedAt: string }>(`/marketing/accounts/${id}/check`, { method: 'POST', body: '{}' });
 export const posts = (from: string, to: string, page = 1) =>
   apiFetch<{ data: Post[]; hasMore: boolean }>(`/marketing/posts?${new URLSearchParams({ from, to, page: String(page) })}`);
 export const getPost = (id: string) => apiFetch<Post>(`/marketing/posts/${id}`);

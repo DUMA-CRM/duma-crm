@@ -17,6 +17,7 @@ import { useAuthStore } from '@/stores/authStore';
 import { AnalyticsConnectWizard, AnalyticsConnectorPage } from './AnalyticsConnector';
 import { ConnectorsGrid } from './ConnectorsGrid';
 import { EmailConnectWizard, EmailConnectorPage } from './EmailConnector';
+import { GoogleDriveConnectorPage } from './GoogleDriveConnector';
 import { PaymentsConnectWizard, PaymentsConnectorPage } from './PaymentsConnector';
 import { StorageConnectWizard } from './StorageConnector';
 import { StorageConnectorPage } from './StorageConnectorPage';
@@ -77,6 +78,8 @@ export function ConnectorsRoute() {
 
   if (connector === 'youtube' || connector === 'facebook' || connector === 'instagram' || connector === 'tiktok')
     return <SocialConnector provider={connector} onClose={toList} />;
+
+  if (connector === 'google-drive') return <GoogleDriveConnectorPage onClose={toList} />;
 
   if (connector === 'till-hardware') {
     return connecting ? (

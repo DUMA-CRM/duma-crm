@@ -3,16 +3,34 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { ArrowRight, CheckCircle2, CreditCard, Plug, Plus, Receipt, Store, Trash2, Wallet } from '@/components/icons';
+import { SectionInfo } from '@/components/cms/rows';
+import {
+  Calculator,
+  CheckCircle2,
+  CreditCard,
+  ExternalLink,
+  KeyRound,
+  MapPin,
+  Monitor,
+  Pause,
+  Plug,
+  Plus,
+  Receipt,
+  Store,
+  Trash2,
+  Wallet,
+} from '@/components/icons';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
-import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
@@ -30,11 +48,33 @@ import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { ConnectWizard, ProviderGrid, WizardRail, type WizardStep } from './ConnectWizard';
-import { CONNECTORS_BY_ID, type ConnectorState } from './registry';
+import { Command, ConnectWizard, ProviderGrid, WizardInstruction, WizardRail, type WizardStep } from './ConnectWizard';
+import { ConnectorManagePage, type ConnectorStatus } from './ConnectorManagePage';
+import { type ConnectorBrand, PROVIDER_BRANDS, PROVIDER_COLOURS } from './brands';
+import { CONNECTORS_BY_ID } from './registry';
 import { panelClass } from './shared';
 
 const DEFINITION = CONNECTORS_BY_ID['card-payments'];
+
+/** SumUp isn't in Simple Icons, so its card has its colour with DUMA's own icon. */
+const BRANDS: Partial<Record<Provider, ConnectorBrand | { background: string; icon: typeof Wallet }>> = {
+  stripe_terminal: PROVIDER_BRANDS.stripe,
+  stripe_online: PROVIDER_BRANDS.stripe,
+  square: PROVIDER_BRANDS.square,
+  sumup: { background: PROVIDER_COLOURS.sumup, icon: Wallet },
+};
+
+/** The events the online-checkout webhook must send. */
+const STRIPE_EVENTS = [
+  'checkout.session.completed',
+  'checkout.session.async_payment_succeeded',
+  'checkout.session.expired',
+  'payment_intent.succeeded',
+  'payment_intent.payment_failed',
+];
+/** A provider link inside the field it helps fill, as on Telegram's token. */
+const LINK_IN_FIELD =
+  'inline-flex h-7 items-center gap-1 rounded-sm px-2 text-xs font-medium text-primary transition-colors hover:bg-primary/8';
 
 type Provider = Exclude<PaymentProvider, 'cash'>;
 
@@ -45,7 +85,7 @@ const PROVIDERS: { value: Provider; label: string; icon: typeof CreditCard; hint
     value: 'stripe_terminal',
     label: 'Stripe Terminal',
     icon: CreditCard,
-    hint: 'The till sends the amount to the reader for you.',
+    hint: 'Sends the amount to the reader',
     integrated: true,
     name: 'Counter reader',
   },
@@ -53,7 +93,7 @@ const PROVIDERS: { value: Provider; label: string; icon: typeof CreditCard; hint
     value: 'sumup',
     label: 'SumUp',
     icon: Wallet,
-    hint: 'The till sends the amount to your SumUp reader.',
+    hint: 'Sends the amount to SumUp',
     integrated: true,
     name: 'SumUp reader',
   },
@@ -61,7 +101,7 @@ const PROVIDERS: { value: Provider; label: string; icon: typeof CreditCard; hint
     value: 'square',
     label: 'Square',
     icon: Store,
-    hint: 'The till sends the amount to your Square Terminal.',
+    hint: 'Sends the amount to Square',
     integrated: true,
     name: 'Square terminal',
   },
@@ -69,7 +109,7 @@ const PROVIDERS: { value: Provider; label: string; icon: typeof CreditCard; hint
     value: 'manual_terminal',
     label: 'Card machine',
     icon: Receipt,
-    hint: 'Any standalone machine. Staff type the amount on it, then tap “Paid” on the till.',
+    hint: 'Staff key the amount in',
     integrated: false,
     name: 'Card machine',
   },
@@ -77,7 +117,7 @@ const PROVIDERS: { value: Provider; label: string; icon: typeof CreditCard; hint
     value: 'custom',
     label: 'Another provider',
     icon: Plug,
-    hint: 'Anything else — the till just records that the customer paid by card.',
+    hint: 'Records a card payment',
     integrated: false,
     name: 'Card payments',
   },
@@ -85,7 +125,7 @@ const PROVIDERS: { value: Provider; label: string; icon: typeof CreditCard; hint
     value: 'stripe_online',
     label: 'Online checkout (Stripe)',
     icon: CreditCard,
-    hint: 'For QR ordering: customers pay on their phone. Set up once for the whole workspace.',
+    hint: 'Phone payments for QR orders',
     integrated: true,
     name: 'Online checkout',
   },
@@ -102,10 +142,7 @@ export const PROVIDER_LABELS: Record<PaymentProvider, string> = {
 };
 
 /** Connected while any reader takes payments; paused when every reader is paused; otherwise not connected. */
-export function paymentsConnectorState(methods: PaymentMethod[] | undefined): ConnectorState {
-  if (!methods || methods.length === 0) return 'disconnected';
-  return methods.some((method) => method.isActive !== false) ? 'connected' : 'paused';
-}
+export { paymentsConnectorState } from '@/lib/utils/connector-state';
 
 /** Everything the wizard needs to add one reader, including the per-provider fields. */
 function useAddPaymentConnection() {
@@ -233,78 +270,86 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
 
   const credentialsStep: WizardStep = {
     key: 'credentials',
+    label: 'Connect',
     title: provider === 'stripe_online' ? 'Connect your Stripe account' : `Connect your ${chosen?.label} reader`,
-    description: 'Copy these from your provider’s dashboard. They’re encrypted before they’re saved.',
     ready: credentialsReady,
     content: (
-      <div className="space-y-4">
-        {provider === 'sumup' && (
-          <>
+      <div className="space-y-6">
+        <div className="space-y-3">
+          <WizardInstruction icon={KeyRound}>
+            {provider === 'sumup'
+              ? 'Your merchant code is under Account → Profile. The affiliate app ID and key are in SumUp’s developer portal.'
+              : provider === 'square'
+                ? 'Find the Device ID under Devices → your Terminal, and the production access token in your app’s credentials.'
+                : provider === 'stripe_online'
+                  ? 'Copy your secret key, then add a webhook endpoint for /v1/qr-ordering/stripe/webhook and copy its signing secret.'
+                  : 'Find the reader ID under Terminal → Readers, and your secret key under Developers → API keys.'}
+          </WizardInstruction>
+          {provider === 'sumup' && (
+            <>
+              <Input label="Merchant code" autoFocus value={merchant} onChange={(event) => setMerchant(event.target.value)} />
+              <Input
+                label="Affiliate app ID"
+                value={affiliateAppId}
+                onChange={(event) => setAffiliateAppId(event.target.value)}
+                className="pr-32"
+                rightAction={
+                  <a href="https://developer.sumup.com/" target="_blank" rel="noreferrer" className={LINK_IN_FIELD}>
+                    Open SumUp <ExternalLink size={12} aria-hidden="true" />
+                  </a>
+                }
+              />
+              <Input label="Affiliate key" type="password" value={affiliateKey} onChange={(event) => setAffiliateKey(event.target.value)} />
+            </>
+          )}
+          {provider !== 'stripe_online' && (
             <Input
-              label="Merchant code"
-              autoFocus
-              value={merchant}
-              onChange={(event) => setMerchant(event.target.value)}
-              hint="SumUp dashboard → Account → Profile."
+              label="Reader ID"
+              autoFocus={provider !== 'sumup'}
+              value={device}
+              onChange={(event) => setDevice(event.target.value)}
+              placeholder={provider === 'stripe_terminal' ? 'tmr_…' : undefined}
             />
-            <Input label="Affiliate app ID" value={affiliateAppId} onChange={(event) => setAffiliateAppId(event.target.value)} />
-            <Input
-              label="Affiliate key"
-              type="password"
-              value={affiliateKey}
-              onChange={(event) => setAffiliateKey(event.target.value)}
-              hint="Both come from the SumUp developer portal → Affiliate keys."
-            />
-          </>
-        )}
-        {provider !== 'stripe_online' && (
+          )}
           <Input
-            label="Reader ID"
-            autoFocus={provider !== 'sumup'}
-            value={device}
-            onChange={(event) => setDevice(event.target.value)}
-            placeholder={provider === 'stripe_terminal' ? 'tmr_…' : undefined}
-            hint={
-              provider === 'square'
-                ? 'Square dashboard → Devices → your Terminal → Device ID.'
-                : provider === 'stripe_terminal'
-                  ? 'Stripe dashboard → Terminal → Readers → the reader’s ID.'
-                  : 'Shown next to the reader in your provider’s dashboard.'
+            label={provider === 'square' ? 'Access token' : 'Secret key'}
+            autoFocus={provider === 'stripe_online'}
+            type="password"
+            value={secret}
+            onChange={(event) => setSecret(event.target.value)}
+            placeholder={provider === 'stripe_terminal' || provider === 'stripe_online' ? 'sk_live_…' : undefined}
+            className={provider === 'sumup' ? undefined : 'pr-32'}
+            rightAction={
+              provider === 'square' ? (
+                <a href="https://developer.squareup.com/apps" target="_blank" rel="noreferrer" className={LINK_IN_FIELD}>
+                  Open Square <ExternalLink size={12} aria-hidden="true" />
+                </a>
+              ) : provider === 'sumup' ? undefined : (
+                <a href="https://dashboard.stripe.com/apikeys" target="_blank" rel="noreferrer" className={LINK_IN_FIELD}>
+                  Open Stripe <ExternalLink size={12} aria-hidden="true" />
+                </a>
+              )
             }
           />
-        )}
-        <Input
-          label={provider === 'square' ? 'Access token' : 'Secret key'}
-          autoFocus={provider === 'stripe_online'}
-          type="password"
-          value={secret}
-          onChange={(event) => setSecret(event.target.value)}
-          placeholder={provider === 'stripe_terminal' || provider === 'stripe_online' ? 'sk_live_…' : undefined}
-          hint={
-            provider === 'square'
-              ? 'Square Developer → your app → Credentials → Production access token.'
-              : provider === 'sumup'
-                ? 'Your SumUp API key.'
-                : 'Stripe dashboard → Developers → API keys → Secret key.'
-          }
-        />
-        {provider === 'stripe_online' && (
-          <>
+          {provider === 'stripe_online' && (
             <Input
               label="Webhook signing secret"
               type="password"
               value={webhookSecret}
               onChange={(event) => setWebhookSecret(event.target.value)}
               placeholder="whsec_…"
-              hint="Stripe → Developers → Webhooks → add an endpoint for /v1/qr-ordering/stripe/webhook, then copy its signing secret."
             />
-            <div className={panelClass}>
-              <p className="text-xs text-muted-foreground">
-                Send these events to it: checkout.session.completed, checkout.session.async_payment_succeeded, checkout.session.expired,
-                payment_intent.succeeded and payment_intent.payment_failed.
-              </p>
-            </div>
-          </>
+          )}
+        </div>
+        {provider === 'stripe_online' && (
+          <div className="flex flex-col gap-1.5">
+            <FieldLabel as="span">Webhook events</FieldLabel>
+            <p className="flex flex-wrap gap-1.5">
+              {STRIPE_EVENTS.map((event) => (
+                <Command key={event}>{event}</Command>
+              ))}
+            </p>
+          </div>
         )}
       </div>
     ),
@@ -313,13 +358,13 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
   const steps: WizardStep[] = [
     {
       key: 'provider',
+      label: 'Provider',
       title: 'How do you take card payments?',
-      description: 'Pick the one on your counter. You can add more later.',
       ready: provider !== null,
       content: (
         <ProviderGrid
           ariaLabel="Card payment provider"
-          options={PROVIDERS.map(({ value, label, icon, hint }) => ({ value, label, icon, hint }))}
+          options={PROVIDERS.map(({ value, label, icon, hint }) => ({ value, label, icon, hint, brand: BRANDS[value] }))}
           value={provider}
           onChange={setProvider}
         />
@@ -330,13 +375,13 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
     ...(provider === null || integrated ? [credentialsStep] : []),
     {
       key: 'name',
-      title: 'What should staff see at the till?',
-      description: 'They pick this name when taking a card payment — match what’s written on the machine.',
+      label: 'Name',
+      title: 'Name it for the till',
       ready: nameReady,
       continueLabel: 'Add reader',
       onContinue: tryAdd,
       content: (
-        <div className="space-y-4">
+        <div className="space-y-3">
           <Input
             label="Name"
             autoFocus
@@ -367,8 +412,9 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
     },
     {
       key: 'done',
+      label: 'Done',
       title: 'Ready to take payments',
-      description: 'It now shows up at checkout. To be sure, take a small test payment and refund it.',
+      description: 'Take a small test payment and refund it to be sure.',
       continueLabel: 'Done',
       content: (
         <div className={`${panelClass} flex items-start gap-3`}>
@@ -376,7 +422,7 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
           <div>
             <p className="text-sm font-medium text-foreground">{displayName.trim() || 'Your reader'} was added</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Currency, VAT and what prints on the receipt live in{' '}
+              Currency, VAT and receipts are in{' '}
               <Link href="/settings/trading" className="font-medium text-primary hover:underline">
                 Trading &amp; tax
               </Link>
@@ -399,15 +445,7 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
       lockedFrom={steps.length - 1}
       onClose={onClose}
       onFinish={onDone}
-      rail={
-        <WizardRail
-          icon={CreditCard}
-          name={DEFINITION.name}
-          tagline={DEFINITION.tagline}
-          requirements={DEFINITION.requirements}
-          footnote={<>Readers are added per location. Use the location picker to set up another site.</>}
-        />
-      }
+      rail={<WizardRail requirements={DEFINITION.requirements} />}
     />
   );
 }
@@ -561,93 +599,99 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
   });
   const methods = readers.data ?? [];
   const { location } = useCurrentWorkspace();
+  const router = useRouter();
+  const active = methods.filter((method) => method.isActive !== false).length;
+  const paused = methods.length - active;
+  const status: ConnectorStatus | undefined = !locationId
+    ? undefined
+    : readers.isError
+      ? { tone: 'danger', text: 'Couldn’t load readers' }
+      : active
+        ? { tone: 'success', text: `${active} ${active === 1 ? 'reader' : 'readers'} taking payments` }
+        : methods.length
+          ? { tone: 'warning', text: 'Every reader is paused' }
+          : { tone: 'muted', text: 'No readers yet' };
 
   return (
-    <EditorShell
-      eyebrow="Connector"
-      title="Card payments"
-      icon={<CreditCard size={20} aria-hidden="true" />}
+    <ConnectorManagePage
+      definition={DEFINITION}
+      status={status}
+      health={{
+        facts: [
+          { icon: MapPin, title: 'Location', value: location?.name ?? 'None chosen', tone: locationId ? undefined : 'warning' },
+          { icon: CreditCard, title: 'Active', value: readers.isPending ? '…' : String(active) },
+          {
+            icon: Pause,
+            title: 'Paused',
+            value: readers.isPending ? '…' : String(paused),
+            tone: paused && !active ? 'warning' : undefined,
+          },
+        ],
+        problem: !locationId ? 'Choose a location to see its card readers.' : null,
+      }}
+      usedBy={[
+        { icon: Monitor, label: 'Till', href: '/pos' },
+        { icon: Calculator, label: 'Cash-up', href: '/cash-up' },
+      ]}
+      actions={[
+        { icon: Plus, label: 'Add reader', onClick: onAdd, disabled: !locationId },
+        { icon: Receipt, label: 'Receipts & tax', onClick: () => router.push('/settings/trading') },
+      ]}
       onClose={onClose}
-      actions={
-        <Button className="h-9 gap-1.5" disabled={!locationId} onClick={onAdd}>
-          <Plus size={15} aria-hidden="true" />
-          <span className="hidden md:inline">Add reader</span>
-        </Button>
-      }
     >
-      <div className="flex flex-col gap-5">
+      <SettingsSection
+        title={location ? `Readers at ${location.name}` : 'Readers'}
+        actions={<SectionInfo label="Readers belong to one location. Switch location to see another’s." />}
+      >
         {!locationId ? (
-          <section>
-            <h2 className="text-base font-semibold tracking-title text-foreground">Readers</h2>
-            <div className="mt-4">
-              <p className="text-sm text-muted-foreground">Choose a location to see its card readers.</p>
-            </div>
-          </section>
+          <p className="text-sm text-muted-foreground">Choose a location to see its card readers.</p>
+        ) : readers.isPending ? (
+          <div role="status" aria-busy="true" aria-label="Loading readers" className="grid gap-4 sm:grid-cols-2">
+            {Array.from({ length: 2 }, (_, index) => (
+              <Bone key={index} className="aspect-[1.586] rounded-2xl" />
+            ))}
+          </div>
+        ) : readers.isError ? (
+          <ErrorState title="Couldn’t load readers" onRetry={() => void readers.refetch()} />
         ) : (
-          // No card around the readers: they are cards already.
-          <section>
-            <h2 className="text-base font-semibold tracking-title text-foreground">
-              {location ? `Readers at ${location.name}` : 'Readers'}
-            </h2>
-            <div className="mt-4">
-              {readers.isPending ? (
-                <div role="status" aria-busy="true" aria-label="Loading readers" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {Array.from({ length: 2 }, (_, index) => (
-                    <Bone key={index} className="aspect-[1.586] rounded-2xl" />
-                  ))}
-                </div>
-              ) : readers.isError ? (
-                <ErrorState title="Couldn’t load readers" onRetry={() => void readers.refetch()} />
-              ) : (
-                <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
-                  {methods.map((method, index) => {
-                    const active = method.isActive !== false;
-                    const busy =
-                      (toggle.isPending && toggle.variables?.id === method.id) || (remove.isPending && remove.variables === method.id);
-                    return (
-                      <ReaderCard
-                        key={method.id}
-                        index={index}
-                        name={method.displayName}
-                        provider={PROVIDER_LABELS[method.provider]}
-                        active={active}
-                        busy={busy}
-                        onToggle={(isActive) => toggle.mutate({ id: method.id, isActive })}
-                        onDelete={() => setDeleting(method)}
-                      />
-                    );
-                  })}
-                  <li>
-                    {/* The same card shape, dashed: where the next reader will go. */}
-                    <button
-                      type="button"
-                      onClick={onAdd}
-                      className="flex aspect-[1.586] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-rule/70 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                    >
-                      <span className="flex size-10 items-center justify-center rounded-full bg-band">
-                        <Plus size={20} aria-hidden="true" />
-                      </span>
-                      <span className="text-sm font-semibold">{methods.length === 0 ? 'Add your first reader' : 'Add reader'}</span>
-                    </button>
-                  </li>
-                </ul>
-              )}
-            </div>
-          </section>
+          <ul className="grid gap-4 sm:grid-cols-2">
+            {methods.map((method, index) => {
+              const isActive = method.isActive !== false;
+              const busy = (toggle.isPending && toggle.variables?.id === method.id) || (remove.isPending && remove.variables === method.id);
+              return (
+                <ReaderCard
+                  key={method.id}
+                  index={index}
+                  name={method.displayName}
+                  provider={PROVIDER_LABELS[method.provider]}
+                  active={isActive}
+                  busy={busy}
+                  onToggle={(next) => toggle.mutate({ id: method.id, isActive: next })}
+                  onDelete={() => setDeleting(method)}
+                />
+              );
+            })}
+            <li>
+              {/* The same card shape, dashed: where the next reader will go. */}
+              <button
+                type="button"
+                onClick={onAdd}
+                className="flex aspect-[1.586] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-rule/70 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <span className="flex size-10 items-center justify-center rounded-full bg-band">
+                  <Plus size={20} aria-hidden="true" />
+                </span>
+                <span className="text-sm font-semibold">{methods.length === 0 ? 'Add your first reader' : 'Add reader'}</span>
+              </button>
+            </li>
+          </ul>
         )}
-
-        <Link
-          href="/settings/trading"
-          className="group flex items-center gap-3 self-start rounded-md px-1 py-1 text-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          Currency, VAT and what prints on receipts live in Trading &amp; tax
-          <ArrowRight size={15} className="transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-        </Link>
-      </div>
+      </SettingsSection>
       {deleting && (
         <ConfirmModal
           title={`Delete ${deleting.displayName}?`}
-          message="A reader that has already taken payments can’t be deleted — pause it instead so its payment history stays tidy."
+          message="It stops being offered at the till straight away. A reader that has already taken payments can’t be deleted — pause it instead, so its payment history stays tidy."
+          confirmText={deleting.displayName}
           confirmLabel="Delete reader"
           pendingLabel="Deleting…"
           isPending={remove.isPending}
@@ -655,6 +699,6 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
           onClose={() => setDeleting(null)}
         />
       )}
-    </EditorShell>
+    </ConnectorManagePage>
   );
 }

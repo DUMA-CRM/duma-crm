@@ -249,6 +249,7 @@ export const PAGES: readonly MarketingPage[] = [
   { path: '/legal', label: 'Company information', published: true, changeFrequency: 'yearly', priority: 0.2 },
   { path: '/dpa', label: 'DPA', published: true, changeFrequency: 'yearly', priority: 0.2 },
   { path: '/gdpr', label: 'GDPR', published: true, changeFrequency: 'yearly', priority: 0.3 },
+  { path: '/data-deletion', label: 'Data deletion', published: true, changeFrequency: 'yearly', priority: 0.2 },
 ];
 
 /**

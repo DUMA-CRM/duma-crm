@@ -3,14 +3,25 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
+import { useCmsTenantId, useContentPaths } from '@/components/cms/ContentScope';
 import { StorageMeter } from '@/components/cms/StorageMeter';
-import { Panel, PanelError, cmsKeys, invalidateCms } from '@/components/cms/shared';
-import { AlertTriangle, ArrowRight, CheckCircle2, Database, Pencil, Plug, RefreshCw, Trash2 } from '@/components/icons';
+import { BrandTile, RowMenu, type RowMenuItem, RowTile, SectionInfo } from '@/components/cms/rows';
+import { cmsKeys, invalidateCms } from '@/components/cms/shared';
+import {
+  AlertTriangle,
+  ArrowRight,
+  CheckCircle2,
+  CloudUpload,
+  Database,
+  ImageIcon,
+  Pencil,
+  Plug,
+  RefreshCw,
+  Trash2,
+} from '@/components/icons';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
-import { EditorShell } from '@/components/shared/EditorShell';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { LoadingState } from '@/components/shared/Skeleton';
-import { Tooltip } from '@/components/shared/Tooltip';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -26,10 +37,14 @@ import {
 import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
-import { useCmsTenantId } from '@/components/cms/ContentScope';
 
+import { ConnectorManagePage, type ConnectorStatus } from './ConnectorManagePage';
 import { EditStorageDialog } from './EditStorageDialog';
 import { storageProviderLabel } from './StorageConnector';
+import { PROVIDER_BRANDS } from './brands';
+import { CONNECTORS_BY_ID } from './registry';
+
+const DEFINITION = CONNECTORS_BY_ID['media-storage'];
 
 /**
  * Settings → Connectors → Media storage: where Content's uploads go, and how
@@ -40,6 +55,7 @@ import { storageProviderLabel } from './StorageConnector';
  */
 export function StorageConnectorPage({ onClose, onConnect }: { onClose: () => void; onConnect: () => void }) {
   const tenantId = useCmsTenantId();
+  const { basePath } = useContentPaths();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState<CmsStorageConnection | null>(null);
   const [disconnecting, setDisconnecting] = useState<CmsStorageConnection | null>(null);
@@ -106,26 +122,58 @@ export function StorageConnectorPage({ onClose, onConnect }: { onClose: () => vo
     },
   });
 
+  const storage = query.data;
+  const activeConnection = storage?.connections.find((connection) => connection.isActive);
+  const status: ConnectorStatus | undefined = !storage
+    ? undefined
+    : activeConnection?.lastError
+      ? { tone: 'danger', text: 'The last check failed' }
+      : activeConnection
+        ? { tone: 'success', text: `Uploads go to ${activeConnection.displayName}` }
+        : { tone: 'muted', text: 'Using DUMA storage' };
+  const used = activeConnection ?? storage?.builtIn;
+  const quota = activeConnection ? activeConnection.quotaBytes : storage?.builtIn.quotaBytes;
+  const files = storage ? storage.builtIn.fileCount + storage.connections.reduce((sum, connection) => sum + connection.fileCount, 0) : 0;
+
   return (
-    <EditorShell
-      eyebrow="Connector"
-      title="Media storage"
-      icon={<Database size={20} aria-hidden="true" />}
-      onClose={onClose}
-      actions={
-        <Button className="h-9 gap-1.5" onClick={onConnect}>
-          <Plug size={15} aria-hidden="true" />
-          <span className="hidden md:inline">Connect a bucket</span>
-        </Button>
+    <ConnectorManagePage
+      definition={DEFINITION}
+      brand={activeConnection ? storageBrand(activeConnection) : undefined}
+      status={status}
+      loading={query.isPending}
+      error={query.isError ? { title: 'Storage couldn’t be loaded', onRetry: () => void query.refetch() } : undefined}
+      health={
+        storage
+          ? {
+              facts: [
+                { icon: CloudUpload, title: 'Receiving uploads', value: activeName(storage) },
+                {
+                  icon: Database,
+                  title: 'Space used',
+                  value: `${formatBytes(used?.usedBytes ?? 0)}${quota ? ` of ${formatBytes(quota)}` : ''}`,
+                  tone: quota && (used?.usedBytes ?? 0) >= quota * 0.8 ? 'warning' : undefined,
+                },
+                { icon: ImageIcon, title: 'Files', value: String(files) },
+              ],
+              problem: activeConnection?.lastError,
+              test: activeConnection
+                ? {
+                    label: 'Test the bucket',
+                    icon: RefreshCw,
+                    pending: verify.isPending,
+                    onTest: () => verify.mutate(activeConnection.id),
+                  }
+                : undefined,
+            }
+          : undefined
       }
+      usedBy={[{ icon: ImageIcon, label: 'Content media', count: storage ? files : undefined, href: `${basePath}?tab=media` }]}
+      actions={[{ icon: Plug, label: 'Connect a bucket', onClick: onConnect }]}
+      onClose={onClose}
     >
-      {query.isError ? (
-        <PanelError title="Storage couldn’t be loaded" onRetry={() => void query.refetch()} />
-      ) : query.isPending ? (
-        <LoadingState label="Loading storage" />
-      ) : (
+      {storage && (
         <StorageBody
-          storage={query.data}
+          storage={storage}
           busy={activate.isPending}
           verifying={verify.isPending ? verify.variables : null}
           onActivate={(id) => activate.mutate(id)}
@@ -133,18 +181,18 @@ export function StorageConnectorPage({ onClose, onConnect }: { onClose: () => vo
           onEdit={setEditing}
           onDisconnect={setDisconnecting}
           onConnect={onConnect}
-          onMoveFiles={(from, name, files) => setMoving({ from, name, files })}
+          onMoveFiles={(from, name, count) => setMoving({ from, name, files: count })}
         />
       )}
 
-      {moving && query.data && (
+      {moving && storage && (
         <ConfirmModal
           title={
             progress
               ? `Moving files… ${progress.moved} of ${progress.total}`
               : `Move ${moving.files} ${moving.files === 1 ? 'file' : 'files'} from ${moving.name}?`
           }
-          message={`Each file is copied to ${activeName(query.data)}, then removed from ${moving.name}. Assets keep their ids, so entries keep working, and DUMA links keep working. A link written with ${moving.name}’s own public URL stops working. Keep this page open until it finishes.`}
+          message={`Each file is copied to ${activeName(storage)}, then removed from ${moving.name}. Assets keep their ids, so entries keep working, and DUMA links keep working. A link written with ${moving.name}’s own public URL stops working. Keep this page open until it finishes.`}
           confirmLabel="Move files"
           isPending={progress !== null}
           onConfirm={() => void moveFiles(moving.from, moving.files)}
@@ -159,17 +207,24 @@ export function StorageConnectorPage({ onClose, onConnect }: { onClose: () => vo
         <ConfirmModal
           title={`Disconnect ${disconnecting.displayName}?`}
           message={
-            disconnecting.isActive
-              ? 'New uploads go back to DUMA storage. The bucket and anything else in it are not touched.'
-              : 'DUMA forgets these credentials. The bucket and anything else in it are not touched.'
+            <div className="space-y-2">
+              <p>This will happen straight away:</p>
+              <ul className="list-disc space-y-1 pl-5">
+                {disconnecting.isActive && <li>New uploads go back to DUMA storage.</li>}
+                <li>DUMA forgets this bucket’s credentials.</li>
+                <li>The bucket and anything else in it are not touched.</li>
+              </ul>
+            </div>
           }
+          confirmText={disconnecting.displayName}
           confirmLabel="Disconnect"
+          pendingLabel="Disconnecting…"
           isPending={remove.isPending}
           onConfirm={() => remove.mutate(disconnecting.id)}
           onClose={() => setDisconnecting(null)}
         />
       )}
-    </EditorShell>
+    </ConnectorManagePage>
   );
 }
 
@@ -196,158 +251,144 @@ function StorageBody({
 }) {
   const { builtIn, connections, active } = storage;
   const target = activeName(storage);
-  const moveButton = (from: 'builtIn' | string, name: string, files: number) => (
-    <Button size="sm" variant="ghost" className="gap-1" disabled={busy} onClick={() => onMoveFiles(from, name, files)}>
-      Move files to {target} <ArrowRight size={13} aria-hidden="true" />
-    </Button>
-  );
+  const moveItem = (from: 'builtIn' | string, name: string, files: number): RowMenuItem => ({
+    icon: ArrowRight,
+    label: `Move files to ${target}`,
+    disabled: busy,
+    onClick: () => onMoveFiles(from, name, files),
+  });
   return (
-    <div className="flex flex-col gap-5">
-      <p className="max-w-[64ch] text-sm text-muted-foreground">
-        Content’s uploads go to the storage marked <span className="font-medium text-foreground">Receiving uploads</span>. Switching only
-        affects new uploads — files already stored stay where they are, so no link breaks.
-      </p>
-
-      <Panel className="divide-y divide-rule/50">
+    <SettingsSection
+      title="Where files are kept"
+      actions={
+        <SectionInfo label="Uploads go to the storage marked Receiving uploads. Switching only affects new uploads — files already stored stay where they are, so no link breaks." />
+      }
+    >
+      <div className="flex flex-col gap-2">
         <StorageRow
-          icon={<Database size={18} aria-hidden="true" />}
+          tile={<RowTile icon={Database} />}
           name="DUMA storage"
-          detail={`Included free · ${formatBytes(builtIn.quotaBytes)} per workspace`}
+          detail={`Included free · ${formatBytes(builtIn.quotaBytes)}`}
           active={active.kind === 'builtIn'}
           fileCount={builtIn.fileCount}
           meter={<StorageMeter byKind={builtIn.byKind} quotaBytes={builtIn.quotaBytes} />}
-          actions={
-            active.kind !== 'builtIn' ? (
-              <>
-                {builtIn.fileCount > 0 && moveButton('builtIn', 'DUMA storage', builtIn.fileCount)}
-                <Button size="sm" variant="ghost" disabled={busy} onClick={() => onActivate(null)}>
-                  Use for new uploads
-                </Button>
-              </>
-            ) : null
+          menu={
+            active.kind !== 'builtIn'
+              ? [
+                  { icon: CloudUpload, label: 'Use for new uploads', disabled: busy, onClick: () => onActivate(null) },
+                  ...(builtIn.fileCount > 0 ? [moveItem('builtIn', 'DUMA storage', builtIn.fileCount)] : []),
+                ]
+              : []
           }
         />
 
-        {connections.map((connection) => (
-          <StorageRow
-            key={connection.id}
-            icon={<Plug size={18} aria-hidden="true" />}
-            name={connection.displayName}
-            detail={storageProviderLabel(connection)}
-            active={connection.isActive}
-            fileCount={connection.fileCount}
-            status={
-              connection.lastError ? (
-                <span className="inline-flex items-center gap-1 text-xs text-exception">
-                  <AlertTriangle size={12} aria-hidden="true" /> {connection.lastError}
-                </span>
-              ) : connection.lastVerifiedAt ? (
-                <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
-                  <CheckCircle2 size={12} className="text-momentum" aria-hidden="true" /> Checked{' '}
-                  <RelativeTime iso={connection.lastVerifiedAt} />
-                </span>
-              ) : null
-            }
-            meter={<StorageMeter byKind={connection.byKind} quotaBytes={connection.quotaBytes} />}
-            actions={
-              <>
-                {!connection.isActive &&
-                  connection.fileCount > 0 &&
-                  moveButton(connection.id, connection.displayName, connection.fileCount)}
-                {!connection.isActive && (
-                  <Button size="sm" variant="ghost" disabled={busy} onClick={() => onActivate(connection.id)}>
-                    Use for new uploads
-                  </Button>
-                )}
-                <Button
-                  size="sm"
-                  variant="ghost"
-                  className="gap-1"
-                  disabled={verifying === connection.id}
-                  onClick={() => onVerify(connection.id)}
-                >
-                  <RefreshCw size={13} aria-hidden="true" /> {verifying === connection.id ? 'Testing…' : 'Test'}
-                </Button>
-                <Button size="sm" variant="ghost" className="gap-1" onClick={() => onEdit(connection)}>
-                  <Pencil size={13} aria-hidden="true" /> Edit
-                </Button>
-                <Tooltip
-                  side="top"
-                  label={
-                    connection.fileCount > 0 ? 'Files are stored here — move them elsewhere first' : 'Forget this bucket’s credentials'
-                  }
-                >
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    className="gap-1 text-exception hover:text-exception"
-                    disabled={connection.fileCount > 0}
-                    onClick={() => onDisconnect(connection)}
-                  >
-                    <Trash2 size={13} aria-hidden="true" /> Disconnect
-                  </Button>
-                </Tooltip>
-              </>
-            }
-          />
-        ))}
-      </Panel>
+        {connections.map((connection) => {
+          const brand = storageBrand(connection);
+          return (
+            <StorageRow
+              key={connection.id}
+              tile={brand ? <BrandTile brand={brand} /> : <RowTile icon={Plug} />}
+              name={connection.displayName}
+              detail={storageProviderLabel(connection)}
+              active={connection.isActive}
+              fileCount={connection.fileCount}
+              status={
+                connection.lastError ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-exception">
+                    <AlertTriangle size={12} aria-hidden="true" /> {connection.lastError}
+                  </span>
+                ) : connection.lastVerifiedAt ? (
+                  <span className="inline-flex items-center gap-1 text-xs text-muted-foreground">
+                    <CheckCircle2 size={12} className="text-momentum" aria-hidden="true" /> Checked{' '}
+                    <RelativeTime iso={connection.lastVerifiedAt} />
+                  </span>
+                ) : null
+              }
+              meter={<StorageMeter byKind={connection.byKind} quotaBytes={connection.quotaBytes} />}
+              menu={[
+                ...(!connection.isActive
+                  ? [{ icon: CloudUpload, label: 'Use for new uploads', disabled: busy, onClick: () => onActivate(connection.id) }]
+                  : []),
+                ...(!connection.isActive && connection.fileCount > 0
+                  ? [moveItem(connection.id, connection.displayName, connection.fileCount)]
+                  : []),
+                {
+                  icon: RefreshCw,
+                  label: verifying === connection.id ? 'Testing…' : 'Test',
+                  disabled: verifying === connection.id,
+                  onClick: () => onVerify(connection.id),
+                },
+                { icon: Pencil, label: 'Edit', onClick: () => onEdit(connection) },
+                {
+                  icon: Trash2,
+                  label: connection.fileCount > 0 ? 'Disconnect — move its files first' : 'Disconnect',
+                  danger: true,
+                  disabled: connection.fileCount > 0,
+                  onClick: () => onDisconnect(connection),
+                },
+              ]}
+            />
+          );
+        })}
+      </div>
 
       {connections.length === 0 && (
-        <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-dashed border-rule/60 px-4 py-3.5">
-          <p className="text-sm text-muted-foreground">
-            Need more than {formatBytes(builtIn.quotaBytes)}, or files served from your own domain? Connect Cloudflare R2, AWS S3, Backblaze
-            B2, DigitalOcean Spaces, MinIO or Vercel Blob.
-          </p>
+        <div className="mt-4">
           <Button variant="outline" className="gap-1.5" onClick={onConnect}>
             <Plug size={14} aria-hidden="true" /> Connect a bucket
           </Button>
         </div>
       )}
-    </div>
+    </SettingsSection>
   );
 }
 
 function StorageRow({
-  icon,
+  tile,
   name,
   detail,
   active,
   fileCount,
   status,
   meter,
-  actions,
+  menu,
 }: {
-  icon: React.ReactNode;
+  tile: React.ReactNode;
   name: string;
   detail: string;
   active: boolean;
   fileCount: number;
   status?: React.ReactNode;
   meter: React.ReactNode;
-  actions: React.ReactNode;
+  menu: RowMenuItem[];
 }) {
   return (
-    <section className={cn('space-y-3 p-4', active && 'bg-primary/4')} aria-label={name}>
-      <div className="flex flex-wrap items-start justify-between gap-3">
-        <div className="flex min-w-0 items-start gap-3">
-          <span className="mt-0.5 text-muted-foreground">{icon}</span>
-          <div className="min-w-0">
-            <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
-              {name}
-              {active && <Badge variant="success">Receiving uploads</Badge>}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {detail} · {fileCount} {fileCount === 1 ? 'file' : 'files'}
-            </p>
-            {status}
-          </div>
+    <section className={cn('space-y-3 rounded-lg border bg-field p-3', active ? 'border-primary/50' : 'border-rule/50')} aria-label={name}>
+      <div className="flex items-start gap-3">
+        {tile}
+        <div className="min-w-0 flex-1">
+          <p className="flex flex-wrap items-center gap-2 text-sm font-semibold text-foreground">
+            {name}
+            {active && <Badge variant="success">Receiving uploads</Badge>}
+          </p>
+          <p className="truncate text-xs text-muted-foreground">
+            {detail} · {fileCount} {fileCount === 1 ? 'file' : 'files'}
+          </p>
+          {status}
         </div>
-        {actions && <div className="flex flex-wrap gap-1">{actions}</div>}
+        {menu.length > 0 && <RowMenu label={`${name} actions`} items={menu} />}
       </div>
       {meter}
     </section>
   );
+}
+
+/** A bucket's brand, from where it lives — for its tile and the page header. */
+function storageBrand(connection: CmsStorageConnection) {
+  if (connection.provider === 'vercel_blob') return PROVIDER_BRANDS.vercel;
+  const endpoint = connection.configuration.endpoint;
+  if (endpoint?.includes('.r2.cloudflarestorage.com')) return PROVIDER_BRANDS.cloudflare;
+  return endpoint ? undefined : PROVIDER_BRANDS.s3;
 }
 
 /** The name of the storage receiving uploads now. */

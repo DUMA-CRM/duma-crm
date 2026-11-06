@@ -14,6 +14,7 @@ import {
 
 import type { Capability } from '@/lib/auth/capabilities';
 import type { WorkspaceModuleId } from '@/lib/modules/organization/client';
+import type { ConnectorState } from '@/lib/utils/connector-state';
 
 export type ConnectorId =
   | 'youtube'
@@ -29,7 +30,6 @@ export type ConnectorId =
   | 'payroll'
   | 'accounting'
   | 'till-hardware'
-  | 'receipt-printer'
   | 'label-printer';
 
 /**
@@ -37,7 +37,10 @@ export type ConnectorId =
  * work and no longer does (rejected credentials, a failed check) — the only
  * state that needs someone to act today.
  */
-export type ConnectorState = 'connected' | 'configured' | 'attention' | 'paused' | 'disconnected' | 'unavailable';
+export type { ConnectorState } from '@/lib/utils/connector-state';
+
+/** Something to have to hand before connecting — a plain line, or one with a short hint after it. */
+export type ConnectorRequirement = string | { label: string; hint?: string };
 
 export interface ConnectorDefinition {
   id: ConnectorId;
@@ -50,7 +53,7 @@ export interface ConnectorDefinition {
   /** Rail heading on the connect wizard. */
   tagline: string;
   /** "Before you start" list on the connect wizard. */
-  requirements: string[];
+  requirements: ConnectorRequirement[];
   /** false → nothing to connect to yet; the card renders as Coming soon. */
   available: boolean;
   /** Shown only to someone holding this — the capability the API checks for it. */
@@ -70,7 +73,7 @@ export const CONNECTORS: ConnectorDefinition[] = [
       description: 'Schedule and publish social content from your marketing calendar.',
       tags: ['Marketing', 'Scheduled posts'],
       tagline: 'Connect the accounts your workspace publishes to.',
-      requirements: ['An account with permission to publish', 'Provider authorization'],
+      requirements: [{ label: 'An account that can publish', hint: 'You sign in on the provider’s page' }],
       available: true,
       readCapability: 'marketing.connections:read',
       moduleId: 'marketing',
@@ -83,7 +86,10 @@ export const CONNECTORS: ConnectorDefinition[] = [
     description: 'Send new-order alerts and other automation notifications to your staff chat.',
     tags: ['Staff notifications', 'Automations', 'Groups'],
     tagline: 'Keep your team informed in Telegram.',
-    requirements: ['A bot token from BotFather', 'The ID of your staff chat'],
+    requirements: [
+      { label: 'A Telegram account', hint: 'On your phone or computer' },
+      { label: 'A staff group chat', hint: 'Where alerts will appear' },
+    ],
     available: true,
     capability: 'settings:write',
     moduleId: 'automation',
@@ -96,8 +102,8 @@ export const CONNECTORS: ConnectorDefinition[] = [
     tags: ['Umami Cloud', 'Self-hosted Umami', 'PostHog', 'Traffic metrics'],
     tagline: 'Connect your website analytics so DUMA can fetch its metrics.',
     requirements: [
-      'Access to your Umami or PostHog account',
-      'Permission there to create an API key — or, on Umami before 3.4, a view-only user',
+      { label: 'An Umami or PostHog account', hint: 'With your website already tracked' },
+      { label: 'Permission to create an API key', hint: 'Or a view-only user, on older Umami' },
     ],
     available: true,
     capability: 'settings:write',
@@ -111,9 +117,9 @@ export const CONNECTORS: ConnectorDefinition[] = [
     tags: ['SMTP sending', 'Templates', 'Automations', 'Delivery log', 'Suppressions'],
     tagline: 'Customer email through your own mail provider, so replies come back to you.',
     requirements: [
-      'Your provider’s outgoing server name and port',
-      'The mailbox username — usually the full email address',
-      'An app password (Gmail and Microsoft 365 both require one)',
+      { label: 'Your mailbox login', hint: 'Usually the full email address' },
+      { label: 'An app password', hint: 'Gmail and Microsoft 365 require one' },
+      { label: 'Your SMTP server', hint: 'Filled in for Gmail and Microsoft 365' },
     ],
     available: true,
     capability: 'email.connections:write',
@@ -128,9 +134,8 @@ export const CONNECTORS: ConnectorDefinition[] = [
     tags: ['Stripe Terminal', 'SumUp', 'Square', 'Manual terminal'],
     tagline: 'Connect the card reader on your counter so the till can take card payments.',
     requirements: [
-      'Stripe, SumUp or Square: your reader’s ID and a key from your account',
-      'A standalone card machine: nothing — just a name',
-      'About two minutes',
+      { label: 'Your card reader', hint: 'Switched on, with its ID to hand' },
+      { label: 'A key from your provider', hint: 'Not needed for a standalone card machine' },
     ],
     available: true,
     capability: 'payments.connections:write',
@@ -145,9 +150,8 @@ export const CONNECTORS: ConnectorDefinition[] = [
     tags: ['Cloudflare R2', 'AWS S3', 'S3-compatible', 'Vercel Blob'],
     tagline: 'Content’s media stored in a bucket you own, served from your own CDN.',
     requirements: [
-      'A bucket on Cloudflare R2, AWS S3, another S3 service, or a Vercel Blob store',
-      'A key that can read and write that bucket (or the Blob read-write token)',
-      'Optional: the bucket’s public URL, so your website loads files from your CDN',
+      { label: 'A bucket or Blob store', hint: 'Cloudflare R2, AWS S3 or Vercel Blob' },
+      { label: 'A read-write key', hint: 'For that bucket or store' },
     ],
     available: true,
     capability: 'cms.keys:write',
@@ -194,23 +198,12 @@ export const CONNECTORS: ConnectorDefinition[] = [
     tags: ['iPad', 'Epson network', 'QZ Tray', 'Cash drawer'],
     tagline: 'Hardware configured separately for each till.',
     requirements: [
-      'iPad: a compatible Epson network printer with trusted HTTPS',
-      'Desktop: Epson network or QZ Tray',
-      'A compatible printer-connected cash drawer',
+      { label: 'A receipt printer', hint: 'Epson on your network, or QZ Tray on a computer' },
+      { label: 'A cash drawer', hint: 'Plugged into the printer' },
     ],
     available: true,
     capability: 'settings:write',
     moduleId: 'pos',
-  },
-  {
-    id: 'receipt-printer',
-    name: 'Receipt printer',
-    icon: Printer,
-    description: 'Print order receipts to networked or Bluetooth thermal printers from the POS.',
-    tags: ['Network', 'Bluetooth', 'Thermal'],
-    tagline: 'Receipts printed at the counter as orders are paid for.',
-    requirements: [],
-    available: false,
   },
   {
     id: 'label-printer',

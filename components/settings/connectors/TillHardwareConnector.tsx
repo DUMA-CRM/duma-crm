@@ -3,10 +3,9 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { InfoRow, InfoRows, RowWarning } from '@/components/cms/rows';
+import { InfoRow, InfoRows, SectionInfo } from '@/components/cms/rows';
 import { Banknote, CheckCircle2, ChevronRight, type IconComponent, Loader2, Monitor, Plug, Printer, Search, Zap } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { useMounted } from '@/components/settings/configuration/shared';
 import { SaveBar, Switch } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
@@ -15,6 +14,7 @@ import { ChoiceCards, NumberStepper } from '@/components/shared/FormParts';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -29,18 +29,20 @@ import { useAuthStore } from '@/stores/authStore';
 import { networkOrigins, useTillHardwareStore } from '@/stores/tillHardwareStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { ConnectWizard, ProviderGrid, WizardRail, type WizardStep } from './ConnectWizard';
-import { CONNECTORS_BY_ID, type ConnectorState } from './registry';
+import { ConnectWizard, ProviderGrid, WizardInstruction, WizardRail, type WizardStep } from './ConnectWizard';
+import { ConnectorManagePage, type ConnectorStatus } from './ConnectorManagePage';
+import { PROVIDER_BRANDS } from './brands';
+import { CONNECTORS_BY_ID } from './registry';
 import { panelClass } from './shared';
 
 const DEFINITION = CONNECTORS_BY_ID['till-hardware'];
-const BROWSER_NOTE = 'Saved on this browser for this location — set up each till separately. Clearing browser data removes it.';
+const BROWSER_NOTE = 'Saved on this browser for this location. Set up each till on its own device.';
 
 type Connector = TillHardwareSettings['connector'];
 const CONNECTORS: { value: Connector; label: string; icon: IconComponent; hint: string }[] = [
-  { value: 'epson-epos', label: 'Epson network printer', icon: Printer, hint: 'iPad or desktop, over your Wi-Fi or wired network' },
-  { value: 'qz-tray', label: 'QZ Tray', icon: Monitor, hint: 'A Windows, Mac or Linux till with a receipt printer' },
-  { value: 'none', label: 'No printer connection', icon: Banknote, hint: 'Staff open the drawer by hand' },
+  { value: 'epson-epos', label: 'Epson network printer', icon: Printer, hint: 'iPad or computer, on your network' },
+  { value: 'qz-tray', label: 'QZ Tray', icon: Monitor, hint: 'A Windows, Mac or Linux till' },
+  { value: 'none', label: 'No printer connection', icon: Banknote, hint: 'Open the drawer by hand' },
 ];
 
 /**
@@ -61,10 +63,7 @@ let resumed: Resume | null = (() => {
   }
 })();
 
-/** A till with a printer connection is set up; one without has nothing connected. */
-export function tillHardwareState(settings: TillHardwareSettings | undefined): ConnectorState {
-  return settings && settings.connector !== 'none' ? 'connected' : 'disconnected';
-}
+export { tillHardwareState } from '@/lib/utils/connector-state';
 
 /** The till's connection in one line, for its row and its page. */
 export function tillHardwareSummary(settings: TillHardwareSettings): string {
@@ -163,6 +162,14 @@ function useTillHardware() {
     }
   }
 
+  function remove() {
+    if (!scope) return;
+    useTillHardwareStore.getState().remove(scope);
+    setDraftState(null);
+    setTestSent(false);
+    toast('success', 'This till’s hardware was removed from this browser.');
+  }
+
   /** Saves and reports back, so a wizard step can refuse to advance on failure. */
   function trySave(): boolean {
     if (!scope) return false;
@@ -203,6 +210,7 @@ function useTillHardware() {
     testSent,
     setTestSent,
     trySave,
+    remove,
     reset: () => {
       setDraftState(null);
       setTestSent(false);
@@ -212,8 +220,6 @@ function useTillHardware() {
 type Hardware = ReturnType<typeof useTillHardware>;
 
 // ── Field groups, shared by the wizard steps and the manage page ──────────────
-
-const fieldLabel = 'block text-label uppercase text-muted-foreground';
 
 function BusyIcon({ busy, icon: Icon }: { busy: boolean; icon: IconComponent }) {
   return busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <Icon size={15} aria-hidden="true" />;
@@ -232,11 +238,10 @@ function PrinterFields({ hardware, step }: { hardware: Hardware; step?: string }
   const others = knownPrinters.filter((known) => known.origin !== origin);
   if (network) {
     return (
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">
-          Use an Epson printer with ePOS-Print turned on, on the same network as this till. On iPad its HTTPS certificate must be trusted,
-          and allow local-network access if asked. AirPrint alone isn’t enough.
-        </p>
+      <div className="space-y-3">
+        <WizardInstruction icon={Printer}>
+          Turn on ePOS-Print on the printer. On iPad, its HTTPS certificate must be trusted.
+        </WizardInstruction>
         <Input
           id="till-printer-origin"
           label="Printer address"
@@ -308,8 +313,8 @@ function PrinterFields({ hardware, step }: { hardware: Hardware; step?: string }
   }
   const choices = [...new Set([...(draft.printer ? [draft.printer] : []), ...printers])];
   return (
-    <div className="space-y-4">
-      <p className="text-sm text-muted-foreground">
+    <div className="space-y-3">
+      <WizardInstruction icon={Monitor}>
         Install{' '}
         <a
           className="font-medium text-primary underline-offset-4 hover:underline"
@@ -319,16 +324,14 @@ function PrinterFields({ hardware, step }: { hardware: Hardware; step?: string }
         >
           QZ Tray
         </a>{' '}
-        on this till and set the receipt printer up for raw ESC/POS printing. QZ asks permission before each command.
-      </p>
+        on this till and set the printer up for raw ESC/POS printing.
+      </WizardInstruction>
       <Button type="button" variant="outline" className="gap-1.5" disabled={busy} onClick={() => void run('connect')}>
         <BusyIcon busy={busy} icon={Search} />
         Connect and find printers
       </Button>
-      <div className="space-y-1.5">
-        <label htmlFor="till-printer-name" className={fieldLabel}>
-          Receipt printer
-        </label>
+      <div className="flex flex-col gap-1.5">
+        <FieldLabel htmlFor="till-printer-name">Receipt printer</FieldLabel>
         <Select
           id="till-printer-name"
           ariaLabel="Receipt printer"
@@ -517,13 +520,13 @@ export function TillHardwareConnectWizard({ onClose, onDone }: { onClose: () => 
   const steps: WizardStep[] = [
     {
       key: 'connector',
+      label: 'Connection',
       title: 'How does this till reach its printer?',
-      description: 'The printer is how DUMA opens the cash drawer. Receipts still print with AirPrint on iPad or the browser on desktop.',
       ready: picked || Boolean(saved),
       content: (
         <ProviderGrid
           ariaLabel="Printer connection"
-          options={CONNECTORS}
+          options={CONNECTORS.map((choice) => ({ ...choice, brand: choice.value === 'epson-epos' ? PROVIDER_BRANDS.epson : undefined }))}
           value={picked || saved ? draft.connector : null}
           onChange={(connector) => {
             setPicked(true);
@@ -547,8 +550,8 @@ export function TillHardwareConnectWizard({ onClose, onDone }: { onClose: () => 
       ? [
           {
             key: 'printer',
+            label: 'Printer',
             title: draft.connector === 'epson-epos' ? 'Find the printer on your network' : 'Connect QZ Tray',
-            description: 'Check the connection, then print a test slip to be sure it’s the right printer.',
             ready: printerReady(hardware),
             content: (
               <div className="space-y-4">
@@ -559,8 +562,8 @@ export function TillHardwareConnectWizard({ onClose, onDone }: { onClose: () => 
           },
           {
             key: 'drawer',
+            label: 'Drawer',
             title: 'How is the cash drawer connected?',
-            description: 'A drawer plugged into the printer can open by itself after a cash payment, once you’ve seen it open in a test.',
             onContinue: () => {
               const problem = validateHardware(draft);
               if (problem) toast('error', problem);
@@ -572,8 +575,8 @@ export function TillHardwareConnectWizard({ onClose, onDone }: { onClose: () => 
       : []),
     {
       key: 'name',
-      title: 'What should this till be called?',
-      description: 'Each till keeps its own setup, so a name tells them apart.',
+      label: 'Name',
+      title: 'Name this till',
       ready: Boolean(draft.registerName.trim()),
       continueLabel: 'Save this till',
       onContinue: hardware.trySave,
@@ -608,115 +611,124 @@ export function TillHardwareConnectorPage({ onClose, onConnect }: { onClose: () 
   const automatic = draft.connector !== 'none';
   const problem = dirty ? validateHardware(draft) : null;
 
+  const status: ConnectorStatus | undefined = !saved
+    ? undefined
+    : saved.connector === 'none'
+      ? { tone: 'muted', text: 'Drawer opened by hand' }
+      : saved.openOnCash
+        ? { tone: 'success', text: 'Opens the drawer after cash payments' }
+        : saved.drawer === 'printer' && !saved.drawerVerified
+          ? { tone: 'warning', text: 'Drawer not tested yet' }
+          : { tone: 'success', text: 'Printer connected' };
+
   return (
-    <EditorShell
-      eyebrow="Connector"
-      title={DEFINITION.name}
-      icon={<Printer size={20} aria-hidden="true" />}
-      onClose={onClose}
+    <ConnectorManagePage
+      definition={DEFINITION}
+      brand={saved?.connector === 'epson-epos' ? PROVIDER_BRANDS.epson : undefined}
+      status={status}
+      loading={!mounted}
+      notSetUp={
+        blocker ? (
+          <div className={panelClass}>
+            <p className="text-sm text-muted-foreground">{blocker}</p>
+          </div>
+        ) : !saved ? (
+          <div className={panelClass}>
+            <p className="text-sm text-muted-foreground">Open the cash drawer by itself after a cash payment.</p>
+            <Button className="mt-4 gap-1.5" onClick={onConnect}>
+              <Plug size={15} aria-hidden="true" /> Set up this till
+            </Button>
+          </div>
+        ) : undefined
+      }
+      health={
+        saved
+          ? {
+              facts: [
+                { icon: Monitor, title: 'Till', value: saved.registerName },
+                { icon: Printer, title: 'Connection', value: CONNECTORS.find((c) => c.value === saved.connector)?.label ?? '' },
+                {
+                  icon: Banknote,
+                  title: 'Drawer',
+                  value:
+                    saved.drawer !== 'printer'
+                      ? 'By hand'
+                      : saved.openOnCash
+                        ? 'Opens after cash'
+                        : saved.drawerVerified
+                          ? 'Tested'
+                          : 'Not tested',
+                  tone: saved.drawer === 'printer' && !saved.drawerVerified ? 'warning' : undefined,
+                },
+              ],
+              problem,
+              test: automatic
+                ? {
+                    label: 'Print a test slip',
+                    icon: Printer,
+                    pending: hardware.busy,
+                    disabled: !printerReady(hardware),
+                    note: dirty ? 'Tests use what’s on screen; save to keep it.' : undefined,
+                    onTest: () => void hardware.run('print'),
+                  }
+                : undefined,
+            }
+          : undefined
+      }
+      usedBy={[{ icon: Monitor, label: 'Till', href: '/pos' }]}
+      actions={saved && !blocker ? [{ icon: Zap, label: 'Run setup again', onClick: onConnect }] : []}
+      disconnect={
+        saved && !blocker
+          ? {
+              label: 'Remove this till',
+              consequences: [
+                'The drawer no longer opens by itself after cash payments on this till.',
+                'Only this browser’s setup is removed — the printer and drawer aren’t changed.',
+              ],
+              pending: false,
+              onConfirm: hardware.remove,
+            }
+          : undefined
+      }
       dirty={dirty}
-      actions={
-        saved && !blocker ? (
-          <Button variant="outline" className="h-9 gap-1.5" onClick={onConnect}>
-            <Zap size={15} aria-hidden="true" />
-            <span className="hidden md:inline">Run setup again</span>
-          </Button>
-        ) : null
+      onClose={onClose}
+      footer={
+        <SaveBar
+          dirty={dirty && Boolean(saved)}
+          saving={false}
+          disabled={Boolean(problem)}
+          onSave={() => hardware.trySave()}
+          onDiscard={hardware.reset}
+        />
       }
     >
-      {!mounted ? (
-        <Bone className="h-96 w-full rounded-lg" />
-      ) : blocker ? (
-        <ErrorState title={blocker} />
-      ) : (
-        <div className="flex flex-col gap-6">
-          <div className="flex items-center gap-4">
-            <span className="flex size-14 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary">
-              <Printer size={26} aria-hidden="true" />
-            </span>
-            <div className="min-w-0">
-              <p className="truncate text-xl font-semibold tracking-headline text-foreground">
-                {saved ? saved.registerName : 'This till isn’t set up'}
-              </p>
-              <p className="mt-0.5 truncate text-sm text-muted-foreground">{saved ? tillHardwareSummary(saved) : DEFINITION.description}</p>
-            </div>
-          </div>
+      <SettingsSection title="Till" actions={<SectionInfo label={BROWSER_NOTE} />}>
+        <NameField hardware={hardware} />
+      </SettingsSection>
 
-          {!saved ? (
-            <div className={panelClass}>
-              <p className="text-sm text-muted-foreground">
-                Connect this till’s receipt printer so DUMA can open the cash drawer after a cash payment. It takes a few minutes, with the
-                printer switched on.
-              </p>
-              <Button className="mt-4 gap-1.5" onClick={onConnect}>
-                <Plug size={15} aria-hidden="true" /> Set up this till
-              </Button>
-            </div>
+      <SettingsSection
+        title="Printer"
+        actions={
+          <SectionInfo label="On iPad, open the receipt after a sale, then Share → Print to an AirPrint printer. If the printer opens the drawer on every print, turn that off so card receipts and reprints don’t open it." />
+        }
+      >
+        <fieldset disabled={hardware.busy} className="min-w-0">
+          {automatic ? (
+            <PrinterFields hardware={hardware} />
           ) : (
-            <SettingsTabBody
-              narrowAside
-              aside={
-                <>
-                  {automatic && (
-                    <SettingsSection title="Test">
-                      <div className="space-y-3">
-                        <TestPrintButton hardware={hardware} />
-                        {dirty && <p className="text-xs text-muted-foreground">Tests use what’s on screen; save to keep it.</p>}
-                      </div>
-                    </SettingsSection>
-                  )}
-                  <SettingsSection title="Receipts on iPad">
-                    <p className="text-sm text-muted-foreground">
-                      Open the receipt after a sale, then Share → Print to an AirPrint printer. If the printer opens the drawer on every
-                      print, turn that off so card receipts and reprints don’t open it.
-                    </p>
-                  </SettingsSection>
-                  <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">{BROWSER_NOTE}</p>
-                </>
-              }
-            >
-              <SettingsSection title="Till">
-                <NameField hardware={hardware} />
-              </SettingsSection>
-
-              <SettingsSection
-                title="Printer"
-                actions={
-                  <span className="text-sm text-muted-foreground">{CONNECTORS.find((c) => c.value === draft.connector)?.label}</span>
-                }
-              >
-                <fieldset disabled={hardware.busy} className="min-w-0">
-                  {automatic ? (
-                    <PrinterFields hardware={hardware} />
-                  ) : (
-                    <p className="text-sm text-muted-foreground">
-                      Staff open the drawer by hand. Run setup again to connect a printer and open it automatically.
-                    </p>
-                  )}
-                </fieldset>
-              </SettingsSection>
-
-              {automatic && (
-                <SettingsSection title="Cash drawer">
-                  <fieldset disabled={hardware.busy} className="min-w-0">
-                    <DrawerFields hardware={hardware} />
-                  </fieldset>
-                  {problem && <RowWarning className="mt-4">{problem}</RowWarning>}
-                </SettingsSection>
-              )}
-            </SettingsTabBody>
+            <p className="text-sm text-muted-foreground">Staff open the drawer by hand. Run setup again to connect a printer.</p>
           )}
-        </div>
-      )}
+        </fieldset>
+      </SettingsSection>
 
-      <SaveBar
-        dirty={dirty && Boolean(saved)}
-        saving={false}
-        disabled={Boolean(problem)}
-        onSave={() => hardware.trySave()}
-        onDiscard={hardware.reset}
-      />
-    </EditorShell>
+      {automatic && (
+        <SettingsSection title="Cash drawer">
+          <fieldset disabled={hardware.busy} className="min-w-0">
+            <DrawerFields hardware={hardware} />
+          </fieldset>
+        </SettingsSection>
+      )}
+    </ConnectorManagePage>
   );
 }
 

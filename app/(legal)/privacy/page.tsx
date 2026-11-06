@@ -15,7 +15,7 @@ export const metadata: Metadata = marketingMetadata({
 
 export default function PrivacyPage() {
   return (
-    <LegalDocument title="Privacy Policy" updated="1 November 2026">
+    <LegalDocument title="Privacy Policy" updated="6 November 2026">
       <p>
         DUMA is business software for cafés, restaurants, bars, bakeries and shops — till, kitchen display, stock, people, customer records,
         reporting and guest QR ordering. This policy explains what personal data we handle, why, and the choices you have.
@@ -104,7 +104,21 @@ export default function PrivacyPage() {
           an assistant request unless it is needed.
         </li>
         <li>A storage bucket (for example Amazon S3 or Cloudflare R2), only if a business connects its own for website assets.</li>
+        <li>
+          YouTube, Facebook, Instagram and TikTok, only when a business connects its own accounts to publish the posts it
+          schedules in DUMA. We store each account&apos;s name and ID and an encrypted access token, and send the posts and
+          media the business chooses to publish. The access token is deleted when the account is disconnected; see{' '}
+          <Link href="/data-deletion">Deleting your social account data</Link>.
+        </li>
       </ul>
+      <p>
+        DUMA uses YouTube API Services to upload the videos a business schedules. By connecting a YouTube channel you agree
+        to the <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a>, and the{' '}
+        <a href="https://policies.google.com/privacy">Google Privacy Policy</a> describes how Google handles your data. You
+        can remove DUMA&apos;s access at any time in your Google account&apos;s{' '}
+        <a href="https://myaccount.google.com/permissions">security settings</a>, or by disconnecting the channel in
+        Settings → Connections.
+      </p>
       <p>We may also disclose data where the law requires it.</p>
 
       <h2>International transfers</h2>
