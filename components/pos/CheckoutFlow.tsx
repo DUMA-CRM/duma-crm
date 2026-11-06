@@ -44,6 +44,7 @@ interface Props {
   /** Change to hand back, on the done screen. */
   change: number;
   canPrint: boolean;
+  drawerNotice?: string;
   onSelectMethod: (method: PaymentMethod) => void;
   onTender: (tendered: number) => void;
   onBack: () => void;
@@ -437,7 +438,7 @@ function VerifyStep({ paymentLabel, queued, offline, busy, onPaymentOutcome, amo
   );
 }
 
-function DoneStep({ total, currency = 'GBP', queued, change, canPrint, onPrint, onNewSale }: Props) {
+function DoneStep({ total, currency = 'GBP', queued, change, canPrint, drawerNotice, onPrint, onNewSale }: Props) {
   const reduceMotion = useReducedMotion();
   return (
     <div className="text-center">
@@ -479,6 +480,14 @@ function DoneStep({ total, currency = 'GBP', queued, change, canPrint, onPrint, 
           It sends automatically when the connection returns. The receipt is available once it has.
         </p>
       )}
+
+      {drawerNotice && (
+        <p role="status" className="mt-4 rounded-lg border border-rule bg-band p-3 text-sm text-foreground">
+          {drawerNotice}
+        </p>
+      )}
+
+      <p className="mt-4 text-xs text-muted-foreground">On iPad, open the receipt and choose Share → Print to use AirPrint.</p>
 
       <div className="mt-10 grid gap-3 sm:grid-cols-[auto_minmax(0,1fr)]">
         <Button variant="outline" onClick={onPrint} disabled={!canPrint} className="h-16 gap-2 px-6 text-base">

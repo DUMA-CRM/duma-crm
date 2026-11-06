@@ -36,12 +36,15 @@ const WizardContext = createContext<{ next: () => void } | null>(null);
 export function WizardRail({
   requirements,
   footnote,
+  note = 'Keys are encrypted when saved and never shown again.',
 }: {
   icon?: IconComponent;
   name?: string;
   tagline?: string;
   requirements: string[];
   footnote?: React.ReactNode;
+  /** The line beside the lock — where what's entered is kept. */
+  note?: React.ReactNode;
 }) {
   return (
     <div className="rounded-lg border border-rule/50 bg-background/60 px-4 py-3.5">
@@ -60,7 +63,7 @@ export function WizardRail({
       )}
       <p className="mt-3 flex gap-2 text-xs text-muted-foreground">
         <Lock size={13} className="mt-0.5 shrink-0" aria-hidden="true" />
-        Keys are encrypted when saved and never shown again.
+        {note}
       </p>
       {footnote && <p className="mt-1.5 text-xs text-muted-foreground">{footnote}</p>}
     </div>
@@ -85,6 +88,7 @@ export function ConnectWizard({
   finishLabel = 'Done',
   dirty = false,
   lockedFrom,
+  initialIndex = 0,
 }: {
   eyebrow: string;
   title: string;
@@ -103,9 +107,11 @@ export function ConnectWizard({
    * updating one — so re-running it would leave a duplicate behind.
    */
   lockedFrom?: number;
+  /** The step to open on — after a reload that kept what was entered. */
+  initialIndex?: number;
 }) {
   const reduceMotion = useReducedMotion();
-  const [position, setPosition] = useState({ index: 0, direction: 1 });
+  const [position, setPosition] = useState({ index: initialIndex, direction: 1 });
   const [busy, setBusy] = useState(false);
   const headingRef = useRef<HTMLHeadingElement>(null);
 

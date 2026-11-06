@@ -21,6 +21,7 @@ import {
 import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { TillHardwareSummary } from '@/components/settings/connectors/TillHardwareConnector';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { NumberStepper } from '@/components/shared/FormParts';
 import { ListSkeleton } from '@/components/shared/Skeleton';
@@ -86,7 +87,7 @@ export function PosConfiguration() {
       <div className="space-y-5">
         <ConfigurationHeader
           title="Till"
-          description="How the sell screen looks on this till. Changes apply straight away — no save needed."
+          description="Layout and hardware for this till. Layout changes apply straight away — no save needed."
         />
         <ConfigurationBodySkeleton label="Loading till settings" />
       </div>
@@ -96,9 +97,10 @@ export function PosConfiguration() {
     <div className="space-y-5">
       <ConfigurationHeader
         title="Till"
-        description="How the sell screen looks on this till. Changes apply straight away — no save needed."
+        description="Layout and hardware for this till. Layout changes apply straight away — no save needed."
       />
       <SettingsTabBody stickyAside aside={<TillPreview layout={settings} pinnedCount={pinned.length} />}>
+        <TillHardwareSummary />
         <SettingsSection title="Menu layout" description="How the cashier finds an item.">
           <ChoiceGrid<MenuLayout>
             label="Menu layout"

@@ -170,8 +170,8 @@ export const DUMA_VS_SQUARE: Comparison = {
       {
         title: 'More at the till today',
         icon: 'till',
-        them: 'Gift cards, split bills, tips and dedicated receipt printers.',
-        duma: 'Not in DUMA yet. It prints receipts from the browser; printer and cash drawer support is coming.',
+        them: 'Gift cards, split bills, tips and receipt printers that print every sale automatically.',
+        duma: 'Not in DUMA yet. Receipts print through the device’s print dialog, though the cash drawer can open by itself after a cash payment.',
       },
       {
         title: 'Size and track record',

@@ -10,6 +10,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 
 import { hasSessionCookie } from '@/lib/auth/session-cookie';
+import { PRINTER_COOKIE, parsePrinterOrigins } from '@/lib/pos-hardware/network-policy';
 import { CSP_IMAGE_HOSTS } from '@/lib/utils/image-src';
 import { MARKDOWN_RENDER_HEADER, prefersMarkdown, servesMarkdown } from '@/lib/utils/markdown-for-agents';
 import { needsSignIn } from '@/lib/utils/public-paths';
@@ -59,15 +60,22 @@ const HOME_LINKS = [
  * > `strict-dynamic` was bought for. `CSP_ALLOW_EVAL` is opt-in instead: absent
  * > means strict, which is the right way for this switch to fail.
  */
-function contentSecurityPolicy(nonce: string, allowEval: boolean, frameable: 'none' | 'self' | 'any' = 'none') {
+function contentSecurityPolicy(
+  nonce: string,
+  allowEval: boolean,
+  frameable: 'none' | 'self' | 'any' = 'none',
+  printers: readonly string[] = [],
+) {
   return [
     "default-src 'self'",
     `script-src 'self' 'nonce-${nonce}' 'strict-dynamic'${allowEval ? " 'unsafe-eval'" : ''}`,
     "style-src 'self' 'unsafe-inline'",
     `img-src 'self' blob: data: ${CSP_IMAGE_HOSTS.map((host) => `https://${host}`).join(' ')}`,
     "font-src 'self' data:",
-    // Browser API calls go to /be on this origin; the service worker is ours.
-    "connect-src 'self'",
+    // API calls stay same-origin. QZ Tray uses only TLS loopback on its four standard ports.
+    // Network printers are this browser's own (printerOrigins), local-network HTTPS only.
+    // Keep this on the document policy so client navigation into the till also works.
+    `connect-src 'self' wss://localhost:8181 wss://localhost:8282 wss://localhost:8383 wss://localhost:8484${printers.map((origin) => ` ${origin}`).join('')}`,
     "worker-src 'self'",
     "manifest-src 'self'",
     // blob: lets Media preview a video it compressed in the browser before uploading it.
@@ -81,6 +89,21 @@ function contentSecurityPolicy(nonce: string, allowEval: boolean, frameable: 'no
     frameable === 'any' ? 'frame-ancestors *' : frameable === 'self' ? "frame-ancestors 'self'" : "frame-ancestors 'none'",
     'upgrade-insecure-requests',
   ].join('; ');
+}
+
+/**
+ * The network printers this browser's tills use, from the cookie the till
+ * hardware store writes. Re-validated here: only HTTPS origins on a local
+ * network ever reach the header (lib/pos-hardware/network-policy.ts).
+ */
+function printerOrigins(req: NextRequest): string[] {
+  const raw = req.cookies.get(PRINTER_COOKIE)?.value;
+  if (!raw) return [];
+  try {
+    return parsePrinterOrigins(decodeURIComponent(raw));
+  } catch {
+    return [];
+  }
 }
 
 export function proxy(req: NextRequest) {
@@ -127,7 +150,7 @@ export function proxy(req: NextRequest) {
   const nonce = crypto.randomUUID().replaceAll('-', '');
   // React uses eval in development for readable error stacks. Opt in locally.
   const frameable = pathname.startsWith('/f/') ? 'any' : pathname.startsWith('/order/') ? 'self' : 'none';
-  const csp = contentSecurityPolicy(nonce, process.env.CSP_ALLOW_EVAL === 'true', frameable);
+  const csp = contentSecurityPolicy(nonce, process.env.CSP_ALLOW_EVAL === 'true', frameable, printerOrigins(req));
   const header = process.env.CSP_REPORT_ONLY === 'true' ? 'Content-Security-Policy-Report-Only' : 'Content-Security-Policy';
 
   // Next reads both of these off the *request* to stamp its own scripts.

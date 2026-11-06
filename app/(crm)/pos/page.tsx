@@ -29,6 +29,8 @@ import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMeth
 import { checkPromotionCode } from '@/lib/modules/promotions/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
+import { openPaidCashDrawer } from '@/lib/pos-hardware/browser';
+import { type TillHardwareSettings, hardwareScope } from '@/lib/pos-hardware/model';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import {
@@ -50,6 +52,7 @@ import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { usePosSettingsStore } from '@/stores/posSettingsStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
+import { useTillHardwareStore } from '@/stores/tillHardwareStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import { Customer } from '@/types/customers';
 import type { AttachedModifier } from '@/types/menu';
@@ -77,6 +80,7 @@ const toOption = (m: AttachedModifier): MenuOption & { groupId?: string | null; 
  */
 interface ChargeSession {
   signature: string;
+  hardware: { scope: string; settings: TillHardwareSettings } | null;
   key: string;
   orderId: string | null;
   /** A cash attempt started but not yet confirmed — confirm it rather than starting another. */
@@ -102,6 +106,7 @@ export default function POSPage() {
   const layout = usePosSettingsStore();
   const [cart, setCart] = useState<CartItem[]>([]);
   const [promoCode, setPromoCode] = useState<string | null>(null);
+  const posEnabled = useModuleEnabled('pos');
   const promotionsOn = useModuleEnabled('promotions');
   const [customising, setCustomising] = useState<{ item: MenuItem; groups: OptionGroupRule[] | null } | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
@@ -122,7 +127,7 @@ export default function POSPage() {
   const [paymentAttempt, setPaymentAttempt] = useState<PaymentAttempt | null>(null);
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod | null>(null);
   const [offlinePayment, setOfflinePayment] = useState<PaymentMethod | null>(null);
-  const [done, setDone] = useState<{ orderId: string | null; queued: boolean; change: number }>({
+  const [done, setDone] = useState<{ orderId: string | null; queued: boolean; change: number; drawerNotice?: string }>({
     orderId: null,
     queued: false,
     change: 0,
@@ -421,7 +426,15 @@ export default function POSPage() {
           voidReason: 'staff_error',
           voidNotes: 'Basket changed at the till before payment',
         }).catch(() => undefined);
-      session.current = { signature, key: crypto.randomUUID(), orderId: null, cashAttempt: null };
+      const scope = tenantId && locationId ? hardwareScope(tenantId, locationId) : null;
+      const hardwareSettings = scope ? useTillHardwareStore.getState().registers[scope] : undefined;
+      session.current = {
+        signature,
+        key: crypto.randomUUID(),
+        orderId: null,
+        cashAttempt: null,
+        hardware: posEnabled && scope && hardwareSettings ? { scope, settings: { ...hardwareSettings } } : null,
+      };
     }
     setSnapshot({
       lines: cart,
@@ -544,11 +557,32 @@ export default function POSPage() {
   });
 
   const { mutate: recordOutcome, isPending: isConfirming } = useMutation({
-    mutationFn: ({ outcome }: { outcome: 'succeeded' | 'failed' | 'cancelled'; tendered?: number }) =>
-      confirmPayment(paymentAttempt!.id, outcome),
-    onSuccess: (payment, { outcome, tendered }) => {
+    mutationFn: async ({ outcome }: { outcome: 'succeeded' | 'failed' | 'cancelled'; tendered?: number }) => {
+      const hardware = session.current?.hardware;
+      const payment = await confirmPayment(paymentAttempt!.id, outcome);
+      return { payment, hardware };
+    },
+    onSuccess: ({ payment, hardware }, { outcome, tendered }) => {
       if (payment.status === 'succeeded') {
         finishSale(false, tendered);
+        if (hardware && payment.provider === 'cash' && hardware.settings.openOnCash) {
+          setDone((current) => ({
+            ...current,
+            drawerNotice:
+              hardware.settings.connector === 'qz-tray'
+                ? 'Sending drawer command — approve any QZ Tray prompt on this till.'
+                : 'Sending drawer command to the network printer…',
+          }));
+          void openPaidCashDrawer(hardware.scope, hardware.settings, payment).then((result) => {
+            const drawerNotice =
+              result === 'sent'
+                ? 'Drawer command sent. Check the drawer opened.'
+                : result === 'duplicate'
+                  ? 'A drawer command was already attempted for this payment. Open manually if needed.'
+                  : 'Payment saved; the drawer could not be opened. Open it manually.';
+            setDone((current) => (current.orderId === payment.orderId ? { ...current, drawerNotice } : current));
+          });
+        }
         return;
       }
       if (session.current) session.current.cashAttempt = null;
@@ -577,6 +611,10 @@ export default function POSPage() {
     setDone({
       orderId: queued ? null : (session.current?.orderId ?? null),
       queued,
+      drawerNotice:
+        queued && session.current?.hardware?.settings.openOnCash && tendered !== undefined
+          ? 'Cash saved on this till. Open the drawer manually; syncing later will not open it.'
+          : undefined,
       change: tendered !== undefined ? changeDue(tendered, snapshot.total).change : 0,
     });
     session.current = null;
@@ -881,6 +919,7 @@ export default function POSPage() {
           queued={checkout === 'done' ? done.queued : !!offlinePayment}
           offline={!online}
           change={done.change}
+          drawerNotice={done.drawerNotice}
           canPrint={!!done.orderId}
           onSelectMethod={(method) => {
             setCheckoutError(null);

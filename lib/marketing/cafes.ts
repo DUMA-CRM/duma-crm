@@ -157,7 +157,8 @@ export const CAFE_FAQS: { question: string; answer: string }[] = [
   },
   {
     question: 'Do I need a receipt printer or cash drawer?',
-    answer: 'Not to start. Receipts print from the browser today, and dedicated receipt printer and cash drawer support is coming soon.',
+    answer:
+      'Not to start. Receipts print from any tablet, phone or laptop through its own print dialog, AirPrint on iPad. If you have a cash drawer, it can open by itself after a cash payment, through a receipt printer connected with QZ Tray on a Windows, Mac or Linux till, or an Epson network printer on an iPad or computer.',
   },
   {
     question: 'Can you help me set it up?',

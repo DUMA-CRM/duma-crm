@@ -21,6 +21,7 @@ import { PaymentsConnectWizard, PaymentsConnectorPage } from './PaymentsConnecto
 import { StorageConnectWizard } from './StorageConnector';
 import { StorageConnectorPage } from './StorageConnectorPage';
 import { TelegramConnectWizard, TelegramConnectorPage } from './TelegramConnector';
+import { TillHardwareConnectWizard, TillHardwareConnectorPage } from './TillHardwareConnector';
 import { CONNECTORS_BY_ID, type ConnectorId } from './registry';
 
 /**
@@ -76,6 +77,14 @@ export function ConnectorsRoute() {
 
   if (connector === 'youtube' || connector === 'facebook' || connector === 'instagram' || connector === 'tiktok')
     return <SocialConnector provider={connector} onClose={toList} />;
+
+  if (connector === 'till-hardware') {
+    return connecting ? (
+      <TillHardwareConnectWizard onClose={toList} onDone={() => toManage('till-hardware')} />
+    ) : (
+      <TillHardwareConnectorPage onClose={toList} onConnect={() => toConnect('till-hardware')} />
+    );
+  }
 
   if (connector === 'telegram') {
     return connecting ? (

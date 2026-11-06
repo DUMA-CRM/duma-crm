@@ -89,6 +89,10 @@ const POS: FeatureContent = {
         body: 'Any tablet, phone or laptop with a browser. Install it to the home screen like an app. There is no DUMA hardware to buy.',
       },
       {
+        title: 'Prints receipts, opens the drawer',
+        body: 'Print a receipt from any tablet, phone or laptop through its own print dialog, AirPrint on iPad. Connect a receipt printer with QZ Tray on a Windows, Mac or Linux till, or an Epson network printer on an iPad or computer, and the cash drawer opens by itself after a cash payment, once you’ve tested it. Offline sales and reprints never open it.',
+      },
+      {
         title: 'Options, notes and held tickets',
         body: 'Required choices such as size or milk are enforced as you build the order. Add a kitchen note, hold up to 12 tickets on the device, and undo a removed line.',
       },
@@ -134,7 +138,7 @@ const POS: FeatureContent = {
     items: [
       'Card payments through a connected reader need the internet. Offline, use cash or your card machine on its own.',
       'Promo codes are checked online, so a sale with a promo code can’t be taken offline.',
-      'Receipts print from the browser. Dedicated receipt printers and cash drawers are coming soon.',
+      'Receipts print through the device’s print dialog, one at a time; the till doesn’t print automatically to a receipt printer. Label printers are coming soon.',
       'No split bills, gift cards or tips on the till yet.',
       'Refunds are made from the order in Orders, not on the till.',
       'Discounts come from promo codes and loyalty rewards; there is no free-typed discount on the till.',
@@ -168,7 +172,7 @@ const POS: FeatureContent = {
     {
       question: 'Can I print receipts?',
       answer:
-        'Yes, from the browser, once the sale has reached DUMA. Support for dedicated receipt printers and cash drawers is coming soon.',
+        'Yes, from any tablet, phone or laptop, once the sale has reached DUMA: open the receipt and print it through the device’s print dialog, AirPrint on iPad. A cash drawer connected to a receipt printer can open by itself after a cash payment.',
     },
   ],
   closing: {

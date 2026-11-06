@@ -1261,7 +1261,7 @@ Older systems run on dedicated terminals with software installed on them. Newer 
 
 ## In DUMA
 
-DUMA's till runs in the browser on any device and can be installed like an app. It keeps taking orders offline; a sale that cannot be sent is kept for you to check, never dropped. Square, SumUp and Stripe card machines connect directly, and any other card machine works with the amount keyed in. Receipts print from the browser; dedicated printer and cash drawer support is coming.
+DUMA's till runs in the browser on any device and can be installed like an app. It keeps taking orders offline; a sale that cannot be sent is kept for you to check, never dropped. Square, SumUp and Stripe card machines connect directly, and any other card machine works with the amount keyed in. Receipts print from any device through its own print dialog, and a cash drawer connected to a receipt printer can open by itself after a cash payment.
 `,
     faq: [
       {

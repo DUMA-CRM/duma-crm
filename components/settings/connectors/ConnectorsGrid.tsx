@@ -28,10 +28,12 @@ import { disconnectGoogleDrive, getGoogleDriveStatus, startGoogleDriveConnect } 
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 import { getPaymentConnections } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { hardwareScope } from '@/lib/pos-hardware/model';
 import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
+import { useTillHardwareStore } from '@/stores/tillHardwareStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { type ConnectorAccount, type ConnectorAction, ConnectorRow } from './ConnectorRow';
@@ -39,6 +41,7 @@ import { emailConnectorState } from './EmailConnector';
 import { PROVIDER_LABELS, paymentsConnectorState } from './PaymentsConnector';
 import { storageConnectorState, storageProviderLabel } from './StorageConnector';
 import { telegramConnectorState } from './TelegramConnector';
+import { tillHardwareState, tillHardwareSummary } from './TillHardwareConnector';
 import { CONNECTORS, type ConnectorId, type ConnectorState } from './registry';
 import { relativeTime } from './shared';
 
@@ -53,6 +56,9 @@ export function ConnectorsGrid() {
   const router = useRouter();
   const tenantId = useSettingsTenantId();
   const locationId = useWorkspaceStore((state) => state.locationId);
+  const hardware = useTillHardwareStore((state) =>
+    tenantId && locationId ? state.registers[hardwareScope(tenantId, locationId)] : undefined,
+  );
   const listPath = '/settings/connectors';
   const capabilities = useAuthStore((state) => state.capabilities);
   const workspace = useCurrentWorkspace();
@@ -220,6 +226,16 @@ export function ConnectorsGrid() {
               : undefined,
         };
       }
+      if (definition.id === 'till-hardware') {
+        return {
+          definition,
+          state: tillHardwareState(hardware),
+          accounts: hardware ? [{ label: hardware.registerName, meta: tillHardwareSummary(hardware) }] : [],
+          action: hardware
+            ? { label: 'Manage', onClick: () => open('till-hardware') }
+            : { label: 'Set up this till', onClick: () => open('till-hardware', 'connect'), disabled: !locationId },
+        };
+      }
       if (definition.id === 'telegram') {
         const connection = telegram.data;
         const state: ConnectorState = telegram.isError ? 'attention' : telegramConnectorState(connection);
@@ -379,7 +395,7 @@ export function ConnectorsGrid() {
   // Most urgent first: broken, then working, then not set up — each its own section.
   const live = cards.filter((card) => card.definition.available);
   const attention = live.filter((card) => card.state === 'attention');
-  const connected = live.filter((card) => card.state === 'connected' || card.state === 'paused');
+  const connected = live.filter((card) => card.state === 'connected' || card.state === 'configured' || card.state === 'paused');
   const notSetUp = live.filter((card) => card.state === 'disconnected');
   const readers = paymentMethods ?? [];
   const activeReaders = readers.filter((reader) => reader.isActive !== false).length;
@@ -422,7 +438,7 @@ export function ConnectorsGrid() {
                 </span>
               </InfoRow>
             )}
-            <InfoRow icon={Plug} title="Connected">
+            <InfoRow icon={Plug} title="Set up">
               <span className="text-sm font-semibold text-foreground">
                 {connected.length} of {live.length}
               </span>
@@ -430,7 +446,8 @@ export function ConnectorsGrid() {
           </InfoRows>
           {paymentsVisible && (
             <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-              Card readers belong to one location — switch location to see another’s. Everything else is workspace-wide.
+              Card readers belong to one location — switch location to see another’s. Till hardware belongs to this browser and location.
+              Other shared connections are workspace-wide.
             </p>
           )}
           {storageVisible && storage && !activeBucket && storage.builtIn.usedBytes >= storage.builtIn.quotaBytes * 0.8 && (
@@ -482,7 +499,7 @@ export function ConnectorsGrid() {
               {list(attention)}
             </SettingsSection>
           )}
-          {connected.length > 0 && <SettingsSection title="Connected">{list(connected)}</SettingsSection>}
+          {connected.length > 0 && <SettingsSection title="Set up">{list(connected)}</SettingsSection>}
           {notSetUp.length > 0 && <SettingsSection title="Not set up">{list(notSetUp)}</SettingsSection>}
         </>
       )}

@@ -7,7 +7,8 @@
  * Obsidian vault (Permanent/Platform), section 10 "What may be claimed". If a
  * line here is not true of the product today, it does not ship. In particular:
  * Square, SumUp and Stripe terminals connect directly and any other card machine works
- * with the amount keyed in (the till's 'Card machine' method), receipts print from the browser,
+ * with the amount keyed in (the till's 'Card machine' method), receipts print through the
+ * device's own print dialog, the cash drawer opens through a QZ Tray or Epson network printer,
  * there is no hosted storefront, and payroll is prepared here and submitted
  * elsewhere.
  */
@@ -82,7 +83,7 @@ export const WORKS_WITH: readonly { group: string; items: string[] }[] = [
   { group: 'For developers', items: ['REST API', 'MCP server', 'Webhooks', 'API keys'] },
 ];
 
-export const COMING_SOON: readonly string[] = ['Receipt and label printers', 'Cash drawers', 'Accounting software', 'Payroll export'];
+export const COMING_SOON: readonly string[] = ['Label printers', 'Accounting software', 'Payroll export'];
 
 export const FAQS: { question: string; answer: string }[] = [
   {
@@ -98,7 +99,7 @@ export const FAQS: { question: string; answer: string }[] = [
   {
     question: 'Do I need new EPOS hardware?',
     answer:
-      'No. DUMA runs in the browser on the tablet, phone or computer you already have, and you can keep your card machine: Square, SumUp and Stripe connect directly, and with any other you key in the amount and the sale still lands in your reports. Receipts print from the browser today; dedicated receipt printer and cash drawer support is coming soon.',
+      'No. DUMA runs in the browser on the tablet, phone or computer you already have, and you can keep your card machine: Square, SumUp and Stripe connect directly, and with any other you key in the amount and the sale still lands in your reports. Receipts print from any tablet, phone or laptop through its own print dialog, AirPrint on iPad. The cash drawer can open by itself after a cash payment, through a receipt printer connected with QZ Tray on a Windows, Mac or Linux till, or an Epson network printer on an iPad or computer.',
   },
   {
     question: 'What happens if the internet goes down?',

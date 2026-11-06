@@ -179,7 +179,7 @@ const COMPARE: Row[] = [
   {
     label: 'Receipt printer and cash drawer',
     icon: Printer,
-    duma: { mark: 'part', note: 'Browser printing; more soon' },
+    duma: { mark: 'yes', note: 'Any device; drawer opens itself' },
     till: { mark: 'yes' },
     stack: { mark: 'yes' },
   },

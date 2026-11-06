@@ -28,6 +28,7 @@ export type ConnectorId =
   | 'analytics'
   | 'payroll'
   | 'accounting'
+  | 'till-hardware'
   | 'receipt-printer'
   | 'label-printer';
 
@@ -36,7 +37,7 @@ export type ConnectorId =
  * work and no longer does (rejected credentials, a failed check) — the only
  * state that needs someone to act today.
  */
-export type ConnectorState = 'connected' | 'attention' | 'paused' | 'disconnected' | 'unavailable';
+export type ConnectorState = 'connected' | 'configured' | 'attention' | 'paused' | 'disconnected' | 'unavailable';
 
 export interface ConnectorDefinition {
   id: ConnectorId;
@@ -186,6 +187,22 @@ export const CONNECTORS: ConnectorDefinition[] = [
     available: false,
   },
   {
+    id: 'till-hardware',
+    name: 'Till hardware',
+    icon: Printer,
+    description: 'Connect this till’s printer and open its cash drawer after cash payments.',
+    tags: ['iPad', 'Epson network', 'QZ Tray', 'Cash drawer'],
+    tagline: 'Hardware configured separately for each till.',
+    requirements: [
+      'iPad: a compatible Epson network printer with trusted HTTPS',
+      'Desktop: Epson network or QZ Tray',
+      'A compatible printer-connected cash drawer',
+    ],
+    available: true,
+    capability: 'settings:write',
+    moduleId: 'pos',
+  },
+  {
     id: 'receipt-printer',
     name: 'Receipt printer',
     icon: Printer,
@@ -213,6 +230,7 @@ export const CONNECTORS_BY_ID = Object.fromEntries(CONNECTORS.map((connector) =>
 >;
 
 export const STATE_BADGE: Record<ConnectorState, { label: string; variant: 'success' | 'destructive' | 'warning' | 'muted' }> = {
+  configured: { label: 'Configured on this device', variant: 'muted' },
   connected: { label: 'Connected', variant: 'success' },
   attention: { label: 'Needs attention', variant: 'destructive' },
   paused: { label: 'Paused', variant: 'warning' },
@@ -221,4 +239,4 @@ export const STATE_BADGE: Record<ConnectorState, { label: string; variant: 'succ
 };
 
 /** Which filter chip a card belongs under. `unavailable` never counts as set up. */
-export type ConnectorFilter = 'all' | 'connected' | 'attention' | 'disconnected';
+export type ConnectorFilter = 'all' | 'connected' | 'configured' | 'attention' | 'disconnected';
