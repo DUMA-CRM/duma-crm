@@ -1,7 +1,7 @@
 import { cookies } from 'next/headers';
 import Link from 'next/link';
 
-import { BookOpen, ChevronDown, Code, Menu, X } from '@/components/icons';
+import { BookOpen, Calculator, ChevronDown, Code, Menu, X } from '@/components/icons';
 import { Logo } from '@/components/shared/Logo';
 import { buttonVariants } from '@/components/ui/button';
 
@@ -12,7 +12,7 @@ const DASHBOARD_PATH = '/dashboard';
 
 /**
  * The marketing site's top bar, after seline.com's: the mark on the left, and
- * on the right Pricing, About us, a Resources menu (Public API, Blog),
+ * on the right Pricing, About us, a Resources menu (Public API, Blog, Tools),
  * a hairline, sign in and the one button.
  *
  * A Server Component with no client JavaScript. Resources opens on hover and
@@ -68,9 +68,14 @@ export async function MarketingHeader() {
                   <p className="px-3 pt-1.5 pb-2 text-xs font-medium tracking-[0.08em] text-[var(--mkt-ink-3)] uppercase">Resources</p>
                   <ul className="flex flex-col">
                     {resources.map((item) => {
-                      const Icon = item.icon === 'api' ? Code : BookOpen;
-                      // Each resource wears a product tone: the API is reference blue, the blog is brand green.
-                      const tone = item.icon === 'api' ? 'bg-reference/16 text-reference' : 'bg-primary/16 text-primary';
+                      const Icon = item.icon === 'api' ? Code : item.icon === 'tools' ? Calculator : BookOpen;
+                      // Each resource wears a product tone: the API is reference blue, the blog brand green, the tools stock amber.
+                      const tone =
+                        item.icon === 'api'
+                          ? 'bg-reference/16 text-reference'
+                          : item.icon === 'tools'
+                            ? 'bg-stock/16 text-stock'
+                            : 'bg-primary/16 text-primary';
                       return (
                         <li key={item.path}>
                           <Link href={item.path} className="flex gap-3.5 rounded-md px-3 py-3 transition-colors hover:bg-[var(--mkt-ground)] focus-visible:bg-[var(--mkt-ground)]">

@@ -52,7 +52,20 @@ function LinkList({ title, links }: { title: string; links: readonly RelatedLink
  * runs, the terms the page leans on (by glossary slug), and the people behind
  * it. A column with nothing published in it is left out.
  */
-export function RelatedSection({ id, audiences, terms = [], extra = [] }: { id: string; audiences: readonly RelatedLink[]; terms?: readonly string[]; extra?: readonly RelatedLink[] }) {
+export function RelatedSection({
+  id,
+  audiences,
+  audiencesTitle = 'Other businesses on DUMA',
+  terms = [],
+  extra = [],
+}: {
+  id: string;
+  audiences: readonly RelatedLink[];
+  /** The first column's heading, for a page whose neighbours are not audiences — the other free tools, say. */
+  audiencesTitle?: string;
+  terms?: readonly string[];
+  extra?: readonly RelatedLink[];
+}) {
   const pages = audiences.filter((link) => publishedPage(link.path));
   const glossary = publishedPage('/glossary')
     ? terms.map(glossaryTerm).filter((term) => term !== undefined).map((term) => ({ path: `/glossary/${term.slug}`, label: term.title }))
@@ -60,7 +73,7 @@ export function RelatedSection({ id, audiences, terms = [], extra = [] }: { id: 
   const about = [...extra.filter((link) => publishedPage(link.path)), ...(publishedPage('/about') ? [{ path: '/about', label: 'Who builds DUMA, and why' }] : [])];
 
   const columns = [
-    { title: 'Other businesses on DUMA', links: pages },
+    { title: audiencesTitle, links: pages },
     { title: 'Terms explained', links: glossary },
     { title: 'About DUMA', links: about },
   ].filter((column) => column.links.length > 0);

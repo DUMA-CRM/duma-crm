@@ -2,13 +2,16 @@ import type { Metadata } from 'next';
 
 import { Banknote, Check, ClipboardList, CreditCard, EyeOff } from '@/components/icons';
 import { JsonLd } from '@/components/marketing/JsonLd';
+import { RelatedSection } from '@/components/marketing/RelatedLinks';
 import { ChalkCurve, RisingLines } from '@/components/marketing/Strokes';
 import { ClosingCta, FaqSection, FeatureCard, Section, SectionHeading } from '@/components/marketing/sections';
 import { NumberDot } from '@/components/marketing/solution';
 import { CashUpCalculator } from '@/components/marketing/tools/CashUpCalculator';
+import { ToolBreadcrumb } from '@/components/marketing/tools/ToolBreadcrumb';
 
 import { marketingMetadata } from '@/lib/marketing/metadata';
 import { breadcrumbSchema, faqSchema, webApplicationSchema } from '@/lib/marketing/schema';
+import { TOOLS_INDEX, freeTool, otherTools } from '@/lib/marketing/tools';
 import { balanceOf } from '@/lib/utils/cash-count';
 import { bankingMinor, expectedCashMinor } from '@/lib/utils/cash-up-calculator';
 import { fmtGbpExact } from '@/lib/utils/format';
@@ -144,7 +147,12 @@ export default function CashUpCalculatorPage() {
           ],
         })}
       />
-      <JsonLd data={breadcrumbSchema([{ name: 'Cash-up calculator', path: PATH }])} />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: TOOLS_INDEX.name, path: TOOLS_INDEX.path },
+          { name: freeTool(PATH).name, path: PATH },
+        ])}
+      />
       <JsonLd data={faqSchema(FAQS)} />
 
       {/* The curves sit on a wrapper round the hero and the calculator: the hero alone is too short to hold them. */}
@@ -153,6 +161,7 @@ export default function CashUpCalculatorPage() {
         <ChalkCurve side="right" id="cashup-right" className="pointer-events-none absolute top-56 -right-40 hidden w-[44rem] md:block" />
         <section className="relative px-4 pt-30 pb-6 sm:px-6 sm:pt-40">
           <div className="relative z-10 mx-auto w-full max-w-5xl">
+            <ToolBreadcrumb path={PATH} />
             <h1 className="text-[2.6rem] leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-6xl">
               Free cash-up calculator, <span className="mkt-mark mkt-mark-green rounded-md px-2">for your till</span>
             </h1>
@@ -212,6 +221,13 @@ export default function CashUpCalculatorPage() {
       </Section>
 
       <FaqSection items={FAQS} title="Questions about cashing up" />
+
+      <RelatedSection
+        id="related"
+        audiences={[...otherTools(PATH), { path: TOOLS_INDEX.path, label: 'Every free tool' }]}
+        audiencesTitle="More free tools"
+        terms={freeTool(PATH).terms}
+      />
 
       <ClosingCta
         title="This calculator does one night."

@@ -93,6 +93,11 @@ const PAGES: { title: string; path: string; summary: string }[] = [
     summary: 'Zavo’s POS, payments and bookings for restaurant groups, against DUMA’s free plan for smaller businesses.',
   },
   {
+    title: 'Free tools',
+    path: '/tools',
+    summary: 'Free calculators for UK cafés, restaurants and shops: menu margin and GP after VAT, and till cash-up. No sign-up.',
+  },
+  {
     title: 'Menu margin calculator',
     path: '/tools/margin-calculator',
     summary:

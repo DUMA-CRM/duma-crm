@@ -235,6 +235,7 @@ export const PAGES: readonly MarketingPage[] = [
   { path: '/compare/duma-vs-sevenrooms', label: 'DUMA vs SevenRooms', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/compare/duma-vs-sunday', label: 'DUMA vs Sunday', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/compare/duma-vs-zavo', label: 'DUMA vs Zavo', published: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/tools', label: 'All tools', published: true, changeFrequency: 'monthly', priority: 0.7 },
   { path: '/tools/margin-calculator', label: 'Menu margin calculator', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/tools/cash-up-calculator', label: 'Cash-up calculator', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/developers', label: 'Public API', published: true, changeFrequency: 'monthly', priority: 0.6 },
@@ -329,16 +330,17 @@ export function linkTo(path: (typeof PRIMARY_NAV)[number]['path']): string {
   return primaryNav()[PRIMARY_NAV.findIndex((item) => item.path === path)].path;
 }
 
-export type NavLink = { label: string; path: string; description?: string; icon?: 'api' | 'blog' };
+export type NavLink = { label: string; path: string; description?: string; icon?: 'api' | 'blog' | 'tools' };
 
 /**
  * The header, after seline.com's: Pricing and About us as plain links, then a
- * small Resources menu — the Public API and the Blog, each with a line of
+ * small Resources menu — the Public API, the Blog and the free Tools, each with a line of
  * description. The audience pages are linked from the footer and the home page.
  */
 export function headerNav(): { links: NavLink[]; resources: NavLink[] } {
   const about = publishedPage('/about');
   const blog = publishedPage('/blog');
+  const tools = publishedPage('/tools');
   return {
     links: [{ label: 'Pricing', path: linkTo('/pricing') }, ...(about ? [{ label: 'About us', path: about.path }] : [])],
     resources: [
@@ -346,6 +348,7 @@ export function headerNav(): { links: NavLink[]; resources: NavLink[] } {
       ...(blog
         ? [{ label: 'Blog', path: blog.path, description: 'Guides for cafés, restaurants and small shops', icon: 'blog' as const }]
         : []),
+      ...(tools ? [{ label: 'Tools', path: tools.path, description: 'Free calculators for margin, GP and cashing up', icon: 'tools' as const }] : []),
     ],
   };
 }

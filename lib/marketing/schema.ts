@@ -215,6 +215,30 @@ export function blogSchema(posts: PostForSchema[]) {
   };
 }
 
+/**
+ * /tools — the index as a CollectionPage whose list is the tools on it, in
+ * the summary-list form (each item a URL), since every tool has its own page.
+ */
+export function toolCollectionSchema({ path, name, description, tools }: { path: string; name: string; description: string; tools: readonly { path: string; name: string }[] }) {
+  const url = absoluteUrl(path);
+  return {
+    '@context': 'https://schema.org',
+    '@type': 'CollectionPage',
+    '@id': `${url}#page`,
+    url,
+    name,
+    description,
+    inLanguage: 'en-GB',
+    isPartOf: { '@id': `${SITE_URL}/#website` },
+    publisher: { '@id': ORGANIZATION_ID },
+    mainEntity: {
+      '@type': 'ItemList',
+      numberOfItems: tools.length,
+      itemListElement: tools.map((tool, index) => ({ '@type': 'ListItem', position: index + 1, name: tool.name, url: absoluteUrl(tool.path) })),
+    },
+  };
+}
+
 /** /glossary — the set every DefinedTerm belongs to. */
 export function glossarySchema(terms: { slug: string; term: string; short: string }[]) {
   return {

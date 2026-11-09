@@ -2,13 +2,16 @@ import type { Metadata } from 'next';
 
 import { BarChart3, Check, Layers, Receipt, Truck } from '@/components/icons';
 import { JsonLd } from '@/components/marketing/JsonLd';
+import { RelatedSection } from '@/components/marketing/RelatedLinks';
 import { ChalkCurve, RisingLines } from '@/components/marketing/Strokes';
 import { ClosingCta, FaqSection, FeatureCard, Mark, Section, SectionHeading } from '@/components/marketing/sections';
 import { NumberDot } from '@/components/marketing/solution';
 import { MarginCalculator } from '@/components/marketing/tools/MarginCalculator';
+import { ToolBreadcrumb } from '@/components/marketing/tools/ToolBreadcrumb';
 
 import { marketingMetadata } from '@/lib/marketing/metadata';
 import { breadcrumbSchema, faqSchema, webApplicationSchema } from '@/lib/marketing/schema';
+import { TOOLS_INDEX, freeTool, otherTools } from '@/lib/marketing/tools';
 import { computeCosting } from '@/lib/menu/costing';
 import { fmtGbpExact } from '@/lib/utils/format';
 import { foodCostPct, priceForTargetMargin } from '@/lib/utils/margin-calculator';
@@ -153,7 +156,12 @@ export default function MarginCalculatorPage() {
           features: ['Margin and GP after VAT', 'Food cost percentage', 'Menu price for a target margin', 'UK VAT at 20%, 5% or 0%'],
         })}
       />
-      <JsonLd data={breadcrumbSchema([{ name: 'Menu margin calculator', path: PATH }])} />
+      <JsonLd
+        data={breadcrumbSchema([
+          { name: TOOLS_INDEX.name, path: TOOLS_INDEX.path },
+          { name: freeTool(PATH).name, path: PATH },
+        ])}
+      />
       <JsonLd data={faqSchema(FAQS)} />
 
       {/* The curves sit on a wrapper round the hero and the calculator: the hero
@@ -163,6 +171,7 @@ export default function MarginCalculatorPage() {
         <ChalkCurve side="right" id="calc-right" className="pointer-events-none absolute top-56 -right-40 hidden w-[44rem] md:block" />
         <section className="relative px-4 pt-30 pb-6 sm:px-6 sm:pt-40">
           <div className="relative z-10 mx-auto w-full max-w-5xl">
+            <ToolBreadcrumb path={PATH} />
             <h1 className="text-[2.6rem] leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-6xl">
               Free menu margin &amp; GP calculator, <span className="mkt-mark mkt-mark-green rounded-md px-2">with VAT</span>
             </h1>
@@ -252,6 +261,13 @@ export default function MarginCalculatorPage() {
       </Section>
 
       <FaqSection items={FAQS} title="Questions about menu margin" />
+
+      <RelatedSection
+        id="related"
+        audiences={[...otherTools(PATH), { path: TOOLS_INDEX.path, label: 'Every free tool' }]}
+        audiencesTitle="More free tools"
+        terms={freeTool(PATH).terms}
+      />
 
       <ClosingCta
         title="This calculator does one dish."

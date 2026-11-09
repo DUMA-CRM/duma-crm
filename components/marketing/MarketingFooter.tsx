@@ -56,7 +56,7 @@ export function MarketingFooter() {
     [
       { title: 'Resources', links: pages(['/blog', '/glossary']) },
       // Every published tool, so a new one is in the footer the day it ships.
-      { title: 'Tools', links: PAGES.filter((p) => p.published && p.path.startsWith('/tools/')) },
+      { title: 'Tools', links: PAGES.filter((p) => p.published && (p.path === '/tools' || p.path.startsWith('/tools/'))) },
       // Every published comparison, so a new one is in the footer the day it ships.
       { title: 'Compare', links: PAGES.filter((p) => p.published && p.path.startsWith('/compare/')) },
     ],
