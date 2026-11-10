@@ -5,7 +5,7 @@ import { readingMinutes, wordCount } from '@/lib/utils/blog';
  * Sample posts for a local dev server with DUMA_BLOG_SAMPLES=true, so the blog
  * pages can be designed and checked before real posts exist. listPosts and
  * getPost return them only when NODE_ENV is development — production never
- * shows them — and every page marks them "Sample".
+ * shows them — and a sample post is never indexed or put in the feed.
  */
 
 const MARGIN_BODY = `Most cafés price their menu by looking at what the café down the road charges. That works until milk, butter and coffee go up and the prices on the board don't.

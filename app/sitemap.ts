@@ -1,5 +1,6 @@
 import type { MetadataRoute } from 'next';
 
+import { featurePageSlugs } from '@/lib/blog/feature-pages';
 import { listPosts } from '@/lib/blog/posts';
 import { docEndpoints, indexedEndpoint } from '@/lib/marketing/developers';
 import { GLOSSARY } from '@/lib/marketing/glossary';
@@ -17,7 +18,7 @@ import { MODULES, PAGES, absoluteUrl, modulePath } from '@/lib/marketing/site';
  * (indexedEndpoint). If the CMS can't be read, the rest still ships.
  */
 export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
-  const { posts } = await listPosts();
+  const [{ posts }, featurePages] = await Promise.all([listPosts(), featurePageSlugs()]);
 
   return [
     ...PAGES.filter((p) => p.published).map((p) => ({
@@ -25,7 +26,8 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       changeFrequency: p.changeFrequency,
       priority: p.priority,
     })),
-    ...MODULES.filter((m) => m.published).map((m) => ({
+    // A module with a page: one whose CMS feature page is published.
+    ...MODULES.filter((m) => featurePages.has(m.slug)).map((m) => ({
       url: absoluteUrl(modulePath(m.slug)),
       changeFrequency: 'monthly' as const,
       priority: 0.8,

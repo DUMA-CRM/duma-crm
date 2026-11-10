@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { ArrowUpRight, ChevronDown, Search, X } from '@/components/icons';
-import { Segmented } from '@/components/marketing/docs/Segmented';
+import { Segmented } from '@/components/marketing/Segmented';
 
 import type { McpTool } from '@/lib/marketing/developers';
 import { cn } from '@/lib/utils/cn';

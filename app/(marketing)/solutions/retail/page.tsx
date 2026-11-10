@@ -1,4 +1,4 @@
-import { ClipboardList, CreditCard, Gift, Layers, MapPin, Package, Repeat, Star, Tag, Truck, Users, WifiOff } from '@/components/icons';
+import { ClipboardList, CreditCard, Layers, MapPin, Package, Repeat, Star, Tag, Truck, Users, WifiOff } from '@/components/icons';
 import { CustomerMock, OfflineQueueMock, StockMock, VariantStockMock } from '@/components/marketing/mocks';
 import { Mark } from '@/components/marketing/sections';
 import { SolutionPage, type SolutionContent, solutionMetadata } from '@/components/marketing/SolutionPage';
@@ -39,7 +39,7 @@ const content: SolutionContent = {
       </p>
     ),
     visual: <VariantStockMock bleed={false} />,
-    caption: 'An example product. Amber is running low; red is sold out.',
+    caption: 'An example product, counted size by size. Amber needs reordering; red is sold out.',
   },
   mistakes: {
     title: 'Five stock mistakes that cost a retailer money',
@@ -68,10 +68,6 @@ const content: SolutionContent = {
   },
   useCases: {
     title: 'Four stock jobs retailers do in DUMA every week',
-    lead: [
-      'Whether you run a gift shop, a deli, a homeware store or two of them, these are the stock-room jobs DUMA takes off your list.',
-      'Start with the one you need most. The rest is already in the same workspace, with nothing to move when you’re ready.',
-    ],
     items: [
       { title: 'Count stock without closing', body: 'Run a stocktake section by section. DUMA records what you counted against what it expected, and the difference.' },
       { title: 'Move stock to where it sells', body: 'Transfer stock between shops in a few taps, so the shop that’s selling a line never runs out while another holds it.' },
@@ -84,8 +80,7 @@ const content: SolutionContent = {
     title: 'What retail software should do, and how to set it up',
     intro: (
       <p>
-        Retail software should keep the till, the shelves and the customer list telling the same story. If stock only changes on stocktake day, it’s wrong for the
-        other 364. If customers stay anonymous, you can’t invite them back.
+        Retail software should keep the till, the shelves and the customer list telling the same story.
       </p>
     ),
     setupTitle: 'How to set up DUMA across your shops',
@@ -96,17 +91,16 @@ const content: SolutionContent = {
     ],
     metricsTitle: 'Stock numbers worth watching',
     metrics: [
-      { title: 'Stock by location', body: 'What’s in each shop or store room, so a transfer fixes a gap before a customer finds it.' },
-      { title: 'Stock by size and colour', body: 'What’s left of every variant. The sizes that run out first are the ones to reorder deeper.' },
+      { title: 'Stock in each location', body: 'What each shop and stock room holds, so stock is moved before one of them runs out.' },
       { title: 'Stocktake differences', body: 'What you counted against what DUMA expected. Small, steady differences point at shrinkage or mistakes at the till.' },
-      { title: 'Top sellers', body: 'What sold, by quantity and value. Useful for reorders, the window and the counter.' },
-      { title: 'Repeat customers', body: 'Who came back, and how often. The clearest sign loyalty is working.' },
-      { title: 'Promotion use', body: 'How often each code is redeemed, against its limit. Codes nobody uses can come down.' },
+      { title: 'Low stock', body: 'Items flagged as running low as you sell, before the next supplier order.' },
+      { title: 'Deliveries against orders', body: 'What arrived against the purchase order, so a short delivery is caught when it’s checked in.' },
+      { title: 'Stock transfers', body: 'What moved between your shops, so both counts stay right.' },
+      { title: 'Top sellers', body: 'What sold, by quantity and value. Useful for the next supplier order.' },
     ],
-    metricIcons: [MapPin, Tag, ClipboardList, Star, Repeat, Gift],
+    metricIcons: [MapPin, ClipboardList, Package, Truck, Repeat, Star],
     comparisonTitle: 'A card-reader app, a spreadsheet,',
     comparisonHighlight: 'or one system',
-    comparisonLead: 'Three ways most small shops run. Here is what each one covers.',
     comparison: [
       {
         title: 'A card-reader till app',
@@ -117,7 +111,6 @@ const content: SolutionContent = {
           { job: 'Stock by size, colour and location', mark: 'part', note: 'Often limited' },
           { job: 'Stocktakes and supplier orders', mark: 'part', note: 'Often an add-on' },
           { job: 'Loyalty and promotions', mark: 'part', note: 'Often an add-on' },
-          { job: 'Everything in one place', mark: 'no' },
         ],
       },
       {
@@ -129,7 +122,6 @@ const content: SolutionContent = {
           { job: 'Stock by size, colour and location', mark: 'part', note: 'By hand' },
           { job: 'Stocktakes and supplier orders', mark: 'part', note: 'By hand' },
           { job: 'Loyalty and promotions', mark: 'no' },
-          { job: 'Everything in one place', mark: 'no', note: 'Numbers copied across' },
         ],
       },
       {
@@ -141,7 +133,6 @@ const content: SolutionContent = {
           { job: 'Stock by size, colour and location', mark: 'yes', note: 'With transfers' },
           { job: 'Stocktakes and supplier orders', mark: 'yes' },
           { job: 'Loyalty and promotions', mark: 'yes' },
-          { job: 'Everything in one place', mark: 'yes', note: 'One login for everything' },
         ],
       },
     ],
@@ -158,7 +149,7 @@ const content: SolutionContent = {
     { question: 'Can I keep my card machine?', answer: 'Yes. Square, SumUp and Stripe connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.' },
     { question: 'Does the retail EPOS keep working if the Wi-Fi goes down?', answer: 'Yes, the till keeps taking sales. They are saved on the device and sent when the connection is back, and a sale that cannot be sent is kept for you to check.' },
   ],
-  closing: { title: 'The one place to run your shops.', muted: 'One simple bill, or none at all.', body: 'Get started in minutes, completely free. No card required, and we’re here to help you every step of the way.' },
+  closing: { title: 'The one place to run your shops.' },
   related: { audiences: [AUDIENCE_LINKS.shops, AUDIENCE_LINKS.bakeries, AUDIENCE_LINKS.cafes], terms: ['stocktake', 'stock-variance', 'purchase-order', 'par-level'] },
 };
 

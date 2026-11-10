@@ -75,10 +75,6 @@ const content: SolutionContent = {
   },
   useCases: {
     title: 'Four things bakeries do with DUMA every week',
-    lead: [
-      'Whether you run a high-street bakery, a patisserie or a market stall, these are the jobs DUMA takes off your early mornings.',
-      'Start with the one you need most. The rest is already in the same workspace, with nothing to move when you’re ready.',
-    ],
     items: [
       { title: 'Price every bake properly', body: 'See the margin on every loaf, pastry and cake, with zero-rated and standard-rated items each handled right.' },
       { title: 'Bake to what sells', body: 'Check what sold yesterday and on a typical same weekday before deciding how much to bake today.' },
@@ -91,8 +87,7 @@ const content: SolutionContent = {
     title: 'What bakery software should do, and how to set it up',
     intro: (
       <p>
-        Bakery software should connect what you bake to what you sell and what you throw away. If you only look at takings, you can’t see the waste. If you only look
-        at waste, you can’t see which bakes earn their place.
+        Bakery software should connect what you bake to what you sell and what you throw away.
       </p>
     ),
     setupTitle: 'How to set up DUMA in a bakery',
@@ -113,7 +108,6 @@ const content: SolutionContent = {
     metricIcons: [BarChart3, Trash2, LineChart, Star, Package, Receipt],
     comparisonTitle: 'A card-reader app, a spreadsheet,',
     comparisonHighlight: 'or one system',
-    comparisonLead: 'Three ways most bakeries run. Here is what each one covers.',
     comparison: [
       {
         title: 'A card-reader till app',
@@ -124,7 +118,6 @@ const content: SolutionContent = {
           { job: 'Recipe costing and margin', mark: 'part', note: 'Often an add-on' },
           { job: 'Waste tracking', mark: 'no' },
           { job: 'Stock and supplier orders', mark: 'part', note: 'Often an add-on' },
-          { job: 'Everything in one place', mark: 'no' },
         ],
       },
       {
@@ -136,7 +129,6 @@ const content: SolutionContent = {
           { job: 'Recipe costing and margin', mark: 'part', note: 'By hand' },
           { job: 'Waste tracking', mark: 'part', note: 'By hand' },
           { job: 'Stock and supplier orders', mark: 'part', note: 'By hand' },
-          { job: 'Everything in one place', mark: 'no', note: 'Numbers copied across' },
         ],
       },
       {
@@ -148,7 +140,6 @@ const content: SolutionContent = {
           { job: 'Recipe costing and margin', mark: 'yes', note: 'VAT rate per item' },
           { job: 'Waste tracking', mark: 'yes', note: 'Valued at cost' },
           { job: 'Stock and supplier orders', mark: 'yes' },
-          { job: 'Everything in one place', mark: 'yes', note: 'One login for everything' },
         ],
       },
     ],
@@ -164,7 +155,7 @@ const content: SolutionContent = {
     { question: 'Can I keep my card machine?', answer: 'Yes. Square, SumUp and Stripe connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.' },
     { question: 'Can you help me set it up?', answer: 'Yes, for free. We help you bring in your bakes, recipes and suppliers so you can open on DUMA quickly.' },
   ],
-  closing: { title: 'The one place to run your bakery.', muted: 'One simple bill, or none at all.', body: 'Get started in minutes, completely free. No card required, and we’re here to help you every step of the way.' },
+  closing: { title: 'The one place to run your bakery.' },
   related: { audiences: [AUDIENCE_LINKS.cafes, AUDIENCE_LINKS.bars, AUDIENCE_LINKS.retail], terms: ['recipe-costing', 'wastage', 'vat-inclusive-pricing', 'purchase-order'] },
 };
 

@@ -106,7 +106,6 @@ export const CAFE_COMPARISON: readonly ComparisonOption[] = [
       { job: 'Stock and recipe margin', mark: 'part', note: 'Often an add-on' },
       { job: 'Rotas and clock-ins', mark: 'no' },
       { job: 'Loyalty and email', mark: 'part', note: 'Often an add-on' },
-      { job: 'Everything in one place', mark: 'no' },
     ],
   },
   {
@@ -118,7 +117,6 @@ export const CAFE_COMPARISON: readonly ComparisonOption[] = [
       { job: 'Stock and recipe margin', mark: 'yes', note: 'Another app' },
       { job: 'Rotas and clock-ins', mark: 'yes', note: 'Another app' },
       { job: 'Loyalty and email', mark: 'yes', note: 'Two more apps' },
-      { job: 'Everything in one place', mark: 'no', note: 'Numbers copied between apps' },
     ],
   },
   {
@@ -130,7 +128,6 @@ export const CAFE_COMPARISON: readonly ComparisonOption[] = [
       { job: 'Stock and recipe margin', mark: 'yes', note: 'VAT-aware' },
       { job: 'Rotas and clock-ins', mark: 'yes' },
       { job: 'Loyalty and email', mark: 'yes' },
-      { job: 'Everything in one place', mark: 'yes', note: 'One login for everything' },
     ],
   },
 ];

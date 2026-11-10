@@ -1,4 +1,5 @@
-import { Check, WifiOff } from '@/components/icons';
+import { Mascot } from '@/components/ai/Mascot';
+import { Check, ImageIcon, Search, WifiOff } from '@/components/icons';
 import { TONE_FILL } from '@/components/marketing/sections';
 
 import { EXAMPLE_DISH } from '@/lib/marketing/cafes';
@@ -9,16 +10,49 @@ import { fmtGbpExact } from '@/lib/utils/format';
 
 /**
  * Small pieces of the product, drawn in HTML for the feature cards: each one
- * shows the mechanism its card describes. All the data is an example — names,
- * figures and times are made up — and the home page says so once, near the top
- * of the cards. Nothing here claims a feature the product does not have.
+ * shows the mechanism its card describes. All the data is an example: names,
+ * figures and times are made up. Nothing here claims a feature the product
+ * does not have.
  */
 
 const label = 'text-[11px] font-medium uppercase tracking-[0.06em] text-[var(--mkt-ink-3)]';
 
-/** Placed at the bottom of a card, offset so it runs off the card's edge. */
-export function Bleed({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('mkt-mock relative -mb-px ml-6 rounded-b-none border-b-0 sm:ml-10', className)}>{children}</div>;
+/**
+ * Placed at the bottom of a card, inset by the card's own 24px padding on the
+ * left, right and below, so it lines up with the text above it. `flat` is the
+ * same mock standing on its own, outside a card.
+ */
+function Bleed({ children, className, flat = false }: { children: React.ReactNode; className?: string; flat?: boolean }) {
+  return (
+    <div className={cn(flat ? 'mkt-mock overflow-hidden' : 'mkt-mock relative mx-6 mb-6', className)}>
+      {children}
+    </div>
+  );
+}
+
+/** A mock's title row: what it shows on the left, a quiet detail on the right. */
+function MockHeader({ children, meta }: { children: React.ReactNode; meta?: React.ReactNode }) {
+  return (
+    <div className="flex items-center justify-between gap-4 border-b border-[var(--mkt-line)] px-4 py-3">
+      {children}
+      {meta}
+    </div>
+  );
+}
+
+/** A stamp card, 12 of 13 filled: one visit from the reward. */
+function LoyaltyStamps({ className }: { className?: string }) {
+  return (
+    <>
+      <p className={cn(label, className)}>Loyalty</p>
+      <div className="mt-1.5 flex gap-1" aria-label="12 of 13 stamps">
+        {Array.from({ length: 13 }, (_, index) => (
+          <span key={index} className={cn('size-3.5 rounded-full', index < 12 ? 'bg-measured' : 'ring-1 ring-measured/50')} aria-hidden="true" />
+        ))}
+      </div>
+      <p className="mt-2 text-[12px] text-[var(--mkt-ink-2)]">One more visit unlocks a free drink</p>
+    </>
+  );
 }
 
 export function OfflineQueueMock() {
@@ -55,13 +89,12 @@ export function OfflineQueueMock() {
 export function SaleTrailMock() {
   return (
     <Bleed>
-      <div className="flex items-center justify-between gap-4 border-b border-[var(--mkt-line)] px-4 py-3">
+      <MockHeader meta={<p className="font-mono text-base font-semibold tabular-nums">£4.85</p>}>
         <div>
           <p className="font-mono text-[11px] text-[var(--mkt-ink-3)]">Till · 08:42</p>
           <p className="text-[13px] font-semibold">Oat flat white + almond croissant</p>
         </div>
-        <p className="font-mono text-base font-semibold tabular-nums">£4.85</p>
-      </div>
+      </MockHeader>
       <ul className="divide-y divide-[var(--mkt-line)]">
         {SALE_TRAIL.slice(0, 4).map((step) => (
           <li key={step.where} className="grid grid-cols-[5.5rem_minmax(0,1fr)] gap-3 px-4 py-2.5 text-[13px]">
@@ -200,7 +233,7 @@ export function MarginMock({ bleed = true, item = EXAMPLE_DISH }: { bleed?: bool
       costing={costing}
     />
   );
-  return bleed ? <Bleed>{body}</Bleed> : <div className="mkt-mock overflow-hidden">{body}</div>;
+  return <Bleed flat={!bleed}>{body}</Bleed>;
 }
 
 const ROTA = [
@@ -245,29 +278,11 @@ export function RotaMock() {
 
 export function CustomerMock() {
   return (
-    <div className="relative h-48">
-      <div className="mkt-mock absolute top-6 left-6 w-60 -rotate-3 p-4 sm:left-10">
-        <p className="flex items-center gap-2 text-sm font-semibold">
-          Priya Shah <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-        </p>
-        <p className="text-[12px] text-[var(--mkt-ink-2)]">4 visits · usually a chai latte</p>
-      </div>
-      <div className="mkt-mock absolute top-2 right-4 w-64 p-4 sm:right-8">
-        <p className="flex items-center gap-2 text-sm font-semibold">
-          Sam Taylor <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-        </p>
+    <div className="px-6 pb-6">
+      <div className="mkt-mock p-4">
+        <p className="text-sm font-semibold">Sam Taylor</p>
         <p className="text-[12px] text-[var(--mkt-ink-2)]">12 visits · usually an oat flat white</p>
-        <p className={cn(label, 'mt-3')}>Loyalty</p>
-        <div className="mt-1.5 flex gap-1" aria-label="12 of 13 stamps">
-          {Array.from({ length: 13 }, (_, index) => (
-            <span
-              key={index}
-              className={cn('size-3.5 rounded-full', index < 12 ? 'bg-measured' : 'ring-1 ring-measured/50')}
-              aria-hidden="true"
-            />
-          ))}
-        </div>
-        <p className="mt-2 text-[12px] text-[var(--mkt-ink-2)]">One more visit unlocks a free drink</p>
+        <LoyaltyStamps className="mt-3" />
       </div>
     </div>
   );
@@ -303,8 +318,8 @@ export function StockMock() {
 
 export function QrMock() {
   return (
-    <div className="flex justify-center pt-2">
-      <div className="mkt-mock w-52 rounded-b-none border-b-0 px-3 pt-3">
+    <div className="flex justify-center px-6 pt-2 pb-6">
+      <div className="mkt-mock w-52 p-3">
         <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-[var(--mkt-line)]" aria-hidden="true" />
         <p className="text-[13px] font-semibold">Bridge Street Café</p>
         <p className="text-[11px] text-[var(--mkt-ink-2)]">Order and pay from your phone</p>
@@ -319,7 +334,7 @@ export function QrMock() {
             </li>
           ))}
         </ul>
-        <p className="mt-3 mb-3 rounded-full bg-primary py-2 text-center text-[12px] font-semibold text-primary-foreground">Pay £6.30</p>
+        <p className="mt-3 mb-3 rounded-md bg-primary py-2 text-center text-[12px] font-semibold text-primary-foreground">Pay £6.30</p>
       </div>
     </div>
   );
@@ -328,16 +343,8 @@ export function QrMock() {
 export function LocationsMock() {
   const bars = [0.34, 0.5, 0.42, 0.66, 0.58, 0.8, 0.72, 0.9];
   return (
-    <div className="px-6 pb-6 sm:px-10">
-      <div className="flex flex-wrap gap-2">
-        <span className="mkt-mock inline-flex h-7 items-center gap-1.5 rounded-[6px] px-2.5 text-[12px] font-medium">
-          Location is <span className="font-semibold">Bridge Street</span>
-        </span>
-        <span className="inline-flex h-7 items-center rounded-[6px] px-2.5 text-[12px] text-[var(--mkt-ink-2)] ring-1 ring-[var(--mkt-line)]">
-          All locations
-        </span>
-      </div>
-      <div className="mkt-mock mt-3 p-4">
+    <div className="px-6 pb-6">
+      <div className="mkt-mock p-4">
         <p className="flex items-baseline justify-between text-[12px] font-semibold">
           Takings, last 8 weeks <span className="font-mono text-[var(--mkt-ink-2)] tabular-nums">Bridge Street</span>
         </p>
@@ -525,9 +532,7 @@ export function CustomersScreen() {
           </ul>
         </div>
         <div className="mkt-mock hidden flex-col p-5 sm:flex">
-          <p className="flex items-center gap-2 text-base font-semibold">
-            Sam Taylor <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-          </p>
+          <p className="text-base font-semibold">Sam Taylor</p>
           <p className="text-[12px] text-[var(--mkt-ink-2)]">Regular since March · usually an oat flat white</p>
           <dl className="mt-4 grid grid-cols-2 gap-3 text-[12px]">
             {[
@@ -542,17 +547,7 @@ export function CustomersScreen() {
               </div>
             ))}
           </dl>
-          <p className={cn(label, 'mt-4')}>Loyalty</p>
-          <div className="mt-1.5 flex flex-wrap gap-1" aria-label="12 of 13 stamps">
-            {Array.from({ length: 13 }, (_, index) => (
-              <span
-                key={index}
-                className={cn('size-3.5 rounded-full', index < 12 ? 'bg-measured' : 'ring-1 ring-measured/50')}
-                aria-hidden="true"
-              />
-            ))}
-          </div>
-          <p className="mt-2 text-[12px] text-[var(--mkt-ink-2)]">One more visit unlocks a free drink</p>
+          <LoyaltyStamps className="mt-4" />
         </div>
       </div>
     </ScreenFrame>
@@ -570,10 +565,9 @@ const VARIANT_STOCK = [
 export function VariantStockMock({ bleed = true }: { bleed?: boolean }) {
   const body = (
     <>
-      <div className="flex items-center justify-between gap-4 border-b border-[var(--mkt-line)] px-4 py-3">
+      <MockHeader meta={<p className="text-[11px] text-[var(--mkt-ink-3)]">Shop + online</p>}>
         <p className="text-[13px] font-semibold">Linen overshirt</p>
-        <p className="text-[11px] text-[var(--mkt-ink-3)]">Shop + online</p>
-      </div>
+      </MockHeader>
       <div className="px-4 py-3">
         <div className={cn(label, 'grid grid-cols-[4.5rem_repeat(5,minmax(0,1fr))] gap-1.5 pb-2 text-center')}>
           <span />
@@ -607,7 +601,7 @@ export function VariantStockMock({ bleed = true }: { bleed?: boolean }) {
       </div>
     </>
   );
-  return bleed ? <Bleed>{body}</Bleed> : <div className="mkt-mock overflow-hidden">{body}</div>;
+  return <Bleed flat={!bleed}>{body}</Bleed>;
 }
 
 /**
@@ -641,25 +635,28 @@ export function StorefrontApiMock() {
 export function ContentEditorMock({ bleed = true }: { bleed?: boolean }) {
   const body = (
     <>
-      <div className="flex items-center justify-between gap-4 border-b border-[var(--mkt-line)] px-4 py-3">
+      <MockHeader
+        meta={
+          <div className="flex gap-1 text-[11px]">
+            {['EN', 'UK', 'PL'].map((locale, index) => (
+              <span
+                key={locale}
+                className={cn(
+                  'rounded-[4px] px-1.5 py-0.5',
+                  index === 0 ? 'bg-foreground font-semibold text-background' : 'bg-[var(--mkt-ground)] text-[var(--mkt-ink-2)]',
+                )}
+              >
+                {locale}
+              </span>
+            ))}
+          </div>
+        }
+      >
         <p className="flex items-center gap-2 text-[13px] font-semibold">
           Blog post{' '}
           <span className="rounded-[4px] bg-success-highlight px-1.5 py-0.5 text-[10px] font-semibold text-success">Published</span>
         </p>
-        <div className="flex gap-1 text-[11px]">
-          {['EN', 'UK', 'PL'].map((locale, index) => (
-            <span
-              key={locale}
-              className={cn(
-                'rounded-[4px] px-1.5 py-0.5',
-                index === 0 ? 'bg-foreground font-semibold text-background' : 'bg-[var(--mkt-ground)] text-[var(--mkt-ink-2)]',
-              )}
-            >
-              {locale}
-            </span>
-          ))}
-        </div>
-      </div>
+      </MockHeader>
       <div className="flex flex-col gap-3 px-4 py-4 text-[12px]">
         <div>
           <p className={label}>Title</p>
@@ -671,7 +668,9 @@ export function ContentEditorMock({ bleed = true }: { bleed?: boolean }) {
         </div>
         <div>
           <p className={label}>Cover image</p>
-          <div className="mt-1.5 h-14 rounded-[6px] bg-[linear-gradient(135deg,#e9dcc4,#c9a77c)]" aria-hidden="true" />
+          <div className="mt-1.5 grid h-14 place-items-center rounded-[6px] bg-[var(--mkt-ground)]" aria-hidden="true">
+            <ImageIcon className="size-5 text-[var(--mkt-ink-3)]" />
+          </div>
         </div>
         <div className="rounded-[6px] border border-[var(--mkt-line)] px-3 py-2">
           <p className={label}>Search preview</p>
@@ -681,25 +680,23 @@ export function ContentEditorMock({ bleed = true }: { bleed?: boolean }) {
       </div>
     </>
   );
-  return bleed ? <Bleed>{body}</Bleed> : <div className="mkt-mock overflow-hidden">{body}</div>;
+  return <Bleed flat={!bleed}>{body}</Bleed>;
 }
 
 /** A public form and the customer its response becomes. Example data. */
 export function FormMock() {
   return (
     <div className="relative h-52">
-      <div className="mkt-mock absolute top-2 left-6 w-60 -rotate-2 p-4 sm:left-10">
+      <div className="mkt-mock absolute top-2 left-6 w-60 -rotate-2 p-4">
         <p className="text-sm font-semibold">Join the waiting list</p>
         <div className="mt-3 flex flex-col gap-2 text-[12px]">
           <span className="rounded-[5px] border border-[var(--mkt-line)] px-2.5 py-1.5 text-[var(--mkt-ink-2)]">Ana Costa</span>
           <span className="rounded-[5px] border border-[var(--mkt-line)] px-2.5 py-1.5 text-[var(--mkt-ink-2)]">ana@example.com</span>
-          <span className="rounded-full bg-primary py-1.5 text-center font-semibold text-primary-foreground">Send</span>
+          <span className="rounded-md bg-primary py-1.5 text-center font-semibold text-primary-foreground">Send</span>
         </div>
       </div>
-      <div className="mkt-mock absolute top-16 right-4 w-56 rotate-1 p-4 sm:right-8">
-        <p className="flex items-center gap-2 text-sm font-semibold">
-          Ana Costa <span className="size-1.5 rounded-full bg-success" aria-hidden="true" />
-        </p>
+      <div className="mkt-mock absolute top-16 right-6 w-56 rotate-1 p-4">
+        <p className="text-sm font-semibold">Ana Costa</p>
         <p className="text-[12px] text-[var(--mkt-ink-2)]">New customer · from “Join the waiting list”</p>
       </div>
     </div>
@@ -717,10 +714,9 @@ const BOOKINGS = [
 export function BookingsMock() {
   return (
     <Bleed>
-      <div className="flex items-center justify-between gap-4 border-b border-[var(--mkt-line)] px-4 py-3">
+      <MockHeader meta={<p className="text-[11px] text-[var(--mkt-ink-3)]">3 booked · 1 waiting</p>}>
         <p className="text-[13px] font-semibold">Tonight</p>
-        <p className="text-[11px] text-[var(--mkt-ink-3)]">3 booked · 1 waiting</p>
-      </div>
+      </MockHeader>
       <ul className="divide-y divide-[var(--mkt-line)] text-[13px]">
         {BOOKINGS.map((row) => (
           <li key={row.time + row.name} className="grid grid-cols-[3rem_minmax(0,1fr)_2.5rem_5rem] items-center gap-3 px-4 py-2.5">
@@ -748,10 +744,9 @@ const WASTE = [
 export function WasteMock() {
   return (
     <Bleed>
-      <div className="flex items-center justify-between gap-4 border-b border-[var(--mkt-line)] px-4 py-3">
+      <MockHeader meta={<p className="font-mono text-[12px] font-semibold text-destructive tabular-nums">£6.40</p>}>
         <p className="text-[13px] font-semibold">Waste today</p>
-        <p className="font-mono text-[12px] font-semibold text-destructive tabular-nums">£6.40</p>
-      </div>
+      </MockHeader>
       <ul className="divide-y divide-[var(--mkt-line)] text-[13px]">
         {WASTE.map((row) => (
           <li key={row.item} className="grid grid-cols-[minmax(0,1fr)_3rem_6rem_3.5rem] items-center gap-3 px-4 py-2.5">
@@ -763,5 +758,38 @@ export function WasteMock() {
         ))}
       </ul>
     </Bleed>
+  );
+}
+
+const ASK_PROMPTS = [
+  'What sold best yesterday?',
+  'Which items are running low?',
+  'How did this week compare with last?',
+  'Who are my regulars?',
+  'What did staff cost today?',
+  'Which dish makes the least?',
+];
+
+/** A new Ask DUMA chat: the questions it suggests and the empty prompt. */
+export function AskMock() {
+  return (
+    <div className="mx-6 mb-6 rounded-lg border border-[var(--mkt-line)]">
+      <div className="flex items-center justify-between border-b border-[var(--mkt-line)] px-3 py-2 text-[12px] text-[var(--mkt-ink-3)]">
+        <span>Ask DUMA</span>
+        <span>New chat</span>
+      </div>
+      <div className="flex flex-col items-center gap-4 px-4 py-5">
+        <ul className="flex flex-wrap justify-center gap-x-4 gap-y-2 text-[13px] text-primary">
+          {ASK_PROMPTS.map((prompt) => (
+            <li key={prompt}>{prompt}</li>
+          ))}
+        </ul>
+        <Mascot size={44} state="idle" expression="curieux" label="Ask DUMA" />
+      </div>
+      <div className="flex items-center gap-2 border-t border-[var(--mkt-line)] px-3 py-2.5 text-[13px] text-[var(--mkt-ink-3)]">
+        <Search className="size-4" aria-hidden="true" />
+        Ask DUMA anything<span className="mkt-caret">|</span>
+      </div>
+    </div>
   );
 }

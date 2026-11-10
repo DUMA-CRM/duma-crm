@@ -132,7 +132,7 @@ export function DocsPage({ toc, children }: { toc: { href: string; label: string
             fold={toc.length}
             headings={toc.map((item) => ({ id: item.href.slice(1), text: item.label, depth: item.indent ? 3 : 2 }))}
           />
-          <SideSignUpCard body="Store, content and management APIs — one workspace key." className="mt-6" />
+          <SideSignUpCard body="Store, content and management APIs — one workspace key." />
         </div>
       </aside>
     </div>

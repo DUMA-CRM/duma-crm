@@ -28,68 +28,11 @@ export const SALE_TRAIL: readonly { tone: Tone; where: string; what: string }[] 
   { tone: 'action', where: 'Reports', what: 'Today’s takings, top items and busiest hour update' },
 ];
 
-export type Pain = { pain: string; answer: string };
-
-/** The owner-ranked pains for each first audience, most painful first. */
-export const FOOD_PAINS: readonly Pain[] = [
-  {
-    pain: 'Paying for a different app for every job',
-    answer: 'Till, kitchen screen, stock, rotas, bookings, loyalty and email are one workspace, with a free plan to start on.',
-  },
-  {
-    pain: 'Guessing the margin on each dish',
-    answer: 'Add a recipe and DUMA works out what each dish costs to make and what you keep, VAT included.',
-  },
-  {
-    pain: 'Rotas living in WhatsApp and spreadsheets',
-    answer: 'Your team sees the rota on their phone, clocks in there and asks for leave there — and labour cost sits next to sales.',
-  },
-  {
-    pain: 'The internet drops and the till stops',
-    answer: 'The till keeps taking orders offline and sends them when the connection is back.',
-  },
-  {
-    pain: 'A card reader that only takes payments',
-    answer: 'Keep your card machine — Square, SumUp and Stripe connect directly, any other works with the amount keyed in. DUMA adds the stock, margin, rotas and loyalty around it.',
-  },
-];
-
-export const SHOP_PAINS: readonly Pain[] = [
-  {
-    pain: 'Another monthly app for every feature',
-    answer: 'Loyalty, promotions, referrals, email, forms and a till are already in DUMA — no app store, no stack of add-on bills.',
-  },
-  {
-    pain: 'Customers scattered across inboxes and spreadsheets',
-    answer: 'Every order and visit builds one customer profile, so you know who your regulars are and what they buy.',
-  },
-  {
-    pain: 'No proper till for the shop or a pop-up',
-    answer: 'Open the till on a tablet or phone you already own and sell in person from the same stock and customer list.',
-  },
-  {
-    pain: 'Stock in sizes and colours that never matches',
-    answer: 'One stock record for every size and colour, updated by every sale, in the shop and online.',
-  },
-];
-
-/** Devices and services DUMA works with today — each one checked against the code. */
-export const WORKS_WITH: readonly { group: string; items: string[] }[] = [
-  { group: 'Devices', items: ['Any tablet', 'Phones', 'Laptops and computers', 'Installs like an app'] },
-  { group: 'Card machines', items: ['Square', 'SumUp', 'Stripe', 'Any other, keyed in'] },
-  { group: 'Web analytics', items: ['Umami', 'PostHog'] },
-  { group: 'Your own storage', items: ['Cloudflare R2', 'Vercel Blob'] },
-  { group: 'Everyday tools', items: ['Google Drive', 'Telegram', 'Email'] },
-  { group: 'For developers', items: ['REST API', 'MCP server', 'Webhooks', 'API keys'] },
-];
-
-export const COMING_SOON: readonly string[] = ['Label printers', 'Accounting software', 'Payroll export'];
-
 export const FAQS: { question: string; answer: string }[] = [
   {
     question: 'Is DUMA really free?',
     answer:
-      'Yes. There is a free plan with no time limit and no card needed, and it covers the till, orders, payments, products, stock, customers and rotas. A paid Business plan with higher limits will come later — anyone who joins before then keeps 10% off it for life.',
+      'Yes. There is a free plan with no time limit and no card needed, and it covers the till, orders, payments, products, stock, customers and rotas. A paid Business plan with higher limits will come later.',
   },
   {
     question: 'What kind of business is DUMA for?',

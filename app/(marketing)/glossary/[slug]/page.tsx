@@ -2,7 +2,7 @@ import type { Metadata } from 'next';
 import Link from 'next/link';
 import { notFound } from 'next/navigation';
 
-import { ArrowUpRight, CalendarDays, ChevronRight, Clock } from '@/components/icons';
+import { ArrowUpRight, CalendarDays, ChevronRight } from '@/components/icons';
 import { Markdown } from '@/components/marketing/blog/Markdown';
 import { ReadingProgress, TableOfContents } from '@/components/marketing/blog/ReadingAids';
 import { formatPostDate } from '@/components/marketing/blog/parts';
@@ -15,7 +15,7 @@ import { GLOSSARY, glossaryTerm } from '@/lib/marketing/glossary';
 import { marketingMetadata } from '@/lib/marketing/metadata';
 import { publishedPage } from '@/lib/marketing/site';
 import { breadcrumbSchema, faqSchema, glossaryTermSchema } from '@/lib/marketing/schema';
-import { extractHeadings, readingMinutes } from '@/lib/utils/blog';
+import { extractHeadings } from '@/lib/utils/blog';
 
 /** One page per term, all built ahead of time; any other slug is a 404. */
 export function generateStaticParams() {
@@ -36,10 +36,10 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 /**
  * /glossary/[slug] — one term as a short article, laid out like a blog post:
- * breadcrumb, the question as the headline, the one-line definition as a TL;DR, the body, the
- * a "See it in DUMA" link to the audience page it belongs to, the questions,
- * related terms; the live table of contents and the sign-up card
- * beside it.
+ * breadcrumb, the question as the headline, the one-line definition as a
+ * TL;DR, the body, a "See it in DUMA" link to the audience page it belongs to,
+ * the questions and related terms; beside it the live table of contents and
+ * the sign-up card.
  */
 export default async function GlossaryTermPage({ params }: { params: Promise<{ slug: string }> }) {
   const term = glossaryTerm((await params).slug);
@@ -74,7 +74,7 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
               </span>
             </nav>
 
-            <h1 className="mt-4 text-balance text-4xl leading-[1.12] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-[2.75rem]">
+            <h1 className="mt-4 text-balance text-4xl leading-[1.12] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-5xl">
               {term.title}
             </h1>
 
@@ -85,10 +85,6 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
                 <time dateTime={term.updated} className="font-medium text-[var(--mkt-ink-2)]">
                   {formatPostDate(term.updated)}
                 </time>
-              </span>
-              <span className="flex items-center gap-1.5">
-                <Clock className="size-4" aria-hidden="true" />
-                {readingMinutes(term.body)} min read
               </span>
             </p>
 
@@ -126,7 +122,7 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
           <aside className="hidden lg:block" aria-label="About this term">
             <div className="sticky top-24 flex flex-col gap-8">
               <TableOfContents headings={headings} />
-              <SideSignUpCard body="Recipes costed, stock counted and the reports built from your sales." className="mt-2" />
+              <SideSignUpCard body="Recipes costed, stock counted and the reports built from your sales." />
             </div>
           </aside>
         </div>
@@ -158,8 +154,6 @@ export default async function GlossaryTermPage({ params }: { params: Promise<{ s
 
       <ClosingCta
         title="Know your numbers without the spreadsheet."
-        muted="Free to start."
-        body="DUMA works these out from the sales, recipes and stock you already have — get started in minutes, no card required."
         aside={<RisingLines id={`glossary-${term.slug}-cta`} />}
       />
       <ReadingProgress />

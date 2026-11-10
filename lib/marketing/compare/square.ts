@@ -19,6 +19,7 @@ export const DUMA_VS_SQUARE: Comparison = {
     'A Square alternative for UK cafés and shops: keep your Square Terminal, add stock, recipe margin, rotas and loyalty for free. Prices as of November 2026.',
   checked: '2026-11-02',
   asOf: 'November 2026',
+  vatNote: 'Square’s figures exclude VAT where Square says so.',
   hero: {
     lead: 'DUMA vs Square:',
     mark: 'keep the card machine, add the rest',
@@ -35,11 +36,10 @@ export const DUMA_VS_SQUARE: Comparison = {
   },
   table: {
     title: 'DUMA and Square, side by side',
-    intro: 'Square’s figures are from its UK website and exclude VAT where Square says so. DUMA’s are from the product today.',
     rows: [
       {
         job: 'Software price',
-        duma: 'Free plan, forever, with no card needed. Business is £89 a month, coming soon.',
+        duma: 'Free plan, forever, with no card needed. Business is £49 a month, coming soon.',
         them: 'Free plan at £0 a month. Plus from £29 a month. Premium is custom-priced.',
         source: SQUARE_PRICING,
       },
@@ -80,7 +80,6 @@ export const DUMA_VS_SQUARE: Comparison = {
         job: 'Recipe costing and margin',
         duma: 'Cost each dish from its ingredients and see the margin after VAT, per size and per combination of options.',
         them: 'We did not find recipe costing on Square’s UK pricing pages.',
-        marks: { duma: 'yes', them: 'no' },
       },
       {
         job: 'Rotas and clock-ins',
@@ -107,23 +106,10 @@ export const DUMA_VS_SQUARE: Comparison = {
   },
   pricing: {
     title: 'What Square costs',
-    intro:
-      'Read on Square’s UK website on 2 November 2026. Square changes its prices from time to time, so check the linked page before you decide.',
     facts: [
-      {
-        text: 'Square Point of Sale: Free at £0 a month plus processing fees; Plus from £29 a month; Premium custom-priced.',
-        source: SQUARE_PRICING,
-      },
-      { text: 'In-person card payments with UK cards: 1.75%. Online: 1.4% + 25p. Manually entered: 2.5%.', source: SQUARE_PRICING },
-      {
-        text: 'Square for Restaurants Plus: £69 a month per location. Restaurant inventory by MarketMan: £79 a month per location on Plus.',
-        source: SQUARE_RESTAURANTS,
-      },
+      // The table's retail figure is read here, so the line stays as its source.
       { text: 'Square for Retail Plus: £49 a month per location.', source: SQUARE_RETAIL },
-      { text: 'Shifts: free for up to five team members; Shifts Plus from £3 per team member a month.', source: SQUARE_SHIFTS },
       { text: 'Square Loyalty: £25, £45 or £65 a month per location, by loyalty visits.', source: SQUARE_LOYALTY },
-      { text: 'Square Marketing: from £9 a month for up to 500 contacts.', source: SQUARE_MARKETING },
-      { text: 'Square Reader: £19 + VAT. Square Terminal: £149 + VAT.', source: SQUARE_PRICING },
     ],
     bill: {
       title: 'A café on Square’s paid plans',
@@ -139,11 +125,6 @@ export const DUMA_VS_SQUARE: Comparison = {
       title: 'The same parts on DUMA',
       note: 'Till, stock, recipe margin, rotas and loyalty on the free plan. Email keeps a free allowance.',
     },
-    duma: [
-      'Free, forever, with no card needed. The till, orders, payments, products and margin, stock, customers and rotas stay free in full. Every other part keeps a free allowance.',
-      'Business is £89 a month, or £80 a month paid yearly. It is coming soon, and anyone who joins before it launches keeps 10% off for life.',
-      'DUMA takes no cut of your card payments. Your card provider charges its own fees, as it does today.',
-    ],
   },
   stronger: {
     title: 'Where Square is stronger',
@@ -291,12 +272,11 @@ export const DUMA_VS_SQUARE: Comparison = {
     {
       question: 'How much does DUMA cost compared with Square?',
       answer:
-        'DUMA has a free plan forever. Business will be £89 a month, or £80 a month paid yearly, and is coming soon. Square’s point of sale also has a free plan, with paid plans from £29 a month and paid add-ons such as Loyalty and Marketing (as of November 2026). Card fees are separate in both cases.',
+        'DUMA has a free plan forever. Business will be £49 a month, or £539 a year with one month free, and is coming soon. Square’s point of sale also has a free plan, with paid plans from £29 a month and paid add-ons such as Loyalty and Marketing (as of November 2026). Card fees are separate in both cases.',
     },
   ],
   closing: {
     title: 'Keep Square for payments.',
     muted: 'Run the rest of the business on DUMA.',
-    body: 'Start free in minutes, with no card needed. We’ll help you connect your Terminal and bring your menu across.',
   },
 };

@@ -2,7 +2,7 @@
 
 import { useId, useState } from 'react';
 
-import { Banknote, ChevronDown, Coins, CreditCard, Minus, Plus, Receipt, Wallet } from '@/components/icons';
+import { Banknote, ChevronDown, Coins, Minus, Plus } from '@/components/icons';
 
 import { type Counts, balanceOf, countMinor, denominationsFor, needsExplanation, parseMinor } from '@/lib/utils/cash-count';
 import { bankingMinor, expectedCashMinor } from '@/lib/utils/cash-up-calculator';
@@ -220,7 +220,6 @@ export function CashUpCalculator() {
         {/* ── What the till says, grouped as the cash-up reads it ── */}
         <div className="mt-8 grid items-start gap-4 border-t border-[var(--mkt-line)] pt-6 sm:grid-cols-2">
           <TillPanel
-            icon={Receipt}
             title="Cash on the till"
             hint="From the end-of-day (Z) report"
             footer={{ label: 'Should be there', value: expected === null ? '–' : gbp(expected) }}
@@ -231,7 +230,6 @@ export function CashUpCalculator() {
           </TillPanel>
           <div className="grid gap-4">
             <TillPanel
-              icon={CreditCard}
               title="Card"
               hint="Optional"
               footer={{ label: 'Difference', value: card === null ? '–' : card.balance === 'balanced' ? gbp(0) : signed(card.difference) }}
@@ -239,7 +237,7 @@ export function CashUpCalculator() {
               {money('cardSales', 'Card sales on the till', '0.00')}
               {money('cardMachine', 'Card machine total', '0.00')}
             </TillPanel>
-            <TillPanel icon={Wallet} title="Tomorrow" footer={{ label: 'To the bank', value: gbp(bankingMinor(counted, keepFloat)) }}>
+            <TillPanel title="Tomorrow" footer={{ label: 'To the bank', value: gbp(bankingMinor(counted, keepFloat)) }}>
               {money('keepFloat', 'Float to leave', float === null ? '0.00' : (float / 100).toFixed(2))}
             </TillPanel>
           </div>
@@ -248,10 +246,7 @@ export function CashUpCalculator() {
 
       {/* ── The result, as a till slip ── */}
       <section className="mkt-mock overflow-hidden lg:sticky lg:top-24" aria-label="Your cash-up" aria-live="polite">
-        <div className="flex items-baseline justify-between gap-4 border-b border-[var(--mkt-line)] px-4 py-3">
-          <p className="text-[13px] font-semibold">Cash-up</p>
-          <p className="text-[12px] text-[var(--mkt-ink-3)]">Cash in the drawer</p>
-        </div>
+        <p className="border-b border-[var(--mkt-line)] px-4 py-3 text-[13px] font-semibold">Cash-up</p>
         <dl className="divide-y divide-[var(--mkt-line)] text-[13px]">
           <div className={row}>
             <dt>Opening float</dt>
@@ -281,7 +276,7 @@ export function CashUpCalculator() {
             </dt>
             <dd className="text-right">
               {cash === null ? (
-                <span className="text-[12px] text-[var(--mkt-ink-2)]">Enter the float and cash sales</span>
+                <span className="text-xs text-[var(--mkt-ink-2)]">Enter the float and cash sales</span>
               ) : (
                 <span
                   className={cn(
@@ -318,7 +313,7 @@ export function CashUpCalculator() {
           </div>
         </dl>
         {explain && (
-          <p className="border-t border-[var(--mkt-line)] px-4 py-3 text-[12px] text-pretty text-[var(--mkt-ink-2)]">
+          <p className="border-t border-[var(--mkt-line)] px-4 py-3 text-xs text-pretty text-[var(--mkt-ink-2)]">
             Out by {gbp(100)} or more. Write down why while the day is fresh — a refund not put through, change given wrong, a payment on
             the wrong machine.
           </p>
@@ -355,17 +350,15 @@ function StepButton({
 
 /**
  * A group of till figures, built like the drawer's note and coin lists: a
- * header with its icon, the figures as rows, and a footer with what they add
+ * header, the figures as rows, and a footer with what they add
  * up to.
  */
 function TillPanel({
-  icon: Icon,
   title,
   hint,
   footer,
   children,
 }: {
-  icon: React.ComponentType<{ className?: string; 'aria-hidden'?: boolean | 'true' }>;
   title: string;
   hint?: string;
   footer: { label: string; value: string };
@@ -379,9 +372,6 @@ function TillPanel({
       className="overflow-hidden rounded-xl border border-[var(--mkt-line)] bg-white dark:bg-transparent"
     >
       <div className="flex items-center gap-2.5 border-b border-[var(--mkt-line)] px-3 py-2.5">
-        <span className="grid size-7 shrink-0 place-items-center rounded-md bg-primary/10 text-primary" aria-hidden="true">
-          <Icon className="size-4" />
-        </span>
         <p id={id} className="text-sm font-semibold text-[var(--mkt-heading)]">
           {title}
         </p>

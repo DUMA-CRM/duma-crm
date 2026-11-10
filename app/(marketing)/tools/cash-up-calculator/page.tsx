@@ -120,7 +120,7 @@ const FAQS = [
   {
     question: 'Is this the same sum DUMA uses?',
     answer:
-      'Yes. The counting and the over or short come from the same code as DUMA’s till cash-up, so a drawer counted here gives the figure DUMA would. Nothing you type here is sent anywhere.',
+      'Yes. The counting and the over or short come from the same code as DUMA’s till cash-up, so a drawer counted here gives the figure DUMA would.',
   },
 ];
 
@@ -212,7 +212,7 @@ export default function CashUpCalculatorPage() {
       </Section>
 
       <Section spacing="snug" aria-labelledby="in-duma">
-        <SectionHeading id="in-duma" title="Every night, not just tonight." muted="In DUMA, on the free plan." />
+        <SectionHeading id="in-duma" title="Every night, not just tonight." muted="Free in DUMA." />
         <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
           {IN_DUMA.map((point, index) => (
             <FeatureCard key={point.title} icon={point.icon} tone={point.tone} title={point.title} body={point.body} delay={index * 60} />
@@ -232,7 +232,6 @@ export default function CashUpCalculatorPage() {
       <ClosingCta
         title="This calculator does one night."
         muted="DUMA does every one."
-        body="Join DUMA for free and cash up at the till: it knows the float and the sales, records what you counted, and keeps every night in the End of day report. No card needed."
         aside={<RisingLines id="cashup-cta" />}
       />
     </>

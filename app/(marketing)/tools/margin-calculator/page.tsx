@@ -113,14 +113,8 @@ const FAQS = [
     answer: `Divide the ingredient cost by what is left of each pound at your target margin, then add VAT if your prices include it. ${gbp(COGS)} at ${TARGET}% is ${gbp(COGS)} ÷ ${(1 - TARGET / 100).toFixed(1)} = ${gbp(TARGET_NET)}, or ${TARGET_PRICE === null ? '–' : gbp(TARGET_PRICE)} with 20% VAT. The calculator does this and rounds up to the next 10p.`,
   },
   {
-    question: 'How do I calculate the margin on a menu item?',
-    answer:
-      'Take VAT out of the price if you are VAT-registered, then subtract the cost of the ingredients in one portion. Margin percentage is that amount divided by the price after VAT. For a £3.20 flat white with 60p of ingredients at 20% VAT, that is £2.07, or about 77.5%.',
-  },
-  {
     question: 'What is food cost percentage?',
-    answer:
-      'Ingredient cost as a share of what you keep from the price after VAT. It is the other side of margin: a 77.5% margin is a 22.5% food cost. The right figure depends on your menu and your prices, so watch it per dish.',
+    answer: `Ingredient cost as a share of what you keep from the price after VAT. It is the other side of margin: a ${pct(REGISTERED.marginPct)} margin is a ${pct(foodCostPct(REGISTERED))} food cost. The right figure depends on your menu and your prices, so watch it per dish.`,
   },
   {
     question: 'Should I include VAT when I work out margin?',
@@ -135,7 +129,7 @@ const FAQS = [
   {
     question: 'Is this calculator the same maths DUMA uses?',
     answer:
-      'Yes. It runs the same costing function as DUMA’s recipe costing, so a margin here matches the one DUMA shows on a recipe, to the penny. Nothing you type here is sent anywhere.',
+      'Yes. It runs the same costing function as DUMA’s recipe costing, so a margin here matches the one DUMA shows on a recipe, to the penny.',
   },
 ];
 
@@ -272,7 +266,6 @@ export default function MarginCalculatorPage() {
       <ClosingCta
         title="This calculator does one dish."
         muted="DUMA does your whole menu."
-        body="Join DUMA for free and cost every dish from your own stock, with the same VAT sums as this page — saved, and kept up to date as your supplier prices change. No card needed."
         aside={<RisingLines id="calc-cta" />}
       />
     </>

@@ -66,10 +66,7 @@ const content: SolutionContent = {
   },
   useCases: {
     title: 'Four ways writers use DUMA',
-    lead: [
-      'A personal blog, a magazine with several writers, a newsletter, a site in two languages — each is one content system and a site connected to it.',
-      'Start with posts. Add forms, subscribers, or a shop for your books and courses later, in the same workspace.',
-    ],
+    lead: ['A personal blog, a magazine with several writers, a newsletter, a site in two languages — each is one content system and a site connected to it.'],
     items: [
       { title: 'A personal blog', body: 'Write and publish posts to your own site, with a preview before every one goes live.' },
       { title: 'A magazine with several writers', body: 'Writers submit for review, editors publish or send back with notes, and each content type has its own editors.' },
@@ -82,8 +79,7 @@ const content: SolutionContent = {
     title: 'What a content system should do, and how to start a blog on DUMA',
     intro: (
       <p>
-        A content system should let you write once and publish anywhere: your site, in your design, in every language, with your images in storage you control. And
-        it shouldn’t trap you — your writing should leave with you whenever you want.
+        A content system should let you write once and publish anywhere: your site, in your design, in every language, with your images in storage you control.
       </p>
     ),
     setupTitle: 'How to start a blog on DUMA',
@@ -93,7 +89,6 @@ const content: SolutionContent = {
     metricIcons: [Layers, Copy, Languages, ImageIcon, Zap, Code],
     comparisonTitle: 'A blog platform, a headless CMS,',
     comparisonHighlight: 'or DUMA',
-    comparisonLead: 'Three ways to run a blog. Here is what each one covers.',
     comparison: CMS_COMPARISON,
     comparisonIcons: [Globe, Code],
   },
@@ -107,7 +102,7 @@ const content: SolutionContent = {
     { question: 'Can I take my writing with me?', answer: 'Yes. You can export all your content as one JSON document at any time.' },
     { question: 'What does it cost?', answer: 'Nothing to start: the free plan has no time limit and no card. The content system has a free allowance, and the Business plan raises it when you need more.' },
   ],
-  closing: { title: 'The one place for your writing.', muted: 'Start free. Take it with you any time.', body: 'Get started in minutes, completely free. No card required, and we’re here to help you every step of the way.' },
+  closing: { title: 'The one place for your writing.', muted: 'Start free. Take it with you any time.' },
   related: { audiences: [AUDIENCE_LINKS.anyBusiness, AUDIENCE_LINKS.shops], extra: [{ path: '/developers', label: 'The public API, including the Content API your site reads' }] },
 };
 

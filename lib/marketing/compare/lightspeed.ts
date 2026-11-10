@@ -16,6 +16,7 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
     'A free Lightspeed alternative for UK cafés, restaurants and shops: till, stock, recipe margin, rotas and loyalty in one workspace, with your own card machine. Prices as of November 2026.',
   checked: '2026-11-03',
   asOf: 'November 2026',
+  vatNote: 'Lightspeed’s UK website does not say whether its figures include VAT.',
   hero: {
     lead: 'DUMA vs Lightspeed:',
     mark: 'the same jobs, without the monthly plan',
@@ -32,11 +33,10 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
   },
   table: {
     title: 'DUMA and Lightspeed, side by side',
-    intro: 'Lightspeed’s figures are from its UK website, which does not say whether they include VAT. DUMA’s are from the product today.',
     rows: [
       {
         job: 'Software price',
-        duma: 'Free plan, forever, with no card needed. Business is £89 a month, coming soon.',
+        duma: 'Free plan, forever, with no card needed. Business is £49 a month, coming soon.',
         them: 'Restaurant: Basic £79, Core £149, Pro £219 a month. Retail: Basic £75, Core £149, Plus £189 a month.',
         source: LS_RESTAURANT_PRICING,
       },
@@ -107,8 +107,6 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
   },
   pricing: {
     title: 'What Lightspeed costs',
-    intro:
-      'Read on Lightspeed’s UK website on 3 November 2026. Lightspeed changes its prices from time to time, so check the linked page before you decide.',
     bill: {
       title: 'A café or restaurant on Lightspeed Core',
       lines: [{ label: 'Restaurant Core, with two licences', pounds: 149, source: LS_RESTAURANT_PRICING }],
@@ -123,6 +121,7 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
         text: 'Restaurant: Basic £79 a month (one licence), Core £149 (two), Pro £219 (three). An extra register is £39.',
         source: LS_RESTAURANT_PRICING,
       },
+      // The table's retail prices are read here, so the line stays as their source.
       { text: 'Retail: Basic £75, Core £149, Plus £189 a month, each with one register.', source: LS_RETAIL_PRICING },
       { text: 'Payment rates are shown as “Default” on Restaurant Basic and “Custom” on Core and Pro.', source: LS_RESTAURANT_PRICING },
       { text: 'A chargeback costs a single £15 fee.', source: LS_PAYMENTS },
@@ -131,11 +130,6 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
         source: LS_RESTAURANT_PRICING,
       },
       { text: 'Monthly plans can be cancelled at the end of the month; annual plans run to the end of the term.', source: LS_RESTAURANT },
-    ],
-    duma: [
-      'Free, forever, with no card needed. The till, orders, payments, products and margin, stock, customers and rotas stay free in full. Every other part keeps a free allowance.',
-      'Business is £89 a month, or £80 a month paid yearly. It is coming soon, and anyone who joins before it launches keeps 10% off for life.',
-      'DUMA takes no cut of your card payments. Your card provider charges its own fees, as it does today.',
     ],
   },
   stronger: {
@@ -169,7 +163,7 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
       {
         title: 'Size and track record',
         icon: 'scale',
-        them: 'Over 20 years in retail, and over 200 Michelin-starred restaurants, Lightspeed says.',
+        them: 'Established, with a much larger team and client base.',
         duma: 'DUMA is new, built and supported by one person. When you ask for something, you’re talking to the person who builds it.',
       },
     ],
@@ -281,6 +275,5 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
   closing: {
     title: 'The whole operation, on one free plan.',
     muted: 'With the card machine you already have.',
-    body: 'Start free in minutes, with no card needed. We’ll help you bring your menu and team across.',
   },
 };

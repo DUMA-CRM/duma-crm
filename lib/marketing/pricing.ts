@@ -1,10 +1,10 @@
 /**
  * Plans and pricing words for /pricing, in one place.
  *
- * Decisions (the "DUMA Business Profile" vault note, section 7): a Free plan
- * forever; one Business plan at £89 a month, or £80 a month billed yearly
- * (£960); a contact-us tier for closer support; and 10% off Business for life
- * for anyone who joins before paid plans start. Business cannot be bought yet
+ * Decisions (the "DUMA Business Profile" vault note, section 7, changed by the
+ * owner on 2026-11-10): a Free plan forever; one Business plan at £49 a month,
+ * or one month free when paid yearly (£539 a year); and a contact-us tier for
+ * closer support. There is no founding-member discount. Business cannot be bought yet
  * — no billing exists — so every page says "coming soon" beside its price.
  * Free-plan allowances are not decided, so nothing here may name a limit.
  *
@@ -14,46 +14,42 @@
 
 export const BUSINESS = {
   /** £ per month, billed monthly. */
-  monthly: 89,
-  /** £ per month when billed yearly — £960 a year. */
-  yearlyPerMonth: 80,
-  /** Founding members' lifetime discount, as a fraction. */
-  foundingDiscount: 0.1,
+  monthly: 49,
+  /** Months free when paying yearly. */
+  freeMonthsYearly: 1,
   available: false,
 } as const;
 
 export type Billing = 'monthly' | 'yearly';
 
-/** What Business costs for a billing period, and what that is per month. Pure, so it can be tested. */
-export function businessPrice(billing: Billing, { founding = false }: { founding?: boolean } = {}): { total: number; perMonth: number } {
-  const factor = founding ? 1 - BUSINESS.foundingDiscount : 1;
-  const total = billing === 'monthly' ? BUSINESS.monthly * factor : BUSINESS.yearlyPerMonth * 12 * factor;
-  const round = (n: number) => Math.round(n * 100) / 100;
-  return { total: round(total), perMonth: round(billing === 'monthly' ? total : total / 12) };
+/** What Business costs for a billing period: a month, or a year with the free months taken off. Pure, so it can be tested. */
+export function businessPrice(billing: Billing): { total: number; period: 'month' | 'year' } {
+  return billing === 'monthly'
+    ? { total: BUSINESS.monthly, period: 'month' }
+    : { total: BUSINESS.monthly * (12 - BUSINESS.freeMonthsYearly), period: 'year' };
 }
 
 /** What paying yearly saves over twelve monthly payments, in £. */
 export function yearlySaving(): number {
-  return BUSINESS.monthly * 12 - BUSINESS.yearlyPerMonth * 12;
+  return BUSINESS.monthly * BUSINESS.freeMonthsYearly;
 }
 
-/** £89, £960, £80.10 — whole pounds without pence, otherwise two places. */
+/** £49, £539, £44.92 — whole pounds without pence, otherwise two places. */
 export function formatPounds(amount: number): string {
   return Number.isInteger(amount) ? `£${amount}` : `£${amount.toFixed(2)}`;
 }
 
 export const FREE_FEATURES: readonly string[] = [
   'Till, orders and payments',
-  'Products, menu and margin',
+  'Products, menu, recipes and margin',
   'Stock',
   'Customers',
-  'Rotas and time',
+  'Rotas, clock-ins and leave',
   'Works offline',
   'Every other part, with a free allowance',
-  'Free setup help',
 ];
 
-export const BUSINESS_FEATURES: readonly string[] = ['Everything in Free', 'Much higher limits on every part', 'More from Ask DUMA, the assistant', 'Free setup help'];
+export const BUSINESS_FEATURES: readonly string[] = ['Everything in Free', 'Much higher limits on everything, including Ask DUMA, the assistant'];
 
 export const SETUP_HELP: readonly string[] = ['Bring in your menu or products', 'Add your team and their roles', 'Connect your card machine', 'Show you round, so you can run it yourself'];
 
@@ -71,7 +67,7 @@ export const PRICING_FAQS: { question: string; answer: string }[] = [
   {
     question: 'What will the Business plan cost?',
     answer:
-      '£89 a month, or £80 a month when you pay yearly (£960 a year, saving £108). It is coming soon, and anyone who joins before it launches keeps 10% off Business for life: £80.10 a month, or £72 a month paid yearly.',
+      '£49 a month, or £539 a year when you pay yearly, which is one month free. It is coming soon.',
   },
   {
     question: 'Will something I use for free today become paid?',
@@ -95,9 +91,9 @@ export const PRICING_FAQS: { question: string; answer: string }[] = [
 /** How a part of DUMA sits on a plan. Allowances are undecided, so no row names a number. */
 export type PlanCell = 'full' | 'allowance' | 'higher';
 
-export const PLAN_COMPARISON: readonly { group: string; rows: readonly { part: string; free: PlanCell; business: PlanCell }[] }[] = [
+/** The first group (the basics, free in full) has no heading: it leads the table. */
+export const PLAN_COMPARISON: readonly { group?: string; rows: readonly { part: string; free: PlanCell; business: PlanCell }[] }[] = [
   {
-    group: 'Run your business',
     rows: [
       { part: 'Till, orders and payments', free: 'full', business: 'full' },
       { part: 'Products, menu, recipes and margin', free: 'full', business: 'full' },
@@ -131,9 +127,5 @@ export const PLAN_COMPARISON: readonly { group: string; rows: readonly { part: s
       { part: 'Ask DUMA, the assistant', free: 'allowance', business: 'higher' },
       { part: 'API, MCP and webhooks', free: 'allowance', business: 'higher' },
     ],
-  },
-  {
-    group: 'Help',
-    rows: [{ part: 'Setup help', free: 'full', business: 'full' }],
   },
 ];

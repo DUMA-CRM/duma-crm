@@ -12,7 +12,8 @@ import { cn } from '@/lib/utils/cn';
  */
 export function SideSignUpCard({ body, className }: { body: string; className?: string }) {
   return (
-    <div className={cn('relative', className)}>
+    // mt-2 clears the mascot's overhang (-top-10) in a rail stacked with gap-8.
+    <div className={cn('relative mt-2', className)}>
       {/* Behind the card: only its top half peeks over the edge. */}
       <div className="pointer-events-none absolute -top-10 right-4" aria-hidden="true">
         <Mascot size={54} state="idle" expression="attentif" />
@@ -26,7 +27,7 @@ export function SideSignUpCard({ body, className }: { body: string; className?: 
       </div>
       <p className="mt-2.5 flex items-center justify-center gap-1.5 text-[13px] text-[var(--mkt-ink-3)]">
         <Zap className="size-3.5" aria-hidden="true" />
-        Free plan, no card needed
+        No card needed
       </p>
     </div>
   );

@@ -35,7 +35,6 @@ export const DUMA_VS_SUNDAY: Comparison = {
   },
   table: {
     title: 'DUMA and Sunday, side by side',
-    intro: 'Sunday’s figures are from its UK website. DUMA’s are from the product today.',
     rows: [
       {
         job: 'What it is',
@@ -45,7 +44,7 @@ export const DUMA_VS_SUNDAY: Comparison = {
       },
       {
         job: 'Monthly price',
-        duma: 'Free plan, forever, with no card needed. Business is £89 a month, coming soon.',
+        duma: 'Free plan, forever, with no card needed. Business is £49 a month, coming soon.',
         them: 'Standard £149 a month; Premium £199 a month.',
         source: SUNDAY_PRICING,
       },
@@ -102,8 +101,6 @@ export const DUMA_VS_SUNDAY: Comparison = {
   },
   pricing: {
     title: 'What Sunday costs',
-    intro:
-      'Read on Sunday’s UK website on 3 November 2026. Sunday changes its prices from time to time, so check the linked page before you decide.',
     bill: {
       title: 'A restaurant on Sunday Standard',
       lines: [
@@ -117,7 +114,6 @@ export const DUMA_VS_SUNDAY: Comparison = {
       note: 'Till, kitchen screen, QR ordering for collection, stock and loyalty on the free plan. No pay at the table yet.',
     },
     facts: [
-      { text: 'Standard £149 a month; Premium £199 a month, adding Loyalty Integration and the Enterprise Pack.', source: SUNDAY_PRICING },
       {
         text: 'Add-ons: Click & Collect £29, Hybrid Ordering £49, Payment Links £29, Loyalty £49, AI Menu £25 a month.',
         source: SUNDAY_PRICING,
@@ -125,11 +121,6 @@ export const DUMA_VS_SUNDAY: Comparison = {
       { text: 'A7 QR codes £3.50 + VAT each; other QR codes on quote.', source: SUNDAY_PRICING },
       { text: 'Transaction fees are not published: Sunday quotes them on request.', source: SUNDAY_HOME },
       { text: 'Its Smart Terminal card machines connect to your POS. No hardware price is published.', source: SUNDAY_TERMINAL },
-    ],
-    duma: [
-      'Free, forever, with no card needed. The till, orders, payments, products and margin, stock, customers and rotas stay free in full. Every other part keeps a free allowance.',
-      'Business is £89 a month, or £80 a month paid yearly. It is coming soon, and anyone who joins before it launches keeps 10% off for life.',
-      'DUMA takes no cut of your card payments. Your card provider charges its own fees, as it does today.',
     ],
   },
   stronger: {
@@ -139,20 +130,8 @@ export const DUMA_VS_SUNDAY: Comparison = {
       {
         title: 'Pay at the table',
         icon: 'payments',
-        them: 'Guests scan the bill, pay with Apple Pay, Google Pay or a card, with no app, in about ten seconds, Sunday says.',
-        duma: 'DUMA has no pay at the table yet. Guests pay at the till or on the card machine.',
-      },
-      {
-        title: 'Split bills and tips',
-        icon: 'till',
-        them: 'Split by item, by person or by amount, with one-tap tips that notify staff.',
-        duma: 'Split bills and tips are not in DUMA yet.',
-      },
-      {
-        title: 'Reviews on every payment',
-        icon: 'apps',
-        them: 'Each guest who pays is prompted to leave a Google review, with AI replies to reviews.',
-        duma: 'DUMA doesn’t ask guests for reviews.',
+        them: 'Guests scan the bill, split it, tip and pay with Apple Pay, Google Pay or a card, with no app.',
+        duma: 'DUMA has no pay at the table, split bills or tips yet. Guests pay at the till or on the card machine.',
       },
       {
         title: 'Works with the POS you have',
@@ -163,7 +142,7 @@ export const DUMA_VS_SUNDAY: Comparison = {
       {
         title: 'Size and track record',
         icon: 'scale',
-        them: 'Over 5,000 clients, Sunday says.',
+        them: 'Established, with a much larger team and client base.',
         duma: 'DUMA is new, built and supported by one person. When you ask for something, you’re talking to the person who builds it.',
       },
     ],
@@ -274,6 +253,5 @@ export const DUMA_VS_SUNDAY: Comparison = {
   closing: {
     title: 'Start with the till.',
     muted: 'Everything around it is already there.',
-    body: 'Start free in minutes, with no card needed. We’ll help you bring your menu and team across.',
   },
 };

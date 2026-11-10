@@ -34,11 +34,10 @@ export const DUMA_VS_SEVENROOMS: Comparison = {
   },
   table: {
     title: 'DUMA and SevenRooms, side by side',
-    intro: 'SevenRooms’ facts are from its own website, which publishes no prices. DUMA’s are from the product today.',
     rows: [
       {
         job: 'Price',
-        duma: 'Free plan, forever, with no card needed. Business is £89 a month, coming soon.',
+        duma: 'Free plan, forever, with no card needed. Business is £49 a month, coming soon.',
         them: 'Starter, Growth and Premium plans, priced through a “Get a quote” form. No prices are published.',
         source: SR_PRICING,
       },
@@ -95,8 +94,6 @@ export const DUMA_VS_SEVENROOMS: Comparison = {
   },
   pricing: {
     title: 'What SevenRooms costs',
-    intro:
-      'Read on SevenRooms’ website on 3 November 2026. SevenRooms has no UK price list, so the only way to know is to ask for a quote.',
     bill: {
       unpublished:
         'SevenRooms sells three plans, Starter, Growth and Premium, through a “Get a quote” form. Email marketing, event management, Voice AI, WhatsApp and text marketing, and API access are sold as add-ons.',
@@ -112,11 +109,6 @@ export const DUMA_VS_SEVENROOMS: Comparison = {
         source: SR_PRICING,
       },
       { text: 'SevenRooms says it charges no cover fees on its own reservations.', source: SR_RESERVATIONS },
-    ],
-    duma: [
-      'Free, forever, with no card needed. The till, orders, payments, products and margin, stock, customers and rotas stay free in full. Every other part keeps a free allowance.',
-      'Business is £89 a month, or £80 a month paid yearly. It is coming soon, and anyone who joins before it launches keeps 10% off for life.',
-      'No cover fees or per-booking fees.',
     ],
   },
   stronger: {
@@ -150,7 +142,7 @@ export const DUMA_VS_SEVENROOMS: Comparison = {
       {
         title: 'Size and track record',
         icon: 'scale',
-        them: 'Over 15,000 restaurants globally, SevenRooms says.',
+        them: 'Established, with a much larger team and client base.',
         duma: 'DUMA is new, built and supported by one person. When you ask for something, you’re talking to the person who builds it.',
       },
     ],
@@ -257,6 +249,5 @@ export const DUMA_VS_SEVENROOMS: Comparison = {
   closing: {
     title: 'Bookings, the till and the team.',
     muted: 'In one free workspace.',
-    body: 'Start free in minutes, with no card needed. We’ll help you set up your floor plan and menu.',
   },
 };

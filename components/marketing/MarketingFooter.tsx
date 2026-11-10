@@ -13,17 +13,17 @@ const NETWORK_ICON = { github: Github, x: XLogo, linkedin: Linkedin } as const;
 
 /**
  * The marketing footer, after seline.com's: the mark and the promise in a wide
- * first column, then four columns that each stack one or two link groups, and
- * a quiet line underneath. Its groups are the site's internal-linking backbone
- * — every published page is reachable from every other in one hop — so they
- * list everything published — except the module pages, which are one hop
- * down from All features; an empty group, and then an empty column, is
- * dropped. Audience and pricing links follow linkTo(): the page once
- * published, its home section until then.
+ * first column, then four columns of link groups of similar height, and a quiet
+ * line underneath with where the data lives, the legal pages and the copyright.
+ * The groups are the site's internal-linking backbone, so they list every
+ * published page except the module pages (one hop down from All features).
+ * Links come from the PAGES registry, so an unpublished page never appears; an
+ * empty group, and then an empty column, is dropped.
  */
 export function MarketingFooter() {
   const features = publishedPage('/features');
   const pages = (paths: string[]): FooterLink[] => paths.flatMap((path) => PAGES.filter((p) => p.path === path && p.published));
+  const legal = pages(['/terms', '/privacy', '/dpa', '/gdpr', '/legal', '/data-deletion']);
 
   const columns: FooterGroup[][] = [
     [
@@ -32,36 +32,36 @@ export function MarketingFooter() {
         links: [
           ...(features ? [{ path: features.path, label: features.label }] : []),
           { path: linkTo('/pricing'), label: 'Pricing' },
-          ...pages(['/developers', '/developers/mcp', '/developers/webhooks']),
-          { path: STATUS_URL, label: 'Status page', status: true, external: true },
+          { path: STATUS_URL, label: 'System status', status: true, external: true },
         ],
       },
-      { title: 'Contact us', links: [{ path: `mailto:${CONTACT_EMAIL}`, label: 'Email' }] },
+      { title: 'Developers', links: pages(['/developers', '/developers/mcp', '/developers/webhooks']) },
     ],
     [
-      { title: 'Company', links: pages(['/about', '/why-duma', '/contact']) },
       {
-        title: 'DUMA for',
-        links: [
-          { path: linkTo('/solutions/cafes'), label: 'Cafés and restaurants' },
-          { path: '/solutions/bars', label: 'Bars and pubs' },
-          { path: '/solutions/bakeries', label: 'Bakeries' },
-          { path: linkTo('/solutions/shops'), label: 'Shops and online stores' },
-          { path: '/solutions/retail', label: 'Retail' },
-          { path: '/solutions/blogs', label: 'Blogs and creators' },
-          { path: '/solutions/any-business', label: 'Any business' },
-        ],
+        title: 'Solutions',
+        links: pages([
+          '/solutions/cafes',
+          '/solutions/bars',
+          '/solutions/bakeries',
+          '/solutions/shops',
+          '/solutions/retail',
+          '/solutions/blogs',
+          '/solutions/any-business',
+        ]),
       },
     ],
     [
-      { title: 'Resources', links: pages(['/blog', '/glossary']) },
-      // Every published tool, so a new one is in the footer the day it ships.
-      { title: 'Tools', links: PAGES.filter((p) => p.published && (p.path === '/tools' || p.path.startsWith('/tools/'))) },
+      {
+        title: 'Resources',
+        // One link to the tools index, not one per tool: the index lists them all, so the footer stays the same size as tools are added.
+        links: [...pages(['/blog', '/glossary']), ...pages(['/tools']).map((link) => ({ ...link, label: 'Free tools' }))],
+      },
+      { title: 'Company', links: [...pages(['/about', '/why-duma', '/contact']), { path: `mailto:${CONTACT_EMAIL}`, label: 'Email us' }] },
+    ],
+    [
       // Every published comparison, so a new one is in the footer the day it ships.
       { title: 'Compare', links: PAGES.filter((p) => p.published && p.path.startsWith('/compare/')) },
-    ],
-    [
-      { title: 'Legal', links: pages(['/terms', '/privacy', '/dpa', '/gdpr', '/legal', '/data-deletion']) },
     ],
   ]
     .map((column) => column.filter((group) => group.links.length > 0))
@@ -125,8 +125,8 @@ export function MarketingFooter() {
                           // The status-page convention, not the brand: a bright "all systems go" green, with a
                           // ping ring like a live signal. Still for anyone who asked for reduced motion.
                           <span className="relative grid size-2 shrink-0 place-items-center" aria-hidden="true">
-                            <span className="absolute inset-0 animate-ping rounded-full bg-[#34c759] opacity-60 motion-reduce:hidden" />
-                            <span className="relative size-2 rounded-full bg-[#34c759] shadow-[0_0_0_3px_rgb(52_199_89/0.22)]" />
+                            <span className="absolute inset-0 animate-ping rounded-full bg-[#34c759] opacity-80 [animation-duration:1.6s] motion-reduce:hidden" />
+                            <span className="relative size-2 rounded-full bg-[#34c759]" />
                           </span>
                         )}
                         {link.label}
@@ -141,11 +141,24 @@ export function MarketingFooter() {
         ))}
       </div>
 
-      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-3 pb-10 text-sm text-[var(--mkt-ink-3)]">
+      <div className="mx-auto flex w-full max-w-5xl flex-wrap items-center justify-between gap-x-6 gap-y-3 pb-10 text-sm text-[var(--mkt-ink-3)]">
         <p className="flex items-center gap-1.5">
           <MapPin className="size-4" aria-hidden="true" />
           Hosted in the United Kingdom
         </p>
+        {legal.length > 0 && (
+          <nav aria-label="Legal">
+            <ul className="flex flex-wrap gap-x-5 gap-y-1">
+              {legal.map((link) => (
+                <li key={link.path}>
+                  <Link href={link.path} className="transition-colors hover:text-[var(--mkt-heading)]">
+                    {link.label}
+                  </Link>
+                </li>
+              ))}
+            </ul>
+          </nav>
+        )}
         <p>© DUMA, {new Date().getFullYear()}</p>
       </div>
     </footer>

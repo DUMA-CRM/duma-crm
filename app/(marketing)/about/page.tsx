@@ -12,7 +12,7 @@ import { aboutPageSchema, breadcrumbSchema } from '@/lib/marketing/schema';
 export const metadata: Metadata = marketingMetadata({
   title: 'About DUMA: Independent, Founder-Built Business Software',
   description:
-    'DUMA is independent, all-in-one software for UK cafés, food businesses and small shops, built and supported by one person: its founder, Marian Dudych.',
+    'DUMA is independent software for UK cafés, food businesses and small shops, built and supported by one person: its founder, Marian Dudych.',
   path: '/about',
 });
 
@@ -20,8 +20,7 @@ export const metadata: Metadata = marketingMetadata({
 const FOUNDER_PHOTO = '/marketing/team/marian.jpg';
 
 /**
- * /about, after seline.com/about-us: a centred headline and intro, the team
- * as cards in a grey tray, the story told in a narrow column, two tilted
+ * /about, after seline.com/about-us: a centred headline and intro, the founder, the story told in a narrow column, two tilted
  * pictures with a caption, and where the name comes from. Every line is true
  * of DUMA today (see the "DUMA Business Profile" vault note) — no investors,
  * customer counts or founding dates are claimed because none are confirmed.
@@ -42,15 +41,15 @@ export default function AboutPage() {
         <section className="relative px-4 pt-32 pb-16 sm:px-6 sm:pt-40">
           <div className="relative z-10 mx-auto max-w-2xl">
             <h1 className="text-center text-4xl leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-5xl">
-              Independent, small, honest
+              Built by one person
             </h1>
             <p className="mx-auto mt-6 max-w-[40rem] text-center text-pretty text-[1.0625rem] leading-relaxed text-[var(--mkt-ink-2)]">
-              DUMA is an all-in-one system for cafés, food businesses and small shops, built and run independently by its founder, Marian
+              DUMA is one system for cafés, food businesses and small shops, built and run independently by its founder, Marian
               Dudych. When you write to DUMA, <Mark>you talk to the person who builds it.</Mark>
             </p>
 
             {/* The team, as cards in a grey tray. */}
-            <ul className="mx-auto mt-10 grid max-w-sm gap-2 rounded-xl bg-[color-mix(in_oklab,var(--mkt-ground)_93%,#000)] p-2">
+            <ul className="mx-auto mt-10 grid max-w-sm gap-2 rounded-xl bg-[var(--mkt-tray)] p-2">
               <li className="flex gap-4 rounded-lg p-2">
                 <div className="relative size-20 shrink-0 overflow-hidden rounded-md bg-[var(--brand-shell)]">
                   {hasPhoto ? (
@@ -78,19 +77,18 @@ export default function AboutPage() {
         <section className="relative px-4 pb-24 sm:px-6 sm:pb-32">
           <div className="mx-auto flex max-w-2xl flex-col gap-5 text-pretty text-[1.0625rem] leading-relaxed text-[var(--mkt-ink-2)]">
             <p>
-              Every small business runs on a pile of apps. A till here, a rota app there, spreadsheets for stock, another tool for email —
-              and a separate bill for each. None of them talk to each other, so the owner spends the evening copying numbers from one to the
+              Every small business runs on a pile of apps. A till here, a rota app there, spreadsheets for stock, another tool for email.
+              None of them talk to each other, so the owner spends the evening copying numbers from one to the
               next.
             </p>
             <p>
-              It should be one place: one system where a sale updates the stock, the customer and the reports at the same moment, with one
-              simple bill — or none at all.
+              It should be one place: one system where a sale updates the stock, the customer and the reports at the same moment.
             </p>
 
             {/* Two photographs, set down slightly askew, with a caption — after seline.com/about-us. */}
             <figure className="my-8">
               <div className="relative mx-auto flex max-w-xl items-start justify-center">
-                <div className="relative z-10 aspect-[3/2] w-[56%] -rotate-[5deg] overflow-hidden rounded-lg shadow-[0_20px_40px_-16px_rgb(32_55_45/0.45)] transition-[rotate,translate,scale,box-shadow] duration-300 ease-out hover:-translate-y-1 hover:scale-105 hover:rotate-0 hover:shadow-[0_28px_48px_-16px_rgb(32_55_45/0.5)]">
+                <div className="relative z-10 aspect-[3/2] w-[56%] -rotate-[5deg] overflow-hidden rounded-lg">
                   <Image
                     src="/marketing/london/london_1.webp"
                     alt="A laptop on a wooden table in a leafy café garden"
@@ -99,7 +97,7 @@ export default function AboutPage() {
                     className="object-cover"
                   />
                 </div>
-                <div className="relative mt-8 -ml-8 aspect-[3/2] w-[54%] rotate-[3deg] overflow-hidden rounded-lg shadow-[0_20px_40px_-16px_rgb(32_55_45/0.45)] transition-[rotate,translate,scale,box-shadow] duration-300 ease-out hover:z-20 hover:-translate-y-1 hover:scale-105 hover:rotate-0 hover:shadow-[0_28px_48px_-16px_rgb(32_55_45/0.5)]">
+                <div className="relative mt-8 -ml-8 aspect-[3/2] w-[54%] rotate-[3deg] overflow-hidden rounded-lg">
                   <Image
                     src="/marketing/london/london_2.webp"
                     alt="The view along the Thames from Westminster Bridge, with people walking and a cyclist passing"
@@ -121,7 +119,7 @@ export default function AboutPage() {
               The name comes from two places: from the founder’s own — <span className="text-foreground">DU</span>dych{' '}
               <span className="text-foreground">MA</span>
               rian — and from the Ukrainian word <Mark><em>дума</em></Mark>, a thought, a considered idea. That is how we try to build it: carefully, and
-              around what businesses actually need rather than what makes a good feature list.
+              around what businesses actually need.
             </p>
           </div>
         </section>

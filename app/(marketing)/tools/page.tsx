@@ -1,9 +1,10 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { ArrowUpRight, Banknote, BookOpen, Calculator, CalendarDays, Check } from '@/components/icons';
+import { ArrowUpRight, Banknote, Calculator, CalendarDays } from '@/components/icons';
 import { JsonLd } from '@/components/marketing/JsonLd';
-import { ChalkCurve, RisingLines } from '@/components/marketing/Strokes';
+import { IndexHero } from '@/components/marketing/IndexCard';
+import { RisingLines } from '@/components/marketing/Strokes';
 import { COLUMN, ClosingCta, FaqSection, TONE_TEXT } from '@/components/marketing/sections';
 
 import type { Tone } from '@/lib/marketing/home';
@@ -33,12 +34,8 @@ type Tool = {
   path: string;
   icon: Icon;
   tone: Tone;
-  /** Who it's for, in the card's corner. */
-  tag: string;
   title: string;
   body: string;
-  /** What it does, as three ticks. */
-  does: readonly string[];
   waves: readonly Wave[];
 };
 
@@ -104,10 +101,8 @@ const TOOLS: readonly Tool[] = [
     path: '/tools/margin-calculator',
     icon: Calculator,
     tone: 'action',
-    tag: 'Cafés & restaurants',
     title: freeTool('/tools/margin-calculator').name,
     body: 'The gross profit and food cost of any dish or drink after VAT, and what to charge for the margin you want.',
-    does: ['Margin and GP after VAT', 'Price for a target margin', 'UK VAT at 20%, 5% or 0%'],
     waves: [
       { stroke: 'var(--brand)', y: 50, amp: 22, period: 200, seconds: 36 },
       { stroke: 'var(--stock)', y: 76, amp: 14, period: 400 / 3, seconds: 24 },
@@ -118,10 +113,8 @@ const TOOLS: readonly Tool[] = [
     path: '/tools/cash-up-calculator',
     icon: Banknote,
     tone: 'stock',
-    tag: 'Any till',
     title: freeTool('/tools/cash-up-calculator').name,
     body: 'Count the drawer note by note, see whether it is over or short against the float and cash sales, and what to bank.',
-    does: ['Every UK note and coin', 'Over or short, to the penny', 'What to bank, what to keep'],
     waves: [
       { stroke: 'var(--stock)', y: 50, amp: 20, period: 400 / 3, seconds: 32 },
       { stroke: 'var(--measured)', y: 76, amp: 16, period: 200, seconds: 42 },
@@ -132,10 +125,8 @@ const TOOLS: readonly Tool[] = [
     path: '/tools/rota-builder',
     icon: CalendarDays,
     tone: 'team',
-    tag: 'Any team',
     title: freeTool('/tools/rota-builder').name,
     body: 'Plan the week’s shifts, see the hours and what they cost, and catch missing breaks — then print it or send it as an image.',
-    does: ['Hours and cost, any currency', 'Break and rest checks', 'Print, PDF or image'],
     waves: [
       { stroke: 'var(--success)', y: 50, amp: 18, period: 200, seconds: 34 },
       { stroke: 'var(--reference)', y: 76, amp: 14, period: 100, seconds: 26 },
@@ -145,11 +136,6 @@ const TOOLS: readonly Tool[] = [
 ];
 
 const FAQS = [
-  {
-    question: 'What free tools does DUMA have?',
-    answer:
-      'Three, for UK cafés, restaurants and shops. The menu margin and GP calculator works out the gross profit and food cost of a dish or drink after VAT, and the price for a target margin. The cash-up calculator counts the till drawer note by note, shows whether it is over or short, and what to bank. The staff rota builder plans the week’s shifts with hours, staff cost and break checks, in any currency, and prints or saves as a PDF or image.',
-  },
   {
     question: 'Are these tools really free?',
     answer:
@@ -167,7 +153,7 @@ const FAQS = [
   },
 ];
 
-/** One tool as a large card: icon and tag, what it does, and a band of drifting waves at the foot. */
+/** One tool as a large card: icon, what it does, and a band of drifting waves at the foot. */
 function ToolCard({ tool, delay }: { tool: Tool; delay: number }) {
   const Icon = tool.icon;
   return (
@@ -178,10 +164,7 @@ function ToolCard({ tool, delay }: { tool: Tool; delay: number }) {
       data-reveal-delay={delay}
     >
       <span className="block px-6 pt-6">
-        <span className="flex items-start justify-between gap-4">
-          <Icon className={cn('size-6', TONE_TEXT[tool.tone])} aria-hidden="true" />
-          <span className="mkt-tag">{tool.tag}</span>
-        </span>
+        <Icon className={cn('size-6', TONE_TEXT[tool.tone])} aria-hidden="true" />
         <h2 className="mt-3 flex items-center gap-2 text-xl font-semibold tracking-display text-[var(--mkt-heading)] group-hover:text-primary">
           {tool.title}
           <ArrowUpRight
@@ -189,15 +172,7 @@ function ToolCard({ tool, delay }: { tool: Tool; delay: number }) {
             aria-hidden="true"
           />
         </h2>
-        <p className="mt-2 text-pretty text-[0.9375rem] leading-relaxed text-[var(--mkt-ink-2)]">{tool.body}</p>
-        <ul className="mt-4 flex flex-col gap-1.5 text-[0.9375rem] text-[var(--mkt-ink-2)]">
-          {tool.does.map((line) => (
-            <li key={line} className="flex items-center gap-2">
-              <Check className="size-4 shrink-0 text-primary" aria-hidden="true" />
-              {line}
-            </li>
-          ))}
-        </ul>
+        <p className="mt-2 pb-4 text-pretty text-[0.9375rem] leading-relaxed text-[var(--mkt-ink-2)]">{tool.body}</p>
       </span>
       <WaveBand id={tool.path.slice('/tools/'.length)} waves={tool.waves} />
     </Link>
@@ -206,7 +181,7 @@ function ToolCard({ tool, delay }: { tool: Tool; delay: number }) {
 
 /**
  * /tools — every free tool, as a card with drifting waves at its foot, under
- * the /features hero. A new tool goes in TOOLS here and everywhere
+ * the same short centred heading as /blog (IndexHero). A new tool goes in TOOLS here and everywhere
  * lib/marketing/tools.ts lists.
  */
 export default function ToolsIndexPage() {
@@ -223,67 +198,30 @@ export default function ToolsIndexPage() {
       <JsonLd data={breadcrumbSchema([{ name: TOOLS_INDEX.name, path: TOOLS_INDEX.path }])} />
       <JsonLd data={faqSchema(FAQS)} />
 
-      {/* The curves sit on a wrapper round the hero and the cards, so they are not cut off mid-stroke. */}
-      <div className="relative -mt-16 overflow-hidden">
-        <ChalkCurve side="left" id="tools-left" className="pointer-events-none absolute top-0 -left-24 hidden w-[34rem] md:block" />
-        <ChalkCurve side="right" id="tools-right" className="pointer-events-none absolute top-56 -right-40 hidden w-[44rem] md:block" />
-        <section className="relative px-4 pt-30 pb-6 sm:px-6 sm:pt-40">
+      <IndexHero
+        id="tools"
+        title="Free tools"
+        subtitle="Use them right away, no sign-up needed"
+      >
+        <section className="relative px-4 pb-16 sm:px-6 sm:pb-20" aria-label="Tools">
           <div className={cn(COLUMN, 'relative z-10')}>
-            <h1 className="text-[2.75rem] leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-6xl">
-              Free calculators for the <span className="mkt-mark mkt-mark-green rounded-md px-2">numbers that matter</span>
-            </h1>
-            <p className="mt-6 max-w-[48rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">
-              Free business tools for UK cafés, restaurants and shops: menu margin and GP after VAT, a till cash-up and a staff rota. Free,
-              with no sign-up.
-            </p>
-            <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--mkt-ink-2)]">
-              {['Free, no sign-up', 'UK VAT and currency', 'Nothing leaves your browser'].map((fact) => (
-                <span key={fact} className="flex items-center gap-1.5">
-                  <Check className="size-4 text-primary" aria-hidden="true" />
-                  {fact}
-                </span>
-              ))}
-            </p>
-          </div>
-        </section>
-
-        <section className="relative px-4 pt-8 pb-16 sm:px-6 sm:pb-20" aria-label="Tools">
-          <div className={cn(COLUMN, 'relative z-10')}>
-            <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
+            <ul className="grid gap-4 md:grid-cols-2">
               {TOOLS.map((tool, index) => (
-                <li key={tool.path} className="md:last:odd:col-span-2 lg:last:odd:col-span-1">
+                <li key={tool.path}>
                   <ToolCard tool={tool} delay={index * 60} />
                 </li>
               ))}
             </ul>
 
-            {/* More is coming; meanwhile the glossary explains the sums behind every tool. */}
-            <Link
-              href="/glossary"
-              className="group mt-4 flex items-center gap-4 rounded-[14px] border border-dashed border-[var(--mkt-line)] px-6 py-5 transition-colors hover:border-primary/40 hover:bg-[var(--mkt-card)] focus-visible:bg-[var(--mkt-card)]"
-              data-reveal=""
-            >
-              <span className="grid size-9 shrink-0 place-items-center rounded-md bg-reference/16 text-reference" aria-hidden="true">
-                <BookOpen className="size-5" />
-              </span>
-              <span className="min-w-0">
-                <span className="block font-semibold text-[var(--mkt-heading)] group-hover:text-primary">More tools on the way</span>
-                <span className="mt-0.5 block text-pretty text-[0.9375rem] text-[var(--mkt-ink-2)]">
-                  Until then, the terms &amp; definitions explain food cost, prime cost, labour % and the rest — with the sums.
-                </span>
-              </span>
-              <ArrowUpRight className="ml-auto size-4 shrink-0 text-primary" aria-hidden="true" />
-            </Link>
           </div>
         </section>
-      </div>
+      </IndexHero>
 
       <FaqSection items={FAQS} title="Questions about the tools" />
 
       <ClosingCta
         title="These tools do one sum at a time."
         muted="DUMA does them all, every day."
-        body="Join DUMA for free: every dish costed from your own stock, every till cashed up and every report built from the sales you are already taking. No card needed."
         aside={<RisingLines id="tools-cta" />}
       />
     </>

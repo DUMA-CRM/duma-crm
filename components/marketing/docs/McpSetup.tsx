@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import { CodeBlock } from '@/components/marketing/CodeBlock';
-import { Segmented } from '@/components/marketing/docs/Segmented';
+import { Segmented } from '@/components/marketing/Segmented';
 
 export function McpSetup({ url }: { url: string }) {
   const [client, setClient] = useState('claude');

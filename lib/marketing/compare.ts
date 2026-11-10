@@ -75,12 +75,13 @@ export type Comparison = {
   checked: string;
   /** "November 2026" — shown on the page beside every competitor figure. */
   asOf: string;
+  /** What their site says, or doesn’t, about VAT on its prices; shown with the as-of note. */
+  vatNote?: string;
   hero: { lead: string; mark: string; subtitle: string; ticks: [string, string, string] };
   verdict: { title: string; paragraphs: string[] };
-  table: { title: string; intro: string; rows: readonly CompareRow[] };
+  table: { title: string; rows: readonly CompareRow[] };
   pricing: {
     title: string;
-    intro: string;
     /**
      * The competitor's paid parts for the business this page is about, itemised
      * and totalled per month — or, when they publish no prices, `unpublished`:
@@ -89,9 +90,8 @@ export type Comparison = {
     bill: { title: string; lines: readonly BillLine[]; note: string } | { unpublished: string; source: string };
     /** What the same parts cost on DUMA, under its £0. */
     dumaBill: { title: string; note: string };
-    /** Everything else on their price list, each with its source. */
+    /** The rest of their price list — only figures not already in the table or the bill — each with its source. */
     facts: readonly SourcedFact[];
-    duma: readonly string[];
   };
   stronger: {
     title: string;
@@ -105,7 +105,7 @@ export type Comparison = {
   together: { title: string; intro: string; steps: readonly ListItem[]; connections: Connections };
   faqTitle: string;
   faqs: { question: string; answer: string }[];
-  closing: { title: string; muted: string; body: string };
+  closing: { title: string; muted: string };
 };
 
 /** Every comparison, in the order the footer lists them. One file per competitor in lib/marketing/compare/. */

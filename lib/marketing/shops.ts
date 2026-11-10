@@ -93,7 +93,6 @@ export const SHOP_COMPARISON: readonly ComparisonOption[] = [
       { job: 'Till for the shop and pop-ups', mark: 'part', note: 'Often a paid add-on' },
       { job: 'Stock by size and colour', mark: 'yes' },
       { job: 'Loyalty, promotions and referrals', mark: 'part', note: 'Usually paid apps' },
-      { job: 'Everything in one place', mark: 'no', note: 'An app for each job' },
     ],
   },
   {
@@ -105,7 +104,6 @@ export const SHOP_COMPARISON: readonly ComparisonOption[] = [
       { job: 'Till for the shop and pop-ups', mark: 'yes' },
       { job: 'Stock by size and colour', mark: 'part', note: 'Synced by hand' },
       { job: 'Loyalty, promotions and referrals', mark: 'part', note: 'Another app' },
-      { job: 'Everything in one place', mark: 'no', note: 'A tool for each job' },
     ],
   },
   {
@@ -117,7 +115,6 @@ export const SHOP_COMPARISON: readonly ComparisonOption[] = [
       { job: 'Till for the shop and pop-ups', mark: 'yes', note: 'Works offline' },
       { job: 'Stock by size and colour', mark: 'yes', note: 'Per location' },
       { job: 'Loyalty, promotions and referrals', mark: 'yes' },
-      { job: 'Everything in one place', mark: 'yes', note: 'Free to start' },
     ],
   },
 ];

@@ -45,7 +45,7 @@ export type SolutionContent = {
     intro: React.ReactNode;
     cards: readonly { icon: IconType; tone: Tone; tag: string; title: string; body: string; visual?: React.ReactNode }[];
   };
-  useCases: { title: string; lead: [string, string]; items: readonly ListItem[]; icons: readonly IconType[] };
+  useCases: { title: string; lead?: readonly string[]; items: readonly ListItem[]; icons: readonly IconType[] };
   explainer: {
     title: string;
     intro: React.ReactNode;
@@ -56,14 +56,13 @@ export type SolutionContent = {
     metricIcons: readonly IconType[];
     comparisonTitle: string;
     comparisonHighlight: string;
-    comparisonLead: string;
     comparison: readonly ComparisonOption[];
     comparisonIcons: readonly IconType[];
   };
   setupBand: { title: string; body: string };
   faqTitle: string;
   faqs: { question: string; answer: string }[];
-  closing: { title: string; muted: string; body: string };
+  closing: { title: string; muted?: string };
   /** The sideways links after the FAQ: other audiences, glossary slugs, and anything else worth a link. */
   related: { audiences: readonly RelatedLink[]; terms?: readonly string[]; extra?: readonly RelatedLink[] };
 };
@@ -156,13 +155,7 @@ export function SolutionPage({ content }: { content: SolutionContent }) {
       {content.teaser && (
         <Section spacing="normal" aria-labelledby={`${key}-teaser`}>
           <div className="grid items-center gap-12 md:grid-cols-[minmax(0,1fr)_24rem] md:gap-16">
-            <div>
-              <SectionHeading id={`${key}-teaser`} title={content.teaser.title} intro={content.teaser.intro} />
-              <div className="mt-8 flex flex-wrap gap-3">
-                <SignUpButton />
-                <SecondaryButton href={linkTo('/pricing')}>See pricing</SecondaryButton>
-              </div>
-            </div>
+            <SectionHeading id={`${key}-teaser`} title={content.teaser.title} intro={content.teaser.intro} />
             <figure data-reveal="">
               {content.teaser.visual}
               <figcaption className="mt-3 text-xs text-[var(--mkt-ink-2)]">{content.teaser.caption}</figcaption>
@@ -176,8 +169,14 @@ export function SolutionPage({ content }: { content: SolutionContent }) {
       {/* ── How DUMA runs it ── */}
       <Section spacing="roomy" aria-labelledby={`${key}-how`}>
         <SectionHeading id={`${key}-how`} title={content.how.title} intro={content.how.intro} />
+        {/* The tag note only where a card wears the tag; the example note always, since the cards hold mock data. */}
         <p className="mt-8 text-sm text-[var(--mkt-ink-2)]">
-          * <span className="mkt-tag mx-1">free in full</span> means it stays free with no limits. The names and figures in these cards are examples.
+          {content.how.cards.some((card) => card.tag === 'free in full') && (
+            <>
+              * <span className="mkt-tag mx-1">free in full</span> means it stays free with no limits.{' '}
+            </>
+          )}
+          The names and figures in these cards are examples.
         </p>
         <div className="mt-4 grid gap-4 md:grid-cols-2">
           {content.how.cards.map((card, index) => (
@@ -198,7 +197,7 @@ export function SolutionPage({ content }: { content: SolutionContent }) {
 
       <RelatedSection id={`${key}-related`} {...content.related} />
 
-      <ClosingCta title={content.closing.title} muted={content.closing.muted} body={content.closing.body} aside={<RisingLines id={`${key}-cta`} />} />
+      <ClosingCta title={content.closing.title} muted={content.closing.muted} aside={<RisingLines id={`${key}-cta`} />} />
     </>
   );
 }

@@ -14,11 +14,11 @@ import { cn } from '@/lib/utils/cn';
 const KIND_ICON = { card: CreditCard, file: FileText, api: Code, qr: QrCode, booking: CalendarDays, walkin: Users } as const;
 const UPDATE_ICON = { stock: Package, margin: Calculator, customers: Users, reports: BarChart3, rotas: Clock, loyalty: Gift } as const;
 
-// SVG gradient stops take colours, not CSS variables: the brand green into apricot (DESIGN.md).
-const BEAM = { gradientStartColor: '#2b7355', gradientStopColor: '#b84e2d', pathColor: '#20372d', pathOpacity: 0.12 } as const;
+// One colour, no gradient (DESIGN.md): the moving beam is the brand green from start to stop. SVG stops take colours, not CSS variables.
+const BEAM = { gradientStartColor: '#2b7355', gradientStopColor: '#2b7355', pathColor: '#20372d', pathOpacity: 0.12 } as const;
 
 const NODE =
-  'relative z-10 flex items-center gap-3 rounded-[12px] border border-[var(--mkt-line)] bg-[var(--mkt-card)] px-3 py-2.5 shadow-[0_6px_16px_-10px_rgb(32_55_45/0.35)] sm:px-4 sm:py-3';
+  'relative z-10 flex items-center gap-3 rounded-[12px] border border-[var(--mkt-line)] bg-[var(--mkt-card)] px-3 py-2.5 sm:px-4 sm:py-3';
 const TILE = 'grid size-9 shrink-0 place-items-center rounded-lg sm:size-10';
 
 /**
@@ -103,7 +103,7 @@ export function ConnectionBeams({ connections, className }: { connections: Conne
       <div className="relative z-10">
         <Anchor ref={hubInRef} side="left" />
         <Anchor ref={hubOutRef} side="right" />
-        <Logo size={72} className="size-14 rounded-[19.4%] shadow-[0_12px_28px_-12px_rgb(32_55_45/0.55)] sm:size-[72px]" />
+        <Logo size={72} className="size-14 rounded-[19.4%] sm:size-[72px]" />
         <span className="sr-only">DUMA</span>
       </div>
 

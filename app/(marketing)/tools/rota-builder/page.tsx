@@ -27,12 +27,15 @@ export const metadata: Metadata = marketingMetadata({
 // The worked example is one of the builder's own shifts, computed, so the page can never disagree with it.
 const OPEN = { start: '07:00', end: '15:00', breakMinutes: 30 };
 const OPEN_SPAN = shiftSpan(OPEN)!;
+const CLOSE = { start: '14:00', end: '22:00', breakMinutes: 30 };
+/** Rest from a close to the next day's open: the rest of the day after the close, plus the morning before the open. */
+const REST_MINUTES = 24 * 60 - shiftSpan(CLOSE)!.end + OPEN_SPAN.start;
 const RATE_PENCE = 1250;
 const SHIFT_COST = costPence(OPEN_SPAN.paidMinutes, RATE_PENCE);
 /** The worked example is in pounds; the builder takes any currency. */
 const gbp = (pence: number) => formatRotaMoney(pence, 'GBP');
 
-const STEPS = [
+const STEPS: readonly { title: string; body: string; formula?: string }[] = [
   {
     title: 'Start from when you trade',
     body: 'Your busiest hours decide who you need, not your opening hours. Put the strongest people on the rush.',
@@ -41,11 +44,10 @@ const STEPS = [
   {
     title: 'Fill the key shifts first',
     body: 'Someone who can open, someone who can cash up and close, and the kitchen lead. Then fill in around them.',
-    formula: 'Opener + closer + kitchen, every day',
   },
   {
     title: 'Take out the unpaid breaks',
-    body: 'Paid time is the shift less any unpaid break. In the EU and UK, anyone working more than six hours is entitled to a 20-minute break; check the rule where you are.',
+    body: 'Paid time is the shift less any unpaid break.',
     formula: `${OPEN.start}–${OPEN.end} − ${OPEN.breakMinutes} min = ${formatHours(OPEN_SPAN.paidMinutes)} paid`,
   },
   {
@@ -56,9 +58,9 @@ const STEPS = [
   {
     title: 'Check the rest, then share it',
     body: `Most countries set a minimum rest between shifts — ${formatHours(DEFAULT_RULES.restMinutes ?? 0)} in the EU and UK, so a close followed by an open is a problem — and a weekly limit. Then print it or send the image.`,
-    formula: 'Close at 22:00, open at 07:00 = 9h rest',
+    formula: `Close at ${CLOSE.end}, open at ${OPEN.start} = ${formatHours(REST_MINUTES)} rest`,
   },
-] as const;
+];
 
 /** What DUMA's rotas add to a one-week builder — each line as the staff-scheduling feature page states it. */
 const IN_DUMA = [
@@ -168,8 +170,8 @@ export default function RotaBuilderPage() {
               Free staff rota builder, <span className="mkt-mark mkt-mark-green rounded-md px-2">ready to print</span>
             </h1>
             <p className="mt-6 max-w-[44rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">
-              Plan the week’s shifts for your team, see the hours and what they cost, and catch missing breaks and short rests. Then print
-              it, save it as a PDF or send it as an image.
+              Plan the week’s shifts, see the hours and what they cost, and catch missing breaks. Print it, save a PDF or send it as an
+              image.
             </p>
             <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--mkt-ink-2)]">
               {['Free, no sign-up', 'Any currency, any country', 'Nothing leaves your browser'].map((fact) => (
@@ -205,9 +207,11 @@ export default function RotaBuilderPage() {
               <div className="min-w-0">
                 <p className="text-[1.0625rem] font-semibold text-[var(--mkt-heading)]">{step.title}</p>
                 <p className="mt-1.5 text-pretty leading-relaxed text-[var(--mkt-ink-2)]">{step.body}</p>
-                <p className="mt-3 inline-block rounded-md border border-[var(--mkt-line)] bg-[var(--mkt-card)] px-3 py-1.5 font-mono text-sm text-foreground tabular-nums">
-                  {step.formula}
-                </p>
+                {step.formula && (
+                  <p className="mt-3 inline-block rounded-md border border-[var(--mkt-line)] bg-[var(--mkt-card)] px-3 py-1.5 font-mono text-sm text-foreground tabular-nums">
+                    {step.formula}
+                  </p>
+                )}
               </div>
             </li>
           ))}
@@ -228,7 +232,6 @@ export default function RotaBuilderPage() {
       <ClosingCta
         title="This builder plans one week."
         muted="DUMA runs every one."
-        body="Join DUMA for free: publish the rota to your team’s phones, let them clock in there, and see what the hours cost against what you actually took. No card needed."
         aside={<RisingLines id="rota-cta" />}
       />
     </>

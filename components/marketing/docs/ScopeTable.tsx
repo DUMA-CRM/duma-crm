@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { Segmented } from '@/components/marketing/docs/Segmented';
+import { Segmented } from '@/components/marketing/Segmented';
 
 type Filter = 'all' | 'publishable' | 'secret';
 

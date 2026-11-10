@@ -35,11 +35,10 @@ export const DUMA_VS_ZAVO: Comparison = {
   },
   table: {
     title: 'DUMA and Zavo, side by side',
-    intro: 'Zavo’s facts are from its own website, which publishes no prices. DUMA’s are from the product today.',
     rows: [
       {
         job: 'Price',
-        duma: 'Free plan, forever, with no card needed. Business is £89 a month, coming soon.',
+        duma: 'Free plan, forever, with no card needed. Business is £49 a month, coming soon.',
         them: 'POS on custom pricing; payments included, with card rates shown as custom.',
         source: ZAVO_PRICING,
       },
@@ -80,19 +79,16 @@ export const DUMA_VS_ZAVO: Comparison = {
         job: 'Recipe margin after VAT',
         duma: 'Cost each dish from its ingredients and see the margin after VAT, per size and per option.',
         them: 'We did not find recipe costing on Zavo’s website.',
-        marks: { duma: 'yes', them: 'no' },
       },
       {
         job: 'Rotas and clock-ins',
         duma: 'Included and free in full: rotas, clock-ins on staff phones, leave requests and labour cost next to sales.',
         them: 'We did not find rotas or staff scheduling on Zavo’s website.',
-        marks: { duma: 'yes', them: 'no' },
       },
       {
         job: 'QR ordering',
         duma: 'Collection orders by QR: customers order and pay by card on their phone, or pay cash at the counter.',
         them: 'We did not find QR or online ordering on Zavo’s website.',
-        marks: { duma: 'part', them: 'no' },
       },
       {
         job: 'Guest marketing',
@@ -105,7 +101,6 @@ export const DUMA_VS_ZAVO: Comparison = {
   },
   pricing: {
     title: 'What Zavo costs',
-    intro: 'Read on Zavo’s website on 3 November 2026. Zavo publishes no price list, so the only way to know is to ask.',
     bill: {
       unpublished:
         'Zavo lists its POS as “Custom Pricing” and its payments as included, with Visa, Mastercard and Amex rates shown as custom.',
@@ -116,11 +111,6 @@ export const DUMA_VS_ZAVO: Comparison = {
       note: 'Till, kitchen screen, stock, recipe margin, rotas, bookings and loyalty on the free plan.',
     },
     facts: [],
-    duma: [
-      'Free, forever, with no card needed. The till, orders, payments, products and margin, stock, customers and rotas stay free in full. Every other part keeps a free allowance.',
-      'Business is £89 a month, or £80 a month paid yearly. It is coming soon, and anyone who joins before it launches keeps 10% off for life.',
-      'DUMA takes no cut of your card payments. Your card provider charges its own fees, as it does today.',
-    ],
   },
   stronger: {
     title: 'Where Zavo is stronger',
@@ -170,7 +160,7 @@ export const DUMA_VS_ZAVO: Comparison = {
         title: 'Free, with a published price',
         icon: 'bill',
         tone: 'action',
-        body: 'The free plan has no time limit, and Business is £89 a month. No quote, no sales call.',
+        body: 'The free plan has no time limit, and Business is £49 a month. No quote, no sales call.',
       },
       {
         title: 'Stock today',
@@ -263,6 +253,5 @@ export const DUMA_VS_ZAVO: Comparison = {
   closing: {
     title: 'Everything working today.',
     muted: 'Free, without a sales call.',
-    body: 'Start free in minutes, with no card needed. We’ll help you bring your menu and team across.',
   },
 };

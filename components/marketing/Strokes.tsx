@@ -33,6 +33,38 @@ export function ChalkCurve({ side, id, className }: { side: keyof typeof CURVES;
   );
 }
 
+/**
+ * A chalk line drawn across the page between two sections: the same warm
+ * graphite and grain as ChalkCurve, wandering left to right and fading out at
+ * both ends. `id` keeps the filter and gradient ids unique on the page.
+ */
+export function ChalkDivider({ id, className }: { id: string; className?: string }) {
+  return (
+    <svg viewBox="0 0 1600 200" fill="none" aria-hidden="true" className={className}>
+      <defs>
+        <filter id={`${id}-grain`} x="-2%" y="-20%" width="104%" height="140%">
+          <feTurbulence type="fractalNoise" baseFrequency="0.85" numOctaves="2" seed="5" result="noise" />
+          <feColorMatrix in="noise" type="matrix" values="0 0 0 0 0  0 0 0 0 0  0 0 0 0 0  0 0 0 -2.2 1.6" result="speckle" />
+          <feComposite in="SourceGraphic" in2="speckle" operator="in" />
+        </filter>
+        <linearGradient id={`${id}-fade`} gradientUnits="userSpaceOnUse" x1="0" y1="0" x2="1600" y2="0">
+          <stop offset="0" stopColor="var(--mkt-chalk)" stopOpacity="0" />
+          <stop offset="0.12" stopColor="var(--mkt-chalk)" />
+          <stop offset="0.88" stopColor="var(--mkt-chalk)" />
+          <stop offset="1" stopColor="var(--mkt-chalk)" stopOpacity="0" />
+        </linearGradient>
+      </defs>
+      <path
+        d="M20 150 C 180 150, 250 45, 420 48 C 590 51, 640 160, 810 158 C 980 156, 1030 40, 1200 42 C 1360 44, 1430 120, 1580 118"
+        stroke={`url(#${id}-fade)`}
+        strokeWidth="26"
+        strokeLinecap="round"
+        filter={`url(#${id}-grain)`}
+      />
+    </svg>
+  );
+}
+
 type Mark = { from: [number, number]; to: [number, number]; kind: 'pencil' | 'accent' | 'smudge'; width?: number };
 
 /**

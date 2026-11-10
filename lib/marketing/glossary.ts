@@ -83,7 +83,7 @@ There is no single right number — a coffee shop and a steakhouse live in diffe
 3. **Ignoring waste.** A theoretical food cost that leaves out [wastage](/glossary/wastage) will always be lower than the real one.
 4. **Skipping the stocktake.** Without a closing count, the period formula is a guess. See [stocktake](/glossary/stocktake).
 
-## Tracking it in DUMA
+## In DUMA
 
 Add a recipe to each menu item and DUMA works out the cost of every dish from its ingredients, and its margin with VAT taken out of the price when you are VAT-registered. The **Prime cost** report shows food and labour as a share of sales over any period, and **Stock usage** shows what was used, item by item.
 
@@ -147,7 +147,7 @@ Gross profit pays for everything else: wages, rent, energy, card fees, insurance
 2. **Working from prices that include VAT.** It flatters every margin by the whole VAT fraction.
 3. **Looking only at the average.** One high-margin best-seller can hide a menu full of weak dishes — [menu engineering](/glossary/menu-engineering) separates them.
 
-## Tracking it in DUMA
+## In DUMA
 
 Every menu item with a recipe shows its cost and margin, with VAT taken out when you are VAT-registered, so the number matches what you keep. The **Menu engineering** report sets each item's margin against how often it sells, and **Item & category sales** shows units and sales for every item.
 
@@ -217,7 +217,7 @@ Say you want a 50% margin and you "add 50%" to a £10 cost. You charge £15 and 
 
 DUMA shows the cost and margin of every product with a recipe, worked out from its ingredients, with VAT taken out of the selling price when you are VAT-registered — so you set prices against the money you keep. More in [gross profit margin](/glossary/gross-profit-margin).
 
-Try it on a real dish: the free [menu margin calculator](/tools/margin-calculator) shows the margin after VAT and the price you need for the one you want.
+The free [menu margin calculator](/tools/margin-calculator) shows a dish’s margin after VAT, and the price you need for the margin you want.
 `,
     faq: [
       {
@@ -274,7 +274,7 @@ A common rule of thumb is to keep prime cost at or below about 60–65% of sales
 2. **Using purchases instead of usage.** A big delivery on the 30th is not this month's food cost — the [stocktake](/glossary/stocktake) is what makes it accurate.
 3. **Looking at it once a quarter.** By then the money is gone. Weekly is better.
 
-## Tracking it in DUMA
+## In DUMA
 
 The **Prime cost** report shows food and labour as a share of sales for any period. Food cost comes from your recipes and stock, labour from the rota and the hours your team clocked — see [labour cost percentage](/glossary/labour-cost-percentage).
 `,
@@ -335,7 +335,7 @@ Many restaurants and cafés aim for roughly 25–35%; counter-service businesses
 2. **Leaving out the extras.** Employer's NI, pension and holiday pay add a real share on top of wages.
 3. **Only looking at the week.** A good week can hide two bad days. Look by day and by hour.
 
-## Tracking it in DUMA
+## In DUMA
 
 The **Labour vs sales** report shows labour cost, labour % and sales per labour hour, from the rota and the hours your team clocked. **Sales by hour** shows when in the day you trade, so you can build the rota around it.
 Check next week's labour % before the rota goes out with the free [rota builder](/tools/rota-builder): add your expected sales and it shows staff cost as a share of them.
@@ -394,7 +394,7 @@ A menu is a sales tool. Most businesses grow by selling more of the right things
 2. **Using too short a period.** One week of a special or a bank holiday skews it. Use at least a month.
 3. **Cutting every low performer.** A dish a few loyal customers come in for can earn its place.
 
-## Tracking it in DUMA
+## In DUMA
 
 The **Menu engineering** report places every costed item in one of four groups — Stars, Workhorses, Opportunities and Low performers — by setting its margin against how many it sold, split at the menu's median for each. Items without a complete recipe cost are left out rather than guessed.
 
@@ -458,7 +458,7 @@ If one in five customers added a £3 side, AOV would rise to £12.60 — £132 m
 2. **Mixing channels.** A delivery order and a takeaway coffee are different businesses; compare like with like.
 3. **Ignoring refunds.** Use net sales, after refunds and VAT.
 
-## Tracking it in DUMA
+## In DUMA
 
 The **Sales summary** report shows gross and net sales, refunds, orders and average order, day by day. **Sales by channel** sets till, QR code and mobile orders side by side.
 `,
@@ -519,7 +519,7 @@ Many kitchens count weekly, or count their highest-value lines (meat, fish, spir
 2. **Mixing units.** Counting a case as one when the records hold single bottles.
 3. **Correcting the records without asking why.** The variance is the useful part.
 
-## Tracking it in DUMA
+## In DUMA
 
 DUMA has **stocktakes**: count by location, see what was expected next to what you counted, and the stock records are updated from the count. The **Stock usage** report shows what was used, received and adjusted, item by item.
 `,
@@ -584,7 +584,7 @@ Either way, the point is that the number is decided once, and the order follows 
 2. **One par for every day.** A weekend may need a higher par than midweek.
 3. **Ignoring shelf life.** Fresh produce needs a lower par and more frequent orders.
 
-## Tracking it in DUMA
+## In DUMA
 
 Each stock item can have a **reorder level** for each location. DUMA flags items that fall below it, so low stock shows up before you run out, and the latest [stocktake](/glossary/stocktake) keeps the counts honest.
 `,
@@ -645,7 +645,7 @@ Waste raises your [food cost percentage](/glossary/food-cost-percentage) without
 3. Prep to forecast, using your sales by hour and by day.
 4. Rotate stock — first in, first out.
 
-## Tracking it in DUMA
+## In DUMA
 
 Write stock off with a reason as it happens. The **Waste & loss** report shows what was written off, by reason and by item, so the same problem showing up week after week is easy to spot.
 `,
@@ -707,7 +707,7 @@ On traditional tills you will hear:
 2. **Only checking cash.** Card differences happen too — a payment taken on the wrong machine, or a refund not put through the till.
 3. **Writing off differences without a note.** The reason is what helps next time.
 
-## Tracking it in DUMA
+## In DUMA
 
 Cash up the till at the end of the day: DUMA works out what should be there and records what you counted. The **End of day** report shows each day's cash-up — expected against counted, cash and card — and **Payment methods** shows card, cash and other tenders, net of refunds.
 
@@ -771,7 +771,7 @@ Retention needs to recognise a customer when they come back. That means a loyalt
 2. **Too short a window.** A monthly repeat rate suits a café; a clothing shop needs a longer one.
 3. **Messaging people who did not consent.** It costs trust and breaks the rules.
 
-## Tracking it in DUMA
+## In DUMA
 
 The **Customer retention** report shows new and returning customers and the repeat rate. Loyalty, customer records and marketing consent live in the same place, so you can follow up with the people who agreed to hear from you.
 `,
@@ -805,7 +805,7 @@ Your accountant, your bank and every margin you calculate start from the same fi
 
 > COGS = opening stock + purchases − closing stock
 
-For one item, COGS is simply what it cost you: the ingredients in a dish, or the price you paid your supplier for a T-shirt.
+For one item, COGS is what it cost you: the ingredients in a dish, or the price you paid your supplier for a T-shirt.
 
 ## A worked example
 
@@ -833,7 +833,7 @@ Wages, rent and energy do not go in COGS; they are operating costs. In restauran
 2. **Counting stock at selling price.** Stock is valued at what you paid.
 3. **Forgetting waste and staff food.** They are used up too — record them so the gap is explained, see [wastage](/glossary/wastage).
 
-## Tracking it in DUMA
+## In DUMA
 
 Every menu item with a recipe has its ingredient cost worked out, so each sale carries its own cost. The **Stock usage** report shows what was used, received and adjusted item by item, and stocktakes correct the counts that COGS depends on.
 `,
@@ -900,11 +900,11 @@ Trimming, peeling and cooking all lose weight. If a 1kg piece of salmon gives 82
 2. **Costing once.** A recipe card from last year is costed at last year's prices.
 3. **Ignoring extras.** A dish with an added topping has a different cost — see [modifiers](/glossary/modifiers).
 
-## Tracking it in DUMA
+## In DUMA
 
 Give a menu item a recipe from your stock items and DUMA works out its cost, and its margin with VAT taken out of the price when you are VAT-registered. Modifiers can carry their own recipes, so an extra shot or a swapped milk is costed too. Sales then use up stock from the same recipes.
 
-Cost a single recipe now, and see its margin after VAT, in the free [menu margin calculator](/tools/margin-calculator).
+Cost a single recipe, and see its margin after VAT, in the free [menu margin calculator](/tools/margin-calculator).
 `,
     faq: [
       {
@@ -1023,7 +1023,7 @@ Every ratio you run your business on divides by sales. Divide by gross sales and
 2. **Forgetting refunds.** A refund given on Monday for Saturday's sale belongs in the numbers.
 3. **Mixing VAT-inclusive and VAT-exclusive figures.** Pick one and use it everywhere — net, without VAT, is the safe choice. See [VAT-inclusive pricing](/glossary/vat-inclusive-pricing).
 
-## Tracking it in DUMA
+## In DUMA
 
 The **Sales summary** report shows gross and net sales, refunds, orders and average order, day by day. **Discounts & voids** shows what discounts cost you, and the **VAT** report shows the VAT in your sales, split by rate.
 `,
@@ -1088,7 +1088,7 @@ You want a 70% margin on a dish costing £2.40. The price before VAT is £2.40 �
 2. **One rate for everything.** Mixed menus can carry more than one rate.
 3. **Rounding before adding VAT.** Set the menu price you want, then check what is left after VAT.
 
-## Tracking it in DUMA
+## In DUMA
 
 DUMA takes VAT out of the selling price when it works out an item's margin, if your business is VAT-registered — so the margin matches what you keep. The **VAT** report shows the VAT charged on your sales, split by rate, for your return.
 
@@ -1147,7 +1147,7 @@ A reason on every discount and void turns a single number into something you can
 2. **Anyone can void anything.** Limit voids after an order is sent, or after payment, to people who should be able to.
 3. **Leaving discounts out of margins.** A discounted sale has the same cost and a smaller price — see [net sales](/glossary/net-sales).
 
-## Tracking it in DUMA
+## In DUMA
 
 The till asks for a reason when an item or order is voided. The **Discounts & voids** report shows discounts given and orders voided, by reason, and **Refunds** shows every refund, its reason and who gave it.
 `,
@@ -1203,11 +1203,11 @@ If you expect £18,000 of sales next week and aim for 28% labour, you have about
 2. **Rota by availability only.** Who can work matters; who is needed matters more.
 3. **No record of actual hours.** Without clock-ins, you cannot compare the plan with what happened.
 
-## Tracking it in DUMA
+## In DUMA
 
 Build the week's rota and publish it to the team, with open shifts for people to pick up. Staff clock in and out on the device, so planned and worked hours sit side by side. The **Sales by hour** report shows when you trade, and **Labour vs sales** shows labour %, and sales per labour hour, against what you took.
 
-Plan a week now, with the hours, staff cost and break checks worked out, in the free [rota builder](/tools/rota-builder).
+Plan a week, with the hours, staff cost and break checks worked out, in the free [rota builder](/tools/rota-builder).
 `,
     faq: [
       {
@@ -1275,10 +1275,6 @@ DUMA's till runs in the browser on any device and can be installed like an app. 
         question: 'Do I need special hardware?',
         answer: 'Not for a browser-based system. A tablet or laptop and your card machine are often enough to start.',
       },
-      {
-        question: 'Can an EPOS work without internet?',
-        answer: 'Some can and some cannot. Ask specifically what happens to sales taken offline, and when they are sent.',
-      },
     ],
   },
   {
@@ -1332,10 +1328,6 @@ DUMA's kitchen display shows tickets from the till and from QR code orders as th
         question: 'Can a KDS replace a kitchen printer?',
         answer: 'For most kitchens, yes. Some keep a printer for the pass or for delivery bags.',
       },
-      {
-        question: 'What does bumping an order mean?',
-        answer: 'Marking it done on the screen. The ticket disappears, and the order can be called or served.',
-      },
     ],
   },
   {
@@ -1381,10 +1373,6 @@ A customer sits down, scans a code on the table or the counter, and the menu ope
 Guests scan your code and order without an account, choosing a collection time. They pay as you allow, including at the counter, and the order arrives on the kitchen display next to the till's. They can add an email to link the order to their loyalty account. The menu is the same one the till uses, so changes and sold-out items show everywhere.
 `,
     faq: [
-      {
-        question: 'Do customers need an app?',
-        answer: 'No. A QR code opens a web page in the phone camera’s browser.',
-      },
       {
         question: 'Is QR ordering only for table service?',
         answer: 'No. It works well at counters and for collection, where it takes the queue off the till.',
@@ -1442,7 +1430,7 @@ Variance is profit you paid for and never sold. A few percent on a busy bar or s
 2. **Correcting without investigating.** The reason is the useful part.
 3. **Counting too rarely.** Monthly variance has a month of possible causes.
 
-## Tracking it in DUMA
+## In DUMA
 
 A [stocktake](/glossary/stocktake) in DUMA shows what was expected next to what you counted for each item, and updates the records from the count. Stock written off with a reason appears in the **Waste & loss** report, so the gap you cannot explain gets smaller.
 `,
@@ -1500,7 +1488,7 @@ A [stocktake](/glossary/stocktake) in DUMA shows what was expected next to what 
 2. **Receiving without checking.** Count it while the driver is still there.
 3. **Paying the invoice, not the order.** Pay for what you ordered and received.
 
-## Tracking it in DUMA
+## In DUMA
 
 Raise purchase orders to your suppliers in DUMA and receive deliveries against them, so stock goes up by what actually arrived. The **Purchasing** report shows purchase orders raised and received, by supplier.
 `,
@@ -1626,7 +1614,7 @@ Your average order is £8.40, a typical regular orders 30 times a year, and they
 2. **Averaging everyone together.** Regulars and one-off visitors have very different values — look at them separately.
 3. **Measuring only who you can identify.** CLV needs a customer record; anonymous sales cannot be followed.
 
-## Tracking it in DUMA
+## In DUMA
 
 Each customer record in DUMA holds their order history and loyalty, so you can see what a regular spends with you. The **Customer retention** report shows new and returning customers and the repeat rate, and **Sales summary** gives you average order.
 `,

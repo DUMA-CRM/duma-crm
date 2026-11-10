@@ -34,12 +34,10 @@ test('JSON-LD cannot close its script tag, and still parses to the original valu
   assert.deepEqual(JSON.parse(serialized), data);
 });
 
-test('Business costs £89 a month or £80 a month paid yearly, and founding members keep 10% off', () => {
-  assert.deepEqual(businessPrice('monthly'), { total: 89, perMonth: 89 });
-  assert.deepEqual(businessPrice('yearly'), { total: 960, perMonth: 80 });
-  assert.deepEqual(businessPrice('monthly', { founding: true }), { total: 80.1, perMonth: 80.1 });
-  assert.deepEqual(businessPrice('yearly', { founding: true }), { total: 864, perMonth: 72 });
-  assert.equal(yearlySaving(), 108);
-  assert.equal(formatPounds(960), '£960');
-  assert.equal(formatPounds(80.1), '£80.10');
+test('Business costs £49 a month, or £539 a year with one month free', () => {
+  assert.deepEqual(businessPrice('monthly'), { total: 49, period: 'month' });
+  assert.deepEqual(businessPrice('yearly'), { total: 539, period: 'year' });
+  assert.equal(yearlySaving(), 49);
+  assert.equal(formatPounds(539), '£539');
+  assert.equal(formatPounds(44.9), '£44.90');
 });

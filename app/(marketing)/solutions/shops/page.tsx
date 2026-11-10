@@ -111,10 +111,6 @@ export default function ShopsPage() {
                 </p>
               }
             />
-            <div className="mt-8 flex flex-wrap gap-3">
-              <SignUpButton />
-              <SecondaryButton href={linkTo('/pricing')}>See pricing</SecondaryButton>
-            </div>
           </div>
           <figure data-reveal="">
             <VariantStockMock bleed={false} />
@@ -166,10 +162,6 @@ export default function ShopsPage() {
       <UseCasesSection
         id="uses"
         title="Four things clothing and online shops do with DUMA every week"
-        lead={[
-          'Whether you sell clothing, shoes or accessories, in a boutique, online or at markets and pop-ups, these are the jobs DUMA takes off your list.',
-          'Start with the one you need most. The rest is already in the same workspace, with nothing to move when you’re ready.',
-        ]}
         items={SHOP_USE_CASES}
         icons={USE_CASE_ICONS}
       />
@@ -179,8 +171,7 @@ export default function ShopsPage() {
         title="What clothing shop software should do, and how to set it up"
         intro={
           <p>
-            Shop software should keep the counter, the stock room and the website telling the same story. If the till and the site count stock separately, one of
-            them is always wrong. If customers live in three places, nobody knows who your regulars are.
+            Shop software should keep the counter, the stock room and the website telling the same story.
           </p>
         }
         setupTitle="How to set up DUMA in a boutique or online store"
@@ -190,7 +181,6 @@ export default function ShopsPage() {
         metricIcons={METRIC_ICONS}
         comparisonTitle="A hosted store, a till app,"
         comparisonHighlight="or one system"
-        comparisonLead="Three ways most clothing shops and online stores run. Here is what each one covers."
         comparison={SHOP_COMPARISON}
         comparisonIcons={COMPARISON_ICONS}
       />
@@ -207,8 +197,6 @@ export default function ShopsPage() {
 
       <ClosingCta
         title="The one place to run your clothing shop."
-        muted="One simple bill, or none at all."
-        body="Get started in minutes, completely free. No card required, and we’re here to help you every step of the way."
         aside={<RisingLines id="shops-cta" />}
       />
     </>

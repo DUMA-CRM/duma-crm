@@ -115,10 +115,6 @@ export default function CafesPage() {
                 </p>
               }
             />
-            <div className="mt-8 flex flex-wrap gap-3">
-              <SignUpButton />
-              <SecondaryButton href={linkTo('/pricing')}>See pricing</SecondaryButton>
-            </div>
           </div>
           <figure data-reveal="">
             <MarginMock bleed={false} />
@@ -175,10 +171,6 @@ export default function CafesPage() {
       <UseCasesSection
         id="uses"
         title="Four things cafés do with DUMA every week"
-        lead={[
-          'Whether you run a coffee shop, a bakery, a restaurant or a food truck, these are the jobs DUMA takes off your evenings.',
-          'Start with the one you need most. The rest is already in the same workspace, with nothing to move when you’re ready.',
-        ]}
         items={CAFE_USE_CASES}
         icons={USE_CASE_ICONS}
       />
@@ -188,8 +180,7 @@ export default function CafesPage() {
         title="What café software should do, and how to set it up"
         intro={
           <p>
-            Café software should connect what happens at the counter to what happens in the kitchen, the stockroom and the bank. If you only look at the till, you
-            can’t see the margin. If you only look at the margin, you can’t see the rota eating it.
+            Café software should connect what happens at the counter to what happens in the kitchen, the stockroom and the bank.
           </p>
         }
         setupTitle="How to set up DUMA in a café"
@@ -199,7 +190,6 @@ export default function CafesPage() {
         metricIcons={METRIC_ICONS}
         comparisonTitle="A card-reader app, separate apps,"
         comparisonHighlight="or one system"
-        comparisonLead="Three ways most cafés run. Here is what each one covers."
         comparison={CAFE_COMPARISON}
         comparisonIcons={COMPARISON_ICONS}
       />
@@ -212,8 +202,6 @@ export default function CafesPage() {
 
       <ClosingCta
         title="The one place to run your café."
-        muted="One simple bill, or none at all."
-        body="Get started in minutes, completely free. No card required, and we’re here to help you every step of the way."
         aside={<RisingLines id="cafes-cta" />}
       />
     </>

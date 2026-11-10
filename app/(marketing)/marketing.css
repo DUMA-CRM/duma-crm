@@ -20,6 +20,8 @@
   /* A clear mint, not a grey sage: green enough to read as a highlighter. */
   --mkt-marker: #c9edd8;
   --mkt-marker-ink: var(--mkt-heading);
+  /* A soft fill one step off the ground: ghost hovers and icon tiles. */
+  --mkt-tray: color-mix(in oklab, var(--mkt-ground) 92%, var(--ink));
   --ease-out-expo: cubic-bezier(0.16, 1, 0.3, 1);
 
   background: var(--mkt-ground);
@@ -44,24 +46,31 @@ html:has(.mkt) {
 
 /*
  * The header is clear at the top of the page, so the hero's chalk curves run
- * up behind it, and frosts over in the first 64px of scroll. Browsers without
- * scroll-driven animations keep the always-frosted header from its classes.
+ * up behind it, and turns solid with a hairline in the first 64px of scroll.
+ * Browsers without scroll-driven animations keep the solid header from its
+ * classes.
  */
 @supports (animation-timeline: scroll()) {
   .mkt-header {
     background: transparent;
-    backdrop-filter: none;
-    animation: mkt-header-frost linear both;
+    border-bottom-color: transparent;
+    animation: mkt-header-solid linear both;
     animation-timeline: scroll();
     animation-range: 0 64px;
   }
 }
 
-@keyframes mkt-header-frost {
+@keyframes mkt-header-solid {
   to {
-    background: color-mix(in oklab, var(--mkt-ground) 85%, transparent);
-    backdrop-filter: blur(12px);
+    background: var(--mkt-ground);
+    border-bottom-color: var(--mkt-line);
   }
+}
+
+/* The app's ghost button on the marketing ground: a soft fill on hover and keyboard focus. */
+.mkt-ghost:hover,
+.mkt-ghost:focus-visible {
+  background: var(--mkt-tray);
 }
 
 /* Text the eye should land on, as if run over with a highlighter. */
@@ -129,15 +138,13 @@ html:has(.mkt) {
 [data-reveal-state] {
   transition:
     opacity 0.6s var(--ease-out-expo),
-    transform 0.7s var(--ease-out-expo),
-    filter 0.6s var(--ease-out-expo);
+    transform 0.7s var(--ease-out-expo);
   transition-delay: var(--reveal-delay, 0ms);
 }
 
 [data-reveal-state='hidden'] {
   opacity: 0;
   transform: translateY(10px);
-  filter: blur(4px);
 }
 
 /* The hero's review line: each new review fades up into place. */
@@ -149,36 +156,6 @@ html:has(.mkt) {
   from {
     opacity: 0;
     transform: translateY(4px);
-  }
-}
-
-/* The hero bill and any other "struck off" list. */
-.bill-strike::after {
-  content: '';
-  position: absolute;
-  left: -2px;
-  right: -2px;
-  top: 52%;
-  height: 1.5px;
-  background: currentColor;
-  transform-origin: left;
-  animation: bill-strike 0.45s var(--ease-out-expo) calc(0.5s + var(--strike-order, 0) * 0.14s) both;
-}
-
-@keyframes bill-strike {
-  from {
-    scale: 0 1;
-  }
-}
-
-.bill-total {
-  animation: bill-total 0.7s var(--ease-out-expo) 1.6s both;
-}
-
-@keyframes bill-total {
-  from {
-    opacity: 0;
-    transform: translateY(8px);
   }
 }
 
@@ -336,7 +313,56 @@ html:has(.mkt) {
   }
 }
 
+/* FAQ answers slide and fade open where the browser can animate to height: auto. */
+@supports (interpolate-size: allow-keywords) {
+  .mkt-faq {
+    interpolate-size: allow-keywords;
+  }
+
+  .mkt-faq details::details-content {
+    height: 0;
+    opacity: 0;
+    overflow: clip;
+    transition:
+      height 0.3s var(--ease-out-expo),
+      opacity 0.3s var(--ease-out-expo),
+      content-visibility 0.3s allow-discrete;
+  }
+
+  .mkt-faq details[open]::details-content {
+    height: auto;
+    opacity: 1;
+  }
+}
+
+/*
+ * One row of chips that scrolls for ever: two identical lists side by side,
+ * moved left by exactly one list's width, so the loop has no seam. Each list
+ * carries its own trailing gap for that reason. Pauses under the pointer.
+ */
+.mkt-marquee {
+  overflow: hidden;
+  mask-image: linear-gradient(to right, transparent, black 8%, black 92%, transparent);
+}
+
+.mkt-marquee-track {
+  display: flex;
+  width: max-content;
+  animation: mkt-marquee 45s linear infinite;
+}
+
+.mkt-marquee:hover .mkt-marquee-track {
+  animation-play-state: paused;
+}
+
+@keyframes mkt-marquee {
+  to {
+    transform: translateX(-50%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
+
   html:has(.mkt) {
     scroll-behavior: auto;
   }
@@ -346,8 +372,6 @@ html:has(.mkt) {
   }
 
   .mkt-review,
-  .bill-strike::after,
-  .bill-total,
   .queue-wait,
   .mkt-caret,
   .mkt-wave,
@@ -357,5 +381,29 @@ html:has(.mkt) {
 
   .mkt-wave path {
     stroke-dashoffset: 0;
+  }
+
+  .mkt-faq details::details-content {
+    transition: none;
+  }
+
+  /* Still: the first list wraps into centred rows and its copy goes. */
+  .mkt-marquee {
+    mask-image: none;
+  }
+
+  .mkt-marquee-track {
+    width: auto;
+    animation: none;
+  }
+
+  .mkt-marquee-list {
+    flex-wrap: wrap;
+    justify-content: center;
+    padding-right: 0;
+  }
+
+  .mkt-marquee-copy {
+    display: none;
   }
 }

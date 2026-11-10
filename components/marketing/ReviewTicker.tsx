@@ -10,8 +10,9 @@ import { cn } from '@/lib/utils/cn';
 const INTERVAL_MS = 5000;
 
 /**
- * Five grey stars that stay put, and one short review beside them that changes
- * every five seconds — after the rating line above seline.com's product frame.
+ * The review's stars (when it has a rating) and one short review beside them
+ * that changes every five seconds — after the rating line above seline.com's
+ * product frame.
  * Pauses while hovered or focused; with reduced motion it still changes, but
  * without the fade. Every review is in the HTML for screen readers and
  * crawlers, so nothing depends on the rotation.
@@ -28,6 +29,7 @@ export function ReviewTicker({ reviews, className }: { reviews: readonly Review[
 
   if (reviews.length === 0) return null;
   const review = reviews[index];
+  const by = attribution(review);
 
   return (
     <figure
@@ -37,11 +39,13 @@ export function ReviewTicker({ reviews, className }: { reviews: readonly Review[
       onFocus={() => setPaused(true)}
       onBlur={() => setPaused(false)}
     >
-      <span className="flex shrink-0 gap-0.5" role="img" aria-label="Rated 5 out of 5">
-        {[0, 1, 2, 3, 4].map((star) => (
-          <Star key={star} className="size-4 fill-current" aria-hidden="true" />
-        ))}
-      </span>
+      {review.rating && (
+        <span className="flex shrink-0 gap-0.5" role="img" aria-label={`Rated ${review.rating} out of 5`}>
+          {Array.from({ length: review.rating }, (_, star) => (
+            <Star key={star} className="size-4 fill-current" aria-hidden="true" />
+          ))}
+        </span>
+      )}
       {review.source === 'google' && (
         <span className="flex shrink-0 items-center gap-1.5">
           on <GoogleMark className="size-3.5" />
@@ -50,18 +54,23 @@ export function ReviewTicker({ reviews, className }: { reviews: readonly Review[
       )}
       <span aria-hidden="true">—</span>
       <blockquote key={index} className="mkt-review min-w-0 truncate" aria-hidden="true">
-        “{review.quote}” <span className="text-[var(--mkt-ink-3)]/80">— {review.name}, {review.business}</span>
+        “{review.quote}”{by && <span className="text-[var(--mkt-ink-3)]/80"> — {by}</span>}
       </blockquote>
       <ul className="sr-only">
         {reviews.map((item) => (
           <li key={item.quote}>
-            “{item.quote}” — {item.name}, {item.business}
+            “{item.quote}”{attribution(item) && ` — ${attribution(item)}`}
             {item.source === 'google' && ', on Google'}
           </li>
         ))}
       </ul>
     </figure>
   );
+}
+
+/** "Name, business", or whichever half the reviewer gave; empty for an anonymous review. */
+function attribution(review: Review): string {
+  return [review.name, review.business].filter(Boolean).join(', ');
 }
 
 /** Google's "G" in its own four colours — the mark from Google's sign-in button. */

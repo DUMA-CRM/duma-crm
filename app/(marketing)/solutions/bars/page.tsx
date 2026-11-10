@@ -72,10 +72,6 @@ const content: SolutionContent = {
   },
   useCases: {
     title: 'Four things bars do with DUMA every week',
-    lead: [
-      'Whether you run a pub, a cocktail bar or a wine bar, these are the jobs DUMA takes off the end of the night.',
-      'Start with the one you need most. The rest is already in the same workspace, with nothing to move when you’re ready.',
-    ],
     items: [
       { title: 'Price drinks with confidence', body: 'See the margin on every drink, VAT included, and spot the ones to reprice before the next menu.' },
       { title: 'Fill the tables on busy nights', body: 'Guests book online and can change or cancel their own booking. Walk-ins join the waitlist and are seated when a table frees up.' },
@@ -88,8 +84,7 @@ const content: SolutionContent = {
     title: 'What bar software should do, and how to set it up',
     intro: (
       <p>
-        Bar software should connect the till to the bookings, the rota and the cash drawer. If you only look at takings, you can’t see the margin. If you only look at
-        bookings, you can’t see the staff cost behind them.
+        Bar software should connect the till to the bookings, the rota and the cash drawer.
       </p>
     ),
     setupTitle: 'How to set up DUMA in a bar',
@@ -110,7 +105,6 @@ const content: SolutionContent = {
     metricIcons: [BarChart3, LineChart, Users, Star, Trash2, Wallet],
     comparisonTitle: 'A card-reader app, separate apps,',
     comparisonHighlight: 'or one system',
-    comparisonLead: 'Three ways most bars run. Here is what each one covers.',
     comparison: [
       {
         title: 'A card-reader till app',
@@ -121,7 +115,6 @@ const content: SolutionContent = {
           { job: 'Drinks costed by recipe', mark: 'part', note: 'Often an add-on' },
           { job: 'Table bookings and waitlist', mark: 'no' },
           { job: 'Rotas and cash-up', mark: 'part', note: 'Cash-up only, often' },
-          { job: 'Everything in one place', mark: 'no' },
         ],
       },
       {
@@ -133,7 +126,6 @@ const content: SolutionContent = {
           { job: 'Drinks costed by recipe', mark: 'part', note: 'Usually a spreadsheet' },
           { job: 'Table bookings and waitlist', mark: 'yes', note: 'Another app' },
           { job: 'Rotas and cash-up', mark: 'yes', note: 'Another app' },
-          { job: 'Everything in one place', mark: 'no', note: 'Numbers copied between apps' },
         ],
       },
       {
@@ -145,7 +137,6 @@ const content: SolutionContent = {
           { job: 'Drinks costed by recipe', mark: 'yes', note: 'VAT-aware' },
           { job: 'Table bookings and waitlist', mark: 'yes', note: 'Guest booking page' },
           { job: 'Rotas and cash-up', mark: 'yes' },
-          { job: 'Everything in one place', mark: 'yes', note: 'One login for everything' },
         ],
       },
     ],
@@ -161,7 +152,7 @@ const content: SolutionContent = {
     { question: 'Can I keep my card machine?', answer: 'Yes. Square, SumUp and Stripe connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.' },
     { question: 'Does the bar EPOS keep working if the Wi-Fi goes down?', answer: 'Yes, the till keeps taking orders. They are saved on the device and sent when the connection is back, and a sale that cannot be sent is kept for you to check.' },
   ],
-  closing: { title: 'The one place to run your bar.', muted: 'One simple bill, or none at all.', body: 'Get started in minutes, completely free. No card required, and we’re here to help you every step of the way.' },
+  closing: { title: 'The one place to run your bar.' },
   related: { audiences: [AUDIENCE_LINKS.cafes, AUDIENCE_LINKS.bakeries], terms: ['cash-up', 'gross-profit-margin', 'labour-cost-percentage', 'discounts-and-voids'] },
 };
 

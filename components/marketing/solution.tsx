@@ -46,15 +46,18 @@ export function MistakesSection({ id, title, items }: { id: string; title: strin
   );
 }
 
-/** A two-paragraph lead, then the use cases as icon cards. `icons` follows `items` in order. */
-export function UseCasesSection({ id, title, lead, items, icons }: { id: string; title: string; lead: [string, string]; items: readonly ListItem[]; icons: readonly IconType[] }) {
+/** An optional lead of one or two paragraphs, then the use cases as icon cards. `icons` follows `items` in order. */
+export function UseCasesSection({ id, title, lead, items, icons }: { id: string; title: string; lead?: readonly string[]; items: readonly ListItem[]; icons: readonly IconType[] }) {
   return (
     <Section spacing="normal" aria-labelledby={id}>
       <SectionHeading id={id} title={title} />
-      <div className="mt-6 grid gap-6 text-pretty text-[1.0625rem] leading-relaxed text-[var(--mkt-ink-2)] md:grid-cols-2 md:gap-10">
-        <p>{lead[0]}</p>
-        <p>{lead[1]}</p>
-      </div>
+      {lead && lead.length > 0 && (
+        <div className={cn('mt-6 grid gap-6 text-pretty text-[1.0625rem] leading-relaxed text-[var(--mkt-ink-2)]', lead.length > 1 && 'md:grid-cols-2 md:gap-10')}>
+          {lead.map((paragraph) => (
+            <p key={paragraph}>{paragraph}</p>
+          ))}
+        </div>
+      )}
       <div className="mt-8 grid gap-4 md:grid-cols-2">
         {items.map((item, index) => {
           const Icon = icons[index];
@@ -88,7 +91,6 @@ export function ExplainerSection({
   metricIcons,
   comparisonTitle,
   comparisonHighlight,
-  comparisonLead,
   comparison,
   comparisonIcons,
 }: {
@@ -103,7 +105,6 @@ export function ExplainerSection({
   comparisonTitle: string;
   /** The last words of the comparison heading, set in the green highlight. */
   comparisonHighlight: string;
-  comparisonLead: string;
   comparison: readonly ComparisonOption[];
   /** One per non-DUMA column; DUMA's own column shows the logo. */
   comparisonIcons: readonly IconType[];
@@ -145,7 +146,7 @@ export function ExplainerSection({
         </dl>
       </div>
 
-      <ComparisonColumns title={comparisonTitle} highlight={comparisonHighlight} lead={comparisonLead} options={comparison} icons={comparisonIcons} />
+      <ComparisonColumns title={comparisonTitle} highlight={comparisonHighlight} options={comparison} icons={comparisonIcons} />
     </Section>
   );
 }
@@ -168,13 +169,12 @@ function CoverIcon({ mark, dark = false }: { mark: CoverMark; dark?: boolean }) 
 }
 
 /** Three ways to run it, side by side; the last column (DUMA) is raised in the forest shell. */
-export function ComparisonColumns({ title, highlight, lead, options, icons }: { title: string; highlight: string; lead: string; options: readonly ComparisonOption[]; icons: readonly IconType[] }) {
+export function ComparisonColumns({ title, highlight, options, icons }: { title: string; highlight: string; options: readonly ComparisonOption[]; icons: readonly IconType[] }) {
   return (
     <div className="mt-16" data-reveal="">
       <h3 className="text-center text-2xl leading-[1.15] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-3xl">
         {title} <span className="mkt-mark mkt-mark-green rounded-md px-1.5">{highlight}</span>
       </h3>
-      <p className="mx-auto mt-3 max-w-xl text-center text-pretty text-[var(--mkt-ink-2)]">{lead}</p>
 
       <div className="mt-10 grid items-stretch gap-4 md:grid-cols-3">
         {options.map((option, index) => {
@@ -185,7 +185,7 @@ export function ComparisonColumns({ title, highlight, lead, options, icons }: { 
               key={option.title}
               className={cn(
                 'flex flex-col rounded-[14px] px-6 py-7',
-                duma ? 'bg-sidebar text-sidebar-foreground shadow-[0_24px_48px_-20px_rgb(14_36_27/0.55)] md:-my-3 md:py-10' : 'mkt-card',
+                duma ? 'bg-sidebar text-sidebar-foreground md:-my-3 md:py-10' : 'mkt-card',
               )}
             >
               <span className={cn('grid size-11 place-items-center rounded-lg', duma ? 'bg-white/10' : 'bg-[var(--mkt-ground)] text-[var(--mkt-ink-2)]')}>

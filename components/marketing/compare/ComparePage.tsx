@@ -120,7 +120,7 @@ function AsOfNote({ content }: { content: Comparison }) {
             timeZone: 'UTC',
           })}
         </time>
-        . Prices change, so check the linked source before you decide.
+        . Prices change, so check the linked source before you decide.{content.vatNote && ` ${content.vatNote}`}
       </span>
     </p>
   );
@@ -184,7 +184,7 @@ export function ComparePage({ content }: { content: Comparison }) {
 
       {/* ── Side by side, in the home page's table: DUMA's column picked out, a disc per row ── */}
       <Section spacing="normal" aria-labelledby={`${key}-table`}>
-        <SectionHeading id={`${key}-table`} title={content.table.title} intro={<p>{content.table.intro}</p>} />
+        <SectionHeading id={`${key}-table`} title={content.table.title} />
         <div className="mt-6">
           <AsOfNote content={content} />
         </div>
@@ -254,7 +254,7 @@ export function ComparePage({ content }: { content: Comparison }) {
 
       {/* ── Prices: their bill, line by line, against DUMA's ── */}
       <Section spacing="normal" aria-labelledby={`${key}-pricing`}>
-        <SectionHeading id={`${key}-pricing`} title={content.pricing.title} intro={<p>{content.pricing.intro}</p>} />
+        <SectionHeading id={`${key}-pricing`} title={content.pricing.title} />
         <div className="mt-10 grid gap-4 md:grid-cols-2">
           {'lines' in bill ? (
             <article className="mkt-card flex flex-col px-6 py-6 sm:px-7" data-reveal="">
@@ -299,14 +299,6 @@ export function ComparePage({ content }: { content: Comparison }) {
               <span className="text-[var(--mkt-ink-2)]">a month, forever</span>
             </p>
             <p className="mt-2 text-sm text-pretty text-[var(--mkt-ink-2)]">{content.pricing.dumaBill.note}</p>
-            <ul className="mt-5 flex flex-col gap-3 border-t border-[var(--mkt-line)] pt-5 text-[0.9375rem] text-pretty text-[var(--mkt-ink-2)]">
-              {content.pricing.duma.map((line) => (
-                <li key={line} className="flex gap-3">
-                  <Check className="mt-1 size-4 shrink-0 text-primary" aria-hidden="true" />
-                  <span>{line}</span>
-                </li>
-              ))}
-            </ul>
             <div className="mt-auto flex flex-wrap gap-3 pt-6">
               <SignUpButton />
               <SecondaryButton href={linkTo('/pricing')}>See pricing</SecondaryButton>
@@ -426,7 +418,6 @@ export function ComparePage({ content }: { content: Comparison }) {
       <ClosingCta
         title={content.closing.title}
         muted={content.closing.muted}
-        body={content.closing.body}
         aside={<RisingLines id={`${key}-cta`} />}
       />
     </>

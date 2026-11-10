@@ -1,20 +1,20 @@
 import type { Metadata } from 'next';
 
 import { Mascot } from '@/components/ai/Mascot';
-import { Check, LifeBuoy, Minus, Receipt } from '@/components/icons';
-import { BusinessPlanCard } from '@/components/marketing/BusinessPlanCard';
+import { Check, Gift, LifeBuoy } from '@/components/icons';
+import { BusinessPlanCard, PlanPrice } from '@/components/marketing/BusinessPlanCard';
+import { type CompareCell, CompareTable } from '@/components/marketing/CompareTable';
+import { IntegrationMarquee } from '@/components/marketing/IntegrationMarquee';
 import { JsonLd } from '@/components/marketing/JsonLd';
 import { FaqSection, SignUpButton } from '@/components/marketing/sections';
 import { ChalkCurve } from '@/components/marketing/Strokes';
 
-import { INTEGRATION_LOGOS } from '@/lib/marketing/integration-logos';
 import { marketingMetadata } from '@/lib/marketing/metadata';
 import { BUSINESS, FREE_FEATURES, PLAN_COMPARISON, PRICING_FAQS, SETUP_HELP, formatPounds, type PlanCell } from '@/lib/marketing/pricing';
 import { breadcrumbSchema, faqSchema, softwareApplicationSchema } from '@/lib/marketing/schema';
-import { cn } from '@/lib/utils/cn';
 
 const DESCRIPTION =
-  'A free plan forever, no card needed: till, orders, stock, customers and rotas. Business is £89 a month, coming soon. Free setup help on every plan.';
+  'A free plan forever, no card needed: till, orders, stock, customers and rotas. Business is £49 a month, coming soon. Free setup help on every plan.';
 
 export const metadata: Metadata = marketingMetadata({
   title: 'Pricing: Free EPOS and Business Software, UK | DUMA',
@@ -44,9 +44,6 @@ export default function PricingPage() {
           <div className="mx-auto max-w-5xl text-center">
             <h1 className="text-4xl leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-5xl">Pricing</h1>
             <p className="mt-4 text-[1.0625rem] text-[var(--mkt-ink-2)]">Free forever. No card needed.</p>
-            <p className="mx-auto mt-3 max-w-2xl text-pretty text-[var(--mkt-ink-2)]">
-              A free EPOS and back office for UK cafés, food businesses and small shops: the till, orders, stock, customers and rotas stay free in full, for good.
-            </p>
           </div>
 
           {/* Two plans, side by side as equals: Free (available now) and Business (the step up, coming soon). */}
@@ -55,34 +52,35 @@ export default function PricingPage() {
               <div className="pointer-events-none absolute -top-16 right-10 z-0 hidden sm:block" aria-hidden="true">
                 <Mascot size={96} state="idle" expression="attentif" gesture="wave" gestureKey="pricing" follow />
               </div>
-              <article className="mkt-card relative flex h-full flex-col rounded-[14px] px-6 py-7 shadow-[0_24px_48px_-24px_rgb(32_55_45/0.3)] sm:px-8 sm:py-8">
-                <h2 className="flex items-center gap-2.5 text-2xl font-semibold tracking-display">
-                  <Receipt className="size-5 text-primary" aria-hidden="true" />
-                  Free
-                </h2>
+              <article className="mkt-card relative flex h-full flex-col rounded-[14px] px-6 py-7 sm:px-8 sm:py-8">
+                {/* Same stack as the Business card, so name, price, list and button line up across the row. */}
+                <div className="flex min-h-9 items-center justify-between gap-3">
+                  <h2 className="flex items-center gap-3 text-2xl font-semibold tracking-display">
+                    <span className="grid size-9 place-items-center rounded-[10px] bg-success-highlight text-success">
+                      <Gift className="size-[1.125rem]" aria-hidden="true" />
+                    </span>
+                    Free
+                  </h2>
+                  <span className="mkt-tag">Available now</span>
+                </div>
 
-                <p className="mt-5 text-pretty text-[0.9375rem] leading-relaxed text-[var(--mkt-ink-2)]">
-                  Everything a small business needs to run, with no time limit and no card.
+                <p className="mt-5 min-h-12 text-pretty text-[0.9375rem] leading-relaxed text-[var(--mkt-ink-2)]">
+                  Everything a small business needs to run.
                 </p>
 
-                <div className="mt-6 flex items-baseline gap-2">
-                  <span className="font-mono text-5xl font-semibold tabular-nums">£0</span>
-                  <span className="text-[var(--mkt-ink-2)]">/ forever</span>
-                </div>
-                <p className="mt-1 min-h-5 text-sm text-[var(--mkt-ink-2)]">No card needed</p>
+                <PlanPrice amount="0" period="forever" />
+                <p className="mt-2 min-h-5" aria-hidden="true" />
 
-                <ul className="mt-6 flex flex-col gap-3 border-t border-[var(--mkt-line)] pt-6 text-[0.9375rem]">
+                <ul className="mt-6 mb-8 flex flex-col gap-3 border-t border-[var(--mkt-line)] pt-6 text-[0.9375rem]">
                   {FREE_FEATURES.map((feature) => (
                     <li key={feature} className="flex gap-3">
-                      <span className="mt-0.5 grid size-5 shrink-0 place-items-center rounded-full bg-success-highlight text-success">
-                        <Check className="size-3" aria-hidden="true" />
-                      </span>
+                      <Check className="mt-0.5 size-4 shrink-0 text-success" aria-hidden="true" />
                       {feature}
                     </li>
                   ))}
                 </ul>
 
-                <SignUpButton className="mt-8 w-full" />
+                <SignUpButton className="mt-auto w-full" />
               </article>
             </div>
 
@@ -90,7 +88,7 @@ export default function PricingPage() {
           </div>
 
           {/* Free setup help, on every plan — DUMA's done-for-you. */}
-          <div className="mx-auto mt-6 grid max-w-4xl gap-6 rounded-[10px] border border-dashed border-[var(--mkt-line)] px-6 py-6 sm:px-8 md:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] md:items-center">
+          <div className="mx-auto mt-6 grid max-w-4xl gap-6 rounded-[10px] border border-dashed border-[var(--mkt-line)] bg-[var(--mkt-card)] px-6 py-6 sm:px-8 md:grid-cols-[auto_minmax(0,1fr)_minmax(0,1fr)] md:items-center">
             <span className="grid size-12 place-items-center rounded-md bg-success-highlight text-success">
               <LifeBuoy className="size-6" aria-hidden="true" />
             </span>
@@ -114,63 +112,28 @@ export default function PricingPage() {
       <section className="px-4 pb-24 sm:px-6" aria-labelledby="compare-plans">
         <div className="mx-auto max-w-4xl">
           <h2 id="compare-plans" className="text-center text-3xl leading-[1.12] font-semibold tracking-display sm:text-4xl">
-            A free EPOS and back office, <span className="text-[var(--mkt-ink-3)]">side by side with Business.</span>
+            Free and Business, part by part
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-center text-pretty text-[1.0625rem] text-[var(--mkt-ink-2)]">
-            The basics are free in full, for good. Every other part has a free allowance, and Business raises it. Today, everything is free.
+            The basics are free in full, for good. Every other part has a free allowance, and Business raises it.
           </p>
 
-          <div className="mt-12 overflow-x-auto pb-4">
-            <table className="w-full min-w-[34rem] border-separate border-spacing-0 text-[0.9375rem]">
-              <caption className="sr-only">What each part of DUMA includes on the Free and Business plans</caption>
-              <thead>
-                <tr>
-                  <th scope="col" className="w-1/2 pb-4 text-left font-normal">
-                    <span className="sr-only">Part of DUMA</span>
-                  </th>
-                  <th scope="col" className="w-1/4 pt-3 pb-4 text-center">
-                    <span className="block text-lg font-semibold">Free</span>
-                    <span className="block font-mono text-sm font-normal text-[var(--mkt-ink-2)] tabular-nums">£0</span>
-                  </th>
-                  <th scope="col" className="w-1/4 rounded-t-lg bg-sidebar/[0.06] pt-3 pb-4 text-center">
-                    <span className="block text-lg font-semibold">Business</span>
-                    <span className="block font-mono text-sm font-normal text-[var(--mkt-ink-2)] tabular-nums">
-                      {formatPounds(BUSINESS.monthly)} / month
-                    </span>
-                  </th>
-                </tr>
-              </thead>
-              {PLAN_COMPARISON.map((group) => (
-                <tbody key={group.group}>
-                  <tr>
-                    <th scope="colgroup" colSpan={2} className="border-b border-[var(--mkt-line)] pt-8 pb-2 text-left text-sm font-semibold text-[var(--mkt-heading)]">
-                      {group.group}
-                    </th>
-                    <td className="border-b border-[var(--mkt-line)] bg-sidebar/[0.06]" />
-                  </tr>
-                  {group.rows.map((row) => (
-                    <tr key={row.part}>
-                      <th scope="row" className="border-b border-[var(--mkt-line)] py-3.5 pr-4 text-left font-normal text-[var(--mkt-ink-2)]">
-                        {row.part}
-                      </th>
-                      <PlanCellView cell={row.free} />
-                      <PlanCellView cell={row.business} highlight />
-                    </tr>
-                  ))}
-                </tbody>
-              ))}
-              <tbody>
-                <tr>
-                  <td />
-                  <td className="pt-6 pb-5 text-center">
-                    <SignUpButton />
-                  </td>
-                  <td className="rounded-b-lg bg-sidebar/[0.06] pt-6 pb-5 text-center text-sm text-[var(--mkt-ink-2)]">Coming soon</td>
-                </tr>
-              </tbody>
-            </table>
+          <div className="mt-12">
+            <CompareTable
+              caption="What each part of DUMA includes on the Free and Business plans"
+              columns={[
+                { key: 'free', label: 'Free', sub: '£0' },
+                { key: 'business', label: 'Business', sub: `${formatPounds(BUSINESS.monthly)} / month`, highlight: true },
+              ]}
+              groups={PLAN_COMPARISON.map((group) => ({
+                title: group.group,
+                rows: group.rows.map((row) => ({ label: row.part, cells: { free: PLAN_CELL[row.free], business: PLAN_CELL[row.business] } })),
+              }))}
+              footer={{ cells: { free: <SignUpButton />, business: 'Coming soon' } }}
+              labelWidth="50%"
+              minWidth="34rem"
+            />
           </div>
-          <p className="mt-6 text-center text-sm text-[var(--mkt-ink-2)]">Free allowances will be published well before Business launches.</p>
         </div>
       </section>
 
@@ -179,18 +142,7 @@ export default function PricingPage() {
         <h2 id="works-with" className="text-center text-sm font-medium tracking-[0.06em] text-[var(--mkt-ink-2)] uppercase">
           Works with the tools you already use
         </h2>
-        <ul className="mx-auto mt-6 flex max-w-4xl flex-wrap items-center justify-center gap-x-8 gap-y-4 text-[var(--mkt-ink-3)]">
-          {INTEGRATION_LOGOS.map((logo) => (
-            <li key={logo.name} className="flex items-center gap-2 text-lg font-semibold tracking-display">
-              {logo.path && (
-                <svg viewBox="0 0 24 24" fill="currentColor" aria-hidden="true" className="size-5">
-                  <path d={logo.path} />
-                </svg>
-              )}
-              {logo.name}
-            </li>
-          ))}
-        </ul>
+        <IntegrationMarquee className="mx-auto mt-6 max-w-5xl" />
       </section>
 
       <FaqSection items={PRICING_FAQS} />
@@ -198,25 +150,9 @@ export default function PricingPage() {
   );
 }
 
-const CELL = {
-  full: 'Included in full',
-  allowance: 'Free allowance',
-  higher: 'Much higher limits',
-} as const;
-
-function PlanCellView({ cell, highlight = false }: { cell: PlanCell; highlight?: boolean }) {
-  return (
-    <td className={cn('border-b border-[var(--mkt-line)] px-3 py-3.5 text-center', highlight && 'bg-sidebar/[0.06]')}>
-      <span className="inline-flex items-center gap-2 text-sm">
-        {cell === 'allowance' ? (
-          <Minus className="size-4 shrink-0 text-stock" aria-hidden="true" />
-        ) : (
-          <span className="grid size-5 shrink-0 place-items-center rounded-full bg-success-highlight text-success">
-            <Check className="size-3" aria-hidden="true" />
-          </span>
-        )}
-        <span className={cell === 'allowance' ? 'text-[var(--mkt-ink-2)]' : 'font-medium'}>{CELL[cell]}</span>
-      </span>
-    </td>
-  );
-}
+/** A plan cell as a comparison mark: the basics are in full on both, every other part is an allowance on Free and raised on Business. */
+const PLAN_CELL: Record<PlanCell, CompareCell> = {
+  full: { mark: 'yes' },
+  allowance: { mark: 'part', note: 'Free allowance' },
+  higher: { mark: 'yes', note: 'Much higher limits' },
+};

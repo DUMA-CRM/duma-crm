@@ -1,12 +1,11 @@
 import type { Metadata } from 'next';
-import Link from 'next/link';
 
 import { Mascot } from '@/components/ai/Mascot';
 import { BookOpen, Check, ClipboardList, Code, Download, FileText, FolderOpen, Lock, NotebookPen, Users } from '@/components/icons';
 import { JsonLd } from '@/components/marketing/JsonLd';
 import { ContentEditorMock, FormMock, StorefrontApiMock } from '@/components/marketing/mocks';
 import { PageLink, RelatedSection } from '@/components/marketing/RelatedLinks';
-import { ClosingCta, FaqSection, FeatureCard, Mark, SecondaryButton, Section, SectionHeading, SignUpButton } from '@/components/marketing/sections';
+import { ClosingCta, FaqSection, FeatureCard, SecondaryButton, Section, SectionHeading, SignUpButton } from '@/components/marketing/sections';
 import { ExplainerSection, SetupBand, UseCasesSection } from '@/components/marketing/solution';
 import { ChalkCurve, RisingLines } from '@/components/marketing/Strokes';
 
@@ -87,12 +86,6 @@ export default function AnyBusinessPage() {
         <SectionHeading
           id="parts"
           title="Start with one part."
-          muted="Add the rest whenever you like."
-          intro={
-            <p>
-              Every part of DUMA works on its own. Switch on the one you need today, and <Mark>nothing has to move</Mark> when you add the next.
-            </p>
-          }
         />
         <div className="mt-10 grid gap-4 md:grid-cols-2">
           <FeatureCard icon={ClipboardList} tone="orders" tag="no website needed" title="Forms" body="Build an enquiry, feedback or waiting-list form and share its link. Every response becomes a customer.">
@@ -125,22 +118,12 @@ export default function AnyBusinessPage() {
             <ContentEditorMock />
           </FeatureCard>
         </div>
-        <p className="mt-6 text-sm text-[var(--mkt-ink-2)]">
-          Need more later? The till, stock, customers, rotas and the rest are{' '}
-          <Link href="/" className="text-primary hover:underline">
-            in the same workspace
-          </Link>
-          .
-        </p>
       </Section>
 
       <UseCasesSection
         id="uses"
         title="Four ways people use one part of DUMA"
-        lead={[
-          'A business collecting enquiries, a new place building a waiting list, a team that needs one handbook, a developer who wants the data in their own tools.',
-          'Each starts with a single part, free — and adds customers, a till or a shop later without moving anything.',
-        ]}
+        lead={['A business collecting enquiries, a new place building a waiting list, a team that needs one handbook, a developer who wants the data in their own tools.']}
         items={ANY_USE_CASES}
         icons={USE_CASE_ICONS}
       />
@@ -161,7 +144,6 @@ export default function AnyBusinessPage() {
         metricIcons={FEATURE_ICONS}
         comparisonTitle="A form tool, a notes app,"
         comparisonHighlight="or DUMA"
-        comparisonLead="Three ways to collect enquiries and keep a team’s know-how. Here is what each one covers."
         comparison={ANY_COMPARISON}
         comparisonIcons={COMPARISON_ICONS}
       />
@@ -181,8 +163,6 @@ export default function AnyBusinessPage() {
 
       <ClosingCta
         title="The one place for whatever you run."
-        muted="Start with one part. Grow into the rest."
-        body="Get started in minutes, completely free. No card required, and we’re here to help you every step of the way."
         aside={<RisingLines id="any-cta" />}
       />
     </>

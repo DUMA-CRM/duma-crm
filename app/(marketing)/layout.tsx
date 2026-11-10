@@ -4,7 +4,6 @@ import { JsonLd } from '@/components/marketing/JsonLd';
 import { MarketingFooter } from '@/components/marketing/MarketingFooter';
 import { MarketingHeader } from '@/components/marketing/MarketingHeader';
 import { RevealObserver } from '@/components/marketing/RevealObserver';
-import { SignUpShortcut } from '@/components/marketing/SignUpShortcut';
 
 import { organizationSchema, websiteSchema } from '@/lib/marketing/schema';
 
@@ -34,7 +33,6 @@ export default function MarketingLayout({ children }: { children: React.ReactNod
       </main>
       <MarketingFooter />
       <RevealObserver />
-      <SignUpShortcut />
     </div>
   );
 }

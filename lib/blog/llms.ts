@@ -12,7 +12,7 @@ import { absoluteUrl } from '@/lib/marketing/site';
 
 const PAGES: { title: string; path: string; summary: string }[] = [
   { title: 'Home', path: '/', summary: 'What DUMA is: one place to run a small business.' },
-  { title: 'Pricing', path: '/pricing', summary: 'Free forever plan; Business at £89 a month or £80 a month paid yearly, coming soon.' },
+  { title: 'Pricing', path: '/pricing', summary: 'Free forever plan; Business at £49 a month, or £539 a year (one month free), coming soon.' },
   {
     title: 'Cafés and restaurants',
     path: '/solutions/cafes',

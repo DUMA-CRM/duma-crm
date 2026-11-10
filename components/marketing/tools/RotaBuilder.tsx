@@ -17,6 +17,7 @@ import {
 } from '@/components/icons';
 import { downloadRotaImage } from '@/components/marketing/tools/rota-image';
 import { Drawer, DrawerHeaderButton } from '@/components/shared/Drawer';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { buttonVariants } from '@/components/ui/button';
 
 import { absoluteUrl } from '@/lib/marketing/site';
@@ -147,16 +148,11 @@ const FIELD =
 /** Times and money: figures in the mono face, like the rest of the site's numbers. */
 const NUMBER_FIELD = `${FIELD} tabular-nums`;
 const LABEL = 'mb-1.5 block text-sm font-medium text-foreground';
-const LABEL_SMALL = 'text-[11px] font-medium tracking-[0.06em] text-[var(--mkt-ink-3)] uppercase';
-/** A drawer section's heading. */
-const SECTION = 'mb-2.5 text-xs font-semibold tracking-[0.06em] text-muted-foreground uppercase';
-/** A pill that can be pressed: break lengths, the week's first day. */
-const CHIP =
-  'h-9 rounded-full border px-3.5 text-sm font-medium transition-colors outline-none focus-visible:ring-2 focus-visible:ring-primary/40 disabled:opacity-40';
-const chipState = (on: boolean) =>
-  on
-    ? 'border-primary bg-primary text-primary-foreground'
-    : 'border-[var(--mkt-line)] bg-white text-foreground hover:border-primary/40 dark:bg-transparent';
+/** Small capitals: the table's column heads and a drawer section's heading. */
+const CAPS = 'text-xs font-semibold tracking-[0.06em] uppercase';
+const LABEL_SMALL = `${CAPS} text-[var(--mkt-ink-3)]`;
+/** The drawers render outside the marketing root, so they take the app's muted ink, not --mkt-ink-3. */
+const SECTION = `${CAPS} mb-2.5 text-muted-foreground`;
 
 const sameShift = (a: RotaShift | null, b: RotaShift | null) =>
   !!a && !!b && a.start === b.start && a.end === b.end && a.breakMinutes === b.breakMinutes;
@@ -347,13 +343,6 @@ function Builder({ client }: { client: boolean }) {
                 This week
               </button>
             )}
-            <button
-              type="button"
-              onClick={() => setPanel({ kind: 'settings' })}
-              className="text-sm text-[var(--mkt-ink-3)] hover:text-foreground"
-            >
-              {currency} · {rota.firstDay === 1 ? 'Monday' : 'Sunday'} start
-            </button>
           </div>
         </div>
 
@@ -396,7 +385,7 @@ function Builder({ client }: { client: boolean }) {
               {days.map((day) => (
                 <th key={day.long} scope="col" className="px-1 py-2.5 text-center font-normal">
                   <span className={cn(LABEL_SMALL, 'block')}>{day.short}</span>
-                  <span className="block text-[12px] text-[var(--mkt-ink-2)]">{day.date}</span>
+                  <span className="block text-xs text-[var(--mkt-ink-2)]">{day.date}</span>
                 </th>
               ))}
               <th scope="col" className="w-24 px-4 py-2.5 text-right">
@@ -498,7 +487,7 @@ function Builder({ client }: { client: boolean }) {
             </tr>
           </tbody>
           <tfoot>
-            <tr className="bg-[var(--mkt-ground)] text-[12px] text-[var(--mkt-ink-2)]">
+            <tr className="bg-[var(--mkt-ground)] text-xs text-[var(--mkt-ink-2)]">
               <th scope="row" className="px-4 py-2.5 font-medium">
                 Hours · cost
               </th>
@@ -620,8 +609,7 @@ function WeekFigures({ summary, money, onAddSales }: { summary: RotaSummary; mon
         </div>
       </dl>
       <p className="mt-4 border-t border-[var(--mkt-line)] pt-3 text-xs leading-relaxed text-[var(--mkt-ink-3)]">
-        Hours × hourly rate, less unpaid breaks.
-        {summary.unpricedMinutes > 0 && ` ${formatHours(summary.unpricedMinutes)} have no rate, so aren’t costed.`} Employer taxes, pension
+        {summary.unpricedMinutes > 0 && `${formatHours(summary.unpricedMinutes)} have no rate, so aren’t costed. `}Employer taxes, pension
         and holiday pay come on top.
       </p>
     </section>
@@ -740,57 +728,47 @@ function ShiftDrawer({
           </div>
         </section>
 
-        <section aria-labelledby={`${uid}-times`}>
-          <h3 id={`${uid}-times`} className={SECTION}>
-            Times
-          </h3>
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label htmlFor={`${uid}-start`} className={LABEL}>
-                Start
-              </label>
-              <input
-                id={`${uid}-start`}
-                type="time"
-                className={NUMBER_FIELD}
-                value={shift?.start ?? ''}
-                onChange={(e) => onChange({ start: e.target.value, end: shift?.end ?? '', breakMinutes: shift?.breakMinutes ?? 30 })}
-              />
-            </div>
-            <div>
-              <label htmlFor={`${uid}-end`} className={LABEL}>
-                End
-              </label>
-              <input
-                id={`${uid}-end`}
-                type="time"
-                className={NUMBER_FIELD}
-                value={shift?.end ?? ''}
-                onChange={(e) => onChange({ start: shift?.start ?? '', end: e.target.value, breakMinutes: shift?.breakMinutes ?? 30 })}
-              />
-            </div>
+        <div className="grid grid-cols-2 gap-3">
+          <div>
+            <label htmlFor={`${uid}-start`} className={LABEL}>
+              Start
+            </label>
+            <input
+              id={`${uid}-start`}
+              type="time"
+              className={NUMBER_FIELD}
+              value={shift?.start ?? ''}
+              onChange={(e) => onChange({ start: e.target.value, end: shift?.end ?? '', breakMinutes: shift?.breakMinutes ?? 30 })}
+            />
           </div>
-        </section>
+          <div>
+            <label htmlFor={`${uid}-end`} className={LABEL}>
+              End
+            </label>
+            <input
+              id={`${uid}-end`}
+              type="time"
+              className={NUMBER_FIELD}
+              value={shift?.end ?? ''}
+              onChange={(e) => onChange({ start: shift?.start ?? '', end: e.target.value, breakMinutes: shift?.breakMinutes ?? 30 })}
+            />
+          </div>
+        </div>
 
-        <section aria-labelledby={`${uid}-break`}>
-          <h3 id={`${uid}-break`} className={SECTION}>
-            Unpaid break
-          </h3>
-          <div className="flex flex-wrap gap-2" role="group" aria-labelledby={`${uid}-break`}>
-            {BREAKS.map((minutes) => (
-              <button
-                key={minutes}
-                type="button"
-                aria-pressed={shift?.breakMinutes === minutes}
-                disabled={!shift}
-                onClick={() => shift && onChange({ ...shift, breakMinutes: minutes })}
-                className={cn(CHIP, chipState(shift?.breakMinutes === minutes))}
-              >
-                {minutes === 0 ? 'None' : `${minutes} min`}
-              </button>
-            ))}
-          </div>
-        </section>
+        {/* A break needs a shift to belong to: set the times or pick one first. */}
+        {shift && (
+          <section aria-labelledby={`${uid}-break`}>
+            <h3 id={`${uid}-break`} className={SECTION}>
+              Unpaid break
+            </h3>
+            <SegmentedControl
+              ariaLabel="Unpaid break"
+              options={BREAKS.map((minutes) => ({ value: String(minutes), label: minutes === 0 ? 'None' : `${minutes} min` }))}
+              value={String(shift.breakMinutes)}
+              onChange={(minutes) => onChange({ ...shift, breakMinutes: Number(minutes) })}
+            />
+          </section>
+        )}
 
         <section aria-labelledby={`${uid}-repeat`}>
           <div className="mb-2.5 flex items-baseline justify-between gap-3">
@@ -976,7 +954,7 @@ function PersonDrawer({
             </div>
           </div>
           <p className="-mt-1 text-xs text-muted-foreground">
-            People with the same role share a colour. Leave the rate blank to leave them out of the cost.
+            Leave the rate blank to leave them out of the cost.
           </p>
         </section>
 
@@ -1097,7 +1075,6 @@ function SettingsDrawer({
   return (
     <Drawer
       title="Rota settings"
-      description="Currency, your week and the working-time rules where you are."
       icon={SlidersHorizontal}
       onClose={onClose}
       className="sm:max-w-md"
@@ -1166,20 +1143,15 @@ function SettingsDrawer({
           <h3 id={`${uid}-week`} className={SECTION}>
             Week starts on
           </h3>
-          <div className="flex gap-2" role="group" aria-labelledby={`${uid}-week`}>
-            {([1, 0] as const).map((firstDay) => (
-              <button
-                key={firstDay}
-                type="button"
-                aria-pressed={rota.firstDay === firstDay}
-                onClick={() => onFirstDay(firstDay)}
-                className={cn(CHIP, chipState(rota.firstDay === firstDay))}
-              >
-                {firstDay === 1 ? 'Monday' : 'Sunday'}
-              </button>
-            ))}
-          </div>
-          <p className="mt-2 text-xs text-muted-foreground">Shifts stay on their weekday when you switch.</p>
+          <SegmentedControl
+            ariaLabel="Week starts on"
+            options={[
+              { value: '1', label: 'Monday' },
+              { value: '0', label: 'Sunday' },
+            ]}
+            value={String(rota.firstDay)}
+            onChange={(firstDay) => onFirstDay(Number(firstDay) as FirstDay)}
+          />
         </section>
 
         <section aria-labelledby={`${uid}-rules`}>
@@ -1235,8 +1207,7 @@ function SettingsDrawer({
             />
           </div>
           <p className="mt-3 text-xs leading-relaxed text-muted-foreground">
-            The defaults are the EU and UK limits for adult workers. Rules differ by country, and are stricter for young workers: set yours,
-            or leave a field empty to skip that check. A guide, not legal advice.
+            Defaults are the EU and UK limits for adult workers. Leave a field empty to skip that check. A guide, not legal advice.
           </p>
         </section>
       </div>

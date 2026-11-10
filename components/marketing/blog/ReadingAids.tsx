@@ -2,6 +2,8 @@
 
 import { useEffect, useState } from 'react';
 
+import { ArrowUp } from '@/components/icons';
+
 import type { TocHeading } from '@/lib/utils/blog';
 import { cn } from '@/lib/utils/cn';
 
@@ -70,9 +72,9 @@ export function TableOfContents({
 }
 
 /**
- * Seline's reading-progress pill: how far through the post you are, and a
- * circle that scrolls back to the top — with a "Scroll to top" tooltip on
- * hover or keyboard focus. Shown only while you're inside the post: hidden at
+ * The reading-progress chip: how far through the post you are, and a button
+ * that scrolls back to the top — with a "Scroll to top" tooltip on hover or
+ * keyboard focus. Shown only while you're inside the post: hidden at
  * the top, and again once the post's end has scrolled past.
  */
 export function ReadingProgress() {
@@ -109,19 +111,16 @@ export function ReadingProgress() {
         percent > 2 && !past ? 'opacity-100' : 'pointer-events-none opacity-0',
       )}
     >
-      {/* At rest the pill sits at 90%; it grows to full size on hover. Only hovering the icon itself fills its circle and shows the tooltip. */}
-      <div className="flex w-fit scale-90 items-center gap-1.5 rounded-full bg-stone-950/90 p-1.5 text-white shadow-md shadow-stone-950/20 backdrop-blur-sm transition-transform duration-200 ease-out hover:scale-100">
+      {/* Only hovering the button itself shades it and shows the tooltip. */}
+      <div className="flex w-fit items-center gap-1 rounded-[8px] bg-foreground p-1 text-background shadow-md">
         <span className="relative">
           <button
             type="button"
             onClick={toTop}
             aria-label="Scroll to top"
-            className="peer flex size-8 items-center justify-center rounded-full transition-colors hover:bg-stone-700 focus-visible:bg-stone-700 focus-visible:outline-none"
+            className="peer flex size-8 items-center justify-center rounded-[6px] transition-colors hover:bg-background/15 focus-visible:bg-background/15 focus-visible:outline-none"
           >
-            {/* Lucide's arrow-up-to-line. */}
-            <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0" aria-hidden="true">
-              <path d="M5 3h14M18 13l-6-6-6 6M12 7v14" />
-            </svg>
+            <ArrowUp className="size-4 shrink-0" aria-hidden="true" />
           </button>
           <span
             role="tooltip"
@@ -130,7 +129,7 @@ export function ReadingProgress() {
             Scroll to top
           </span>
         </span>
-        <span className="w-[50px] cursor-default px-2 text-sm font-medium tabular-nums select-none">
+        <span className="w-13 cursor-default px-2 text-sm font-medium tabular-nums select-none">
           {percent}%<span className="sr-only"> read</span>
         </span>
       </div>

@@ -1,9 +1,10 @@
 import { cn } from '@/lib/utils/cn';
 
 /**
- * The docs' one-of-several switch: a .mkt-card the height of the search box,
- * the chosen option filled with the .mkt-tag grey. Inner corners are the
- * card's 10px less its 4px padding, so the two radii nest.
+ * The marketing site's one-of-several switch (DESIGN.md: attached, compact
+ * corners — never pills): a .mkt-card tray, the chosen option filled with the
+ * .mkt-tag grey. Inner corners are the card's 10px less its 4px padding, so
+ * the two radii nest. Used by the docs, the hero tabs, pricing and the tools.
  */
 export function Segmented<T extends string>({
   label,

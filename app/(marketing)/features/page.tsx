@@ -6,7 +6,6 @@ import {
   BarChart3,
   BookOpen,
   CalendarDays,
-  Check,
   ChefHat,
   ClipboardList,
   Clock,
@@ -30,13 +29,16 @@ import {
   Wallet,
   Zap,
 } from '@/components/icons';
+
 import { JsonLd } from '@/components/marketing/JsonLd';
+import { IndexHero } from '@/components/marketing/IndexCard';
 import { ShapeShiftingMascot } from '@/components/marketing/ShapeShiftingMascot';
 import { ChalkCurve, CornerStrokes, RisingLines } from '@/components/marketing/Strokes';
-import { COLUMN, ClosingCta, FaqSection, Mark, SecondaryButton, SignUpButton } from '@/components/marketing/sections';
-import { TONE_TEXT } from '@/components/marketing/sections';
+import { COLUMN, ClosingCta, FaqSection, Mark, SecondaryButton, SignUpButton, TONE_TEXT } from '@/components/marketing/sections';
 
 import type { Tone } from '@/lib/marketing/home';
+
+import { featurePageSlugs } from '@/lib/blog/feature-pages';
 import { marketingMetadata } from '@/lib/marketing/metadata';
 import { breadcrumbSchema, faqSchema } from '@/lib/marketing/schema';
 import { MODULES, MODULE_GROUP_LABELS, type MarketingModule, type ModuleGroup, linkTo, modulePath } from '@/lib/marketing/site';
@@ -60,7 +62,7 @@ const FAQS = [
   {
     question: 'Which parts of DUMA are free?',
     answer:
-      'The till, orders and payments, products and menu with margin, stock, customers, and rotas and time are free in full, with no time limit. Every other part keeps a free allowance. Business, with much higher limits, is £89 a month and coming soon.',
+      'The till, orders and payments, products and menu with margin, stock, customers, and rotas and time are free in full, with no time limit. Every other part keeps a free allowance. Business, with much higher limits, is £49 a month and coming soon.',
   },
   {
     question: 'Do I need new hardware?',
@@ -115,20 +117,29 @@ const GROUPS = Object.keys(MODULE_GROUP_LABELS) as ModuleGroup[];
  * One module as a small card: its icon, name and summary. A module with its
  * own page is a link with an arrow; the rest sit on a dashed outline.
  */
-function ModuleCard({ module, tone }: { module: MarketingModule; tone: Tone }) {
+function ModuleCard({ module, tone, linked }: { module: MarketingModule; tone: Tone; linked: boolean }) {
   const Icon = MODULE_ICON[module.slug] ?? Layers;
   const body = (
     <>
       <span className="flex items-center justify-between gap-3">
         <Icon className={cn('size-5', TONE_TEXT[tone])} aria-hidden="true" />
-        {module.published && <ArrowUpRight className="size-4 shrink-0 text-primary" aria-hidden="true" />}
+        {linked && (
+          <ArrowUpRight
+            className="size-4 shrink-0 text-primary transition-transform duration-200 group-hover:translate-x-0.5 group-hover:-translate-y-0.5 motion-reduce:transition-none"
+            aria-hidden="true"
+          />
+        )}
       </span>
       <span className="mt-3 font-semibold text-[var(--mkt-heading)] group-hover:text-primary">{module.name}</span>
       <span className="mt-1.5 text-pretty text-[0.9375rem] leading-relaxed text-[var(--mkt-ink-2)]">{module.summary}</span>
     </>
   );
-  return module.published ? (
-    <Link href={modulePath(module.slug)} className="mkt-card group flex h-full flex-col px-5 py-4 hover:border-primary/40">
+  return linked ? (
+    // Pointed at, a tile's border warms and its arrow nudges the way it points.
+    <Link
+      href={modulePath(module.slug)}
+      className="mkt-card group flex h-full flex-col px-5 py-4 transition-colors duration-200 hover:border-primary/40 focus-visible:border-primary/40"
+    >
       {body}
     </Link>
   ) : (
@@ -138,46 +149,20 @@ function ModuleCard({ module, tone }: { module: MarketingModule; tone: Tone }) {
 
 /**
  * /features — every module a workspace can switch on, grouped as the product
- * groups them, under the home page's two-tone headings. A module with a published page links to it; the
- * rest carry no link, so nothing here points at a 404.
+ * groups them, under the same short centred heading as /blog and /tools. A
+ * module with a published page links to it; the rest carry no link, so nothing
+ * here points at a 404.
  */
-export default function FeaturesIndexPage() {
+export default async function FeaturesIndexPage() {
+  // A module links once its CMS feature page is published.
+  const featurePages = await featurePageSlugs();
+
   return (
     <>
       <JsonLd data={breadcrumbSchema([{ name: 'All features', path: '/features' }])} />
       <JsonLd data={faqSchema(FAQS)} />
 
-      {/* ── Hero ─────────────────────────────────────────────────────────── */}
-      {/* Pulled up 4rem, under the sticky header, so the chalk curves start at the very top of the page. */}
-      {/* The curves sit on a wrapper round the hero and the groups: this hero is
-          short, and clipped to itself the right-hand curve was cut off mid-stroke. */}
-      <div className="relative -mt-16 overflow-hidden">
-        <ChalkCurve side="left" id="features-left" className="pointer-events-none absolute top-0 -left-24 hidden w-[34rem] md:block" />
-        <ChalkCurve side="right" id="features-right" className="pointer-events-none absolute top-56 -right-40 hidden w-[44rem] md:block" />
-        <section className="relative px-4 pt-30 pb-6 sm:px-6 sm:pt-40">
-          <div className={cn(COLUMN, 'relative z-10')}>
-            <h1 className="text-[2.75rem] leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-6xl">
-              Everything DUMA does, <span className="mkt-mark mkt-mark-green rounded-md px-2">in one place</span>
-            </h1>
-            <p className="mt-6 max-w-[56rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">
-              An EPOS till, orders, stock, recipe costing, rotas, customers, marketing and reports share one workspace. Switch
-              on the parts you need; every sale updates the rest.
-            </p>
-            <div className="mt-8 flex flex-wrap gap-3">
-              <SignUpButton />
-              <SecondaryButton href={linkTo('/pricing')}>See pricing</SecondaryButton>
-            </div>
-            <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--mkt-ink-2)]">
-              {['Free plan, forever', 'Keep your card machine', 'Works offline'].map((fact) => (
-                <span key={fact} className="flex items-center gap-1.5">
-                  <Check className="size-4 text-primary" aria-hidden="true" />
-                  {fact}
-                </span>
-              ))}
-            </p>
-          </div>
-        </section>
-
+      <IndexHero id="features" title="Features" subtitle="Switch on the parts you need. Every sale updates the rest">
         {/* ── The modules, one group at a time ─────────────────────────────── */}
         {GROUPS.map((group) => {
           const style = GROUP_STYLE[group];
@@ -190,7 +175,7 @@ export default function FeaturesIndexPage() {
                 <ul className="mt-4 grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
                   {MODULES.filter((m) => m.group === group).map((module, i) => (
                     <li key={module.slug} data-reveal="" data-reveal-delay={(i % 3) * 60}>
-                      <ModuleCard module={module} tone={style.tone} />
+                      <ModuleCard module={module} tone={style.tone} linked={featurePages.has(module.slug)} />
                     </li>
                   ))}
                 </ul>
@@ -198,7 +183,8 @@ export default function FeaturesIndexPage() {
             </section>
           );
         })}
-      </div>
+        <div className="pb-16" />
+      </IndexHero>
 
       {/* ── Setup band, with the mascot ───────────────────────────────────── */}
       <section className="relative overflow-hidden px-4 py-20 text-center sm:px-6 sm:py-32" aria-labelledby="setup">
@@ -222,7 +208,8 @@ export default function FeaturesIndexPage() {
         </div>
       </section>
 
-      <div className="relative overflow-hidden">
+      {/* Clipped sideways only: the FAQ here is short, and the curve finishes its loop behind the closing card. */}
+      <div className="relative overflow-x-clip">
         <ChalkCurve
           side="right"
           id="features-faq-right"
@@ -233,8 +220,6 @@ export default function FeaturesIndexPage() {
 
       <ClosingCta
         title="Start with the part you need."
-        muted="The rest is already there."
-        body="Get started in minutes, completely free. No card required, and we’ll help you set it up."
         aside={<RisingLines id="features-cta" />}
       />
     </>

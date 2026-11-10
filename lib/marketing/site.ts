@@ -31,7 +31,6 @@ export type MarketingModule = {
   /** One line for menus and the features index. */
   summary: string;
   group: ModuleGroup;
-  published: boolean;
 };
 
 /**
@@ -47,42 +46,36 @@ export const MODULES: readonly MarketingModule[] = [
     name: 'Point of sale',
     summary: 'Take orders and payments at a counter or till, and keep selling offline.',
     group: 'front-of-house',
-    published: true,
   },
   {
     slug: 'orders',
     name: 'Orders',
     summary: 'Every order from every channel in one list, through to fulfilment.',
     group: 'front-of-house',
-    published: false,
   },
   {
     slug: 'qr-ordering',
     name: 'QR ordering',
     summary: 'Customers scan, order and pay from their own phone.',
     group: 'front-of-house',
-    published: false,
   },
   {
     slug: 'kitchen-display',
     name: 'Kitchen display',
     summary: 'A live screen for the kitchen or packing bench: new, preparing, ready.',
     group: 'front-of-house',
-    published: false,
   },
   {
     slug: 'payments',
     name: 'Payments',
     summary: 'Card, cash and invoice, reconciled every day.',
     group: 'front-of-house',
-    published: false,
   },
   {
     slug: 'reservations',
     name: 'Reservations',
     summary: 'Bookings, a floor plan of your tables and a walk-in waitlist.',
     group: 'front-of-house',
-    published: false,
   },
 
   {
@@ -90,28 +83,24 @@ export const MODULES: readonly MarketingModule[] = [
     name: 'Products & menu',
     summary: 'Everything you sell, with prices, options, recipes and margin.',
     group: 'back-of-house',
-    published: true,
   },
   {
     slug: 'inventory',
     name: 'Stock',
     summary: 'Know what is on hand before you run out, updated by every sale.',
     group: 'back-of-house',
-    published: false,
   },
   {
     slug: 'purchasing',
     name: 'Purchasing',
     summary: 'Order from suppliers and check deliveries in against them.',
     group: 'back-of-house',
-    published: false,
   },
   {
     slug: 'notes',
     name: 'Notes',
     summary: 'Recipes, checklists and how-tos, shared by folder and searchable.',
     group: 'back-of-house',
-    published: false,
   },
 
   {
@@ -119,60 +108,52 @@ export const MODULES: readonly MarketingModule[] = [
     name: 'Rotas & time',
     summary: 'Shifts, clock-ins and leave your team sees on their phone.',
     group: 'people',
-    published: true,
   },
   {
     slug: 'people-hr',
     name: 'People & HR',
     summary: 'Employee records, documents and HR details in one place.',
     group: 'people',
-    published: false,
   },
-  { slug: 'payroll', name: 'Payroll', summary: 'Prepare pay runs and issue payslips.', group: 'people', published: false },
-  { slug: 'help-centre', name: 'Help centre', summary: 'Guides and a helpdesk for your staff.', group: 'people', published: false },
+  { slug: 'payroll', name: 'Payroll', summary: 'Prepare pay runs and issue payslips.', group: 'people' },
+  { slug: 'help-centre', name: 'Help centre', summary: 'Guides and a helpdesk for your staff.', group: 'people' },
 
   {
     slug: 'customers-loyalty',
     name: 'Customers & loyalty',
     summary: 'Recognise your regulars and reward them for coming back.',
     group: 'growth',
-    published: false,
   },
-  { slug: 'email-marketing', name: 'Messages', summary: 'Email your customers and your team.', group: 'growth', published: false },
+  { slug: 'email-marketing', name: 'Messages', summary: 'Email your customers and your team.', group: 'growth' },
   {
     slug: 'automation',
     name: 'Automation',
     summary: 'Build workflows that run on their own, and follow every run.',
     group: 'growth',
-    published: false,
   },
   {
     slug: 'promotions',
     name: 'Promotions',
     summary: 'Promo codes with limits and dates, honoured at the till.',
     group: 'growth',
-    published: false,
   },
   {
     slug: 'referrals',
     name: 'Refer a friend',
     summary: 'Every customer gets a code; a friend’s first order earns a reward.',
     group: 'growth',
-    published: false,
   },
   {
     slug: 'forms',
     name: 'Forms',
     summary: 'Enquiry, feedback and sign-up forms whose responses become customers.',
     group: 'growth',
-    published: false,
   },
   {
     slug: 'content-management',
     name: 'Content (CMS)',
     summary: 'Write your website and app content, and publish it over an API.',
     group: 'growth',
-    published: false,
   },
 
   {
@@ -180,28 +161,24 @@ export const MODULES: readonly MarketingModule[] = [
     name: 'Analytics',
     summary: 'Sales, margin and labour trends for one location or all of them.',
     group: 'insight',
-    published: false,
   },
   {
     slug: 'ask-duma',
     name: 'Ask DUMA',
     summary: 'An assistant that knows your operation and answers from your data.',
     group: 'insight',
-    published: false,
   },
   {
     slug: 'compliance',
     name: 'Compliance',
     summary: 'Handle privacy and personal-data requests properly.',
     group: 'insight',
-    published: false,
   },
   {
     slug: 'audit-log',
     name: 'Audit log',
     summary: 'Review important activity and changes across the workspace.',
     group: 'insight',
-    published: false,
   },
 ];
 
@@ -210,8 +187,6 @@ export type MarketingPage = {
   /** Label in the nav and footer. */
   label: string;
   published: boolean;
-  /** Shown in the header's top level, not just the footer. */
-  inHeader?: boolean;
   changeFrequency?: 'daily' | 'weekly' | 'monthly' | 'yearly';
   priority?: number;
 };
@@ -220,7 +195,7 @@ export type MarketingPage = {
 export const PAGES: readonly MarketingPage[] = [
   { path: '/', label: 'Home', published: true, changeFrequency: 'weekly', priority: 1 },
   { path: '/features', label: 'All features', published: true, changeFrequency: 'monthly', priority: 0.9 },
-  { path: '/why-duma', label: 'Why DUMA', published: false, inHeader: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/why-duma', label: 'Why DUMA', published: false, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/pricing', label: 'Pricing', published: true, changeFrequency: 'monthly', priority: 0.9 },
   { path: '/solutions/cafes', label: 'Cafés and restaurants', published: true, changeFrequency: 'monthly', priority: 0.9 },
   { path: '/solutions/shops', label: 'Shops and online stores', published: true, changeFrequency: 'monthly', priority: 0.9 },
@@ -242,7 +217,7 @@ export const PAGES: readonly MarketingPage[] = [
   { path: '/developers', label: 'Public API', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/developers/mcp', label: 'MCP', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/developers/webhooks', label: 'Webhooks', published: true, changeFrequency: 'monthly', priority: 0.6 },
-  { path: '/blog', label: 'Blog', published: true, inHeader: true, changeFrequency: 'daily', priority: 0.7 },
+  { path: '/blog', label: 'Blog', published: true, changeFrequency: 'daily', priority: 0.7 },
   { path: '/glossary', label: 'Terms & definitions', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/about', label: 'About', published: true, changeFrequency: 'yearly', priority: 0.5 },
   { path: '/contact', label: 'Contact', published: false, changeFrequency: 'yearly', priority: 0.5 },
@@ -297,10 +272,6 @@ export const SIGN_UP_PATH = '/sign-up';
  * changes here, together with the free offer in softwareApplicationSchema.
  */
 export const SIGN_UP_CTA = 'Start for free';
-
-export function publishedModules(): MarketingModule[] {
-  return MODULES.filter((m) => m.published);
-}
 
 export function modulePath(slug: string): string {
   return `/features/${slug}`;

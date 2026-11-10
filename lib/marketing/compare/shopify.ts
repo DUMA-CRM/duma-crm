@@ -34,11 +34,10 @@ export const DUMA_VS_SHOPIFY: Comparison = {
   },
   table: {
     title: 'DUMA and Shopify, side by side',
-    intro: 'Shopify’s figures are from its UK website. DUMA’s are from the product today.',
     rows: [
       {
         job: 'Monthly price',
-        duma: 'Free plan, forever, with no card needed. Business is £89 a month, coming soon.',
+        duma: 'Free plan, forever, with no card needed. Business is £49 a month, coming soon.',
         them: 'Basic £25, Grow £65, Advanced £344 a month paid monthly (£19, £49, £259 paid yearly). Plus from £1,800 a month.',
         source: SHOPIFY_PRICING,
       },
@@ -101,21 +100,13 @@ export const DUMA_VS_SHOPIFY: Comparison = {
   },
   pricing: {
     title: 'What Shopify costs',
-    intro:
-      'Read on Shopify’s UK website on 2 November 2026. Shopify changes its prices from time to time, so check the linked page before you decide.',
     facts: [
-      {
-        text: 'Basic £25 a month, Grow £65, Advanced £344 when paid monthly; £19, £49 and £259 a month when paid yearly. Plus starts at £1,800 a month.',
-        source: SHOPIFY_PRICING,
-      },
       {
         text: 'Online card rates with Shopify Payments: 2% + 25p (Basic), 1.7% + 25p (Grow), 1.5% + 25p (Advanced), 1.3% + 25p (Plus).',
         source: SHOPIFY_PRICING,
       },
       { text: 'In-person card rates: 1.7% (Basic), 1.6% (Grow), 1.5% (Advanced and Plus).', source: SHOPIFY_PRICING },
       { text: 'Using a payment provider other than Shopify Payments adds a fee of 2%, 1%, 0.6% or 0.2% by plan.', source: SHOPIFY_PRICING },
-      { text: 'POS Pro: £69 a month per location, billed yearly.', source: SHOPIFY_POS_PRICING },
-      { text: 'Email: up to 10,000 emails a month free.', source: SHOPIFY_EMAIL },
     ],
     bill: {
       title: 'A shop on Shopify, selling in person',
@@ -129,11 +120,6 @@ export const DUMA_VS_SHOPIFY: Comparison = {
       title: 'The in-person side on DUMA',
       note: 'The till, stock by size and colour, rotas and loyalty on the free plan.',
     },
-    duma: [
-      'Free, forever, with no card needed. The till, orders, payments, products, stock, customers and rotas stay free in full. Every other part keeps a free allowance.',
-      'Business is £89 a month, or £80 a month paid yearly. It is coming soon, and anyone who joins before it launches keeps 10% off for life.',
-      'DUMA takes no cut of your card payments, and has no extra fee for using another payment provider.',
-    ],
   },
   stronger: {
     title: 'Where Shopify is stronger',
@@ -262,7 +248,7 @@ export const DUMA_VS_SHOPIFY: Comparison = {
     {
       question: 'Is DUMA a Shopify POS alternative?',
       answer:
-        'For in-person selling, yes. DUMA’s till is free in full and keeps working offline for cash and card-machine sales. Shopify’s POS Pro is £69 a month per location, billed yearly (as of November 2026). The catch is stock: DUMA does not sync with Shopify yet.',
+        'For in-person selling, yes. DUMA’s till is free in full and keeps working offline for cash and card-machine sales. Shopify’s POS Pro is £69 a month per location, billed yearly (as of November 2026).',
     },
     {
       question: 'Does DUMA connect to Shopify?',
@@ -282,12 +268,11 @@ export const DUMA_VS_SHOPIFY: Comparison = {
     {
       question: 'How much does DUMA cost?',
       answer:
-        'DUMA has a free plan forever, with no card needed. Business will be £89 a month, or £80 a month paid yearly, and is coming soon.',
+        'DUMA has a free plan forever, with no card needed. Business will be £49 a month, or £539 a year with one month free, and is coming soon.',
     },
   ],
   closing: {
     title: 'Keep your storefront.',
     muted: 'Run the shop floor on DUMA.',
-    body: 'Start free in minutes, with no card needed. We’ll help you import your products and set up the till.',
   },
 };
