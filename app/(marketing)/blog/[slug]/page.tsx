@@ -159,7 +159,7 @@ export default async function BlogPostPage({ params }: { params: Promise<{ slug:
           <aside className="hidden lg:block" aria-label="About this post">
             <div className="sticky top-24 flex flex-col gap-8">
               <TableOfContents headings={headings} />
-              <SideSignUpCard body="Till, stock, rotas, customers and reports — on one bill." className="mt-2" />
+              <SideSignUpCard body="Till, stock, rotas, customers and reports — in one place." className="mt-2" />
             </div>
           </aside>
         </div>

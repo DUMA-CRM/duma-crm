@@ -34,7 +34,7 @@ export type Pain = { pain: string; answer: string };
 export const FOOD_PAINS: readonly Pain[] = [
   {
     pain: 'Paying for a different app for every job',
-    answer: 'Till, kitchen screen, stock, rotas, bookings, loyalty and email are one workspace and one bill, with a free plan to start on.',
+    answer: 'Till, kitchen screen, stock, rotas, bookings, loyalty and email are one workspace, with a free plan to start on.',
   },
   {
     pain: 'Guessing the margin on each dish',

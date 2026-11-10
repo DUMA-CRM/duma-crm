@@ -23,7 +23,7 @@ export const DUMA_VS_SQUARE: Comparison = {
     lead: 'DUMA vs Square:',
     mark: 'keep the card machine, add the rest',
     subtitle:
-      'Square is a strong way to take card payments. DUMA is the system around the payment: till, stock, recipe margin, rotas, customers and reports, on one bill. Many businesses will want both, and that works.',
+      'Square is a strong way to take card payments. DUMA is the system around the payment: till, stock, recipe margin, rotas, customers and reports, in one place. Many businesses will want both, and that works.',
     ticks: ['Keep your Square Terminal', 'Free plan, forever', 'Till works offline'],
   },
   verdict: {
@@ -190,7 +190,7 @@ export const DUMA_VS_SQUARE: Comparison = {
     intro: 'DUMA’s case is the other side of the till: what a sale does to your stock, your margin, your rota and your regulars.',
     items: [
       {
-        title: 'One bill instead of add-ons',
+        title: 'Built in, not add-ons',
         icon: 'bill',
         tone: 'action',
         body: 'Stock, rotas, loyalty and email are part of the same workspace rather than separate monthly charges per location. Switch on only the parts you need.',

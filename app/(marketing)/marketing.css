@@ -234,6 +234,108 @@ html:has(.mkt) {
   }
 }
 
+/* The rota builder's print copy (components/marketing/tools/RotaBuilder.tsx):
+   rendered into <body>, hidden on screen, and the only thing on the page when
+   it prints — so Print and "Save as PDF" both give a clean landscape rota. */
+.rota-print {
+  display: none;
+}
+
+@page rota {
+  size: A4 landscape;
+  margin: 12mm;
+}
+
+@media print {
+  body:has(> .rota-print) {
+    background: #fff;
+  }
+
+  body:has(> .rota-print) > :not(.rota-print) {
+    display: none !important;
+  }
+
+  .rota-print {
+    display: block;
+    page: rota;
+    color: #0a0a0a;
+    font-size: 10pt;
+  }
+
+  .rota-print h1 {
+    font-size: 18pt;
+    font-weight: 600;
+  }
+
+  .rota-print-week {
+    margin-top: 2pt;
+    color: #5f6b66;
+  }
+
+  .rota-print table {
+    width: 100%;
+    margin-top: 10pt;
+    border-collapse: collapse;
+    table-layout: fixed;
+  }
+
+  .rota-print th,
+  .rota-print td {
+    border: 0.5pt solid #d9d8d4;
+    padding: 5pt 6pt;
+    text-align: center;
+    vertical-align: middle;
+  }
+
+  .rota-print tbody th,
+  .rota-print tfoot th {
+    text-align: left;
+    width: 20%;
+  }
+
+  .rota-print thead th,
+  .rota-print tfoot th,
+  .rota-print tfoot td {
+    background: #f4f3ef;
+    print-color-adjust: exact;
+    -webkit-print-color-adjust: exact;
+  }
+
+  .rota-print th span,
+  .rota-print td span {
+    display: block;
+    font-size: 8pt;
+    font-weight: 400;
+    color: #5f6b66;
+  }
+
+  .rota-print tr {
+    break-inside: avoid;
+  }
+
+  .rota-print .rota-print-total {
+    text-align: right;
+  }
+
+  .rota-print-facts {
+    margin-top: 10pt;
+    font-weight: 600;
+  }
+
+  .rota-print-warnings {
+    margin-top: 6pt;
+    padding-left: 12pt;
+    list-style: disc;
+    color: #8a5b02;
+  }
+
+  .rota-print-credit {
+    margin-top: 10pt;
+    font-size: 8pt;
+    color: #9aa29e;
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   html:has(.mkt) {
     scroll-behavior: auto;

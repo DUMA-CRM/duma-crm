@@ -201,7 +201,7 @@ export const DUMA_VS_SUNDAY: Comparison = {
         body: 'Rotas, clock-ins on staff phones and leave requests, with labour cost next to sales.',
       },
       {
-        title: 'One bill, or none',
+        title: 'No fee for the basics',
         icon: 'bill',
         tone: 'action',
         body: 'The till, stock, rotas and customers are on the free plan. No monthly fee for a layer on top.',

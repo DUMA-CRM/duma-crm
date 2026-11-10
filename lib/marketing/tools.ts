@@ -31,6 +31,12 @@ export const FREE_TOOLS: readonly FreeTool[] = [
     summary: 'Till cash-up calculator: over, short and what to bank',
     terms: ['cash-up', 'net-sales', 'discounts-and-voids'],
   },
+  {
+    path: '/tools/rota-builder',
+    name: 'Staff rota builder',
+    summary: 'Staff rota builder, with hours, cost and breaks',
+    terms: ['staff-rota', 'labour-cost-percentage', 'prime-cost'],
+  },
 ];
 
 export function freeTool(path: string): FreeTool {

@@ -3,6 +3,8 @@ import Link from 'next/link';
 import { BrandBackdrop } from '@/components/shared/BrandBackdrop';
 import { Logo } from '@/components/shared/Logo';
 
+import '../(marketing)/marketing.css';
+
 /**
  * Privacy policy, terms of service, the DPA, the GDPR page and company information. Public on purpose — both are linked from
  * the landing page and must be readable before anyone has an account, so the
@@ -10,7 +12,7 @@ import { Logo } from '@/components/shared/Logo';
  */
 export default function LegalLayout({ children }: { children: React.ReactNode }) {
   return (
-    <div className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-background text-foreground">
+    <div className="mkt relative isolate flex min-h-dvh flex-col overflow-hidden">
       <BrandBackdrop />
 
       <div className="flex flex-1 flex-col items-center px-4 py-12 sm:py-16">
@@ -19,7 +21,7 @@ export default function LegalLayout({ children }: { children: React.ReactNode })
           <span className="mt-3 text-2xl font-semibold tracking-display text-foreground">DUMA</span>
         </Link>
 
-        <main className="mt-8 w-full max-w-3xl rounded-xl border border-rule/60 bg-card/95 p-6 shadow-lg backdrop-blur-sm sm:p-10">
+        <main className="mt-8 w-full max-w-3xl mkt-card p-6 sm:p-10">
           {children}
         </main>
       </div>

@@ -141,7 +141,7 @@ const content: SolutionContent = {
           { job: 'Stock by size, colour and location', mark: 'yes', note: 'With transfers' },
           { job: 'Stocktakes and supplier orders', mark: 'yes' },
           { job: 'Loyalty and promotions', mark: 'yes' },
-          { job: 'Everything in one place', mark: 'yes', note: 'One login, one bill' },
+          { job: 'Everything in one place', mark: 'yes', note: 'One login for everything' },
         ],
       },
     ],

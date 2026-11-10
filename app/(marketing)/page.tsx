@@ -74,7 +74,7 @@ import { linkTo } from '@/lib/marketing/site';
 import { cn } from '@/lib/utils/cn';
 
 const DESCRIPTION =
-  'Till, orders, stock, rotas, customers and reports in one place, on one bill. Free plan, no card needed. For UK cafés, food businesses and small shops.';
+  'Till, orders, stock, rotas, customers and reports in one place. Free plan, no card needed. For UK cafés, food businesses and small shops.';
 
 // Title and H1 say the same thing in different words — Google builds the
 // title link from both, and a slogan in either would waste the page's

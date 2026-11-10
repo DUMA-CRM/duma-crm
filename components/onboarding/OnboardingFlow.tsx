@@ -213,6 +213,21 @@ function Flow() {
               </Button>
             </div>
           )}
+          {/* The owner accepts the terms for the business here — the only point an account is created.
+              New tabs, so following a link doesn't abandon the questionnaire. */}
+          {step === 'review' && (
+            <p className="mt-4 text-right text-xs text-muted-foreground">
+              By creating a workspace, you agree to our{' '}
+              <Link href="/terms" target="_blank" rel="noopener" className="font-semibold text-primary hover:text-primary-hover">
+                Terms of Service
+              </Link>{' '}
+              and{' '}
+              <Link href="/privacy" target="_blank" rel="noopener" className="font-semibold text-primary hover:text-primary-hover">
+                Privacy Policy
+              </Link>
+              .
+            </p>
+          )}
         </form>
       </main>
     </FlowFrame>

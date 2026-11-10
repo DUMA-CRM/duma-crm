@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { resetAnalytics, track } from '@/lib/analytics/client';
-import { signIn, signOut } from '@/lib/modules/identity/client';
+import { signIn, signOut, startGoogleSignIn } from '@/lib/modules/identity/client';
+import { signInDestination } from '@/lib/utils/sign-in';
 import { useAuthStore } from '@/stores/authStore';
 import { useLoginIntroStore } from '@/stores/loginIntroStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -17,6 +18,7 @@ export function useAuth() {
   const qc = useQueryClient();
   const { user, setUser, setRole } = useAuthStore();
   const [isLoading, setIsLoading] = useState(false);
+  const [isGoogleLoading, setIsGoogleLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   async function login(email: string, password: string) {
@@ -29,26 +31,32 @@ export function useAuth() {
       // Armed before navigating so the intro is already up when the CRM layout
       // paints — it doubles as cover for the dashboard's first data fetches.
       useLoginIntroStore.getState().start();
-      // Honour ?next= from the auth guard only when it resolves to this origin.
-      const next = new URLSearchParams(window.location.search).get('next');
-      let destination = '/dashboard';
-      if (next?.startsWith('/')) {
-        try {
-          const target = new URL(next, window.location.origin);
-          if (target.origin === window.location.origin) destination = `${target.pathname}${target.search}${target.hash}`;
-        } catch {
-          // Keep the dashboard as the safe fallback for malformed destinations.
-        }
-      }
       // The session cookie is set by the API response. A full document
       // navigation makes the dashboard's server-side session guard read that
       // newly stored cookie, instead of racing an App Router transition.
-      window.location.replace(destination);
+      window.location.replace(destinationFromLocation());
     } catch (err) {
       track('sign_in_failed');
       setError(err instanceof Error ? err.message : 'Sign in failed. Check your credentials.');
     } finally {
       setIsLoading(false);
+    }
+  }
+
+  // Leaves the page for Google. The API's callback sets the session cookie and
+  // lands on the destination directly, or back here with `?error=CODE`.
+  async function loginWithGoogle() {
+    setIsGoogleLoading(true);
+    setError(null);
+    try {
+      const { origin } = window.location;
+      const url = await startGoogleSignIn(`${origin}${destinationFromLocation()}`, `${origin}/sign-in`);
+      track('google_sign_in_started', undefined, { beforeNavigation: true });
+      window.location.assign(url);
+    } catch {
+      track('sign_in_failed');
+      setError('Google sign-in isn’t available right now. Use your email and password.');
+      setIsGoogleLoading(false);
     }
   }
 
@@ -74,5 +82,9 @@ export function useAuth() {
     router.replace('/sign-in');
   }
 
-  return { user, login, logout, isLoading, error };
+  return { user, login, loginWithGoogle, logout, isLoading, isGoogleLoading, error };
+}
+
+function destinationFromLocation() {
+  return signInDestination(new URLSearchParams(window.location.search).get('next'), window.location.origin);
 }

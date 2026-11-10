@@ -51,6 +51,17 @@ export async function signIn(email: string, password: string): Promise<AuthSessi
   });
 }
 
+// Start "Sign in with Google". Returns Google's consent URL; Google comes back
+// through /be to the API, which sets the session cookie and redirects to
+// `callbackURL`, or to `errorCallbackURL?error=CODE`. Both must be absolute.
+export async function startGoogleSignIn(callbackURL: string, errorCallbackURL: string): Promise<string> {
+  const { url } = await apiFetch<{ url: string; redirect: boolean }>('/auth/sign-in/social', {
+    method: 'POST',
+    body: JSON.stringify({ provider: 'google', callbackURL, errorCallbackURL }),
+  });
+  return url;
+}
+
 export interface WorkspaceSignupInput {
   businessName: string;
   workspaceSlug: string;

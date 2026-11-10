@@ -9,6 +9,8 @@ import { Button } from '@/components/ui/button';
 
 import { marketingMetadata } from '@/lib/marketing/metadata';
 
+import '../(marketing)/marketing.css';
+
 export const metadata: Metadata = marketingMetadata({
   title: 'Get started · DUMA',
   description: 'Open your DUMA workspace or create a new one.',
@@ -24,7 +26,7 @@ export const metadata: Metadata = marketingMetadata({
  */
 export default function WelcomePage() {
   return (
-    <main className="relative isolate flex min-h-dvh flex-col overflow-hidden bg-background text-foreground">
+    <main className="mkt relative isolate flex min-h-dvh flex-col overflow-hidden">
       <BrandBackdrop />
 
       <section className="flex flex-1 flex-col items-center justify-center px-4 py-16 text-center">

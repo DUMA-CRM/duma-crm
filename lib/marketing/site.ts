@@ -238,6 +238,7 @@ export const PAGES: readonly MarketingPage[] = [
   { path: '/tools', label: 'All tools', published: true, changeFrequency: 'monthly', priority: 0.7 },
   { path: '/tools/margin-calculator', label: 'Menu margin calculator', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/tools/cash-up-calculator', label: 'Cash-up calculator', published: true, changeFrequency: 'monthly', priority: 0.8 },
+  { path: '/tools/rota-builder', label: 'Staff rota builder', published: true, changeFrequency: 'monthly', priority: 0.8 },
   { path: '/developers', label: 'Public API', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/developers/mcp', label: 'MCP', published: true, changeFrequency: 'monthly', priority: 0.6 },
   { path: '/developers/webhooks', label: 'Webhooks', published: true, changeFrequency: 'monthly', priority: 0.6 },
@@ -348,7 +349,7 @@ export function headerNav(): { links: NavLink[]; resources: NavLink[] } {
       ...(blog
         ? [{ label: 'Blog', path: blog.path, description: 'Guides for cafés, restaurants and small shops', icon: 'blog' as const }]
         : []),
-      ...(tools ? [{ label: 'Tools', path: tools.path, description: 'Free calculators for margin, GP and cashing up', icon: 'tools' as const }] : []),
+      ...(tools ? [{ label: 'Tools', path: tools.path, description: 'Free calculators and a rota builder', icon: 'tools' as const }] : []),
     ],
   };
 }

@@ -86,7 +86,7 @@ export function MarketingFooter() {
             </span>
           </Link>
           <p className="mt-4 max-w-[28ch] text-pretty text-[0.9375rem] leading-relaxed text-[var(--mkt-ink-2)]">
-            Run your whole business from one place, on one bill.
+            Run your whole business from one place.
           </p>
           <ul className="mt-4 -ml-2 flex items-center gap-0.5" aria-label="Find the founder on">
             {FOUNDER_PROFILES.map((profile) => {

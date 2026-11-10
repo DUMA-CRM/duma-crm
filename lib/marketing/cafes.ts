@@ -30,7 +30,7 @@ export const CAFE_MISTAKES: readonly ListItem[] = [
   },
   {
     title: 'Paying for a different app for every job.',
-    body: 'A till app, a rota app, a booking app, an email tool and a spreadsheet for stock — five bills and five logins that never agree. DUMA is one workspace and one bill, with a free plan to start on.',
+    body: 'A till app, a rota app, a booking app, an email tool and a spreadsheet for stock — five bills and five logins that never agree. DUMA is one workspace and one login, with a free plan to start on.',
   },
   {
     title: 'Writing the rota in a group chat.',
@@ -124,13 +124,13 @@ export const CAFE_COMPARISON: readonly ComparisonOption[] = [
   {
     title: 'DUMA',
     summary: 'Till, kitchen screen, recipes and margin, stock, rotas, customers and reports in one workspace.',
-    bestFor: 'Cafés that want one place and one bill — free to start',
+    bestFor: 'Cafés that want everything in one place — free to start',
     rows: [
       { job: 'Till and payments', mark: 'yes', note: 'Keep your card machine' },
       { job: 'Stock and recipe margin', mark: 'yes', note: 'VAT-aware' },
       { job: 'Rotas and clock-ins', mark: 'yes' },
       { job: 'Loyalty and email', mark: 'yes' },
-      { job: 'Everything in one place', mark: 'yes', note: 'One login, one bill' },
+      { job: 'Everything in one place', mark: 'yes', note: 'One login for everything' },
     ],
   },
 ];

@@ -22,7 +22,7 @@ export const DUMA_VS_SHOPIFY: Comparison = {
     lead: 'DUMA vs Shopify:',
     mark: 'keep your storefront',
     subtitle:
-      'Shopify is the place to run an online store, and DUMA does not replace it. DUMA is for the parts around the shop window: a till for your shop or pop-ups, rotas, customers, loyalty, email and reports, on one bill.',
+      'Shopify is the place to run an online store, and DUMA does not replace it. DUMA is for the parts around the shop window: a till for your shop or pop-ups, rotas, customers, loyalty, email and reports, in one place.',
     ticks: ['Keep your Shopify store', 'Free plan, forever', 'Till works offline'],
   },
   verdict: {

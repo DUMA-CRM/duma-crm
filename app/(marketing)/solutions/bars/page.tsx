@@ -139,13 +139,13 @@ const content: SolutionContent = {
       {
         title: 'DUMA',
         summary: 'Till, bookings and waitlist, drinks with margin, rotas, cash-up and reports in one workspace.',
-        bestFor: 'Bars that want one place and one bill — free to start',
+        bestFor: 'Bars that want everything in one place — free to start',
         rows: [
           { job: 'Fast till and payments', mark: 'yes', note: 'Keep your card machine' },
           { job: 'Drinks costed by recipe', mark: 'yes', note: 'VAT-aware' },
           { job: 'Table bookings and waitlist', mark: 'yes', note: 'Guest booking page' },
           { job: 'Rotas and cash-up', mark: 'yes' },
-          { job: 'Everything in one place', mark: 'yes', note: 'One login, one bill' },
+          { job: 'Everything in one place', mark: 'yes', note: 'One login for everything' },
         ],
       },
     ],

@@ -338,6 +338,7 @@ Many restaurants and cafés aim for roughly 25–35%; counter-service businesses
 ## Tracking it in DUMA
 
 The **Labour vs sales** report shows labour cost, labour % and sales per labour hour, from the rota and the hours your team clocked. **Sales by hour** shows when in the day you trade, so you can build the rota around it.
+Check next week's labour % before the rota goes out with the free [rota builder](/tools/rota-builder): add your expected sales and it shows staff cost as a share of them.
 `,
     faq: [
       {
@@ -1205,6 +1206,8 @@ If you expect £18,000 of sales next week and aim for 28% labour, you have about
 ## Tracking it in DUMA
 
 Build the week's rota and publish it to the team, with open shifts for people to pick up. Staff clock in and out on the device, so planned and worked hours sit side by side. The **Sales by hour** report shows when you trade, and **Labour vs sales** shows labour %, and sales per labour hour, against what you took.
+
+Plan a week now, with the hours, staff cost and break checks worked out, in the free [rota builder](/tools/rota-builder).
 `,
     faq: [
       {

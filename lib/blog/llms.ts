@@ -11,7 +11,7 @@ import { absoluteUrl } from '@/lib/marketing/site';
  */
 
 const PAGES: { title: string; path: string; summary: string }[] = [
-  { title: 'Home', path: '/', summary: 'What DUMA is: one place to run a small business, on one bill.' },
+  { title: 'Home', path: '/', summary: 'What DUMA is: one place to run a small business.' },
   { title: 'Pricing', path: '/pricing', summary: 'Free forever plan; Business at £89 a month or £80 a month paid yearly, coming soon.' },
   {
     title: 'Cafés and restaurants',
@@ -95,7 +95,8 @@ const PAGES: { title: string; path: string; summary: string }[] = [
   {
     title: 'Free tools',
     path: '/tools',
-    summary: 'Free calculators for UK cafés, restaurants and shops: menu margin and GP after VAT, and till cash-up. No sign-up.',
+    summary:
+      'Free tools for UK cafés, restaurants and shops: menu margin and GP after VAT, till cash-up and a staff rota builder. No sign-up.',
   },
   {
     title: 'Menu margin calculator',
@@ -108,6 +109,12 @@ const PAGES: { title: string; path: string; summary: string }[] = [
     path: '/tools/cash-up-calculator',
     summary:
       'Free till cash-up calculator: count the drawer, see if it is over or short against the float and cash sales, and what to bank.',
+  },
+  {
+    title: 'Staff rota builder',
+    path: '/tools/rota-builder',
+    summary:
+      'Free staff rota builder: plan the week’s shifts, see paid hours, staff cost and labour % in any currency, check breaks and rest against your country’s limits, then print, save as PDF or download an image.',
   },
   { title: 'Public API', path: '/developers', summary: 'Store, Content and management APIs with one scoped workspace key.' },
   { title: 'MCP server', path: '/developers/mcp', summary: 'Connect an AI assistant to a DUMA workspace.' },
@@ -131,7 +138,7 @@ const PAGES: { title: string; path: string; summary: string }[] = [
 
 const INTRO = `# DUMA
 
-> DUMA is the one place to run a small business — till, orders, stock, rotas, customers, marketing and reports in one workspace, on one bill. Built for cafés, restaurants, bars, bakeries and small shops in the UK. Free plan forever, no card needed.
+> DUMA is the one place to run a small business — till, orders, stock, rotas, customers, marketing and reports in one workspace. Built for cafés, restaurants, bars, bakeries and small shops in the UK. Free plan forever, no card needed.
 
 ## Facts
 

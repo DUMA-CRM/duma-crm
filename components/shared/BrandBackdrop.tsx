@@ -1,28 +1,18 @@
+import { ChalkCurve } from '@/components/marketing/Strokes';
+
 /**
- * The public-surface ground: the plot-field grid at its major step, faded out
- * from the centre so it reads as texture rather than chrome, with a soft brand
- * glow behind whatever sits in the middle. Shared by the landing page and the
- * (auth) frame so the front door and the sign-in screen are one place.
- *
- * Place inside a `relative isolate` container; it draws at -z-10.
+ * The public-surface ground outside the marketing layout: the home hero's two
+ * chalk curves, so the front door, sign-in, sign-up's neighbours and the legal
+ * pages are one place. The paper colour and the curves' ink come from `.mkt`,
+ * so place it inside a `mkt relative isolate` container in a file that imports
+ * `app/(marketing)/marketing.css`. Hidden below `md`, as on the home page —
+ * on a phone the form is the page.
  */
 export function BrandBackdrop() {
   return (
-    <>
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute inset-0 -z-10 mask-[radial-gradient(ellipse_at_center,black_10%,transparent_70%)]"
-        style={{
-          backgroundImage:
-            'linear-gradient(to right, var(--grid-major) 1px, transparent 1px), linear-gradient(to bottom, var(--grid-major) 1px, transparent 1px)',
-          backgroundSize: 'var(--grid-major-step) var(--grid-major-step)',
-          backgroundPosition: 'center center',
-        }}
-      />
-      <div
-        aria-hidden="true"
-        className="pointer-events-none absolute top-1/2 left-1/2 -z-10 size-144 -translate-x-1/2 -translate-y-1/2 rounded-full bg-primary/10 blur-3xl"
-      />
-    </>
+    <div aria-hidden="true" className="pointer-events-none absolute inset-0 -z-10 hidden md:block">
+      <ChalkCurve side="left" id="backdrop-left" className="absolute top-0 -left-24 w-[34rem]" />
+      <ChalkCurve side="right" id="backdrop-right" className="absolute top-56 -right-40 w-[44rem]" />
+    </div>
   );
 }

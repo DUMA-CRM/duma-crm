@@ -142,13 +142,13 @@ const content: SolutionContent = {
       {
         title: 'DUMA',
         summary: 'Till, recipes and margin, waste, stock and supplier orders and reports in one workspace.',
-        bestFor: 'Bakeries that want one place and one bill — free to start',
+        bestFor: 'Bakeries that want everything in one place — free to start',
         rows: [
           { job: 'Till and payments', mark: 'yes', note: 'Keep your card machine' },
           { job: 'Recipe costing and margin', mark: 'yes', note: 'VAT rate per item' },
           { job: 'Waste tracking', mark: 'yes', note: 'Valued at cost' },
           { job: 'Stock and supplier orders', mark: 'yes' },
-          { job: 'Everything in one place', mark: 'yes', note: 'One login, one bill' },
+          { job: 'Everything in one place', mark: 'yes', note: 'One login for everything' },
         ],
       },
     ],

@@ -512,6 +512,53 @@
         }
       }
     },
+    "/v1/auth/sign-in/social": {
+      "post": {
+        "tags": [
+          "Auth"
+        ],
+        "summary": "Start sign-in with Google",
+        "description": "Returns `{ url, redirect }`: the Google consent URL to send the browser to. Google returns to `/auth/callback/google`, which sets the session cookie and redirects to `callbackURL`, or to `errorCallbackURL?error=CODE`. Sign-in only — an address with no account fails with `signup_disabled`.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "provider"
+                ],
+                "properties": {
+                  "provider": {
+                    "type": "string",
+                    "enum": [
+                      "google"
+                    ]
+                  },
+                  "callbackURL": {
+                    "type": "string",
+                    "format": "uri"
+                  },
+                  "errorCallbackURL": {
+                    "type": "string",
+                    "format": "uri"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "`{ url, redirect: true }`"
+          },
+          "404": {
+            "description": "Google sign-in is not configured"
+          }
+        },
+        "operationId": "postV1AuthSignInSocial"
+      }
+    },
     "/v1/auth/get-session": {
       "get": {
         "operationId": "getV1AuthGetSession",

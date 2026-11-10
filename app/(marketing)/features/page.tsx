@@ -160,7 +160,7 @@ export default function FeaturesIndexPage() {
               Everything DUMA does, <span className="mkt-mark mkt-mark-green rounded-md px-2">in one place</span>
             </h1>
             <p className="mt-6 max-w-[56rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">
-              An EPOS till, orders, stock, recipe costing, rotas, customers, marketing and reports share one workspace and one bill. Switch
+              An EPOS till, orders, stock, recipe costing, rotas, customers, marketing and reports share one workspace. Switch
               on the parts you need; every sale updates the rest.
             </p>
             <div className="mt-8 flex flex-wrap gap-3">

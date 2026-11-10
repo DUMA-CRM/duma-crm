@@ -54,7 +54,7 @@ capabilities, never by role rank** — `ROLE_RANK` was deleted on purpose (see
 ## Product Purpose
 
 **A business operating system: every tool a small business runs on, in one
-place, on one bill.** DUMA replaces the usual stack — a till, a kitchen screen, a
+place.** DUMA replaces the usual stack — a till, a kitchen screen, a
 stock spreadsheet, a rota app, a booking app, an email tool, a loyalty app, a
 website CMS — with one application whose parts share one database, so a sale
 updates stock, the customer's profile, margin and reports without anyone
@@ -71,14 +71,14 @@ one place.
 ## Positioning
 
 Lift pitch: *DUMA is the one system a small business runs on. Till, orders,
-stock, rotas, customers, marketing and reports in one place, on one bill, on the
+stock, rotas, customers, marketing and reports in one place, on the
 phone, tablet or laptop you already own, alongside the card terminal you already
-have.* Working tagline: **"Run your whole business from one place, on one bill."**
+have.* Working tagline: **"Run your whole business from one place."**
 
 The claims a neighbouring product (Square, SumUp, Lightspeed, Epos Now, Toast,
 Shopify + apps, Deputy, Mailchimp) could not truthfully copy in full:
 
-1. **One system, one bill, no add-ons.** POS, KDS, inventory, purchasing, rota,
+1. **One system, no add-ons.** POS, KDS, inventory, purchasing, rota,
    HR, payroll preparation, loyalty, promotions, email, forms, CMS and reporting
    ship in the same application. Competitors sell these as paid modules or
    third-party apps.

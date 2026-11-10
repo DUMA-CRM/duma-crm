@@ -1,7 +1,7 @@
 import type { Metadata } from 'next';
 import Link from 'next/link';
 
-import { ArrowUpRight, Banknote, BookOpen, Calculator, Check } from '@/components/icons';
+import { ArrowUpRight, Banknote, BookOpen, Calculator, CalendarDays, Check } from '@/components/icons';
 import { JsonLd } from '@/components/marketing/JsonLd';
 import { ChalkCurve, RisingLines } from '@/components/marketing/Strokes';
 import { COLUMN, ClosingCta, FaqSection, TONE_TEXT } from '@/components/marketing/sections';
@@ -13,7 +13,7 @@ import { FREE_TOOLS, TOOLS_INDEX, freeTool } from '@/lib/marketing/tools';
 import { cn } from '@/lib/utils/cn';
 
 const DESCRIPTION =
-  'Free calculators for UK cafés, restaurants and shops: menu margin and GP after VAT, and a till cash-up count. No sign-up, nothing leaves your browser.';
+  'Free tools for UK cafés, restaurants and shops: a menu margin and GP calculator, a till cash-up calculator and a printable staff rota builder. No sign-up.';
 
 export const metadata: Metadata = marketingMetadata({
   title: 'Free Tools for Cafés, Restaurants and Shops (UK) | DUMA',
@@ -128,13 +128,27 @@ const TOOLS: readonly Tool[] = [
       { stroke: 'var(--brand)', y: 96, amp: 9, period: 100, seconds: 22 },
     ],
   },
+  {
+    path: '/tools/rota-builder',
+    icon: CalendarDays,
+    tone: 'team',
+    tag: 'Any team',
+    title: freeTool('/tools/rota-builder').name,
+    body: 'Plan the week’s shifts, see the hours and what they cost, and catch missing breaks — then print it or send it as an image.',
+    does: ['Hours and cost, any currency', 'Break and rest checks', 'Print, PDF or image'],
+    waves: [
+      { stroke: 'var(--success)', y: 50, amp: 18, period: 200, seconds: 34 },
+      { stroke: 'var(--reference)', y: 76, amp: 14, period: 100, seconds: 26 },
+      { stroke: 'var(--stock)', y: 96, amp: 10, period: 400 / 3, seconds: 44 },
+    ],
+  },
 ];
 
 const FAQS = [
   {
     question: 'What free tools does DUMA have?',
     answer:
-      'Two calculators for UK cafés, restaurants and shops. The menu margin and GP calculator works out the gross profit and food cost of a dish or drink after VAT, and the price for a target margin. The cash-up calculator counts the till drawer note by note, shows whether it is over or short, and what to bank.',
+      'Three, for UK cafés, restaurants and shops. The menu margin and GP calculator works out the gross profit and food cost of a dish or drink after VAT, and the price for a target margin. The cash-up calculator counts the till drawer note by note, shows whether it is over or short, and what to bank. The staff rota builder plans the week’s shifts with hours, staff cost and break checks, in any currency, and prints or saves as a PDF or image.',
   },
   {
     question: 'Are these tools really free?',
@@ -143,12 +157,13 @@ const FAQS = [
   },
   {
     question: 'Is anything I type sent anywhere?',
-    answer: 'No. Every calculation runs in your browser. Nothing you enter is stored or sent to DUMA.',
+    answer:
+      'No. Everything runs in your browser and nothing you enter is sent to DUMA. The rota builder keeps your rota in this browser, on this device, so it is still there when you come back.',
   },
   {
     question: 'Do the tools use the same maths as DUMA?',
     answer:
-      'Yes. Each tool calls the same code as the part of DUMA it comes from — recipe costing for margin, the till cash-up for the drawer — so a figure here matches the one DUMA would show, to the penny.',
+      'The calculators do. The margin and cash-up calculators call the same code as recipe costing and the till cash-up in DUMA, so a figure here matches the one DUMA would show, to the penny. The rota builder plans one week on this page; rotas in DUMA add publishing to your team’s phones, clock-ins and labour against what you actually took.',
   },
 ];
 
@@ -218,8 +233,8 @@ export default function ToolsIndexPage() {
               Free calculators for the <span className="mkt-mark mkt-mark-green rounded-md px-2">numbers that matter</span>
             </h1>
             <p className="mt-6 max-w-[48rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">
-              Free business calculators for UK cafés, restaurants and shops: menu margin and GP after VAT, and a till cash-up — worked out
-              with the same code DUMA runs on.
+              Free business tools for UK cafés, restaurants and shops: menu margin and GP after VAT, a till cash-up and a staff rota. Free,
+              with no sign-up.
             </p>
             <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--mkt-ink-2)]">
               {['Free, no sign-up', 'UK VAT and currency', 'Nothing leaves your browser'].map((fact) => (
@@ -234,9 +249,9 @@ export default function ToolsIndexPage() {
 
         <section className="relative px-4 pt-8 pb-16 sm:px-6 sm:pb-20" aria-label="Tools">
           <div className={cn(COLUMN, 'relative z-10')}>
-            <ul className="grid gap-4 md:grid-cols-2">
+            <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
               {TOOLS.map((tool, index) => (
-                <li key={tool.path}>
+                <li key={tool.path} className="md:last:odd:col-span-2 lg:last:odd:col-span-1">
                   <ToolCard tool={tool} delay={index * 60} />
                 </li>
               ))}
