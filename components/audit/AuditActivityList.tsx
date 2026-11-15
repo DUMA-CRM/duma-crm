@@ -73,7 +73,7 @@ export function AuditActivityList({
     <div className="space-y-6">
       {groupsByDay(groups).map((day) => (
         <section key={day.day} aria-labelledby={`audit-day-${day.day}`}>
-          <h2 id={`audit-day-${day.day}`} className="mb-2 px-1 text-sm font-semibold text-foreground">
+          <h2 id={`audit-day-${day.day}`} className="mb-2 px-1 text-sm font-semibold text-heading">
             {dayHeading(day.day, now)}
           </h2>
           <ListRowGroup>
@@ -128,7 +128,7 @@ function GroupRow({
   const selected = !many && latest?.id === selectedId;
 
   return (
-    <li className="border-b border-rule/45 last:border-b-0">
+    <li className="border-b border-border last:border-b-0">
       <button
         type="button"
         onClick={() => (many ? onToggle() : latest && onSelect(latest))}
@@ -233,7 +233,7 @@ function GroupEntries({
                 )}
               >
                 <span className="flex size-9 shrink-0 items-center justify-center" aria-hidden="true">
-                  <span className="flex size-6 items-center justify-center rounded-md border border-rule/50 bg-field text-xs font-medium tabular-nums text-muted-foreground">
+                  <span className="flex size-6 items-center justify-center rounded-md border border-border bg-field text-xs font-medium tabular-nums text-muted-foreground">
                     {index + 1}.
                   </span>
                 </span>

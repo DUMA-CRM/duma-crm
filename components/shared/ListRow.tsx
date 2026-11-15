@@ -34,6 +34,9 @@ export function ListRow({
   onClick,
   href,
   selected = false,
+  pressed,
+  expanded,
+  targetLabel,
   muted = false,
   chevron,
   as: As = 'li',
@@ -55,6 +58,12 @@ export function ListRow({
   onClick?: () => void;
   href?: string;
   selected?: boolean;
+  /** For a row whose click toggles a choice (use this location here): the target reports `aria-pressed` instead of `aria-current`. */
+  pressed?: boolean;
+  /** For a row whose click opens its details underneath (an API key): the target reports `aria-expanded`. */
+  expanded?: boolean;
+  /** The target's accessible name, when the visible title alone doesn't say what the click does. */
+  targetLabel?: string;
   /** Finished, cancelled, archived: greyed, still readable. */
   muted?: boolean;
   chevron?: boolean;
@@ -111,7 +120,10 @@ export function ListRow({
     <div
       role="button"
       tabIndex={0}
-      aria-current={selected || undefined}
+      aria-current={pressed === undefined && expanded === undefined ? selected || undefined : undefined}
+      aria-pressed={pressed}
+      aria-expanded={expanded}
+      aria-label={targetLabel}
       onClick={onClick}
       onKeyDown={(event) => {
         if (event.key === 'Enter' || event.key === ' ') {
@@ -130,7 +142,7 @@ export function ListRow({
   return (
     <As
       className={cn(
-        'group/row flex items-center border-b border-rule/45 transition-colors last:border-b-0',
+        'group/row flex items-center border-b border-border transition-colors last:border-b-0',
         selected ? 'bg-band' : interactive ? 'hover:bg-band/40' : actions && 'hover:bg-band/25',
         className,
       )}
@@ -148,5 +160,5 @@ export function ListRow({
 
 /** The grouped white list surface shared by activity lists and content rows. */
 export function ListRowGroup({ className, ...props }: React.ComponentProps<'ul'>) {
-  return <ul className={cn('overflow-hidden rounded-lg border border-rule/60 bg-card', className)} {...props} />;
+  return <ul className={cn('overflow-hidden rounded-lg border border-border bg-card shadow-sm', className)} {...props} />;
 }

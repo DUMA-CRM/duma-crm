@@ -134,7 +134,7 @@ function SignInForm() {
           </>
         ) : (
           <div className="space-y-4 motion-safe:animate-in motion-safe:fade-in motion-safe:slide-in-from-bottom-1 motion-safe:duration-200">
-            <div className="flex items-center gap-3 rounded-md border border-rule/70 bg-band/40 px-3 py-2.5">
+            <div className="flex items-center gap-3 rounded-md border border-border bg-band/40 px-3 py-2.5">
               <Mail className="shrink-0 text-muted-foreground" size={16} aria-hidden="true" />
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{email}</span>
               <button

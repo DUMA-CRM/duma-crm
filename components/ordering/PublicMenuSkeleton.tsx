@@ -25,7 +25,7 @@ function ItemCardSkeleton({ index }: { index: number }) {
 export function PublicMenuSkeleton({ className }: { className?: string }) {
   return (
     <main className={cn('min-h-dvh bg-background pb-24 lg:pb-0', className)} role="status" aria-busy="true" aria-label="Loading the menu">
-      <header className="bg-sidebar" aria-hidden="true">
+      <header className="bg-panel" aria-hidden="true">
         <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
@@ -43,7 +43,7 @@ export function PublicMenuSkeleton({ className }: { className?: string }) {
           </div>
         </div>
       </header>
-      <div className="border-b border-rule/55 bg-background/95" aria-hidden="true">
+      <div className="border-b border-border bg-background/95" aria-hidden="true">
         <div className="mx-auto flex max-w-6xl gap-2 px-4 py-2 sm:px-6">
           {['w-20', 'w-24', 'w-16', 'w-28'].map((width) => (
             <Bone key={width} className={cn('h-9 rounded-lg', width)} />
@@ -67,7 +67,7 @@ export function PublicMenuSkeleton({ className }: { className?: string }) {
           className="hidden h-[calc(100dvh-7rem)] overflow-hidden rounded-lg bg-card shadow-md lg:sticky lg:top-20 lg:block"
           aria-hidden="true"
         >
-          <div className="flex items-center justify-between border-b border-rule/55 px-4 py-3">
+          <div className="flex items-center justify-between border-b border-border px-4 py-3">
             <Bone className="h-4 w-24" />
             <Bone className="h-4 w-14" />
           </div>
@@ -87,7 +87,7 @@ export function TrackedOrderSkeleton() {
       </div>
       <div className="p-6 sm:p-8" aria-hidden="true">
         <Bone className="h-3.5 w-full max-w-md" />
-        <div className="mt-7 divide-y divide-rule/45 border-y border-rule/55">
+        <div className="mt-7 divide-y divide-border border-y border-border">
           {['w-40', 'w-32', 'w-36'].map((width) => (
             <div key={width} className="flex items-center justify-between gap-4 py-3">
               <Bone className={cn('h-3.5', width)} />

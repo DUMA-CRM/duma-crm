@@ -16,7 +16,7 @@ const ContextMenuTrigger = ContextMenuPrimitive.Trigger;
 const ContextMenuSub = ContextMenuPrimitive.Sub;
 
 const surface =
-  'z-100 min-w-52 max-w-[calc(100vw-2rem)] rounded-lg border border-rule/70 bg-card p-1 text-foreground shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95';
+  'z-100 min-w-52 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-1 text-foreground shadow-lg outline-none data-[state=open]:animate-in data-[state=open]:fade-in-0 data-[state=open]:zoom-in-95';
 
 function ContextMenuContent({ className, ...props }: React.ComponentProps<typeof ContextMenuPrimitive.Content>) {
   return (
@@ -80,7 +80,7 @@ function ContextMenuSubContent({ className, ...props }: React.ComponentProps<typ
 }
 
 function ContextMenuSeparator({ className, ...props }: React.ComponentProps<typeof ContextMenuPrimitive.Separator>) {
-  return <ContextMenuPrimitive.Separator className={cn('my-1 h-px bg-rule/50', className)} {...props} />;
+  return <ContextMenuPrimitive.Separator className={cn('my-1 h-px bg-border', className)} {...props} />;
 }
 
 function ContextMenuLabel({ className, ...props }: React.ComponentProps<typeof ContextMenuPrimitive.Label>) {

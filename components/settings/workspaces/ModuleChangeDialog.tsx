@@ -255,7 +255,7 @@ export function ModuleChangeDialog({ preview, onClose }: { preview: ModuleChange
                   aria-pressed={active}
                   className={cn(
                     'inline-flex h-9 items-center gap-1.5 rounded-md border px-3 text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                    active ? 'border-primary bg-primary text-primary-foreground' : 'border-rule/60 bg-field text-foreground hover:bg-band',
+                    active ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-field text-foreground hover:bg-band',
                   )}
                 >
                   {active && <CheckCircle2 size={14} aria-hidden="true" />}

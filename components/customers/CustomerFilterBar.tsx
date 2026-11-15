@@ -5,27 +5,25 @@ import { type ReactNode, useEffect, useState } from 'react';
 
 import { Gift, Loader2, Search, SlidersHorizontal, X } from '@/components/icons';
 import { FilterChip } from '@/components/shared/FilterChip';
-import { SegmentedControl, type SegmentedOption } from '@/components/shared/SegmentedControl';
 import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { MultiSelect } from '@/components/ui/multi-select';
+import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { TIER_FILTERS } from '@/lib/constants/customers';
-import type { ListView as ListViewMode } from '@/stores/uiSettingsStore';
+import { cn } from '@/lib/utils/cn';
 import { DIETARY_PREFERENCES, FSA_ALLERGENS } from '@/types/customers';
 import type { Allergen, CustomerFilters, DietaryPreference } from '@/types/customers';
 
 /**
  * The customer list's controls, in one row.
  *
- * This bar used to be a four-tier card — search, a quick-filter strip, an
- * expandable grid and a summary line — that pushed the first customer a screen
- * down the page. It now works the way the orders and audit-log toolbars do: the
- * three questions asked daily stay as controls, everything else lives behind
- * "More filters", and the filters that are actually *on* come back as removable
- * chips underneath. Hiding a control is safe; hiding a filter is not.
+ * Search, saved segments and one Filters button — Square's customer directory
+ * has the same three. The everyday questions (can they be emailed, whose
+ * birthday, who has lapsed) are the quick-view tabs above, so nothing else
+ * needs to sit in the row. The filters that are actually *on* come back as
+ * removable chips underneath. Hiding a control is safe; hiding a filter is not.
  */
 
 const MONTHS = [
@@ -77,13 +75,32 @@ const DIETARY_OPTIONS = DIETARY_PREFERENCES.map((preference) => ({ value: prefer
 const optionLabel = (options: { value: string; label: string }[], value: string) =>
   options.find((option) => option.value === value)?.label ?? value;
 
+/**
+ * Allergy and dietary filters pick one, like every other select in the panel.
+ * A saved segment or an old link can still carry several; the select then
+ * names how many rather than pretending one was picked, and the chip removes them.
+ */
+const MANY = 'many';
+const pickedOne = (values: string[] | undefined) => (!values?.length ? 'off' : values.length === 1 ? values[0]! : MANY);
+const oneOf = (values: string[] | undefined, any: string, options: { value: string; label: string }[]) => [
+  { value: 'off', label: any },
+  ...((values?.length ?? 0) > 1 ? [{ value: MANY, label: `${values!.length} chosen` }] : []),
+  ...options,
+];
+
+function FilterField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>{label}</p>
+      {children}
+    </div>
+  );
+}
+
 interface Props {
   filters: CustomerFilters;
   onChange: (next: CustomerFilters | ((current: CustomerFilters) => CustomerFilters)) => void;
   onClear: () => void;
-  view: ListViewMode;
-  onViewChange: (next: ListViewMode) => void;
-  viewOptions: SegmentedOption<ListViewMode>[];
   /** The segment control, rendered inline so segments and filters share one row. */
   segments?: ReactNode;
   /** Total matching this query, from the server. */
@@ -101,9 +118,6 @@ export function CustomerFilterBar({
   filters,
   onChange,
   onClear,
-  view,
-  onViewChange,
-  viewOptions,
   segments,
   total,
   emailReachable,
@@ -160,9 +174,10 @@ export function CustomerFilterBar({
         ? `${filters.minTotalVisits} or more`
         : `${filters.maxTotalVisits} or fewer`;
 
-  // Only what the popover hides is counted — a badge that also counted the
-  // controls on show would read as unexplained.
+  // What the popover holds and is on.
   const advancedCount = [
+    filters.tier,
+    lastVisit === 'off' ? undefined : lastVisit,
     filters.birthdayMonth,
     filters.marketing,
     filters.minTotalSpent ?? filters.maxTotalSpent,
@@ -172,8 +187,7 @@ export function CustomerFilterBar({
     filters.activeWithinDays,
   ].filter((value) => value !== undefined && value !== 0).length;
 
-  const hasChips =
-    Boolean(filters.search) || Boolean(filters.tier) || lastVisit !== 'off' || advancedCount > 0 || Boolean(staleFilters?.length);
+  const hasChips = Boolean(filters.search) || advancedCount > 0 || Boolean(staleFilters?.length);
 
   return (
     <div className="space-y-2.5">
@@ -202,93 +216,84 @@ export function CustomerFilterBar({
           />
         </div>
 
-        <Select
-          value={filters.tier ?? 'all'}
-          onValueChange={(value) => set('tier', value === 'all' ? undefined : (value as CustomerFilters['tier']))}
-          options={TIER_FILTERS.map((tier) => ({ value: tier.value, label: tier.value === 'all' ? 'All tiers' : tier.label }))}
-          ariaLabel="Filter customers by loyalty tier"
-          className="w-[calc(50%-0.25rem)] sm:w-32"
-        />
-
-        <Select
-          value={lastVisit}
-          onValueChange={setLastVisit}
-          options={LAST_VISIT_OPTIONS}
-          ariaLabel="Filter by how long since the last visit"
-          className="w-[calc(50%-0.25rem)] sm:w-44"
-        />
-
         {segments}
 
         <Popover.Root open={advancedOpen} onOpenChange={setAdvancedOpen}>
           <Popover.Trigger asChild>
-            <Button variant="outline" className="w-[calc(50%-0.25rem)] sm:w-auto" aria-label="Open more customer filters">
+            <Button variant="outline" className="w-[calc(50%-0.25rem)] sm:w-auto" aria-label="Open customer filters">
               <SlidersHorizontal data-icon="inline-start" />
-              More filters
+              Filters
               {advancedCount > 0 && (
-                <span className="ml-0.5 flex size-5 items-center justify-center rounded-full bg-primary text-micro font-semibold text-primary-foreground">
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-sm bg-heading px-1 text-micro font-semibold tabular-nums text-background">
                   {advancedCount}
                 </span>
               )}
             </Button>
           </Popover.Trigger>
           <Popover.Portal>
+            {/* The Orders page's filter panel: one plain select per row, on a card. */}
             <Popover.Content
               align="end"
               sideOffset={8}
               collisionPadding={16}
-              className="z-90 w-[calc(100vw-2rem)] max-w-md overflow-y-auto rounded-xl border border-rule/60 bg-field p-4 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95 max-h-[min(32rem,var(--radix-popover-content-available-height))]"
+              className="z-90 w-[calc(100vw-2rem)] max-w-sm overflow-y-auto rounded-lg border border-border bg-card p-4 shadow-lg outline-none max-h-[var(--radix-popover-content-available-height)]"
             >
               <div className="mb-4 flex items-start justify-between gap-3">
-                <div>
-                  <h2 className="text-sm font-semibold text-foreground">More filters</h2>
-                  <p className="mt-0.5 text-xs text-muted-foreground">Narrow by birthday, marketing consent, value or guest safety.</p>
-                </div>
+                <h2 className="text-sm font-semibold text-heading">Filters</h2>
                 <Popover.Close asChild>
-                  <button
-                    type="button"
-                    aria-label="Close filters"
-                    className="flex size-7 shrink-0 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
-                  >
-                    <X size={14} aria-hidden="true" />
-                  </button>
+                  <Button variant="ghost" size="icon" aria-label="Close filters">
+                    <X />
+                  </Button>
                 </Popover.Close>
               </div>
 
               <div className="space-y-4">
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="space-y-1.5">
-                    <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Birthday</label>
-                    <Select
-                      value={filters.birthdayMonth ? String(filters.birthdayMonth) : 'off'}
-                      onValueChange={(value) => set('birthdayMonth', value === 'off' ? undefined : Number(value))}
-                      options={[
-                        { value: 'off', label: 'Any month' },
-                        ...MONTHS.map((month, index) => ({ value: String(index + 1), label: month })),
-                      ]}
-                      ariaLabel="Filter by birthday month"
-                      icon={<Gift />}
-                      className="w-full"
-                    />
-                  </div>
+                <FilterField label="Tier">
+                  <Select
+                    value={filters.tier ?? 'all'}
+                    onValueChange={(value) => set('tier', value === 'all' ? undefined : (value as CustomerFilters['tier']))}
+                    options={TIER_FILTERS.map((tier) => ({ value: tier.value, label: tier.value === 'all' ? 'Any tier' : tier.label }))}
+                    ariaLabel="Filter customers by loyalty tier"
+                    className="w-full"
+                  />
+                </FilterField>
 
-                  <div className="space-y-1.5">
-                    <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Marketing</label>
-                    <Select
-                      value={filters.marketing ?? 'off'}
-                      onValueChange={(value) => set('marketing', value === 'off' ? undefined : (value as CustomerFilters['marketing']))}
-                      options={MARKETING_OPTIONS}
-                      ariaLabel="Filter by marketing consent"
-                      className="w-full"
-                    />
-                  </div>
-                </div>
+                <FilterField label="Last visit">
+                  <Select
+                    value={lastVisit}
+                    onValueChange={setLastVisit}
+                    options={LAST_VISIT_OPTIONS}
+                    ariaLabel="Filter by how long since the last visit"
+                    className="w-full"
+                  />
+                </FilterField>
 
-                <fieldset className="min-w-0">
-                  <legend className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
-                    Lifetime spend ({symbol})
-                  </legend>
-                  <div className="mt-1.5 flex items-center gap-2">
+                <FilterField label="Birthday">
+                  <Select
+                    value={filters.birthdayMonth ? String(filters.birthdayMonth) : 'off'}
+                    onValueChange={(value) => set('birthdayMonth', value === 'off' ? undefined : Number(value))}
+                    options={[
+                      { value: 'off', label: 'Any month' },
+                      ...MONTHS.map((month, index) => ({ value: String(index + 1), label: month })),
+                    ]}
+                    ariaLabel="Filter by birthday month"
+                    icon={<Gift />}
+                    className="w-full"
+                  />
+                </FilterField>
+
+                <FilterField label="Marketing">
+                  <Select
+                    value={filters.marketing ?? 'off'}
+                    onValueChange={(value) => set('marketing', value === 'off' ? undefined : (value as CustomerFilters['marketing']))}
+                    options={MARKETING_OPTIONS}
+                    ariaLabel="Filter by marketing consent"
+                    className="w-full"
+                  />
+                </FilterField>
+
+                <FilterField label={`Lifetime spend (${symbol})`}>
+                  <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="number"
                       min={0}
@@ -296,9 +301,7 @@ export function CustomerFilterBar({
                       onChange={(event) => set('minTotalSpent', event.target.value === '' ? undefined : Number(event.target.value))}
                       placeholder="Min"
                       aria-label="Minimum lifetime spend"
-                      className="border-rule"
                     />
-                    <span className="text-xs text-muted-foreground">to</span>
                     <Input
                       type="number"
                       min={0}
@@ -306,14 +309,12 @@ export function CustomerFilterBar({
                       onChange={(event) => set('maxTotalSpent', event.target.value === '' ? undefined : Number(event.target.value))}
                       placeholder="Max"
                       aria-label="Maximum lifetime spend"
-                      className="border-rule"
                     />
                   </div>
-                </fieldset>
+                </FilterField>
 
-                <fieldset className="min-w-0">
-                  <legend className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Visits</legend>
-                  <div className="mt-1.5 flex items-center gap-2">
+                <FilterField label="Visits">
+                  <div className="grid grid-cols-2 gap-2">
                     <Input
                       type="number"
                       min={0}
@@ -321,9 +322,7 @@ export function CustomerFilterBar({
                       onChange={(event) => set('minTotalVisits', event.target.value === '' ? undefined : Number(event.target.value))}
                       placeholder="Min"
                       aria-label="Minimum visits"
-                      className="border-rule"
                     />
-                    <span className="text-xs text-muted-foreground">to</span>
                     <Input
                       type="number"
                       min={0}
@@ -331,58 +330,42 @@ export function CustomerFilterBar({
                       onChange={(event) => set('maxTotalVisits', event.target.value === '' ? undefined : Number(event.target.value))}
                       placeholder="Max"
                       aria-label="Maximum visits"
-                      className="border-rule"
                     />
                   </div>
-                </fieldset>
+                </FilterField>
 
-                <div className="grid gap-3 sm:grid-cols-2">
-                  <div className="min-w-0 space-y-1.5">
-                    <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Allergies</label>
-                    <MultiSelect
-                      value={filters.allergies ?? []}
-                      onChange={(next) => set('allergies', next.length > 0 ? (next as Allergen[]) : undefined)}
-                      options={ALLERGEN_OPTIONS}
-                      placeholder="Any allergy"
-                      ariaLabel="Filter by allergy — matches any selected"
-                      className="w-full"
-                    />
-                  </div>
+                <FilterField label="Allergy">
+                  <Select
+                    value={pickedOne(filters.allergies)}
+                    onValueChange={(value) => value !== MANY && set('allergies', value === 'off' ? undefined : [value as Allergen])}
+                    options={oneOf(filters.allergies, 'Any allergy', ALLERGEN_OPTIONS)}
+                    ariaLabel="Filter by allergy"
+                    className="w-full"
+                  />
+                </FilterField>
 
-                  <div className="min-w-0 space-y-1.5">
-                    <label className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">Dietary</label>
-                    <MultiSelect
-                      value={filters.dietary ?? []}
-                      onChange={(next) => set('dietary', next.length > 0 ? (next as DietaryPreference[]) : undefined)}
-                      options={DIETARY_OPTIONS}
-                      placeholder="Any dietary need"
-                      ariaLabel="Filter by dietary preference — matches any selected"
-                      className="w-full"
-                    />
-                  </div>
-                </div>
-
-                <p className="text-xs text-muted-foreground">
-                  Allergies and dietary needs match <strong className="font-semibold text-foreground">any</strong> of the options you pick,
-                  not all of them.
-                </p>
+                <FilterField label="Dietary">
+                  <Select
+                    value={pickedOne(filters.dietary)}
+                    onValueChange={(value) => value !== MANY && set('dietary', value === 'off' ? undefined : [value as DietaryPreference])}
+                    options={oneOf(filters.dietary, 'Any dietary need', DIETARY_OPTIONS)}
+                    ariaLabel="Filter by dietary preference"
+                    className="w-full"
+                  />
+                </FilterField>
               </div>
             </Popover.Content>
           </Popover.Portal>
         </Popover.Root>
 
-        <SegmentedControl options={viewOptions} value={view} onChange={onViewChange} iconOnly ariaLabel="Customer list layout" />
-
-        {/* The count of what the filters matched. Unfiltered it is the Customers
-            tile above, so it only appears once something narrows the list — a
-            manager never has two equal numbers to reconcile. */}
+        {/* How many customers the list holds right now — always shown, so the
+            number sits beside the filters that produced it. */}
         <span
           className="ml-auto flex min-w-28 items-center justify-end gap-1.5 text-xs tabular-nums text-muted-foreground"
           aria-live="polite"
         >
           {isFetching && !isLoading && <Loader2 size={12} className="animate-spin" aria-label="Updating customers" />}
-          {(hasChips || emailReachable !== undefined) &&
-            (isLoading ? 'Loading…' : `${total.toLocaleString()} customer${total === 1 ? '' : 's'}`)}
+          {isLoading ? 'Loading…' : `${total.toLocaleString()} customer${total === 1 ? '' : 's'}`}
           {emailReachable !== undefined && !isLoading && (
             <span className="hidden sm:inline">· {emailReachable.toLocaleString()} emailable</span>
           )}

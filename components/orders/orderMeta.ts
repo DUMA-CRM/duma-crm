@@ -98,3 +98,12 @@ export const REFUND_REASON_OPTIONS: SelectOption[] = [
 ];
 
 export const optionLabel = (options: SelectOption[], value: string) => options.find((option) => option.value === value)?.label ?? value;
+
+/** How the customer gets the order, in the words the till and kitchen use. */
+export const FULFILMENT_LABEL: Record<string, string> = {
+  eat_in: 'Eat in',
+  takeaway: 'Takeaway',
+  collection: 'Collection',
+  delivery: 'Delivery',
+  shipping: 'Shipping',
+};

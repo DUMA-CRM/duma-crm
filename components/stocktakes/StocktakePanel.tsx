@@ -301,7 +301,7 @@ function History({
         months.map((month) => (
           <motion.section key={month.label} variants={SECTION_RISE} aria-label={month.label}>
             <h3 className="mb-2 text-label uppercase text-muted-foreground">{month.label}</h3>
-            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <ul className="overflow-hidden rounded-lg border border-border bg-card">
               {month.items.map((s) => {
                 const meta = STATUS_META[s.status];
                 const took = countDuration(s.createdAt, s.completedAt);
@@ -397,8 +397,8 @@ function StocktakeDrawer({ id, catalogue, onClose }: { id: string; catalogue: Re
 
           {uncounted.length > 0 && (
             <section>
-              <h3 className="mb-2 text-sm font-semibold text-foreground">Not counted</h3>
-              <p className="rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
+              <h3 className="mb-2 text-sm font-semibold text-heading">Not counted</h3>
+              <p className="rounded-lg border border-border bg-field px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
                 {uncounted.map((l) => l.name).join(', ')}
               </p>
             </section>
@@ -437,17 +437,17 @@ function DiffList({
 }) {
   return (
     <section>
-      <h3 className="mb-2 text-sm font-semibold text-foreground">{title}</h3>
+      <h3 className="mb-2 text-sm font-semibold text-heading">{title}</h3>
       {lines.length === 0 ? (
-        <p className="flex items-center gap-2 rounded-lg border border-rule/60 bg-card px-3.5 py-3 text-sm text-muted-foreground">
+        <p className="flex items-center gap-2 rounded-lg border border-border bg-card px-3.5 py-3 text-sm text-muted-foreground">
           <Check size={15} className="text-success" aria-hidden="true" /> {empty}
         </p>
       ) : (
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+        <ul className="overflow-hidden rounded-lg border border-border bg-card">
           {lines.map((line) => {
             const v = variance(line.expected, line.counted ?? 0);
             return (
-              <li key={line.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+              <li key={line.id} className="flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
                 <span
                   className={cn(
                     'flex size-9 shrink-0 items-center justify-center rounded-md',
@@ -590,7 +590,7 @@ function CountSheet({
   return (
     <motion.div className="space-y-4" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
       {/* What's running and how far along — the top card, as in the order drawer. */}
-      <motion.div variants={SECTION_RISE} className="rounded-lg border border-rule/60 bg-card p-4">
+      <motion.div variants={SECTION_RISE} className="rounded-lg border border-border bg-card p-4">
         <div className="flex flex-wrap items-center gap-3">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-measured/10 text-measured" aria-hidden="true">
             <ClipboardCheck size={18} />
@@ -712,7 +712,7 @@ function CountSheet({
                   {group.items.filter((l) => l.counted !== null).length}/{group.items.length}
                 </span>
               </h3>
-              <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              <ul className="overflow-hidden rounded-lg border border-border bg-card">
                 {group.items.map((line) => {
                   const raw = lines.find((l) => l.id === line.id)!;
                   const text = textFor(raw);
@@ -721,7 +721,7 @@ function CountSheet({
                   return (
                     <li
                       key={line.id}
-                      className={cn('flex items-center gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0', v && 'bg-band/15')}
+                      className={cn('flex items-center gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0', v && 'bg-band/15')}
                     >
                       <span
                         className={cn(
@@ -789,7 +789,7 @@ function CountSheet({
                         aria-label={`Counted ${line.name}`}
                         aria-invalid={bad}
                         className={cn(
-                          'h-9 w-24 shrink-0 rounded-md border bg-field px-3 text-right text-base tabular-nums text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured disabled:opacity-50 sm:text-sm',
+                          'h-9 w-24 shrink-0 rounded-md border bg-field px-3 text-right text-base tabular-nums text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30 disabled:opacity-50 sm:text-sm',
                           bad ? 'border-exception' : 'border-input',
                         )}
                       />
@@ -807,7 +807,7 @@ function CountSheet({
 
       {canWrite && (
         // Pinned to the bottom of the viewport so saving is never a scroll away on a long sheet.
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-2 rounded-lg border border-rule/60 bg-card/95 px-3 py-2.5 shadow-md backdrop-blur">
+        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card/95 px-3 py-2.5 shadow-md backdrop-blur">
           <Button
             type="button"
             variant="ghost"
@@ -903,7 +903,7 @@ function ReviewDrawer({
       }
     >
       <div className="space-y-6">
-        <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+        <div className="overflow-hidden rounded-lg border border-border bg-card">
           <div className="flex items-center gap-3 px-4 py-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary" aria-hidden="true">
               <ClipboardCheck size={20} />
@@ -917,7 +917,7 @@ function ReviewDrawer({
               </p>
             </div>
           </div>
-          <dl className="flex flex-wrap items-center justify-between gap-2 border-t border-rule/45 px-4 py-3 text-sm">
+          <dl className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-4 py-3 text-sm">
             <dt className="text-muted-foreground">Stock value change</dt>
             <dd className={cn('font-semibold tabular-nums', summary.valuePence < 0 ? 'text-exception' : 'text-foreground')}>
               {summary.valuePence === 0 ? money(0) : `${summary.valuePence > 0 ? '+' : '−'}${money(Math.abs(summary.valuePence) / 100)}`}

@@ -3,14 +3,17 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { BrandTile, InfoRow, InfoRows, RowMenu, RowWarning, SectionInfo } from '@/components/cms/rows';
+import { BrandTile, RowMenu, RowWarning } from '@/components/cms/rows';
 import { CalendarDays, Megaphone, Plug, RefreshCw, ShieldCheck, Trash2, UserPlus, Users } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ConnectorManagePage } from '@/components/settings/connectors/ConnectorManagePage';
 import { CONNECTOR_BRANDS } from '@/components/settings/connectors/brands';
 import { CONNECTORS_BY_ID } from '@/components/settings/connectors/registry';
 import { panelClass } from '@/components/settings/connectors/shared';
+import { ChangeRow } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -120,9 +123,15 @@ export function SocialConnector({ provider, onClose }: { provider: Platform; onC
   const canConnect = canWrite && config?.configured === true;
   const awaitingApproval = provider === 'tiktok' && config && !config.directPost;
 
-  const connectButton = (label: string) =>
+  const connectButton = (label: string, size?: 'sm') =>
     canConnect ? (
-      <Button className="gap-1.5" disabled={connect.isPending} onClick={() => connect.mutate()}>
+      <Button
+        variant={size ? 'outline' : 'default'}
+        size={size}
+        className="gap-1.5"
+        disabled={connect.isPending}
+        onClick={() => connect.mutate()}
+      >
         <Plug size={15} aria-hidden="true" /> {connect.isPending ? 'Opening sign-in…' : label}
       </Button>
     ) : null;
@@ -200,57 +209,58 @@ export function SocialConnector({ provider, onClose }: { provider: Platform; onC
         aside={
           <SettingsSection
             title="Permissions"
-            actions={
-              <SectionInfo label={`You can also remove DUMA from the account’s security settings on ${LABELS[provider]} at any time.`} />
-            }
+            footnote={`You can also remove DUMA from the account’s security settings on ${LABELS[provider]} at any time.`}
           >
-            <InfoRows>
-              <InfoRow
-                icon={ShieldCheck}
-                wrap
-                title="What DUMA uses it for"
-                description="Publishing the posts you schedule, and showing the account’s name."
-              >
-                {null}
-              </InfoRow>
-            </InfoRows>
+            <ChangeRow
+              icon={ShieldCheck}
+              label="What DUMA uses it for"
+              value={<span>Publishing the posts you schedule, and showing the account’s name.</span>}
+            />
           </SettingsSection>
         }
         onClose={onClose}
       >
-        <SettingsSection title="Accounts" actions={canConnect ? <SectionInfo label={BEFORE[provider]} /> : undefined}>
-          <InfoRows>
+        <RecordGroup
+          id="social-accounts"
+          title="Accounts"
+          actions={connectButton(lapsed ? `Connect ${LABELS[provider]} again` : ANOTHER[provider], 'sm')}
+          footnote={canConnect ? BEFORE[provider] : undefined}
+        >
+          <ListRowGroup>
             {accounts.map((account) => (
-              <div key={account.id} className="flex items-center gap-3">
-                {brand && <BrandTile brand={brand} />}
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">{account.name}</p>
-                  <p className="truncate text-xs text-muted-foreground">{account.remoteId}</p>
-                </div>
-                <Badge variant={account.state === 'connected' ? 'success' : 'warning'}>
-                  {account.state === 'connected' ? 'Connected' : 'Needs reconnecting'}
-                </Badge>
-                {canWrite && account.state !== 'disconnected' && (
-                  <RowMenu
-                    label={`${account.name} actions`}
-                    items={[
-                      ...(account.state === 'connected'
-                        ? [{ icon: RefreshCw, label: 'Check', disabled: check.isPending, onClick: () => check.mutate([account.id]) }]
-                        : []),
-                      { icon: Trash2, label: 'Disconnect', danger: true, onClick: () => setRemoving(account) },
-                    ]}
-                  />
-                )}
-              </div>
+              <ListRow
+                key={account.id}
+                leading={brand ? <BrandTile brand={brand} className="size-9" /> : undefined}
+                icon={brand ? undefined : Users}
+                title={account.name}
+                meta={account.remoteId}
+                trailing={
+                  <Badge variant={account.state === 'connected' ? 'success' : 'warning'}>
+                    {account.state === 'connected' ? 'Connected' : 'Needs reconnecting'}
+                  </Badge>
+                }
+                control={
+                  canWrite && account.state !== 'disconnected' ? (
+                    <RowMenu
+                      label={`${account.name} actions`}
+                      items={[
+                        ...(account.state === 'connected'
+                          ? [{ icon: RefreshCw, label: 'Check', disabled: check.isPending, onClick: () => check.mutate([account.id]) }]
+                          : []),
+                        { icon: Trash2, label: 'Disconnect', danger: true, onClick: () => setRemoving(account) },
+                      ]}
+                    />
+                  ) : undefined
+                }
+              />
             ))}
-          </InfoRows>
+          </ListRowGroup>
           {lapsed && canConnect && (
-            <RowWarning className="mt-4">
+            <RowWarning className="mt-3">
               Every {LABELS[provider]} account here is disconnected. Connect again to keep publishing to it.
             </RowWarning>
           )}
-          {canConnect && <div className="mt-4">{connectButton(lapsed ? `Connect ${LABELS[provider]} again` : ANOTHER[provider])}</div>}
-        </SettingsSection>
+        </RecordGroup>
       </ConnectorManagePage>
 
       {removing && (

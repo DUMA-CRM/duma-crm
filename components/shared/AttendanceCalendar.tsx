@@ -107,7 +107,7 @@ export const STATUS: Record<
   // A day not worked is still a day of the month: a plain cell with its number,
   // nothing printed to say nothing happened. The blanks before the 1st stay
   // truly empty — those are not dates at all.
-  no_shift: { label: 'No shift', cell: 'border-rule/50 text-muted-foreground', hover: '', swatch: '', badge: 'muted', inLegend: false },
+  no_shift: { label: 'No shift', cell: 'border-border text-muted-foreground', hover: '', swatch: '', badge: 'muted', inLegend: false },
 };
 
 /**
@@ -155,11 +155,11 @@ export function MonthGrid({
 
   return (
     <>
-      <div className="rounded-lg border border-rule/60 bg-card p-2.5 md:p-3">
+      <div className="rounded-lg border border-border bg-card p-2.5 md:p-3">
         {/* The legend is the month's summary: each state with how many days
             fell in it, and the hours against the rota — so the key and the
             totals are one line, not two. */}
-        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-rule/45 px-1 pb-2.5">
+        <div className="mb-2.5 flex flex-wrap items-center justify-between gap-x-6 gap-y-2 border-b border-border px-1 pb-2.5">
           <ul className="flex flex-wrap gap-x-4 gap-y-1.5 text-xs text-muted-foreground">
             {LEGEND.map((item) => (
               <li key={item.key} className={cn('flex items-center gap-1.5', counts[item.key] === 0 && 'opacity-55')}>

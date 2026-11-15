@@ -90,7 +90,7 @@ export function CategoryCombobox({
         <div
           id={listboxId}
           role="listbox"
-          className="absolute left-0 right-0 top-full mt-1.5 bg-surface border border-rule rounded-sm shadow-lg py-1 z-50 max-h-48 overflow-y-auto"
+          className="absolute left-0 right-0 top-full mt-1.5 bg-surface border border-border rounded-lg shadow-lg py-1 z-50 max-h-48 overflow-y-auto"
         >
           {allowEmpty && (
             <button

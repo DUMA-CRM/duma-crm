@@ -27,6 +27,7 @@ import { PublicMenuSkeleton, TrackedOrderSkeleton } from '@/components/ordering/
 import { Logo } from '@/components/shared/Logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 import { WheelPicker, WheelPickerWrapper } from '@/components/ui/wheel-picker';
 
 import { proxiedImage } from '@/lib/api/client';
@@ -37,12 +38,14 @@ import {
   createPublicQrOrder,
   getPublicQrMenu,
   getPublicQrOrder,
+  getQrPreviewMenu,
   requestQrCustomerCode,
   verifyQrCustomerCode,
 } from '@/lib/modules/qr-ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatCurrency } from '@/lib/utils/currencies';
+import { QR_PREVIEW_MESSAGE, QR_PREVIEW_READY, type QrPreviewDraft, applyQrPreview } from '@/lib/utils/qr-preview';
 
 interface CartLine {
   key: string;
@@ -93,11 +96,11 @@ function OrderDocket({
 
   return (
     <div className="flex min-h-0 flex-col">
-      <div className="flex items-center justify-between border-b border-rule/55 px-4 py-3">
+      <div className="flex items-center justify-between border-b border-border px-4 py-3">
         <h2 className="font-semibold">Your order</h2>
         <span className="font-mono text-sm font-semibold">{formatMoney(total)}</span>
       </div>
-      <div className="max-h-[46dvh] flex-1 divide-y divide-rule/45 overflow-y-auto lg:max-h-none">
+      <div className="max-h-[46dvh] flex-1 divide-y divide-border overflow-y-auto lg:max-h-none">
         {cart.length ? (
           cart.map((line) => (
             <div key={line.key} className="px-4 py-3">
@@ -141,7 +144,7 @@ function OrderDocket({
         )}
       </div>
       {!readOnly && (
-        <div className="border-t border-rule/55 p-4">
+        <div className="border-t border-border p-4">
           {minimumRemaining > 0 && cart.length > 0 && (
             <p className="mb-2 text-xs text-warning">Add {formatMoney(minimumRemaining)} more to reach the minimum order.</p>
           )}
@@ -249,7 +252,7 @@ function ItemCustomiser({
                         {rule}
                       </span>
                     </legend>
-                    <div className="mt-2 divide-y divide-rule/45 border-y border-rule/55">
+                    <div className="mt-2 divide-y divide-border border-y border-border">
                       {group.options.map((option) => {
                         const active = (choices[group.id] ?? []).includes(option.id);
                         return (
@@ -282,7 +285,7 @@ function ItemCustomiser({
               })}
             </div>
           </div>
-          <div className="border-t border-rule/55 bg-card p-4 sm:p-5">
+          <div className="border-t border-border bg-card p-4 sm:p-5">
             <Button
               size="touch"
               className="w-full"
@@ -308,16 +311,16 @@ function QrOrderExperienceInner({
   token,
   initialTrackingToken,
   paymentCancelled = false,
+  previewLocationId = null,
 }: {
   token: string;
   initialTrackingToken: string | null;
   paymentCancelled?: boolean;
+  previewLocationId?: string | null;
 }) {
-  const menu = useQuery({
-    queryKey: moduleQueryKeys.qrOrdering.key('public-qr-menu', token),
-    queryFn: () => getPublicQrMenu(token),
-    retry: false,
-  });
+  const menu = useGuestMenu(token, previewLocationId);
+  // In the settings page's phone preview, the unsaved draft laid over what's published.
+  const previewDraft = useQrPreviewDraft();
   const formatMoney = useContext(MoneyContext);
   const [cart, setCart] = useState<CartLine[]>([]);
   const [selectedItem, setSelectedItem] = useState<PublicMenuItem | null>(null);
@@ -416,7 +419,7 @@ function QrOrderExperienceInner({
     );
   }
 
-  const data = menu.data;
+  const data = previewDraft ? applyQrPreview(menu.data, previewDraft) : menu.data;
   const total = cart.reduce((sum, line) => sum + lineUnitTotal(line) * line.quantity, 0);
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const minimum = Number(data.ordering.minimumOrderAmount);
@@ -484,12 +487,12 @@ function QrOrderExperienceInner({
                 : 'Payment was not completed';
     return (
       <main className="min-h-dvh bg-background">
-        <header className="bg-sidebar text-sidebar-foreground">
+        <header className="bg-panel text-panel-foreground">
           <div className="mx-auto flex max-w-3xl items-center gap-3 px-4 py-5 sm:px-6">
             <Logo size={38} variant="onDark" />
             <div>
               <p className="font-semibold">{data.brand.name}</p>
-              <p className="text-xs text-sidebar-foreground/70">{data.location.name}</p>
+              <p className="text-xs text-panel-foreground/75">{data.location.name}</p>
             </div>
           </div>
         </header>
@@ -581,7 +584,7 @@ function QrOrderExperienceInner({
                     </Button>
                   </div>
                 )}
-                <div className="mt-7 divide-y divide-rule/45 border-y border-rule/55">
+                <div className="mt-7 divide-y divide-border border-y border-border">
                   {order.items.map((item) => (
                     <div key={item.id} className="flex items-start justify-between gap-4 py-3">
                       <div>
@@ -611,7 +614,7 @@ function QrOrderExperienceInner({
   if (stage === 'checkout') {
     return (
       <main className="min-h-dvh bg-background">
-        <header className="border-b border-rule/55 bg-card">
+        <header className="border-b border-border bg-card">
           <div className="mx-auto flex max-w-5xl items-center gap-3 px-4 py-4 sm:px-6">
             <Button variant="ghost" size="icon-touch" onClick={() => setStage('menu')} aria-label="Back to menu">
               <ArrowLeft />
@@ -629,7 +632,7 @@ function QrOrderExperienceInner({
               <h1 className="text-3xl font-semibold tracking-tight">Collection details</h1>
               <p className="mt-2 text-sm text-muted-foreground">Tell the team who to call and when you plan to collect.</p>
             </section>
-            <section className="space-y-4 border-y border-rule/55 py-6">
+            <section className="space-y-4 border-y border-border py-6">
               <Input
                 label="Name for collection"
                 value={customerName}
@@ -640,7 +643,7 @@ function QrOrderExperienceInner({
                 placeholder="Your name"
               />
               <div>
-                <p id="collection-time-label" className="text-label uppercase text-muted-foreground">
+                <p id="collection-time-label" className={FIELD_LABEL_CLASS}>
                   Collection time
                 </p>
                 <div className="mt-2 grid gap-2 sm:grid-cols-2" role="radiogroup" aria-labelledby="collection-time-label">
@@ -688,7 +691,7 @@ function QrOrderExperienceInner({
               </div>
               {collectionTime !== 'asap' && (
                 <div>
-                  <p id="collection-slot-label" className="text-label uppercase text-muted-foreground">
+                  <p id="collection-slot-label" className={FIELD_LABEL_CLASS}>
                     Choose a time
                   </p>
                   {/* Day and time as wheels, the way a phone picks a time. The value is
@@ -762,7 +765,7 @@ function QrOrderExperienceInner({
                 )}
               </div>
             </section>
-            <section className="border-t border-rule/55 pt-6">
+            <section className="border-t border-border pt-6">
               <h2 className="text-lg font-semibold">Earn loyalty points</h2>
               <p className="mt-1 text-sm text-muted-foreground">
                 Optional. Verify your email to link this order to an existing customer profile.
@@ -875,22 +878,20 @@ function QrOrderExperienceInner({
             '<!-- QR ORDERING SURFACE — THESIS: a calm counter handoff where the menu stays spacious and the live order docket never disappears; refuses the generic delivery-app tile wall. OWN-WORLD: DUMA oat, porcelain and forest with attached category rails and ledger rows. STORY: scan, browse, customise, review, identify, choose collection, pay or receive counter approval, then track the kitchen handoff. FIRST VIEWPORT: location masthead, service status, category rail and the first menu shelf beside a persistent docket. FORM: counter handoff, grounded candidate 4; seed key 727490b6. FINISH: unreviewed and undocumented is unfinished; this build ends with the finish review, the verdict, and DESIGN.md -->',
         }}
       />
-      <header className="bg-sidebar text-sidebar-foreground">
+      <header className="bg-panel text-panel-foreground">
         <div className="mx-auto max-w-6xl px-4 py-5 sm:px-6 sm:py-7">
           <div className="flex items-start justify-between gap-4">
             <div className="flex items-center gap-3">
               <Logo size={40} variant="onDark" />
               <div>
                 <p className="text-lg font-semibold leading-tight">{data.brand.name}</p>
-                <p className="mt-0.5 text-xs text-sidebar-foreground/70">Order for collection</p>
+                <p className="mt-0.5 text-xs text-panel-foreground/75">Order for collection</p>
               </div>
             </div>
             <span
               className={cn(
                 'rounded-md border px-2.5 py-1 text-xs font-semibold',
-                data.ordering.canCheckout
-                  ? 'border-sidebar-primary/35 text-sidebar-primary'
-                  : 'border-sidebar-border text-sidebar-foreground/75',
+                data.ordering.canCheckout ? 'border-panel-primary/35 text-panel-primary' : 'border-panel-border text-panel-foreground/75',
               )}
             >
               {data.ordering.paused ? 'Orders paused' : data.ordering.isOpenNow ? 'Taking orders' : 'Browse only'}
@@ -901,20 +902,22 @@ function QrOrderExperienceInner({
               <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
                 {data.content.welcomeMessage || `Order ahead from ${data.location.name}`}
               </h1>
-              <p className="mt-3 flex items-start gap-2 text-sm text-sidebar-foreground/72">
+              <p className="mt-3 flex items-start gap-2 text-sm text-panel-foreground/75">
                 <MapPin className="mt-0.5 shrink-0" />
                 {data.location.address}
               </p>
               {data.content.collectionInstructions && (
-                <p className="mt-3 max-w-[65ch] text-sm leading-relaxed text-sidebar-foreground/72">
-                  {data.content.collectionInstructions}
-                </p>
+                <p className="mt-3 max-w-[65ch] text-sm leading-relaxed text-panel-foreground/75">{data.content.collectionInstructions}</p>
               )}
             </div>
             {data.content.coverImageUrl && (
               // This business-managed URL is not known at build time.
               // eslint-disable-next-line @next/next/no-img-element
-              <img src={proxiedImage(data.content.coverImageUrl) ?? undefined} alt="" className="h-36 w-full rounded-lg object-cover md:h-44" />
+              <img
+                src={proxiedImage(data.content.coverImageUrl) ?? undefined}
+                alt=""
+                className="h-36 w-full rounded-lg object-cover md:h-44"
+              />
             )}
           </div>
         </div>
@@ -930,7 +933,7 @@ function QrOrderExperienceInner({
           </p>
         </div>
       )}
-      <div className="sticky top-0 z-20 border-b border-rule/55 bg-background/95">
+      <div className="sticky top-0 z-20 border-b border-border bg-background/95">
         <nav className="mx-auto flex max-w-6xl overflow-x-auto px-4 py-2 sm:px-6" aria-label="Menu categories">
           <div className="flex min-w-max overflow-hidden rounded-lg border border-rule bg-card">
             {data.categories.map((category) => {
@@ -1004,7 +1007,7 @@ function QrOrderExperienceInner({
         </aside>
       </div>
       {itemCount > 0 && (
-        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-rule/55 bg-card p-3 shadow-lg lg:hidden">
+        <div className="fixed inset-x-0 bottom-0 z-30 border-t border-border bg-card p-3 shadow-lg lg:hidden">
           <Button size="touch" className="w-full justify-between" onClick={() => setBasketOpen(true)}>
             <span className="flex items-center gap-2">
               <span className="flex size-6 items-center justify-center rounded-full bg-primary-foreground text-xs text-primary">
@@ -1023,7 +1026,7 @@ function QrOrderExperienceInner({
             aria-describedby={undefined}
             className="fixed inset-x-0 bottom-0 z-40 max-h-[85dvh] w-full overflow-hidden rounded-t-xl bg-card shadow-xl outline-none lg:hidden"
           >
-            <div className="flex items-center justify-between border-b border-rule/55 px-3 py-2">
+            <div className="flex items-center justify-between border-b border-border px-3 py-2">
               <Dialog.Title className="pl-1 font-semibold">Your order</Dialog.Title>
               <Dialog.Close asChild>
                 <Button variant="ghost" size="icon-touch" aria-label="Close basket">
@@ -1056,13 +1059,50 @@ function QrOrderExperienceInner({
   );
 }
 
-/** The guest QR page, with prices in the workspace's currency once the menu says what it is. */
-export function QrOrderExperience(props: { token: string; initialTrackingToken: string | null; paymentCancelled?: boolean }) {
-  const menu = useQuery({
-    queryKey: moduleQueryKeys.qrOrdering.key('public-qr-menu', props.token),
-    queryFn: () => getPublicQrMenu(props.token),
+/**
+ * The menu the page shows: the published one, or — in the settings page's phone
+ * preview — the one built from the draft, which loads even while ordering is
+ * off or nothing has been published yet.
+ */
+function useGuestMenu(token: string, previewLocationId: string | null) {
+  return useQuery({
+    queryKey: previewLocationId
+      ? moduleQueryKeys.qrOrdering.key('preview-qr-menu', previewLocationId)
+      : moduleQueryKeys.qrOrdering.key('public-qr-menu', token),
+    queryFn: () => (previewLocationId ? getQrPreviewMenu(previewLocationId) : getPublicQrMenu(token)),
     retry: false,
   });
+}
+
+/**
+ * The draft the QR settings page sends its preview frame. Only when this page is
+ * framed with ?preview=1, and only from this app's own origin and the parent
+ * window — a guest's page never takes one.
+ */
+function useQrPreviewDraft(): QrPreviewDraft | null {
+  const [draft, setDraft] = useState<QrPreviewDraft | null>(null);
+  useEffect(() => {
+    if (window.parent === window || new URLSearchParams(window.location.search).get('preview') !== '1') return;
+    const onMessage = (event: MessageEvent) => {
+      if (event.origin !== window.location.origin || event.source !== window.parent) return;
+      if (event.data?.type === QR_PREVIEW_MESSAGE) setDraft(event.data.draft as QrPreviewDraft);
+    };
+    window.addEventListener('message', onMessage);
+    // Ask for the draft once listening, so a frame that loads after an edit still gets it.
+    window.parent.postMessage({ type: QR_PREVIEW_READY }, window.location.origin);
+    return () => window.removeEventListener('message', onMessage);
+  }, []);
+  return draft;
+}
+
+/** The guest QR page, with prices in the workspace's currency once the menu says what it is. */
+export function QrOrderExperience(props: {
+  token: string;
+  initialTrackingToken: string | null;
+  paymentCancelled?: boolean;
+  previewLocationId?: string | null;
+}) {
+  const menu = useGuestMenu(props.token, props.previewLocationId ?? null);
   const currency = menu.data?.currency ?? 'GBP';
   const formatMoney = useCallback((value: string | number) => formatCurrency(value, currency), [currency]);
   return (

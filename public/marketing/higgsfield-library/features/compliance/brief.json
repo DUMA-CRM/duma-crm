@@ -1,0 +1,13 @@
+{
+  "path": "/features/compliance",
+  "name": "Compliance",
+  "summary": "Handle privacy and personal-data requests properly.",
+  "description": "Handle privacy and personal-data requests properly.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/compliance",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A shop manager carefully sorts plain customer-request folders into a secure cabinet. No personal data or certification symbols."
+}

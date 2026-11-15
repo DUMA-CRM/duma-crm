@@ -38,8 +38,8 @@ const COLUMNS: { key: CustomerSort; label: string; width: string }[] = [
 ];
 
 /**
- * The customers as the Menu lists its items: one bordered list, a row per
- * guest — who they are and anything the team must see, then points, spend,
+ * The customers as the Menu lists its items: one surface, the sortable column
+ * labels in a band across its top, a row per guest — who they are and anything the team must see, then points, spend,
  * visits and when they were last in. The column labels above it sort.
  */
 export function CustomerList({
@@ -92,46 +92,48 @@ export function CustomerList({
 
   return (
     <div className="space-y-2">
-      <div className="hidden items-center gap-3 px-3.5 text-label text-muted-foreground sm:flex">
-        {selectable && (
-          <input
-            type="checkbox"
-            checked={allSelected}
-            onChange={onToggleAll}
-            aria-label="Select everyone on this page"
-            className="size-4 shrink-0 rounded accent-primary"
-          />
-        )}
-        <span className="flex-1">{sortHeader('name', 'Customer', 'justify-start')}</span>
-        <span className="w-16 text-right uppercase">Tier</span>
-        {COLUMNS.map((column) => (
-          <span
-            key={column.key}
-            className={cn(
-              'flex shrink-0 justify-end',
-              column.width,
-              column.key === 'visits' && 'hidden md:flex',
-              column.key === 'last_visit' && 'hidden lg:flex',
-            )}
-          >
-            {sortHeader(column.key, column.label, 'justify-end')}
-          </span>
-        ))}
-      </div>
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="hidden items-center gap-3 border-b border-border bg-band/40 px-3.5 py-2 text-label text-muted-foreground sm:flex">
+          {selectable && (
+            <input
+              type="checkbox"
+              checked={allSelected}
+              onChange={onToggleAll}
+              aria-label="Select everyone on this page"
+              className="size-4 shrink-0 rounded accent-primary"
+            />
+          )}
+          <span className="flex-1">{sortHeader('name', 'Customer', 'justify-start')}</span>
+          <span className="w-16 text-right uppercase">Tier</span>
+          {COLUMNS.map((column) => (
+            <span
+              key={column.key}
+              className={cn(
+                'flex shrink-0 justify-end',
+                column.width,
+                column.key === 'visits' && 'hidden md:flex',
+                column.key === 'last_visit' && 'hidden lg:flex',
+              )}
+            >
+              {sortHeader(column.key, column.label, 'justify-end')}
+            </span>
+          ))}
+        </div>
 
-      <ul className="space-y-2">
-        {customers.map((customer) => (
-          <CustomerRow
-            key={customer.id}
-            customer={customer}
-            money={money}
-            now={now}
-            selectable={selectable}
-            selected={selectedIds.has(customer.id)}
-            onToggle={() => onToggle(customer.id)}
-          />
-        ))}
-      </ul>
+        <ul>
+          {customers.map((customer) => (
+            <CustomerRow
+              key={customer.id}
+              customer={customer}
+              money={money}
+              now={now}
+              selectable={selectable}
+              selected={selectedIds.has(customer.id)}
+              onToggle={() => onToggle(customer.id)}
+            />
+          ))}
+        </ul>
+      </div>
       {footer}
     </div>
   );
@@ -162,8 +164,8 @@ function CustomerRow({
   return (
     <li
       className={cn(
-        'flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-3.5 py-3 transition-colors hover:border-rule',
-        selected && 'bg-band/50',
+        'flex items-center gap-3 border-b border-border px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40',
+        selected && 'bg-primary/4',
       )}
     >
       {selectable && (

@@ -1,8 +1,9 @@
 'use client';
 
-import { BrandTile, RowTile } from '@/components/cms/rows';
-import { ChevronRight } from '@/components/icons';
+import { BrandTile } from '@/components/cms/rows';
+import { ListRow } from '@/components/shared/ListRow';
 import { Bone } from '@/components/shared/Skeleton';
+import type { Tone } from '@/components/shared/tone';
 import { Badge } from '@/components/ui/badge';
 
 import { CONNECTOR_BRANDS } from './brands';
@@ -23,11 +24,13 @@ export interface ConnectorAction {
   disabled?: boolean;
 }
 
+const TILE_TONE: Partial<Record<ConnectorState, Tone>> = { attention: 'exception', connected: 'success' };
+
 /**
- * One integration as a row, in the settings rows' rhythm: tile, name over the
- * account it uses (or what it does, before it's set up), its status, and the
- * single thing to do — the whole row is the button, the chevron says it goes
- * somewhere. A problem shows under the name, in red.
+ * One integration as a `ListRow`: its brand mark (or icon), the name over the
+ * account it uses (or what it does, before it's set up), its status and the
+ * single thing to do — the whole row is the target. A problem shows under the
+ * account line, in red, and wraps rather than being cut off.
  */
 export function ConnectorRow({
   definition,
@@ -54,36 +57,42 @@ export function ConnectorRow({
     : definition.description;
   const badge = STATE_BADGE[state];
   const brand = CONNECTOR_BRANDS[definition.id];
+  const enabled = action && !action.disabled;
 
   return (
-    <button
-      type="button"
-      onClick={action?.onClick}
-      disabled={!action || action.disabled}
-      className="group flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-band/50 disabled:cursor-not-allowed disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring"
-    >
-      {brand ? (
-        <BrandTile brand={brand} />
-      ) : (
-        <RowTile icon={definition.icon} tone={state === 'attention' ? 'danger' : state === 'connected' ? 'success' : 'default'} />
-      )}
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{definition.name}</span>
-        {loading ? (
-          <Bone className="mt-1 h-3 w-40 max-w-full" />
+    <ListRow
+      leading={brand ? <BrandTile brand={brand} className="size-9" /> : undefined}
+      icon={definition.icon}
+      tone={TILE_TONE[state] ?? 'muted'}
+      title={definition.name}
+      muted={!definition.available}
+      meta={
+        loading ? (
+          <Bone className="mt-1 block h-3 w-40 max-w-full" />
         ) : (
-          <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
-        )}
-        {alert && (
-          <span className="mt-0.5 block text-xs font-medium text-exception">
-            {alert.title}
-            {alert.detail ? ` — ${alert.detail}` : ''}
-          </span>
-        )}
-      </span>
-      {!loading && state !== 'disconnected' && <Badge variant={badge.variant}>{badge.label}</Badge>}
-      {action && <span className="hidden shrink-0 text-xs font-medium text-primary sm:inline">{action.label}</span>}
-      {action && <ChevronRight size={14} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />}
-    </button>
+          <>
+            <span className="block truncate">{subtitle}</span>
+            {alert && (
+              <span className="mt-0.5 block whitespace-normal font-medium text-exception">
+                {alert.title}
+                {alert.detail ? ` — ${alert.detail}` : ''}
+              </span>
+            )}
+          </>
+        )
+      }
+      trailing={
+        <>
+          {!loading && state !== 'disconnected' && <Badge variant={badge.variant}>{badge.label}</Badge>}
+          {action && (
+            <span className={`hidden text-xs font-medium sm:inline ${enabled ? 'text-primary' : 'text-muted-foreground'}`}>
+              {action.label}
+            </span>
+          )}
+        </>
+      }
+      onClick={enabled ? action.onClick : undefined}
+      targetLabel={action ? `${action.label} — ${definition.name}` : undefined}
+    />
   );
 }

@@ -18,6 +18,7 @@ import {
 } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { ChangeRow } from '@/components/settings/controls';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { IconTag } from '@/components/shared/IconTag';
@@ -43,7 +44,6 @@ import { cn } from '@/lib/utils/cn';
 import { canReadSessionList } from '@/lib/utils/session-freshness';
 import { useAuthStore } from '@/stores/authStore';
 
-const EASE = [0.16, 1, 0.3, 1] as const;
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
 
 export function SecurityTab() {
@@ -53,61 +53,13 @@ export function SecurityTab() {
   return (
     <SettingsTabBody>
       <SettingsSection title="Sign-in">
-        <div className="divide-y divide-rule/40">
+        <div>
           <EmailRow open={open === 'email'} onToggle={() => toggle('email')} onDone={() => setOpen(null)} />
           <PasswordRow open={open === 'password'} onToggle={() => toggle('password')} onDone={() => setOpen(null)} />
         </div>
       </SettingsSection>
       <ActiveSessionsSection />
     </SettingsTabBody>
-  );
-}
-
-/** Icon tile, label and value, with a Change button that opens its form in place. */
-function CredentialRow({
-  icon: Icon,
-  label,
-  value,
-  open,
-  onToggle,
-  children,
-}: {
-  icon: IconComponent;
-  label: string;
-  value: React.ReactNode;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  const reduceMotion = useReducedMotion();
-  return (
-    <div className="py-4 first:pt-0 last:pb-0">
-      <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
-          <Icon size={18} aria-hidden="true" />
-        </span>
-        <div className="min-w-0 flex-1">
-          <p className="text-label uppercase text-muted-foreground">{label}</p>
-          <div className="mt-0.5 flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">{value}</div>
-        </div>
-        <Button variant={open ? 'ghost' : 'outline'} size="sm" onClick={onToggle} aria-expanded={open}>
-          {open ? 'Cancel' : 'Change'}
-        </Button>
-      </div>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: 'auto' }}
-            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
-            transition={{ duration: 0.28, ease: EASE }}
-            className="overflow-hidden"
-          >
-            <div className="pt-4 sm:pl-13">{children}</div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </div>
   );
 }
 
@@ -130,7 +82,7 @@ function EmailRow({ open, onToggle, onDone }: { open: boolean; onToggle: () => v
   });
 
   return (
-    <CredentialRow
+    <ChangeRow
       icon={Mail}
       label="Email"
       open={open}
@@ -178,7 +130,7 @@ function EmailRow({ open, onToggle, onDone }: { open: boolean; onToggle: () => v
           Save
         </Button>
       </form>
-    </CredentialRow>
+    </ChangeRow>
   );
 }
 
@@ -205,7 +157,7 @@ function PasswordRow({ open, onToggle, onDone }: { open: boolean; onToggle: () =
   const mismatch = Boolean(confirm) && next !== confirm;
 
   return (
-    <CredentialRow
+    <ChangeRow
       icon={KeyRound}
       label="Password"
       open={open}
@@ -267,7 +219,7 @@ function PasswordRow({ open, onToggle, onDone }: { open: boolean; onToggle: () =
           </Button>
         </div>
       </form>
-    </CredentialRow>
+    </ChangeRow>
   );
 }
 
@@ -389,13 +341,13 @@ function ActiveSessionsSection() {
                     aria-current={isCurrent || undefined}
                     className={cn(
                       'flex items-center gap-3 rounded-lg border px-3.5 py-3',
-                      isCurrent ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-rule/50 bg-background/60',
+                      isCurrent ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-border bg-background/60',
                     )}
                   >
                     <span
                       className={cn(
                         'flex size-10 shrink-0 items-center justify-center rounded-md border transition-colors duration-150',
-                        isCurrent ? 'border-primary/40 bg-primary text-primary-foreground' : 'border-rule/55 bg-band text-muted-foreground',
+                        isCurrent ? 'border-primary/40 bg-primary text-primary-foreground' : 'border-border bg-band text-muted-foreground',
                       )}
                     >
                       <Icon size={18} aria-hidden="true" />

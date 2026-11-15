@@ -298,7 +298,7 @@ export function NoteToolbar({
       >
         {(choose) => (
           <>
-            <div className="flex items-center gap-1 border-b border-rule/50 p-1 md:hidden">
+            <div className="flex items-center gap-1 border-b border-border p-1 md:hidden">
               <ToolButton
                 label="Underline"
                 icon={Underline}
@@ -319,7 +319,7 @@ export function NoteToolbar({
                 onClick={() => choose(() => editor.chain().focus().redo().run())}
               />
             </div>
-            <div className="border-b border-rule/50 py-1 md:hidden">
+            <div className="border-b border-border py-1 md:hidden">
               <MenuOption
                 label="Bulleted list"
                 icon={ListBullet}
@@ -629,7 +629,7 @@ function Swatch({
         onClick={onSelect}
         style={style}
         className={cn(
-          'flex size-11 items-center justify-center rounded-md border md:size-9 border-rule/60 bg-card transition-[box-shadow,border-color] hover:border-rule focus-visible:outline-2 focus-visible:outline-ring',
+          'flex size-11 items-center justify-center rounded-md border md:size-9 border-border bg-card transition-[box-shadow,border-color] hover:border-rule focus-visible:outline-2 focus-visible:outline-ring',
           selected && 'border-primary ring-2 ring-primary/35',
         )}
       >
@@ -719,7 +719,7 @@ function LinkForm({ editor, active, onDone }: { editor: Editor; active: boolean;
         </Button>
       </form>
       {active && (
-        <div className="mt-1.5 flex items-center gap-1 border-t border-rule/50 pt-1.5">
+        <div className="mt-1.5 flex items-center gap-1 border-t border-border pt-1.5">
           <Button
             type="button"
             variant="ghost"

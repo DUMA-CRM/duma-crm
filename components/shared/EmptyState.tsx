@@ -75,7 +75,7 @@ export function EmptyState({ icon: Icon, title, description, kind = 'start', act
         tint={TINT[kind]}
         className={compact ? 'mb-2' : 'mb-3'}
       />
-      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="text-sm font-semibold text-heading">{title}</p>
       {description && <p className="mt-1.5 max-w-[48ch] text-sm leading-6 text-muted-foreground">{description}</p>}
       {action && <EmptyStateButton action={action} primary={kind === 'start'} compact={compact} />}
     </div>

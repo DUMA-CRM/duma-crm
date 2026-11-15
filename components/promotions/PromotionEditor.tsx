@@ -369,7 +369,7 @@ function PromotionForm({
                       {promotionConditions(fields, symbol).map((condition) => (
                         <li
                           key={condition}
-                          className="rounded-sm border border-rule/55 bg-control px-1.5 py-0.5 text-micro font-medium text-muted-foreground"
+                          className="rounded-sm border border-border bg-control px-1.5 py-0.5 text-micro font-medium text-muted-foreground"
                         >
                           {condition}
                         </li>

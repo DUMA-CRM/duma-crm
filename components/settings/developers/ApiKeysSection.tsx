@@ -4,15 +4,15 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { SecretReveal } from '@/components/cms/SecretReveal';
-import { PickerRow, RowMenu } from '@/components/cms/rows';
+import { RowMenu, RowWarning } from '@/components/cms/rows';
 import { cmsKeys, invalidateCms } from '@/components/cms/shared';
-import { AlertTriangle, Ban, Globe, KeyRound, Lock, Pencil, Plus, RefreshCw } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
+import { Ban, Globe, KeyRound, Lock, Pencil, Plus, RefreshCw } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Bone } from '@/components/shared/Skeleton';
-import { Badge } from '@/components/ui/badge';
+import { ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { type WorkspaceApiKey, getWorkspaceApiKeys, revokeWorkspaceApiKey } from '@/lib/api/api-keys.service';
@@ -25,14 +25,15 @@ import { keySummary, keyUsage } from '@/lib/utils/developers';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { NewApiKeyDialog } from './NewApiKeyDialog';
-import { Facts } from './rows';
+import { DetailRow, Facts } from './rows';
 import type { DeveloperAccess } from './useDeveloperAccess';
 
 /**
  * The workspace's API keys — one list for every public API. A key's scopes
  * say which APIs it opens; each person sees every key but changes only those
  * they could have granted (the API checks the same rule). Each key is a row
- * that opens its details; its actions sit behind the row's ⋯.
+ * that opens its details; its actions sit behind the row's ⋯. The list is the
+ * section — a `RecordGroup`, no card around it.
  */
 export function ApiKeysSection({ access }: { access: DeveloperAccess }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
@@ -77,17 +78,19 @@ export function ApiKeysSection({ access }: { access: DeveloperAccess }) {
     const manageable = live && canManageKey(key.scopes, access.capabilities);
     const needsLocation = live && keyNeedsLocation(key);
     return (
-      <PickerRow
+      <DetailRow
         key={key.id}
         icon={key.kind === 'secret' ? Lock : Globe}
-        tone={needsLocation ? 'warning' : undefined}
+        tone={needsLocation ? 'warning' : 'primary'}
         title={key.name}
-        description={keySummary(key)}
+        meta={keySummary(key)}
         value={live ? keyUsage(key.lastUsedAt) : key.state === 'revoked' ? 'Revoked' : 'Expired'}
-        muted={!live || !key.lastUsedAt}
+        valueTone={needsLocation ? 'warning' : undefined}
+        quiet={!live || !key.lastUsedAt}
+        muted={!live}
         open={open === key.id}
         onToggle={() => toggle(key.id)}
-        trailing={
+        control={
           manageable ? (
             <RowMenu
               label={`${key.name} actions`}
@@ -102,7 +105,7 @@ export function ApiKeysSection({ access }: { access: DeveloperAccess }) {
       >
         <KeyDetails apiKey={key} location={locationName(key.locationId)} />
         {needsLocation && (
-          <Warning>
+          <RowWarning>
             Choose where it sells from before it can record orders
             {manageable && (
               <>
@@ -113,111 +116,117 @@ export function ApiKeysSection({ access }: { access: DeveloperAccess }) {
               </>
             )}
             .
-          </Warning>
+          </RowWarning>
         )}
-      </PickerRow>
+      </DetailRow>
     );
   };
 
   return (
-    <SettingsSection
-      title="API keys"
-      description="One key per website or app, so you can revoke one without breaking the others."
-      actions={
-        canCreate ? (
-          <Button className="h-9" onClick={() => setCreating(true)}>
-            <Plus aria-hidden="true" /> New key
-          </Button>
-        ) : undefined
-      }
-    >
-      {keysQuery.isPending ? (
-        <div className="space-y-3" role="status" aria-label="Loading API keys">
-          <Bone className="h-8 w-full rounded-md" />
-          <Bone className="h-8 w-full rounded-md" />
-        </div>
-      ) : keysQuery.isError ? (
-        <ErrorState title="Couldn’t load your API keys" onRetry={() => void keysQuery.refetch()} />
-      ) : keys.length === 0 ? (
-        <EmptyState
-          compact
-          icon={KeyRound}
-          title="No keys yet"
-          description="A publishable key reads your menu and content from a website; a secret key lets your server record orders."
-          action={canCreate ? { label: 'New key', onClick: () => setCreating(true), icon: Plus } : undefined}
-        />
-      ) : (
-        <div className="space-y-3">
-          {active.length === 0 && <p className="text-sm text-muted-foreground">No working keys — every key here is revoked or expired.</p>}
-          {active.map(keyRow)}
-          {retired.length > 0 && (
-            <>
-              <button
-                type="button"
-                aria-expanded={showRetired}
-                onClick={() => setShowRetired((value) => !value)}
-                className="text-xs font-medium text-muted-foreground hover:text-foreground"
-              >
-                {showRetired ? 'Hide' : 'Show'} {retired.length} revoked or expired
-              </button>
-              {showRetired && retired.map(keyRow)}
-            </>
-          )}
-        </div>
-      )}
+    <>
+      <RecordGroup
+        id="api-keys"
+        title="API keys"
+        footnote="Make one key per website or app, so you can revoke one alone. A key is shown once, when it’s made."
+        actions={
+          canCreate ? (
+            <Button size="sm" onClick={() => setCreating(true)}>
+              <Plus aria-hidden="true" /> New key
+            </Button>
+          ) : undefined
+        }
+      >
+        {keysQuery.isPending ? (
+          <ListSkeleton rows={2} label="Loading API keys" />
+        ) : keysQuery.isError ? (
+          <div className="rounded-lg border border-border bg-card shadow-sm">
+            <ErrorState title="Couldn’t load your API keys" onRetry={() => void keysQuery.refetch()} />
+          </div>
+        ) : keys.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card shadow-sm">
+            <EmptyState
+              compact
+              icon={KeyRound}
+              title="No keys yet"
+              description="A publishable key reads your menu and content from a website; a secret key lets your server record orders."
+              action={canCreate ? { label: 'New key', onClick: () => setCreating(true), icon: Plus } : undefined}
+            />
+          </div>
+        ) : (
+          <ListRowGroup>
+            {active.length === 0 && (
+              <li className="border-b border-border px-3.5 py-3 text-sm text-muted-foreground last:border-b-0">
+                No working keys — every key here is revoked or expired.
+              </li>
+            )}
+            {active.map(keyRow)}
+            {retired.length > 0 && (
+              <>
+                <li className="border-b border-border last:border-b-0">
+                  <button
+                    type="button"
+                    aria-expanded={showRetired}
+                    onClick={() => setShowRetired((value) => !value)}
+                    className="w-full px-3.5 py-2.5 text-left text-xs font-medium text-muted-foreground transition-colors hover:bg-band/40 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                  >
+                    {showRetired ? 'Hide' : 'Show'} {retired.length} revoked or expired
+                  </button>
+                </li>
+                {showRetired && retired.map(keyRow)}
+              </>
+            )}
+          </ListRowGroup>
+        )}
+
+        {(creating || keyAction) && (
+          <NewApiKeyDialog
+            access={access}
+            locations={locationsQuery.data ?? []}
+            initialKey={keyAction?.key}
+            editing={keyAction?.editing}
+            onClose={() => {
+              setCreating(false);
+              setKeyAction(null);
+            }}
+            onCreated={(result) => {
+              setCreating(false);
+              setKeyAction(null);
+              setRevealed(result);
+            }}
+          />
+        )}
+        {revealed && (
+          <SecretReveal
+            title={`${revealed.key.name} is ready`}
+            label="API key"
+            icon={revealed.key.kind === 'secret' ? Lock : Globe}
+            secret={revealed.token}
+            warning={
+              revealed.key.kind === 'secret'
+                ? 'This key can act for your business. Keep it on your server, in an environment variable — never in a browser or an app. It can’t be shown again.'
+                : 'Copy it now — only a fingerprint is stored, so it can’t be shown again.'
+            }
+            onClose={() => {
+              setOpen(revealed.key.id);
+              setRevealed(null);
+            }}
+          />
+        )}
+        {revoking && (
+          <ConfirmModal
+            title={`Revoke ${revoking.name}?`}
+            message="Anything using this key stops working within 30 seconds. This can’t be undone — you’d make a new key instead."
+            confirmLabel="Revoke"
+            pendingLabel="Revoking…"
+            isPending={revoke.isPending}
+            onConfirm={() => revoke.mutate(revoking)}
+            onClose={() => setRevoking(null)}
+          />
+        )}
+      </RecordGroup>
 
       {access.canManageContent && <LegacyContentKeys />}
-
-      <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-        A key is shown once, when it’s made — only a fingerprint is stored. Revoking takes effect within 30 seconds.
-      </p>
-
-      {(creating || keyAction) && (
-        <NewApiKeyDialog
-          access={access}
-          locations={locationsQuery.data ?? []}
-          initialKey={keyAction?.key}
-          editing={keyAction?.editing}
-          onClose={() => {
-            setCreating(false);
-            setKeyAction(null);
-          }}
-          onCreated={(result) => {
-            setCreating(false);
-            setKeyAction(null);
-            setRevealed(result);
-          }}
-        />
-      )}
-      {revealed && (
-        <SecretReveal
-          title={`${revealed.key.name} is ready`}
-          label="API key"
-          icon={revealed.key.kind === 'secret' ? Lock : Globe}
-          secret={revealed.token}
-          warning={
-            revealed.key.kind === 'secret'
-              ? 'This key can act for your business. Keep it on your server, in an environment variable — never in a browser or an app. It can’t be shown again.'
-              : 'Copy it now — only a fingerprint is stored, so it can’t be shown again.'
-          }
-          onClose={() => {
-            setOpen(revealed.key.id);
-            setRevealed(null);
-          }}
-        />
-      )}
-      {revoking && (
-        <ConfirmModal
-          title={`Revoke ${revoking.name}?`}
-          message="Anything using this key stops working within 30 seconds. This can’t be undone — you’d make a new key instead."
-          confirmLabel="Revoke"
-          pendingLabel="Revoking…"
-          isPending={revoke.isPending}
-          onConfirm={() => revoke.mutate(revoking)}
-          onClose={() => setRevoking(null)}
-        />
-      )}
-    </SettingsSection>
+    </>
   );
 }
 
@@ -263,52 +272,53 @@ function LegacyContentKeys() {
     onError: (error) => toast('error', error.message),
   });
 
-  if (query.isError) {
-    return (
-      <div className="mt-4">
-        <ErrorState title="Couldn’t load older content keys" onRetry={() => void query.refetch()} />
-      </div>
-    );
-  }
   const live = (query.data ?? []).filter((key) => key.state === 'active');
-  if (live.length === 0) return null;
+  if (!query.isError && live.length === 0) return null;
 
   return (
-    <div className="mt-5 space-y-3">
-      <p className="flex items-center gap-2 text-xs font-semibold text-muted-foreground">
-        Older content keys <Badge variant="muted">{live.length}</Badge>
-      </p>
-      {live.map((key) => (
-        <PickerRow
-          key={key.id}
-          icon={KeyRound}
-          title={key.name}
-          description={key.kind === 'preview' ? 'Content drafts' : 'Content'}
-          value={keyUsage(key.lastUsedAt)}
-          muted={!key.lastUsedAt}
-          open={open === key.id}
-          onToggle={() => setOpen((current) => (current === key.id ? null : key.id))}
-          trailing={
-            <RowMenu
-              label={`${key.name} actions`}
-              items={[{ icon: Ban, label: 'Revoke', onClick: () => setRevoking(key), danger: true }]}
-            />
-          }
-        >
-          <Facts
-            rows={[
-              [
-                'Key',
-                <code key="k" className="font-mono">
-                  {key.tokenPrefix}…
-                </code>,
-              ],
-              ['Content types', key.contentTypeKeys ? key.contentTypeKeys.join(', ') : 'All'],
-            ]}
-          />
-        </PickerRow>
-      ))}
-      <p className="text-xs text-muted-foreground">These still work. Replace each with a key above, then revoke it.</p>
+    <RecordGroup
+      id="older-content-keys"
+      title="Older content keys"
+      footnote="These still work. Replace each with an API key, then revoke it."
+    >
+      {query.isError ? (
+        <div className="rounded-lg border border-border bg-card shadow-sm">
+          <ErrorState title="Couldn’t load older content keys" onRetry={() => void query.refetch()} />
+        </div>
+      ) : (
+        <ListRowGroup>
+          {live.map((key) => (
+            <DetailRow
+              key={key.id}
+              icon={KeyRound}
+              title={key.name}
+              meta={key.kind === 'preview' ? 'Content drafts' : 'Content'}
+              value={keyUsage(key.lastUsedAt)}
+              quiet={!key.lastUsedAt}
+              open={open === key.id}
+              onToggle={() => setOpen((current) => (current === key.id ? null : key.id))}
+              control={
+                <RowMenu
+                  label={`${key.name} actions`}
+                  items={[{ icon: Ban, label: 'Revoke', onClick: () => setRevoking(key), danger: true }]}
+                />
+              }
+            >
+              <Facts
+                rows={[
+                  [
+                    'Key',
+                    <code key="k" className="font-mono">
+                      {key.tokenPrefix}…
+                    </code>,
+                  ],
+                  ['Content types', key.contentTypeKeys ? key.contentTypeKeys.join(', ') : 'All'],
+                ]}
+              />
+            </DetailRow>
+          ))}
+        </ListRowGroup>
+      )}
       {revoking && (
         <ConfirmModal
           title={`Revoke ${revoking.name}?`}
@@ -320,16 +330,6 @@ function LegacyContentKeys() {
           onClose={() => setRevoking(null)}
         />
       )}
-    </div>
-  );
-}
-
-/** Something that stops a key working, with how to fix it. */
-export function Warning({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mt-3 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
-      <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
-      <span>{children}</span>
-    </p>
+    </RecordGroup>
   );
 }

@@ -98,7 +98,7 @@ export function ChoiceGrid<T extends string>({
                   'mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md border transition-colors',
                   active
                     ? 'border-primary/40 bg-primary text-primary-foreground'
-                    : 'border-rule/55 bg-background text-muted-foreground group-hover:text-foreground',
+                    : 'border-border bg-background text-muted-foreground group-hover:text-foreground',
                 )}
               >
                 <Icon size={18} aria-hidden="true" />
@@ -111,7 +111,7 @@ export function ChoiceGrid<T extends string>({
               className={cn(
                 'mt-0.5 flex size-5 shrink-0 items-center justify-center border text-micro tabular-nums transition-colors',
                 multiple ? 'rounded-[5px]' : 'rounded-full',
-                active ? 'border-primary bg-primary text-primary-foreground' : 'border-rule/70 text-muted-foreground',
+                active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground',
               )}
             >
               {active ? <Check size={12} strokeWidth={3} /> : shortcuts && index < 9 ? index + 1 : null}
@@ -139,7 +139,7 @@ export function ChoiceGrid<T extends string>({
                 'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring',
                 active
                   ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
-                  : 'border-rule/70 hover:border-rule hover:bg-band/45',
+                  : 'border-border hover:border-rule hover:bg-band/45',
               )}
             >
               <input

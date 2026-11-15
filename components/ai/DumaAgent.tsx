@@ -16,34 +16,19 @@ import { type AgentMood, type AgentPhase, useAgentMood } from '@/components/ai/u
 import {
   ArrowLeftRight,
   ArrowUpRight,
-  BarChart3,
   BookOpen,
-  CalendarDays,
   Check,
   ChevronRight,
-  ClipboardCheck,
   Copy,
-  CreditCard,
-  Eye,
   History,
-  type IconComponent,
   Loader2,
-  Mail,
   MapPin,
   Maximize,
   MessageSquarePlus,
-  Package,
   Plus,
-  QrCode,
-  Receipt,
   RefreshCw,
-  Search,
   Send,
-  Settings,
-  ShieldCheck,
-  ShoppingCart,
   TriangleAlert,
-  Users,
   X,
   Zap,
 } from '@/components/icons';
@@ -74,54 +59,48 @@ import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 interface StarterPrompt {
-  icon: IconComponent;
   label: string;
   prompt: string;
 }
 
 interface PageWelcome {
+  /** The empty chat's accessible heading; the prompts say the rest. */
   title: string;
-  description: string;
   prompts: StarterPrompt[];
 }
 
 const DEFAULT_WELCOME: PageWelcome = {
   title: 'What should we work on?',
-  description: 'Ask about live operations, compare performance, or describe a task for DUMA to prepare.',
   prompts: [
-    { icon: BookOpen, label: 'Learn this workspace', prompt: 'Explain what I can do on this page and show the most useful action.' },
-    { icon: Package, label: 'Check stock risk', prompt: 'What runs out first at this location, and what should I reorder?' },
-    { icon: Users, label: 'Check team cover', prompt: 'Who is working this week, and is anything uncovered?' },
-    { icon: ShoppingCart, label: 'Prepare a stock order', prompt: 'Help me create a purchase order for the stock we need most.' },
+    { label: 'Learn this workspace', prompt: 'Explain what I can do on this page and show the most useful action.' },
+    { label: 'Check stock risk', prompt: 'What runs out first at this location, and what should I reorder?' },
+    { label: 'Check team cover', prompt: 'Who is working this week, and is anything uncovered?' },
+    { label: 'Prepare a stock order', prompt: 'Help me create a purchase order for the stock we need most.' },
   ],
 };
 
 const PAGE_WELCOMES: Record<string, PageWelcome> = {
   dashboard: {
     title: 'What needs attention today?',
-    description: 'Use the live workspace to find exceptions, understand pace, and decide the next useful action.',
     prompts: [
       {
-        icon: ClipboardCheck,
         label: 'Run today’s briefing',
         prompt:
           'Give me today’s operations briefing. Check every area I can access, rank up to three issues, show the evidence, and give me the next action for each.',
       },
-      { icon: BarChart3, label: 'Check trading pace', prompt: 'How is this location performing today compared with its recent pattern?' },
-      { icon: Package, label: 'Find stock risks', prompt: 'Which stock items are most at risk at this location?' },
-      { icon: Users, label: 'Check who is working', prompt: 'Who is scheduled today, and is anyone currently clocked in off rota?' },
+      { label: 'Check trading pace', prompt: 'How is this location performing today compared with its recent pattern?' },
+      { label: 'Find stock risks', prompt: 'Which stock items are most at risk at this location?' },
+      { label: 'Check who is working', prompt: 'Who is scheduled today, and is anyone currently clocked in off rota?' },
     ],
   },
   orders: {
     title: 'What do you need from Orders?',
-    description: 'Investigate a sale, review fulfilment, or narrow the order history without rebuilding the filters by hand.',
     prompts: [
-      { icon: ShoppingCart, label: 'Review active orders', prompt: 'Show me the orders that are still pending, preparing, or ready.' },
-      { icon: Search, label: 'Investigate an order', prompt: 'Help me find and explain a specific order.' },
-      { icon: Receipt, label: 'Check cancellations', prompt: 'Summarise recent cancelled orders and any patterns in their reasons.' },
-      { icon: QrCode, label: 'Review QR orders', prompt: 'Show recent QR code orders separately from POS and Mobile.' },
+      { label: 'Review active orders', prompt: 'Show me the orders that are still pending, preparing, or ready.' },
+      { label: 'Investigate an order', prompt: 'Help me find and explain a specific order.' },
+      { label: 'Check cancellations', prompt: 'Summarise recent cancelled orders and any patterns in their reasons.' },
+      { label: 'Review QR orders', prompt: 'Show recent QR code orders separately from POS and Mobile.' },
       {
-        icon: BarChart3,
         label: 'Compare order performance',
         prompt: 'Compare order volume and average value this week with the same days last week.',
       },
@@ -129,31 +108,26 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   },
   inventory: {
     title: 'What should we do with stock?',
-    description: 'Check cover, prepare purchasing work, or walk through a physical stock workflow from this workspace.',
     prompts: [
-      { icon: Package, label: 'Find low-stock risks', prompt: 'What is low or critical at this location, and what runs out first?' },
-      { icon: ShoppingCart, label: 'Prepare a purchase order', prompt: 'Help me order the stock this location needs most.' },
+      { label: 'Find low-stock risks', prompt: 'What is low or critical at this location, and what runs out first?' },
+      { label: 'Prepare a purchase order', prompt: 'Help me order the stock this location needs most.' },
       {
-        icon: ClipboardCheck,
         label: 'Review open stock work',
         prompt: 'Show me pending transfers, restock requests, and stocktakes in progress.',
       },
-      { icon: BookOpen, label: 'Guide a stocktake', prompt: 'Guide me through starting and completing a stocktake.' },
+      { label: 'Guide a stocktake', prompt: 'Guide me through starting and completing a stocktake.' },
     ],
   },
   reports: {
     title: 'What do you want to understand?',
-    description: 'Turn the current reporting question into a clear comparison, ranking, or operational recommendation.',
     prompts: [
       {
-        icon: BarChart3,
         label: 'Compare this week',
         prompt: 'Compare sales this week with the same days last week and explain the main change.',
       },
-      { icon: ShoppingCart, label: 'Rank menu performance', prompt: 'What sold most and least this week, and what should I review?' },
-      { icon: Receipt, label: 'Review refunds', prompt: 'Summarise refunds this week and compare them with last week.' },
+      { label: 'Rank menu performance', prompt: 'What sold most and least this week, and what should I review?' },
+      { label: 'Review refunds', prompt: 'Summarise refunds this week and compare them with last week.' },
       {
-        icon: Users,
         label: 'Check labour performance',
         prompt: 'What was labour as a share of sales this week, and is the cost complete?',
       },
@@ -161,128 +135,115 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   },
   customers: {
     title: 'How can I help with customers?',
-    description: 'Find a guest, understand loyalty activity, review segments, or work through a sensitive customer task.',
     prompts: [
-      { icon: Search, label: 'Find a customer', prompt: 'Help me find a customer by their name, phone number, or email.' },
-      { icon: Users, label: 'Review customer segments', prompt: 'Show me the saved customer segments and explain what each one targets.' },
+      { label: 'Find a customer', prompt: 'Help me find a customer by their name, phone number, or email.' },
+      { label: 'Review customer segments', prompt: 'Show me the saved customer segments and explain what each one targets.' },
       {
-        icon: ClipboardCheck,
         label: 'Check duplicate workflow',
         prompt: 'Guide me through reviewing and safely merging duplicate customers.',
       },
-      { icon: BarChart3, label: 'Review retention', prompt: 'How many customers were new versus returning this month?' },
+      { label: 'Review retention', prompt: 'How many customers were new versus returning this month?' },
     ],
   },
   communications: {
     title: 'What should we check in Communications?',
-    description: 'Review connection health, active automations, templates, and delivery problems before sending anything.',
     prompts: [
       {
-        icon: Mail,
         label: 'Check email health',
         prompt: 'Check the email connection, active templates, automations, and recent failures.',
       },
       {
-        icon: ClipboardCheck,
         label: 'Review failed deliveries',
         prompt: 'Summarise recent failed email deliveries and what needs fixing.',
       },
       {
-        icon: BookOpen,
         label: 'Set up an automation',
         prompt: 'Guide me through creating and safely enabling a customer email automation.',
       },
-      { icon: Users, label: 'Prepare an audience', prompt: 'Show me the customer segments available for a targeted email.' },
+      { label: 'Prepare an audience', prompt: 'Show me the customer segments available for a targeted email.' },
     ],
   },
   staff: {
     title: 'What does the team need?',
-    description: 'Check cover, leave, payroll, or people operations using the permissions available to you.',
     prompts: [
-      { icon: CalendarDays, label: 'Check rota cover', prompt: 'Review this week’s rota and highlight gaps or unusual shifts.' },
-      { icon: ClipboardCheck, label: 'Review leave requests', prompt: 'Show me the pending leave requests that need a decision.' },
-      { icon: CalendarDays, label: 'Check lateness', prompt: 'Compare this week’s rota with worked time — any no-shows or late starts?' },
-      { icon: CreditCard, label: 'Preview payroll', prompt: 'Preview this week’s payroll totals and flag incomplete or unusual entries.' },
-      { icon: Users, label: 'Review helpdesk work', prompt: 'Show open staff helpdesk requests, prioritised by urgency.' },
+      { label: 'Check rota cover', prompt: 'Review this week’s rota and highlight gaps or unusual shifts.' },
+      {
+        label: 'Draft next week’s rota',
+        prompt: 'Draft next week’s rota to fill the cover gaps, within working-time rules and the labour target.',
+      },
+      { label: 'Review leave requests', prompt: 'Show me the pending leave requests that need a decision.' },
+      { label: 'Check lateness', prompt: 'Compare this week’s rota with worked time — any no-shows or late starts?' },
+      { label: 'Preview payroll', prompt: 'Preview this week’s payroll totals and flag incomplete or unusual entries.' },
+      { label: 'Review helpdesk work', prompt: 'Show open staff helpdesk requests, prioritised by urgency.' },
     ],
   },
   scheduling: {
     title: 'What do you need from the rota?',
-    description: 'Check your working pattern or get help resolving a shift, attendance, or leave question.',
     prompts: [
-      { icon: CalendarDays, label: 'Understand my shifts', prompt: 'When is my next shift, and what does the rest of my week look like?' },
-      { icon: BookOpen, label: 'Request leave', prompt: 'Explain how to request leave and open the right place in My HR.' },
-      { icon: ClipboardCheck, label: 'Fix attendance', prompt: 'Show me how to request an attendance correction.' },
-      { icon: Users, label: 'Report a rota problem', prompt: 'What should I do if a shift time or location on my rota looks wrong?' },
+      { label: 'Understand my shifts', prompt: 'When is my next shift, and what does the rest of my week look like?' },
+      { label: 'Request leave', prompt: 'Explain how to request leave and open the right place in My HR.' },
+      { label: 'Fix attendance', prompt: 'Show me how to request an attendance correction.' },
+      { label: 'Report a rota problem', prompt: 'What should I do if a shift time or location on my rota looks wrong?' },
     ],
   },
   'my-hr': {
     title: 'What can I help you do in My HR?',
-    description: 'Get guidance for your personal details, leave, attendance, documents, or a private support request.',
     prompts: [
-      { icon: CalendarDays, label: 'Request leave', prompt: 'Guide me through submitting a leave request.' },
-      { icon: ClipboardCheck, label: 'Correct attendance', prompt: 'Guide me through reporting a missing or incorrect clock event.' },
-      { icon: CreditCard, label: 'Check my payslips', prompt: 'Show my latest payslip and what was deducted.' },
-      { icon: Mail, label: 'Raise a private request', prompt: 'Guide me through raising a private HR or payroll request.' },
+      { label: 'Request leave', prompt: 'Guide me through submitting a leave request.' },
+      { label: 'Correct attendance', prompt: 'Guide me through reporting a missing or incorrect clock event.' },
+      { label: 'Check my payslips', prompt: 'Show my latest payslip and what was deducted.' },
+      { label: 'Raise a private request', prompt: 'Guide me through raising a private HR or payroll request.' },
     ],
   },
   menu: {
     title: 'What should we change in the menu?',
-    description: 'Review availability and pricing, or get guided help with recipes and modifiers.',
     prompts: [
-      { icon: Search, label: 'Check an item', prompt: 'Find a menu item and show its price, category, and availability.' },
-      { icon: ShoppingCart, label: 'Update an item', prompt: 'Help me update a menu item’s price or availability.' },
-      { icon: BookOpen, label: 'Build a recipe', prompt: 'Guide me through adding or updating a recipe for a menu item.' },
-      { icon: Package, label: 'Review ingredient risk', prompt: 'Which low-stock ingredients could affect the menu at this location?' },
+      { label: 'Check an item', prompt: 'Find a menu item and show its price, category, and availability.' },
+      { label: 'Update an item', prompt: 'Help me update a menu item’s price or availability.' },
+      { label: 'Build a recipe', prompt: 'Guide me through adding or updating a recipe for a menu item.' },
+      { label: 'Review ingredient risk', prompt: 'Which low-stock ingredients could affect the menu at this location?' },
     ],
   },
   pos: {
     title: 'How can I help at the till?',
-    description: 'Get quick guidance for service, customer identification, payment, or an interrupted transaction.',
     prompts: [
-      { icon: BookOpen, label: 'Take an order', prompt: 'Guide me through taking and completing an order on the till.' },
-      { icon: Receipt, label: 'Check cash-up status', prompt: 'Is today’s trading day open, and did the last close balance?' },
-      { icon: Users, label: 'Add a customer', prompt: 'Show me how to identify a loyalty customer before payment.' },
-      { icon: ShoppingCart, label: 'Check menu availability', prompt: 'Show menu items that are currently unavailable.' },
+      { label: 'Take an order', prompt: 'Guide me through taking and completing an order on the till.' },
+      { label: 'Check cash-up status', prompt: 'Is today’s trading day open, and did the last close balance?' },
+      { label: 'Add a customer', prompt: 'Show me how to identify a loyalty customer before payment.' },
+      { label: 'Check menu availability', prompt: 'Show menu items that are currently unavailable.' },
     ],
   },
   kds: {
     title: 'What does the kitchen need?',
-    description: 'Review the live queue or get guidance for moving tickets cleanly through preparation and hand-off.',
     prompts: [
-      { icon: ShoppingCart, label: 'Review the active queue', prompt: 'Show orders that are pending, preparing, or ready.' },
-      { icon: BookOpen, label: 'Run the KDS workflow', prompt: 'Guide me through moving an order from pending to collected.' },
+      { label: 'Review the active queue', prompt: 'Show orders that are pending, preparing, or ready.' },
+      { label: 'Run the KDS workflow', prompt: 'Guide me through moving an order from pending to collected.' },
       {
-        icon: ClipboardCheck,
         label: 'Investigate a delayed order',
         prompt: 'Help me investigate an order that has been waiting too long.',
       },
-      { icon: Settings, label: 'Check device setup', prompt: 'Where do I change the kitchen screen layout and order chime?' },
+      { label: 'Check device setup', prompt: 'Where do I change the kitchen screen layout and order chime?' },
     ],
   },
   'cash-up': {
     title: 'What should we reconcile?',
-    description: 'Check the trading-day state, understand a difference, or work through closing the day at the till.',
     prompts: [
-      { icon: Receipt, label: 'Check cash-up status', prompt: 'Show the latest cash-up record and any cash or card variance.' },
-      { icon: BookOpen, label: 'Close the trading day', prompt: 'Guide me through closing the trading day from the till.' },
-      { icon: Search, label: 'Explain a variance', prompt: 'Help me investigate the latest cash or card variance.' },
-      { icon: ShoppingCart, label: 'Check unfinished orders', prompt: 'Show any active orders that should be resolved before cash-up.' },
+      { label: 'Check cash-up status', prompt: 'Show the latest cash-up record and any cash or card variance.' },
+      { label: 'Close the trading day', prompt: 'Guide me through closing the trading day from the till.' },
+      { label: 'Explain a variance', prompt: 'Help me investigate the latest cash or card variance.' },
+      { label: 'Check unfinished orders', prompt: 'Show any active orders that should be resolved before cash-up.' },
     ],
   },
   compliance: {
     title: 'What needs attention in Compliance?',
-    description: 'Review privacy deadlines and statuses, or get careful guidance for handling customer data requests.',
     prompts: [
       {
-        icon: ShieldCheck,
         label: 'Review open requests',
         prompt: 'Show privacy requests that are still open and highlight overdue items.',
       },
-      { icon: BookOpen, label: 'Handle a privacy request', prompt: 'Guide me through safely processing a customer privacy request.' },
-      { icon: Users, label: 'Find the customer', prompt: 'Help me find the customer connected to a privacy request.' },
+      { label: 'Handle a privacy request', prompt: 'Guide me through safely processing a customer privacy request.' },
+      { label: 'Find the customer', prompt: 'Help me find the customer connected to a privacy request.' },
       {
-        icon: ClipboardCheck,
         label: 'Check the audit trail',
         prompt: 'Show recent audit activity related to customer or privacy changes.',
       },
@@ -290,38 +251,34 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
   },
   'audit-log': {
     title: 'What change are you investigating?',
-    description: 'Narrow recent activity by actor, action, resource, or period and connect it back to the affected record.',
     prompts: [
-      { icon: ClipboardCheck, label: 'Review recent changes', prompt: 'Summarise the most recent audit activity.' },
-      { icon: Search, label: 'Investigate a record', prompt: 'Help me find audit events for a specific order, customer, or stock item.' },
-      { icon: Users, label: 'Review an actor', prompt: 'Show recent changes made by a specific team member.' },
-      { icon: ShieldCheck, label: 'Check sensitive changes', prompt: 'Show recent privacy, access, or customer-data changes.' },
+      { label: 'Review recent changes', prompt: 'Summarise the most recent audit activity.' },
+      { label: 'Investigate a record', prompt: 'Help me find audit events for a specific order, customer, or stock item.' },
+      { label: 'Review an actor', prompt: 'Show recent changes made by a specific team member.' },
+      { label: 'Check sensitive changes', prompt: 'Show recent privacy, access, or customer-data changes.' },
     ],
   },
   settings: {
     title: 'What do you want to configure?',
-    description: 'Get guidance or prepare safe changes for QR ordering, locations, security, trading details, payments, and connections.',
     prompts: [
       {
-        icon: QrCode,
         label: 'Check QR ordering',
         prompt: 'Can customers place a QR order at this location right now? Explain any blocker.',
       },
-      { icon: Settings, label: 'Update QR ordering', prompt: 'Help me enable, disable, pause, or update QR ordering for this location.' },
-      { icon: Settings, label: 'Configure a location', prompt: 'Guide me through updating a location and its trading hours.' },
-      { icon: ShieldCheck, label: 'Review security', prompt: 'Guide me through reviewing sessions and securing the account.' },
-      { icon: CreditCard, label: 'Set up payments', prompt: 'Guide me through connecting and testing a payment provider.' },
-      { icon: Mail, label: 'Connect customer email', prompt: 'Guide me through setting up and testing the email connection.' },
+      { label: 'Update QR ordering', prompt: 'Help me enable, disable, pause, or update QR ordering for this location.' },
+      { label: 'Configure a location', prompt: 'Guide me through updating a location and its trading hours.' },
+      { label: 'Review security', prompt: 'Guide me through reviewing sessions and securing the account.' },
+      { label: 'Set up payments', prompt: 'Guide me through connecting and testing a payment provider.' },
+      { label: 'Connect customer email', prompt: 'Guide me through setting up and testing the email connection.' },
     ],
   },
   support: {
     title: 'What do you need help with?',
-    description: 'Describe the task or problem and DUMA will find the closest guide or walk through it with you.',
     prompts: [
-      { icon: Search, label: 'Find the right guide', prompt: 'Help me find the guide for the task I am trying to complete.' },
-      { icon: ShoppingCart, label: 'Run a service workflow', prompt: 'Show me the guide for running a shift from open to close.' },
-      { icon: Package, label: 'Fix a stock workflow', prompt: 'Show me the guide for receiving a delivery and updating stock correctly.' },
-      { icon: Users, label: 'Get people help', prompt: 'Show me how to raise and track an HR, payroll, scheduling, or IT request.' },
+      { label: 'Find the right guide', prompt: 'Help me find the guide for the task I am trying to complete.' },
+      { label: 'Run a service workflow', prompt: 'Show me the guide for running a shift from open to close.' },
+      { label: 'Fix a stock workflow', prompt: 'Show me the guide for receiving a delivery and updating stock correctly.' },
+      { label: 'Get people help', prompt: 'Show me how to raise and track an HR, payroll, scheduling, or IT request.' },
     ],
   },
 };
@@ -360,6 +317,7 @@ const PROMPT_CAPABILITIES: Partial<Record<string, Capability[]>> = {
   'Set up an automation': ['email:write'],
   'Prepare an audience': ['segments:read'],
   'Check rota cover': ['scheduling:read'],
+  'Draft next week’s rota': ['scheduling:write'],
   'Review leave requests': ['hr.leave:read'],
   'Preview payroll': ['hr.payroll:read'],
   'Review helpdesk work': ['helpdesk:manage'],
@@ -414,11 +372,6 @@ const PAGE_NAMES: Record<string, string> = {
   staff: 'Staff',
   support: 'Support',
 };
-
-function pageName(pathname: string) {
-  const segment = pathname.split('/').filter(Boolean)[0] ?? 'dashboard';
-  return PAGE_NAMES[segment] ?? segment.replaceAll('-', ' ').replace(/^./, (letter) => letter.toUpperCase());
-}
 
 /**
  * Sub-pages worth naming to the agent ("reports/end-of-day", "staff/payroll").
@@ -642,7 +595,7 @@ function ShortcutList({
   return (
     <section className="mt-4" aria-label="Open in DUMA">
       <p className="px-0.5 text-label font-semibold tracking-label text-muted-foreground uppercase">Open in DUMA</p>
-      <div className="mt-1.5 divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field">
+      <div className="mt-1.5 divide-y divide-border overflow-hidden rounded-lg border border-border bg-field">
         {shortcuts.map((shortcut) => {
           const key = shortcutKey(shortcut);
           const opening = openingKey === key;
@@ -656,7 +609,7 @@ function ShortcutList({
               disabled={Boolean(openingKey)}
               className="group flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors duration-150 hover:bg-band/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-wait disabled:opacity-60"
             >
-              <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-reference">
+              <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-reference">
                 {opening ? <Loader2 size={14} className="animate-spin" aria-hidden="true" /> : <Icon size={14} aria-hidden="true" />}
               </span>
               <span className="min-w-0 flex-1">
@@ -684,7 +637,7 @@ function FollowUpList({ items, onSelect }: { items: string[]; onSelect: (item: s
   return (
     <section aria-label="Suggested follow-ups">
       <p className="px-0.5 text-label font-semibold tracking-label text-muted-foreground uppercase">Useful next questions</p>
-      <div className="mt-1.5 divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field">
+      <div className="mt-1.5 divide-y divide-border overflow-hidden rounded-lg border border-border bg-field">
         {items.slice(0, 3).map((item) => (
           <button
             key={item}
@@ -1261,7 +1214,6 @@ function DumaAgentPanel() {
   const lastMessage = messages[messages.length - 1];
   const followUps = !busy && !pendingAction && lastMessage?.role === 'assistant' ? (lastMessage.followUps ?? []) : [];
   const retryPrompt = [...messages].reverse().find((message) => message.role === 'user')?.content;
-  const currentPage = pageName(pathname);
   const welcome = PAGE_WELCOMES[pageId(pathname)?.split('/')[0] ?? ''] ?? DEFAULT_WELCOME;
   const permittedPrompts = welcome.prompts.filter((prompt) => {
     const required = PROMPT_CAPABILITIES[prompt.label];
@@ -1365,7 +1317,7 @@ function DumaAgentPanel() {
                   aria-labelledby="duma-agent-title"
                   tabIndex={-1}
                   style={floatingStyle}
-                  className="fixed right-3 bottom-3 z-[70] flex h-14 w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-rule/60 bg-card shadow-2xl sm:w-80"
+                  className="fixed right-3 bottom-3 z-[70] flex h-14 w-[calc(100vw-1.5rem)] overflow-hidden rounded-lg border border-border bg-card shadow-2xl sm:w-80"
                 >
                   <header className="flex h-full w-full items-center gap-2 bg-card px-2.5">
                     <div className="flex min-w-0 flex-1 items-center gap-2">
@@ -1456,13 +1408,13 @@ function DumaAgentPanel() {
                         {notice && (
                           <p
                             role="status"
-                            className="mb-2 flex items-start gap-2 rounded-md border border-rule/55 bg-band/45 px-3 py-2 text-xs leading-5 text-muted-foreground"
+                            className="mb-2 flex items-start gap-2 rounded-md border border-border bg-band/45 px-3 py-2 text-xs leading-5 text-muted-foreground"
                           >
                             <History size={13} className="mt-0.5 shrink-0 text-measured" aria-hidden="true" />
                             <span>{notice}</span>
                           </p>
                         )}
-                        <div className="flex items-end gap-2 rounded-md border border-input bg-control py-1.5 pr-1.5 pl-2 shadow-sm focus-within:border-measured focus-within:outline-2 focus-within:outline-measured">
+                        <div className="flex items-end gap-2">
                           <textarea
                             ref={inputRef}
                             value={draft}
@@ -1479,9 +1431,9 @@ function DumaAgentPanel() {
                             }}
                             rows={1}
                             maxLength={4_000}
-                            placeholder="Ask about your workspace…"
+                            placeholder="Ask DUMA anything…"
                             aria-label="Message Ask DUMA"
-                            className="max-h-40 min-h-9 flex-1 resize-none self-center bg-transparent px-1 py-1.5 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground sm:text-sm"
+                            className="max-h-40 min-h-9 flex-1 resize-none self-center bg-transparent px-1 py-1.5 text-base leading-6 text-foreground outline-none placeholder:text-muted-foreground/70 sm:text-sm"
                             disabled={busy}
                           />
                           {busy ? (
@@ -1500,12 +1452,6 @@ function DumaAgentPanel() {
                             </Button>
                           )}
                         </div>
-                        {/* The composer's own status strip: which model will
-                            answer on the left, what an approval means on the
-                            right. The model belongs here rather than in the
-                            header — it is a property of the message about to be
-                            sent, and the header is already the mascot's. */}
-                        <p className="mt-1.5 px-1 text-label text-muted-foreground">Ask DUMA can make mistakes</p>
                       </form>
                     )
                   }
@@ -1554,49 +1500,32 @@ function DumaAgentPanel() {
                     /* Fills the scroller so the greeting can float in the
                              free space and the prompts sit against the composer,
                              where the hand already is. */
-                    <div className="flex min-h-full flex-col duration-200 animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none">
-                      {/* What it can do and where it is looking — no hero: the header mark is the character. */}
-                      <section className="flex flex-1 flex-col justify-end pb-2 text-left" aria-labelledby="duma-welcome-title">
-                        {/* The one place the mascot is the character, not a badge: it waves on
-                                  arrival and then watches the cursor, so an empty panel is someone waiting. */}
-                        <Mascot size={112} {...mood} gesture="wave" follow label="DUMA's assistant" className="-ml-2" />
-                        <h3 id="duma-welcome-title" className="mt-3 max-w-[26ch] text-xl font-semibold tracking-title text-foreground">
-                          {welcome.title}
-                        </h3>
-                        <p className="mt-1.5 max-w-[46ch] text-sm leading-6 text-muted-foreground">{welcome.description}</p>
-                        <p className="mt-3 inline-flex w-fit items-center gap-1.5 rounded-md border border-rule/60 bg-field px-2 py-1 text-xs text-muted-foreground">
-                          <Eye size={12} aria-hidden="true" />
-                          Looking at <span className="font-medium text-foreground">{currentPage}</span>
-                        </p>
-                      </section>
-
-                      <p className="mt-6 shrink-0 px-1 text-label uppercase text-muted-foreground">Try asking</p>
-
-                      {/* The settings page's row list: one bordered panel, a row per prompt. */}
-                      <div className="mt-2 shrink-0 divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field">
-                        {visiblePrompts.slice(0, 4).map(({ icon: Icon, label, prompt }, index) => (
-                          <button
-                            key={label}
-                            ref={index === 0 ? firstSuggestionRef : undefined}
-                            type="button"
-                            onClick={() => void send(prompt)}
-                            className="group flex w-full items-center gap-3 px-3 py-2.5 text-left transition-colors duration-150 hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-offset-[-2px] focus-visible:outline-ring"
-                          >
-                            <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
-                              <Icon size={15} aria-hidden="true" />
-                            </span>
-                            <span className="min-w-0">
-                              <span className="block text-sm font-medium text-foreground">{label}</span>
-                            </span>
-                            <ChevronRight
-                              size={14}
-                              className="ml-auto shrink-0 text-muted-foreground transition-transform duration-150 group-hover:translate-x-0.5 group-hover:text-primary motion-reduce:transition-none"
-                              aria-hidden="true"
-                            />
-                          </button>
+                    /* The marketing preview's empty chat: the questions it can answer as
+                       centred links, the mascot under them, the composer below. */
+                    <section
+                      aria-labelledby="duma-welcome-title"
+                      className="flex min-h-full flex-col items-center justify-center gap-6 py-6 duration-200 animate-in fade-in slide-in-from-bottom-1 motion-reduce:animate-none"
+                    >
+                      <h3 id="duma-welcome-title" className="sr-only">
+                        {welcome.title}
+                      </h3>
+                      <ul className="flex max-w-md flex-wrap justify-center gap-x-5 gap-y-3 text-center">
+                        {visiblePrompts.slice(0, 6).map(({ label, prompt }, index) => (
+                          <li key={label}>
+                            <button
+                              ref={index === 0 ? firstSuggestionRef : undefined}
+                              type="button"
+                              onClick={() => void send(prompt)}
+                              className="rounded-sm text-[15px] leading-6 text-primary transition-colors hover:text-primary-hover hover:underline hover:underline-offset-4 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                            >
+                              {label}
+                            </button>
+                          </li>
                         ))}
-                      </div>
-                    </div>
+                      </ul>
+                      {/* It waves on arrival and then watches the cursor, so an empty panel is someone waiting. */}
+                      <Mascot size={72} {...mood} gesture="wave" follow label="DUMA's assistant" />
+                    </section>
                   ) : (
                     <div className="space-y-7">
                       {messages.map((message, index) => {
@@ -1607,7 +1536,7 @@ function DumaAgentPanel() {
                                    a turn reads as one conversation with two sides
                                    rather than a stack of matching bubbles. */
                             <div key={`user-${index}`} className="flex justify-end">
-                              <p className="max-w-[85%] rounded-lg border border-rule/55 bg-field px-3.5 py-2 text-sm leading-6 whitespace-pre-wrap text-foreground">
+                              <p className="max-w-[85%] rounded-lg border border-border bg-field px-3.5 py-2 text-sm leading-6 whitespace-pre-wrap text-foreground">
                                 {message.content}
                               </p>
                             </div>
@@ -1640,7 +1569,7 @@ function DumaAgentPanel() {
                                       the model in use. */}
                             {message.modelPicker ? (
                               <div className="mt-3">
-                                <ModelChoiceList compact enabled={open} />
+                                <ModelChoiceList enabled={open} />
                               </div>
                             ) : null}
                             {message.shortcuts?.length ? (

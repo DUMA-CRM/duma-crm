@@ -57,7 +57,7 @@ export function TemplateGallery({ onCreated, compact = false }: { onCreated: (id
               type="button"
               disabled={create.isPending}
               onClick={() => create.mutate(template)}
-              className="group flex h-full w-full flex-col rounded-lg border border-rule/60 bg-field p-4 text-left transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-rule hover:shadow-md disabled:cursor-wait disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              className="group flex h-full w-full flex-col rounded-lg border border-border bg-field p-4 text-left transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-rule hover:shadow-md disabled:cursor-wait disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
             >
               <span className="flex items-center justify-between">
                 <span
@@ -65,7 +65,7 @@ export function TemplateGallery({ onCreated, compact = false }: { onCreated: (id
                     'flex size-9 items-center justify-center rounded-md border',
                     template.id === 'blank'
                       ? 'border-dashed border-rule bg-background text-muted-foreground'
-                      : 'border-rule/55 bg-background text-foreground',
+                      : 'border-border bg-background text-foreground',
                   )}
                 >
                   {pending ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Icon size={16} aria-hidden="true" />}
@@ -96,7 +96,7 @@ function Sketch({ template }: { template: FormTemplate }) {
           <span className="h-1.5 w-10 shrink-0 rounded-full bg-rule/70" />
           <span
             className={cn(
-              'h-3 rounded-sm border border-rule/50 bg-background',
+              'h-3 rounded-sm border border-border bg-background',
               field.type === 'long_text'
                 ? 'w-full'
                 : field.width === 'half'

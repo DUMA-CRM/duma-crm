@@ -146,3 +146,17 @@ export function canDeletePost(targets: { status: string }[], canPublish: boolean
   if (targets.some((t) => t.status === 'uploading' || t.status === 'processing')) return false;
   return canPublish || targets.every((t) => t.status === 'draft');
 }
+
+/** A post's colour on the calendar, as schedulers use it: draft grey, waiting blue, out green, wrong red. */
+export type MarketingTone = 'muted' | 'info' | 'success' | 'warning' | 'exception';
+
+export function marketingStatusTone(status: string): MarketingTone {
+  if (status === 'published') return 'success';
+  if (status === 'partially published') return 'warning';
+  if (['failed', 'blocked', 'needs-reconciliation'].includes(status)) return 'exception';
+  if (['scheduled', 'processing', 'uploading'].includes(status)) return 'info';
+  return 'muted';
+}
+
+/** Something someone has to look at — never hidden behind a filter. */
+export const needsAttention = (status: string) => ['failed', 'blocked', 'needs-reconciliation', 'partially published'].includes(status);

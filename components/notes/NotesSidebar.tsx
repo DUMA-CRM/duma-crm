@@ -443,7 +443,7 @@ export function NotesSidebar({
           leftIcon={<Search size={14} aria-hidden="true" />}
           rightIcon={
             search ? undefined : (
-              <kbd className="hidden rounded-sm border border-rule/60 bg-band px-1 text-micro font-semibold text-muted-foreground lg:inline">
+              <kbd className="hidden rounded-sm border border-border bg-band px-1 text-micro font-semibold text-muted-foreground lg:inline">
                 ⌘O
               </kbd>
             )
@@ -654,7 +654,7 @@ function Tags({ active, onShow }: { active: string | null; onShow: (tag: string 
               'rounded-md border px-1.5 py-0.5 text-xs transition-colors',
               active === entry.tag
                 ? 'border-primary bg-primary/8 text-primary'
-                : 'border-rule/55 bg-control text-muted-foreground hover:text-foreground',
+                : 'border-border bg-control text-muted-foreground hover:text-foreground',
             )}
           >
             #{entry.tag}

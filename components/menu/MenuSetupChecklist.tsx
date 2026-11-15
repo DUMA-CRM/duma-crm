@@ -69,7 +69,7 @@ export function MenuSetupChecklist() {
   return (
     <section className="overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
       <div className="flex items-baseline justify-between gap-3 border-b border-rule px-4 py-3 md:px-5">
-        <h2 className="text-sm font-semibold text-foreground">Build your menu</h2>
+        <h2 className="text-sm font-semibold text-heading">Build your menu</h2>
         <p className="text-label text-muted-foreground">
           {remaining} of {steps.length} still to do · each step needs the one before it
         </p>
@@ -81,7 +81,7 @@ export function MenuSetupChecklist() {
           return (
             <li
               key={step.title}
-              className="flex items-center gap-3 border-b border-rule/60 px-4 py-3 transition-colors last:border-0 hover:bg-band md:px-5"
+              className="flex items-center gap-3 border-b border-border px-4 py-3 transition-colors last:border-0 hover:bg-band md:px-5"
             >
               {/* State reads as a mark and a colour, never colour alone. */}
               <span

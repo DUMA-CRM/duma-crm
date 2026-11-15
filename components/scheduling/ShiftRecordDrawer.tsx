@@ -1,30 +1,28 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useMemo, useState } from 'react';
+import { useId, useMemo, useState } from 'react';
 
 import {
   Banknote,
   CalendarClock,
   CalendarDays,
-  ChevronDown,
   Clock,
   Coffee,
   FileText,
-  type IconComponent,
-  Info,
   ListChecks,
   LogIn,
   LogOut,
   MapPin,
   Plus,
-  Radio,
   Repeat,
   Tag,
+  Timer,
   Trash2,
   UsersRound,
 } from '@/components/icons';
 import { Avatar, fmtMoney } from '@/components/people/shared';
+import { invalidateRota } from '@/components/scheduling/rota-queries';
 import {
   type ShiftRecord,
   WEEKDAYS,
@@ -33,23 +31,24 @@ import {
   fmtDuration,
   fmtTime,
   inp,
-  sel,
   shiftMinutes,
   toShiftTimes,
   toTimeInput,
 } from '@/components/scheduling/shared';
+import { Fact } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
+import { DrawerSection, FieldLine } from '@/components/shared/DrawerSection';
 import { IconTag } from '@/components/shared/IconTag';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { StatusDot } from '@/components/shared/StatusDot';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { TimePicker } from '@/components/ui/time-picker';
 
+import type { Position } from '@/lib/api/rota.service';
 import type { StaffProfile } from '@/lib/modules/identity/client';
 import type { HrEmployee } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -81,29 +80,18 @@ export function hourlyRateOf(employee: HrEmployee | undefined): number | null {
 }
 
 // ── Layout bits ───────────────────────────────────────────────────────────────
+//
+// The drawer reads as the newer drawers do (Media, a customer's address):
+// titled groups, each one tinted card of rows — `DrawerSection` + `FieldLine` —
+// with the rule a reader can't see in one quiet line under the group.
 
-function Field({ icon: Icon, label, children }: { icon: IconComponent; label: string; children: React.ReactNode }) {
-  return (
-    <div className="grid grid-cols-1 items-center gap-1.5 sm:grid-cols-[10.5rem_minmax(0,1fr)] sm:gap-4">
-      <span className="flex items-center gap-2 text-sm font-medium text-foreground">
-        <Icon size={15} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-        <FieldLabel as="span" required={['Staff member', 'Location', 'Date worked', 'Assignment date', 'Shift status'].includes(label)}>
-          {label}
-        </FieldLabel>
-      </span>
-      {children}
-    </div>
-  );
-}
-
-function Hint({ tone, children }: { tone: 'success' | 'warning' | 'muted'; children: React.ReactNode }) {
+/** One quiet line under a group: a rule, a total, a consequence. */
+function Note({ tone = 'muted', children }: { tone?: 'muted' | 'warning' | 'success'; children: React.ReactNode }) {
   return (
     <p
       className={cn(
-        'mt-2 rounded-md px-3 py-2 text-xs font-medium',
-        tone === 'success' && 'bg-primary/8 text-primary',
-        tone === 'warning' && 'bg-measured/10 text-measured',
-        tone === 'muted' && 'bg-band/60 text-muted-foreground',
+        'mt-2 px-1 text-xs leading-relaxed',
+        tone === 'warning' ? 'font-medium text-measured' : tone === 'success' ? 'font-medium text-momentum' : 'text-muted-foreground',
       )}
     >
       {children}
@@ -111,44 +99,52 @@ function Hint({ tone, children }: { tone: 'success' | 'warning' | 'muted'; child
   );
 }
 
-function Card({
-  title,
-  children,
-  icon: Icon,
-  collapsible = false,
-  defaultOpen = false,
-}: {
-  title: React.ReactNode;
-  icon?: IconComponent;
-  children: React.ReactNode;
-  collapsible?: boolean;
-  defaultOpen?: boolean;
-}) {
-  if (collapsible)
-    return (
-      <details open={defaultOpen} className="group/shift-section rounded-lg border border-rule/60 bg-field">
-        <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
-          {Icon && (
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
-              <Icon size={16} aria-hidden="true" />
-            </span>
-          )}
-          <span className="min-w-0 flex-1">{title}</span>
-          <ChevronDown size={15} className="shrink-0 text-muted-foreground group-open/shift-section:rotate-180" aria-hidden="true" />
-        </summary>
-        <div className="px-4 pb-4">{children}</div>
-      </details>
-    );
+/** A label and its figure on one line of a group, for read-only sums (the cost). */
+function ValueLine({ label, value, strong = false }: { label: string; value: React.ReactNode; strong?: boolean }) {
   return (
-    <section className="rounded-lg border border-rule/60 bg-field p-4">
-      <h3 className="mb-2 text-sm font-semibold text-foreground">{title}</h3>
-      {children}
-    </section>
+    <div className="flex items-center justify-between gap-3 border-b border-border px-4 py-2.5 text-sm last:border-b-0">
+      <span className={strong ? 'font-semibold text-foreground' : 'text-muted-foreground'}>{label}</span>
+      <span className={cn('tabular-nums text-foreground', strong && 'text-base font-semibold')}>{value}</span>
+    </div>
+  );
+}
+
+/** Started – Finished, side by side, for a group's Hours line. */
+function TimeRange({
+  startId,
+  start,
+  end,
+  onStart,
+  onEnd,
+  disabled,
+  labels = ['Started', 'Finished'],
+}: {
+  startId: string;
+  start: string;
+  end: string;
+  onStart: (value: string) => void;
+  onEnd: (value: string) => void;
+  disabled?: boolean;
+  labels?: [string, string];
+}) {
+  return (
+    <div className="flex items-center gap-2">
+      <div className="w-32">
+        <TimePicker id={startId} value={start} onValueChange={onStart} required aria-label={labels[0]} disabled={disabled} />
+      </div>
+      <span className="text-muted-foreground">–</span>
+      <div className="w-32">
+        <TimePicker value={end} onValueChange={onEnd} required aria-label={labels[1]} disabled={disabled} />
+      </div>
+    </div>
   );
 }
 
 /** What the manual clock endpoints hand back: the shift plus its length once closed. */
 type ClockResponse = Shift & { durationMinutes: number | null };
+
+/** A row inside a group of clock records. */
+const CLOCK_ROW = 'border-b border-border px-4 py-3 last:border-b-0';
 
 /**
  * One clock in/out pair. A manager can correct either end in place — times are
@@ -208,12 +204,12 @@ function ClockEntryRow({
 
   if (!canEdit) {
     return (
-      <div className="flex items-center justify-between rounded-sm border border-rule bg-card px-3 py-2 text-sm">
+      <div className={cn(CLOCK_ROW, 'flex items-center justify-between text-sm')}>
         <span className="tabular-nums text-foreground">
           {fmtTime(entry.clockedIn)} – {entry.clockedOut ? fmtTime(entry.clockedOut) : '—:—'}
         </span>
         {minutes != null ? (
-          <span className="text-xs tabular-nums text-muted-foreground">{fmtDuration(minutes)}</span>
+          <span className="text-xs text-muted-foreground">{fmtDuration(minutes)}</span>
         ) : (
           <StatusDot tone="primary" label="Running" pulse className="mr-1" />
         )}
@@ -222,25 +218,31 @@ function ClockEntryRow({
   }
 
   return (
-    <div className="rounded-md border border-rule/50 bg-background/60 p-3">
+    <div className={CLOCK_ROW}>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(10rem,1fr)_7rem_7rem] sm:items-end">
-        <div className="space-y-1 text-xs font-medium text-muted-foreground">
-          <span>Date</span>
+        <div className="space-y-1">
+          <FieldLabel as="span" optional={false}>
+            Date
+          </FieldLabel>
           <DatePicker value={day} onValueChange={setDay} aria-label="Date worked" />
         </div>
-        <label className="space-y-1 text-xs font-medium text-muted-foreground">
-          <span>Started</span>
+        <label className="space-y-1">
+          <FieldLabel as="span" optional={false}>
+            Started
+          </FieldLabel>
           <TimePicker value={inTime} onValueChange={setInTime} aria-label="Clocked in" />
         </label>
-        <label className="space-y-1 text-xs font-medium text-muted-foreground">
-          <span>Finished</span>
+        <label className="space-y-1">
+          <FieldLabel as="span" optional={false}>
+            Finished
+          </FieldLabel>
           <TimePicker value={outTime} onValueChange={setOutTime} aria-label="Clocked out" />
         </label>
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
         <div className="flex min-w-0 flex-wrap items-center gap-x-3 gap-y-1 text-xs">
           {minutes != null ? (
-            <span className="tabular-nums text-muted-foreground">{fmtDuration(minutes)} worked</span>
+            <span className="text-muted-foreground">{fmtDuration(minutes)} worked</span>
           ) : (
             <StatusDot tone="primary" label="Running" pulse />
           )}
@@ -295,8 +297,16 @@ function ClockEntryRow({
   );
 }
 
-function AddWorkedPeriod({ record, onSaved }: { record: ShiftRecord; onSaved: (shift: ClockResponse) => void }) {
-  const [open, setOpen] = useState(false);
+/** A missed work period, added as the last row of the clocked-time group. */
+function AddWorkedPeriod({
+  record,
+  onSaved,
+  onCancel,
+}: {
+  record: ShiftRecord;
+  onSaved: (shift: ClockResponse) => void;
+  onCancel: () => void;
+}) {
   const [date, setDate] = useState(record.dateKey);
   const [startTime, setStartTime] = useState(record.shift ? toTimeInput(new Date(record.shift.startsAt)) : '09:00');
   const [endTime, setEndTime] = useState(record.shift ? toTimeInput(new Date(record.shift.endsAt)) : '17:00');
@@ -313,40 +323,38 @@ function AddWorkedPeriod({ record, onSaved }: { record: ShiftRecord; onSaved: (s
       }),
     onSuccess: (created) => {
       onSaved(created);
-      setOpen(false);
+      onCancel();
       toast('success', 'Worked time added.');
     },
   });
 
-  if (!open) {
-    return (
-      <Button variant="outline" size="sm" onClick={() => setOpen(true)} disabled={!record.userId} className="gap-1.5">
-        <Plus size={13} /> Add worked hours
-      </Button>
-    );
-  }
-
   return (
-    <div className="mt-3 rounded-sm border border-primary/25 bg-card p-3">
-      <p className="mb-3 text-sm font-semibold text-foreground">Add a missed work period</p>
+    <div className={CLOCK_ROW}>
+      <p className="mb-2.5 text-sm font-semibold text-foreground">Add a missed work period</p>
       <div className="grid grid-cols-1 gap-2 sm:grid-cols-[minmax(8.5rem,1fr)_6.75rem_6.75rem]">
-        <div className="space-y-1 text-xs font-medium text-muted-foreground">
-          <span>Date</span>
+        <div className="space-y-1">
+          <FieldLabel as="span" optional={false}>
+            Date
+          </FieldLabel>
           <DatePicker value={date} onValueChange={setDate} aria-label="Date worked" />
         </div>
-        <label className="space-y-1 text-xs font-medium text-muted-foreground">
-          <span>Started</span>
+        <label className="space-y-1">
+          <FieldLabel as="span" optional={false}>
+            Started
+          </FieldLabel>
           <TimePicker value={startTime} onValueChange={setStartTime} aria-label="Started" />
         </label>
-        <label className="space-y-1 text-xs font-medium text-muted-foreground">
-          <span>Finished</span>
+        <label className="space-y-1">
+          <FieldLabel as="span" optional={false}>
+            Finished
+          </FieldLabel>
           <TimePicker value={endTime} onValueChange={setEndTime} aria-label="Finished" />
         </label>
       </div>
-      <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-        <span className="text-xs tabular-nums text-muted-foreground">{fmtDuration(shiftMinutes(times))} worked</span>
+      <div className="mt-2.5 flex flex-wrap items-center justify-between gap-2">
+        <span className="text-xs text-muted-foreground">{fmtDuration(shiftMinutes(times))} worked</span>
         <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" onClick={() => setOpen(false)}>
+          <Button variant="ghost" size="sm" onClick={onCancel}>
             Cancel
           </Button>
           <Button size="sm" onClick={() => add.mutate()} disabled={add.isPending || !date || !startTime || !endTime}>
@@ -372,9 +380,11 @@ export interface ShiftDrawerTarget {
   /** The row being edited, or the row a create is pre-filled from. */
   record?: ShiftRecord;
   date?: string;
+  /** A create opened from someone's line of the grid: who the shift is for ('' is an open slot). */
+  userId?: string;
 }
 
-interface ShiftRecordDrawerProps {
+interface ShiftDrawerProps {
   target: ShiftDrawerTarget;
   defaultLocationId: string;
   locations: { id: string; name: string }[];
@@ -386,10 +396,14 @@ interface ShiftRecordDrawerProps {
   canClock: boolean;
   /** May change the rota plan; independent from correcting worked time. */
   canPlan: boolean;
+  /** The location's active positions — the pro rota. Without them the drawer keeps its free-text role. */
+  positions?: Pick<Position, 'id' | 'name' | 'color'>[];
+  /** The positions a person is trained for, for the "not trained" note. */
+  positionsOf?: (userId: string) => string[];
   onClose: () => void;
 }
 
-const SUMMARY_TONE: Record<ShiftRecord['state'], string> = {
+const STATE_TONE: Record<ShiftRecord['state'], string> = {
   scheduled: 'bg-band text-muted-foreground',
   running: 'bg-primary/10 text-primary',
   completed: 'bg-momentum/10 text-momentum',
@@ -398,53 +412,52 @@ const SUMMARY_TONE: Record<ShiftRecord['state'], string> = {
 };
 
 /**
- * The shift at a glance, at the top of the drawer: where it stands, what was
- * planned against what was worked, and how the start went — before any of the
- * fields below, which are for changing it.
+ * The shift at a glance, at the top of the drawer: where it stands, then what
+ * was planned against what was worked — before the groups below, which are
+ * for changing it.
  */
 function ShiftSummary({ record }: { record: ShiftRecord }) {
-  const late = record.startDeltaMinutes != null && record.startDeltaMinutes > 0;
-  const early = record.startDeltaMinutes != null && record.startDeltaMinutes < 0;
+  const delta = record.startDeltaMinutes ?? 0;
+  const first = record.clocked[0];
+  const last = record.clocked.at(-1);
   return (
-    <div className="rounded-lg border border-rule/60 bg-field p-4">
-      <div className="flex items-center gap-2">
-        <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', SUMMARY_TONE[record.state])}>
+    <div className="space-y-3">
+      <div className="flex flex-wrap items-center gap-2">
+        <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', STATE_TONE[record.state])}>
           {WORK_STATE[record.state].label}
         </span>
-        {record.status === 'draft' && <Badge variant="muted">Draft</Badge>}
-        {(late || early) && (
-          <span className={cn('text-xs font-semibold', late ? 'text-exception' : 'text-momentum')}>
-            Started {Math.abs(record.startDeltaMinutes!)} min {late ? 'late' : 'early'}
+        {record.status === 'draft' && (
+          <span className="rounded-sm border border-dashed border-primary/45 px-1.5 py-0.5 text-micro font-semibold text-muted-foreground">
+            Draft
+          </span>
+        )}
+        {delta !== 0 && (
+          <span className={cn('text-xs font-semibold', delta > 0 ? 'text-exception' : 'text-momentum')}>
+            Started {Math.abs(delta)} min {delta > 0 ? 'late' : 'early'}
           </span>
         )}
       </div>
-      <dl className="mt-3 grid grid-cols-2 gap-3">
-        <div>
-          <dt className="text-label uppercase text-muted-foreground">Planned</dt>
-          <dd className="mt-0.5 text-lg font-semibold text-foreground">
-            {record.plannedMinutes > 0 ? fmtDuration(record.plannedMinutes) : '—'}
-          </dd>
-        </div>
-        <div>
-          <dt className="text-label uppercase text-muted-foreground">Worked</dt>
-          <dd className="mt-0.5 text-lg font-semibold text-foreground">
-            {record.workedMinutes > 0 ? fmtDuration(record.workedMinutes) : '—'}
-          </dd>
-        </div>
+      <dl className="grid grid-cols-2 gap-3">
+        <Fact
+          surface="card"
+          icon={CalendarClock}
+          label="Planned"
+          value={record.plannedMinutes > 0 ? fmtDuration(record.plannedMinutes) : '—'}
+          hint={record.shift ? `${fmtTime(record.shift.startsAt)}–${fmtTime(record.shift.endsAt)}` : undefined}
+        />
+        <Fact
+          surface="card"
+          icon={Timer}
+          label="Worked"
+          value={record.workedMinutes > 0 ? fmtDuration(record.workedMinutes) : '—'}
+          hint={first ? `${fmtTime(first.clockedIn)}–${last?.clockedOut ? fmtTime(last.clockedOut) : 'now'}` : 'Not clocked'}
+        />
       </dl>
-      {record.plannedMinutes > 0 && (
-        <div className="mt-3 h-1.5 overflow-hidden rounded-full bg-band" aria-hidden="true">
-          <div
-            className={cn('h-full rounded-full', record.workedMinutes > record.plannedMinutes ? 'bg-measured' : 'bg-primary')}
-            style={{ width: `${Math.min(100, (record.workedMinutes / record.plannedMinutes) * 100)}%` }}
-          />
-        </div>
-      )}
     </div>
   );
 }
 
-export function ShiftRecordDrawer(props: ShiftRecordDrawerProps) {
+export function ShiftRecordDrawer(props: ShiftDrawerProps) {
   if (props.target.mode === 'create' && props.target.createKind === 'worked') {
     return <ManualWorkDrawer {...props} />;
   }
@@ -454,7 +467,7 @@ export function ShiftRecordDrawer(props: ShiftRecordDrawerProps) {
   return <PlannedShiftDrawer {...props} />;
 }
 
-function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftRecordDrawerProps & { record: ShiftRecord }) {
+function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftDrawerProps & { record: ShiftRecord }) {
   const qc = useQueryClient();
   const completedEntries = record.clocked.filter((entry) => entry.clockedOut);
   const canCreateMatchingShift =
@@ -515,28 +528,24 @@ function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftRecordD
       return created;
     },
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('scheduled-shifts') });
+      invalidateRota(qc);
       qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts') });
-      qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('variance') });
       toast('success', 'Matching rota shift created and linked.');
     },
   });
 
   return (
     <Drawer
-      icon={Clock}
-      title="Worked without a rota shift"
-      description={`${record.staffName} · ${formatDate(record.at)}`}
+      leading={record.userId ? <Avatar name={record.staffName} email={record.staffEmail} size="sm" /> : undefined}
+      icon={record.userId ? undefined : Clock}
+      title={record.staffName}
+      description={`${formatDate(record.at)} · ${record.locationName ?? 'Unknown location'}`}
       onClose={onClose}
     >
       <div className="space-y-5">
-        <div className="flex flex-col gap-3 rounded-md border border-warning/30 bg-warning/6 px-4 py-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="min-w-0">
-            <p className="text-sm font-semibold text-foreground">Attendance recorded, no shift was planned</p>
-            <p className="mt-1 text-sm text-muted-foreground">
-              Correct the worked time below or create a published rota shift that matches it.
-            </p>
-          </div>
+        {/* What makes this record different, and its fix, in one strip. */}
+        <div className="flex flex-col gap-2.5 rounded-md bg-measured/10 px-3.5 py-3 sm:flex-row sm:items-center sm:justify-between">
+          <p className="text-sm font-medium text-measured">Clocked in with no rota shift.</p>
           {canClock && canPlan && (
             <Button
               variant="outline"
@@ -550,25 +559,13 @@ function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftRecordD
             </Button>
           )}
         </div>
-        <dl className="grid grid-cols-1 gap-3 rounded-md border border-rule bg-band p-4 text-sm sm:grid-cols-2">
-          <div>
-            <dt className="text-xs text-muted-foreground">Staff member</dt>
-            <dd className="mt-1 font-semibold text-foreground">{record.staffName}</dd>
-          </div>
-          <div>
-            <dt className="text-xs text-muted-foreground">Location</dt>
-            <dd className="mt-1 font-semibold text-foreground">{record.locationName ?? 'Unknown location'}</dd>
-          </div>
-        </dl>
-        <section>
-          <div className="mb-3 flex items-center justify-between gap-3">
-            <div>
-              <h3 className="text-sm font-semibold text-foreground">Worked hours</h3>
-              <p className="mt-0.5 text-xs text-muted-foreground">Each work period is saved separately.</p>
-            </div>
-            <Badge variant="success">{fmtDuration(record.workedMinutes)}</Badge>
-          </div>
-          <div className="space-y-2">
+
+        <div>
+          <DrawerSection
+            id="worked-hours"
+            title="Worked hours"
+            action={<span className="text-sm font-semibold text-foreground">{fmtDuration(record.workedMinutes)}</span>}
+          >
             {record.clocked.map((entry) => (
               <ClockEntryRow
                 key={`${entry.id}:${entry.clockedIn}:${entry.clockedOut ?? 'open'}`}
@@ -578,31 +575,31 @@ function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftRecordD
                 onDeleted={applyClockDeletion}
               />
             ))}
-          </div>
-        </section>
-        {canClock && canPlan && !canCreateMatchingShift && record.clocked.some((entry) => !entry.clockedOut) && (
-          <Hint tone="muted">Clock out first, then you can create a rota shift matching the completed worked time.</Hint>
-        )}
+          </DrawerSection>
+          {canClock && canPlan && !canCreateMatchingShift && record.clocked.some((entry) => !entry.clockedOut) && (
+            <Note>Clock out first, then a matching rota shift can be created.</Note>
+          )}
+          {!canClock && <Note>Your access doesn’t allow attendance corrections.</Note>}
+        </div>
+
         {createMatchingShift.error && (
           <p role="alert" className="text-sm text-destructive">
             {(createMatchingShift.error as Error).message}
           </p>
         )}
-        {!canClock && <Hint tone="muted">You can review this record, but your access does not allow attendance corrections.</Hint>}
       </div>
     </Drawer>
   );
 }
 
-function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser, onClose }: ShiftRecordDrawerProps) {
+function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser, onClose }: ShiftDrawerProps) {
   const qc = useQueryClient();
+  const ids = useId();
   const [locationId, setLocationId] = useState(defaultLocationId);
   const [date, setDate] = useState(() => workspaceDateKey());
   const [userId, setUserId] = useState('');
   const [startTime, setStartTime] = useState('09:00');
   const [endTime, setEndTime] = useState('17:00');
-  const staffById = useMemo(() => new Map(staff.map((member) => [member.userId, member])), [staff]);
-  const assigned = userId ? staffById.get(userId) : undefined;
   const times = useMemo(() => toShiftTimes(date, startTime, endTime), [date, startTime, endTime]);
   const workedMinutes = shiftMinutes(times);
   const employee = userId ? employeesByUser.get(userId) : undefined;
@@ -632,12 +629,12 @@ function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser
     <Drawer
       icon={Clock}
       title="Record worked time"
-      guidance="Add hours that were worked without a clock record or rota shift."
+      guidance="Adds to attendance and payroll, not to the rota."
       onClose={onClose}
       footer={
         <div className="flex flex-wrap items-center justify-between gap-3">
           <p className="text-sm text-muted-foreground">
-            <span className="font-semibold tabular-nums text-foreground">{fmtDuration(workedMinutes)}</span> worked
+            <span className="font-semibold text-foreground">{fmtDuration(workedMinutes)}</span> worked
             {estimatedCost != null && ` · ${fmtMoney(estimatedCost)} estimated`}
           </p>
           <div className="flex items-center gap-2">
@@ -655,23 +652,12 @@ function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser
         </div>
       }
     >
-      <div className="space-y-6">
-        <div className="rounded-lg border border-rule/60 bg-field px-4 py-3">
-          <p className="text-sm font-semibold text-foreground">This records what actually happened</p>
-          <p className="mt-1 text-sm text-muted-foreground">
-            It will appear in attendance and payroll, but it will not add a shift to the rota.
-          </p>
-        </div>
-
-        <div className="space-y-4">
-          <Field icon={UsersRound} label="Staff member">
-            <div className="flex items-center gap-2">
-              {assigned && (
-                <span className="shrink-0 *:size-9 *:rounded-md">
-                  <Avatar name={assigned.name} email={assigned.email} />
-                </span>
-              )}
+      <div className="space-y-5">
+        <div>
+          <DrawerSection id={`${ids}-worked`} title="Worked time">
+            <FieldLine icon={UsersRound} title="Staff member" htmlFor={`${ids}-staff`} required>
               <Select
+                id={`${ids}-staff`}
                 value={userId}
                 onValueChange={setUserId}
                 options={staff.map((member) => ({ value: member.userId, label: member.name ?? member.email ?? member.userId }))}
@@ -679,38 +665,27 @@ function ManualWorkDrawer({ defaultLocationId, locations, staff, employeesByUser
                 placeholder="Choose a staff member"
                 className="w-full"
               />
-            </div>
-          </Field>
-          <Field icon={MapPin} label="Location">
-            <Select
-              value={locationId}
-              onValueChange={setLocationId}
-              options={locations.map((location) => ({ value: location.id, label: location.name }))}
-              ariaLabel="Location"
-              placeholder="Choose a location"
-              className="w-full"
-            />
-          </Field>
-          <Field icon={CalendarDays} label="Date worked">
-            <DatePicker value={date} onValueChange={setDate} required aria-label="Date worked" />
-          </Field>
+            </FieldLine>
+            <FieldLine icon={MapPin} title="Location" htmlFor={`${ids}-location`} required>
+              <Select
+                id={`${ids}-location`}
+                value={locationId}
+                onValueChange={setLocationId}
+                options={locations.map((location) => ({ value: location.id, label: location.name }))}
+                ariaLabel="Location"
+                placeholder="Choose a location"
+                className="w-full"
+              />
+            </FieldLine>
+            <FieldLine icon={CalendarDays} title="Date worked" htmlFor={`${ids}-date`} required>
+              <DatePicker id={`${ids}-date`} value={date} onValueChange={setDate} required aria-label="Date worked" />
+            </FieldLine>
+            <FieldLine icon={Clock} title="Hours" htmlFor={`${ids}-start`} required>
+              <TimeRange startId={`${ids}-start`} start={startTime} end={endTime} onStart={setStartTime} onEnd={setEndTime} />
+            </FieldLine>
+          </DrawerSection>
+          {breakMinutes > 0 && <Note>{fmtDuration(payableMinutes)} payable after the usual unpaid break.</Note>}
         </div>
-
-        <Card title="Worked hours">
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2">
-            <label className="space-y-1.5 text-sm text-muted-foreground">
-              <span>Started</span>
-              <TimePicker value={startTime} onValueChange={setStartTime} required aria-label="Started" />
-            </label>
-            <label className="space-y-1.5 text-sm text-muted-foreground">
-              <span>Finished</span>
-              <TimePicker value={endTime} onValueChange={setEndTime} required aria-label="Finished" />
-            </label>
-          </div>
-          <Hint tone="success">
-            {fmtDuration(workedMinutes)} worked{breakMinutes > 0 ? ` · ${fmtDuration(payableMinutes)} payable after the usual break` : ''}
-          </Hint>
-        </Card>
 
         {record.error && (
           <p role="alert" className="text-sm text-destructive">
@@ -731,9 +706,12 @@ function PlannedShiftDrawer({
   money,
   canClock,
   canPlan,
+  positions = [],
+  positionsOf,
   onClose,
-}: ShiftRecordDrawerProps) {
+}: ShiftDrawerProps) {
   const qc = useQueryClient();
+  const ids = useId();
   const editing = target.mode === 'edit' ? (target.record ?? null) : null;
   const prefill = target.record ?? null;
   const shift = editing?.shift ?? null;
@@ -750,16 +728,18 @@ function PlannedShiftDrawer({
   const [startTime, setStartTime] = useState(initialStart ? toTimeInput(initialStart) : '09:00');
   const [endTime, setEndTime] = useState(initialEnd ? toTimeInput(initialEnd) : '17:00');
   // A shift is one person's — an empty value leaves it as an open slot.
-  const [userId, setUserId] = useState<string>(prefill?.userId ?? '');
+  const [userId, setUserId] = useState<string>(prefill?.userId ?? target.userId ?? '');
   const [role, setRole] = useState(prefill?.role ?? '');
   const [status, setStatus] = useState<ScheduledShiftStatus>(shift?.status ?? 'draft');
   const [notes, setNotes] = useState(prefill?.notes ?? '');
+  const [positionId, setPositionId] = useState(shift?.positionId ?? '');
+  // Null until typed: the break then follows the employment record (or the saved shift).
+  const [breakText, setBreakText] = useState<string | null>(null);
   // Empty = no repeat: just the one shift on the picked date.
   const [repeatDays, setRepeatDays] = useState<number[]>([]);
   const [weeks, setWeeks] = useState(1);
   const [confirmDelete, setConfirmDelete] = useState(false);
-
-  const staffById = useMemo(() => new Map(staff.map((member) => [member.userId, member])), [staff]);
+  const [addingWorked, setAddingWorked] = useState(false);
 
   function toggleDay(day: number) {
     setRepeatDays((prev) => (prev.includes(day) ? prev.filter((d) => d !== day) : [...prev, day]));
@@ -778,15 +758,22 @@ function PlannedShiftDrawer({
 
   // Break and pay follow the assigned person's own employment record.
   const employee = userId ? employeesByUser.get(userId) : undefined;
-  const breakMinutes = unpaidBreakFor(employee, plannedMinutes);
+  const recordBreak = unpaidBreakFor(employee, plannedMinutes);
+  const typedBreak = breakText === null ? null : Math.round(Number(breakText));
+  const breakMinutes =
+    typedBreak !== null && Number.isFinite(typedBreak) ? Math.min(240, Math.max(0, typedBreak)) : (shift?.breakMinutes ?? recordBreak);
+  const breakFromRecord = breakText === null && shift?.breakMinutes == null && recordBreak > 0;
   const hourlyRate = hourlyRateOf(employee);
   const payableMinutes = Math.max(0, plannedMinutes - breakMinutes);
   const estimatedCost = hourlyRate != null ? (hourlyRate * payableMinutes * occurrences.length) / 60 : 0;
 
-  const invalidate = () => {
-    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('scheduled-shifts') });
-    qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('variance') });
-  };
+  const position =
+    positions.find((p) => p.id === positionId) ?? (shift?.position && shift.position.id === positionId ? shift.position : null);
+  const untrained = !!userId && !!positionId && !!positionsOf && !positionsOf(userId).includes(positionId);
+  // The position name doubles as the old free-text role, so older screens still read it.
+  const roleToSave = position ? position.name : role || undefined;
+
+  const invalidate = () => invalidateRota(qc);
 
   const save = useMutation({
     mutationFn: async () => {
@@ -797,9 +784,11 @@ function PlannedShiftDrawer({
           ...(userId !== (shift.userId ?? '') ? { userId: userId || null } : {}),
           startsAt: times.startsAt,
           endsAt: times.endsAt,
-          role: role || undefined,
+          role: roleToSave,
           status,
           notes: notes || undefined,
+          positionId: positionId || null,
+          breakMinutes,
         });
         return 1;
       }
@@ -811,9 +800,11 @@ function PlannedShiftDrawer({
           ...(userId ? { userId } : {}),
           startsAt: occ.startsAt,
           endsAt: occ.endsAt,
-          role: role || undefined,
+          role: roleToSave,
           status,
           notes: notes || undefined,
+          ...(positionId ? { positionId } : {}),
+          breakMinutes,
         });
       }
       return occurrences.length;
@@ -834,7 +825,6 @@ function PlannedShiftDrawer({
     },
   });
 
-  const assigned = userId ? staffById.get(userId) : undefined;
   const error = (save.error ?? remove.error) as Error | undefined;
   const clocked = editing?.clocked ?? [];
   const running = clocked.find((entry) => !entry.clockedOut);
@@ -896,11 +886,10 @@ function PlannedShiftDrawer({
 
   return (
     <Drawer
-      icon={CalendarClock}
-      title={editing ? 'Review shift' : 'Plan a shift'}
-      description={
-        editing ? `${editing.staffName} · ${formatDate(editing.at)}` : 'Plan the shift, assign who works it, and see what it will cost.'
-      }
+      leading={editing?.userId ? <Avatar name={editing.staffName} email={editing.staffEmail} size="sm" /> : undefined}
+      icon={editing?.userId ? undefined : CalendarClock}
+      title={editing ? editing.staffName : 'Plan a shift'}
+      description={editing ? [formatDate(editing.at), editing.locationName].filter(Boolean).join(' · ') : undefined}
       actions={
         editing && shift && canPlan ? (
           <Button variant="ghost" size="icon" onClick={() => setConfirmDelete(true)} aria-label="Delete shift">
@@ -947,31 +936,26 @@ function PlannedShiftDrawer({
       <div className="space-y-5">
         {editing && <ShiftSummary record={editing} />}
 
-        {/* Identity */}
-        <div className="space-y-3.5">
-          <Field icon={MapPin} label="Location">
-            <Select
-              value={locationId}
-              onValueChange={setLocationId}
-              options={locations.map((location) => ({ value: location.id, label: location.name }))}
-              ariaLabel="Location"
-              className="w-full"
-              disabled={!!editing || !canPlan}
-            />
-          </Field>
-
-          <Field icon={CalendarDays} label="Assignment date">
-            <DatePicker value={date} onValueChange={setDate} required disabled={!canPlan} aria-label="Assignment date" />
-          </Field>
-
-          <Field icon={UsersRound} label="Assigned worker">
-            <div className="flex items-center gap-2">
-              {assigned && (
-                <span className="shrink-0 *:size-9 *:rounded-md">
-                  <Avatar name={assigned.name} email={assigned.email} />
-                </span>
-              )}
+        {/* ── The plan ──────────────────────────────────────────────────── */}
+        <div>
+          <DrawerSection id={`${ids}-plan`} title="Shift">
+            {!editing && (
+              // A shift can't move between locations once it exists.
+              <FieldLine icon={MapPin} title="Location" htmlFor={`${ids}-location`} required>
+                <Select
+                  id={`${ids}-location`}
+                  value={locationId}
+                  onValueChange={setLocationId}
+                  options={locations.map((location) => ({ value: location.id, label: location.name }))}
+                  ariaLabel="Location"
+                  className="w-full"
+                  disabled={!canPlan}
+                />
+              </FieldLine>
+            )}
+            <FieldLine icon={UsersRound} title="Worker" htmlFor={`${ids}-worker`}>
               <Select
+                id={`${ids}-worker`}
                 value={userId}
                 onValueChange={setUserId}
                 options={[
@@ -982,15 +966,82 @@ function PlannedShiftDrawer({
                 className="w-full"
                 disabled={!canPlan}
               />
-            </div>
-          </Field>
-
-          <Field icon={Tag} label="Role">
-            <input value={role} onChange={(e) => setRole(e.target.value)} placeholder="Barista" className={inp} disabled={!canPlan} />
-          </Field>
-
-          <Field icon={ListChecks} label="Shift status">
-            <div>
+            </FieldLine>
+            <FieldLine icon={CalendarDays} title="Date" htmlFor={`${ids}-date`} required>
+              <DatePicker
+                id={`${ids}-date`}
+                value={date}
+                onValueChange={setDate}
+                required
+                disabled={!canPlan}
+                aria-label="Assignment date"
+              />
+            </FieldLine>
+            <FieldLine icon={Clock} title="Hours" htmlFor={`${ids}-start`} required>
+              <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
+                <TimeRange
+                  startId={`${ids}-start`}
+                  start={startTime}
+                  end={endTime}
+                  onStart={setStartTime}
+                  onEnd={setEndTime}
+                  disabled={!canPlan}
+                  labels={['Shift start', 'Shift end']}
+                />
+                <span className="text-xs text-muted-foreground">{fmtDuration(plannedMinutes)}</span>
+              </div>
+            </FieldLine>
+            <FieldLine icon={Coffee} title="Break" htmlFor={`${ids}-break`}>
+              <span className="flex items-center gap-2">
+                <input
+                  id={`${ids}-break`}
+                  inputMode="numeric"
+                  value={breakText ?? String(breakMinutes)}
+                  onChange={(e) => setBreakText(e.target.value.replace(/[^0-9]/g, '').slice(0, 3))}
+                  className={cn(inp, 'w-20 tabular-nums')}
+                  disabled={!canPlan}
+                  aria-describedby={breakFromRecord ? `${ids}-break-hint` : undefined}
+                />
+                <span className="text-xs text-muted-foreground">min unpaid</span>
+              </span>
+              {breakFromRecord && (
+                <p id={`${ids}-break-hint`} className="mt-1.5 text-xs text-muted-foreground">
+                  From the employment record.
+                </p>
+              )}
+            </FieldLine>
+            {positions.length > 0 || shift?.position ? (
+              <FieldLine icon={Tag} title="Position" htmlFor={`${ids}-position`}>
+                <Select
+                  id={`${ids}-position`}
+                  value={positionId}
+                  onValueChange={setPositionId}
+                  options={[
+                    { value: '', label: 'No position' },
+                    ...positions.map((p) => ({ value: p.id, label: p.name })),
+                    ...(shift?.position && !positions.some((p) => p.id === shift.position!.id)
+                      ? [{ value: shift.position.id, label: shift.position.name }]
+                      : []),
+                  ]}
+                  ariaLabel="Position"
+                  className="w-full"
+                  disabled={!canPlan}
+                />
+                {untrained && <p className="mt-1.5 text-xs font-medium text-warning">Not trained for this position</p>}
+              </FieldLine>
+            ) : (
+              <FieldLine icon={Tag} title="Role" htmlFor={`${ids}-role`}>
+                <input
+                  id={`${ids}-role`}
+                  value={role}
+                  onChange={(e) => setRole(e.target.value)}
+                  placeholder="Barista"
+                  className={inp}
+                  disabled={!canPlan}
+                />
+              </FieldLine>
+            )}
+            <FieldLine icon={ListChecks} title="Status" htmlFor={`${ids}-status`} required>
               {canPlan ? (
                 <SegmentedControl
                   options={[
@@ -1003,212 +1054,169 @@ function PlannedShiftDrawer({
                   ariaLabel="Shift status"
                 />
               ) : (
-                <span className="text-sm text-foreground">
+                <span id={`${ids}-status`} className="text-sm text-foreground">
                   {status === 'draft' ? 'Draft' : status === 'published' ? 'Published' : 'Cancelled'}
                 </span>
               )}
-              <p className="mt-1 text-xs text-muted-foreground">
-                {status === 'draft'
-                  ? 'Only managers can see a draft — publish it to show the team.'
-                  : status === 'published'
-                    ? 'On the team’s rota.'
-                    : 'Kept for the record, off the rota.'}
-              </p>
-            </div>
-          </Field>
-
-          <Field icon={FileText} label="Notes">
-            <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Optional" className={inp} disabled={!canPlan} />
-          </Field>
+              {status !== 'published' && (
+                <p className="mt-1.5 text-xs text-muted-foreground">
+                  {status === 'draft' ? 'Only managers see a draft until it’s published.' : 'Kept for the record, off the rota.'}
+                </p>
+              )}
+            </FieldLine>
+            <FieldLine icon={FileText} title="Notes" htmlFor={`${ids}-notes`}>
+              <input
+                id={`${ids}-notes`}
+                value={notes}
+                onChange={(e) => setNotes(e.target.value)}
+                placeholder="Optional"
+                className={inp}
+                disabled={!canPlan}
+              />
+            </FieldLine>
+          </DrawerSection>
+          {editing && <Note>Changes apply to this shift only, not to its repeats.</Note>}
         </div>
 
-        {/* Planned times */}
-        <Card title="Planned hours">
-          <div className="space-y-4">
-            <div>
-              <div className="flex flex-wrap items-center gap-3">
-                <span className="flex min-w-36 items-center gap-2 text-sm font-semibold text-foreground">
-                  <Clock size={15} className="text-success" aria-hidden="true" />
-                  Shift <span className="font-normal text-muted-foreground">(From – To)</span>
-                </span>
-                <div className="flex items-center gap-2">
-                  <div className="w-32">
-                    <TimePicker value={startTime} onValueChange={setStartTime} required aria-label="Shift start" disabled={!canPlan} />
-                  </div>
-                  <span className="text-muted-foreground">–</span>
-                  <div className="w-32">
-                    <TimePicker value={endTime} onValueChange={setEndTime} required aria-label="Shift end" disabled={!canPlan} />
-                  </div>
+        {/* ── Repeat — creating only; each occurrence becomes its own shift ── */}
+        {!editing && (
+          <div>
+            <DrawerSection id={`${ids}-repeat`} title="Repeat weekly">
+              <FieldLine icon={Repeat} title="On" htmlFor={`${ids}-repeat-mon`}>
+                <div className="flex flex-wrap gap-1.5">
+                  {WEEKDAYS.map(({ day, label }) => {
+                    const active = repeatDays.includes(day);
+                    return (
+                      <button
+                        key={day}
+                        id={day === 1 ? `${ids}-repeat-mon` : undefined}
+                        type="button"
+                        onClick={() => toggleDay(day)}
+                        aria-pressed={active}
+                        className={cn(
+                          'h-9 min-w-11 rounded-md border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                          active
+                            ? 'border-primary bg-primary/8 text-primary'
+                            : 'border-border bg-control text-muted-foreground hover:text-foreground',
+                        )}
+                      >
+                        {label}
+                      </button>
+                    );
+                  })}
                 </div>
-              </div>
-              <Hint tone="success">{fmtDuration(plannedMinutes)} will be planned on the rota.</Hint>
-            </div>
-
-            {breakMinutes > 0 && (
-              <div>
-                <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                  <Coffee size={15} className="text-warning" aria-hidden="true" />
-                  Unpaid break
-                </span>
-                <Hint tone="warning">
-                  {breakMinutes} minutes will be deducted as break time — set on the employment record, not this shift.
-                </Hint>
-              </div>
-            )}
-
-            {/* What was actually clocked — a manager can run the clock on the
-                member's behalf and correct the times afterwards. */}
-            {editing && (
-              <div>
-                <div className="flex flex-wrap items-center justify-between gap-2">
-                  <span className="flex items-center gap-2 text-sm font-semibold text-foreground">
-                    <Radio size={15} className="text-primary" aria-hidden="true" />
-                    Clocked time
-                  </span>
-                  {canClock && (
-                    <div className="flex flex-wrap items-center gap-2">
-                      {!running && editing.userId && <AddWorkedPeriod record={editing} onSaved={applyClock} />}
-                      {running ? (
-                        <Button
-                          variant="destructive"
-                          size="sm"
-                          onClick={() => stopClock.mutate(running.id)}
-                          disabled={clockBusy}
-                          className="gap-1.5"
-                        >
-                          <LogOut size={13} /> {stopClock.isPending ? 'Stopping…' : 'Stop shift'}
-                        </Button>
-                      ) : (
-                        editing.userId && (
-                          <Button variant="outline" size="sm" onClick={() => startClock.mutate()} disabled={clockBusy} className="gap-1.5">
-                            <LogIn size={13} /> {startClock.isPending ? 'Starting…' : 'Start shift now'}
-                          </Button>
-                        )
-                      )}
-                    </div>
-                  )}
-                </div>
-                {clocked.length === 0 ? (
-                  <Hint tone="muted">
-                    {editing.state === 'no_show' ? 'Nobody clocked in for this shift.' : 'Not clocked in yet.'}
-                    {canClock && editing.userId && ' Start the clock for them if they forgot.'}
-                  </Hint>
-                ) : (
-                  <div className="mt-2 space-y-1.5">
-                    {clocked.map((entry) => (
-                      // Remount when the entry's times change so the editable
-                      // fields re-seed instead of holding the old value.
-                      <ClockEntryRow
-                        key={`${entry.id}:${entry.clockedIn}:${entry.clockedOut ?? 'open'}`}
-                        entry={entry}
-                        canEdit={canClock}
-                        onSaved={applyClock}
-                        onDeleted={applyClockDeletion}
-                      />
-                    ))}
-                    <Hint tone={editing.startDeltaMinutes && editing.startDeltaMinutes > 5 ? 'warning' : 'success'}>
-                      {fmtDuration(editing.workedMinutes)} on the clock
-                      {editing.startDeltaMinutes != null && editing.startDeltaMinutes !== 0
-                        ? ` · started ${Math.abs(editing.startDeltaMinutes)} min ${editing.startDeltaMinutes > 0 ? 'late' : 'early'}`
-                        : ''}
-                      {editing.paidMinutes !== editing.workedMinutes ? ` · ${fmtDuration(editing.paidMinutes)} payable` : ''}
-                    </Hint>
-                  </div>
-                )}
-                {clockError && <p className="mt-2 text-sm text-destructive">{clockError.message}</p>}
-              </div>
+              </FieldLine>
+              {repeatDays.length > 0 && (
+                <FieldLine icon={CalendarClock} title="For" htmlFor={`${ids}-weeks`}>
+                  <Select
+                    id={`${ids}-weeks`}
+                    value={String(weeks)}
+                    onValueChange={(value) => setWeeks(Number(value))}
+                    options={[
+                      { value: '1', label: 'Just this week' },
+                      ...[2, 3, 4, 6, 8, 12].map((count) => ({ value: String(count), label: `For ${count} weeks` })),
+                    ]}
+                    ariaLabel="Repeat duration"
+                    className="w-full"
+                  />
+                </FieldLine>
+              )}
+            </DrawerSection>
+            {repeatDays.length > 0 && (
+              <Note>
+                Creates {shiftCount} {shiftCount === 1 ? 'shift' : 'shifts'}
+                {shiftCount > 1 ? ' — each can be edited or deleted on its own.' : '.'}
+              </Note>
             )}
           </div>
-        </Card>
-
-        {/* Repeat — creating only; each occurrence becomes its own editable shift. */}
-        {!editing && (
-          <Card collapsible defaultOpen={repeatDays.length > 0} icon={Repeat} title="Repeat weekly">
-            <div className="space-y-2.5">
-              <div className="flex flex-wrap gap-1.5">
-                {WEEKDAYS.map(({ day, label }) => {
-                  const active = repeatDays.includes(day);
-                  return (
-                    <button
-                      key={day}
-                      type="button"
-                      onClick={() => toggleDay(day)}
-                      aria-pressed={active}
-                      className={cn(
-                        'h-9 min-w-11 rounded-md border px-2.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                        active
-                          ? 'border-primary bg-primary/8 text-primary'
-                          : 'border-rule/60 bg-background/60 text-muted-foreground hover:text-foreground',
-                      )}
-                    >
-                      {label}
-                    </button>
-                  );
-                })}
-              </div>
-              {repeatDays.length > 0 && (
-                <Select
-                  value={String(weeks)}
-                  onValueChange={(value) => setWeeks(Number(value))}
-                  options={[
-                    { value: '1', label: 'Just this week' },
-                    ...[2, 3, 4, 6, 8, 12].map((count) => ({ value: String(count), label: `For ${count} weeks` })),
-                  ]}
-                  ariaLabel="Repeat duration"
-                  className={sel}
-                />
-              )}
-              <p className="text-xs text-muted-foreground">
-                {repeatDays.length === 0
-                  ? 'No days picked — one shift on the assignment date. Pick weekdays to repeat it.'
-                  : `Creates ${shiftCount} ${shiftCount === 1 ? 'shift' : 'shifts'}${shiftCount > 1 ? ' — each one can still be edited or deleted individually.' : ''}`}
-              </p>
-            </div>
-          </Card>
         )}
 
-        {/* Estimated bill */}
-        {money && (
-          <Card collapsible icon={Banknote} title="Estimated bill">
-            {hourlyRate == null ? (
-              <p className="text-sm text-muted-foreground">
-                {!userId
-                  ? 'Assign someone to estimate the cost of this shift.'
-                  : 'No hourly rate on file for this worker — salaried staff are costed by payroll instead.'}
-              </p>
-            ) : (
-              <dl className="space-y-2 text-sm">
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Payable hours</dt>
-                  <dd className="tabular-nums text-foreground">{(payableMinutes / 60).toFixed(2)} h</dd>
-                </div>
-                <div className="flex items-center justify-between gap-3">
-                  <dt className="text-muted-foreground">Hourly rate</dt>
-                  <dd className="tabular-nums text-foreground">{fmtMoney(hourlyRate)}/h</dd>
-                </div>
-                {occurrences.length > 1 && (
-                  <div className="flex items-center justify-between gap-3">
-                    <dt className="text-muted-foreground">Occurrences</dt>
-                    <dd className="tabular-nums text-foreground">{occurrences.length}</dd>
-                  </div>
-                )}
-                <div className="flex items-center justify-between gap-3 border-t border-rule/50 pt-2">
-                  <dt className="font-semibold text-foreground">Estimated total</dt>
-                  <dd className="text-base font-semibold tabular-nums text-foreground">{fmtMoney(estimatedCost)}</dd>
-                </div>
-                <p className="flex items-start gap-1.5 pt-1 text-xs text-muted-foreground">
-                  <Info size={12} className="mt-0.5 shrink-0" aria-hidden="true" />
-                  An estimate from the planned hours — payroll pays the clocked hours, capped at what was scheduled.
-                </p>
-              </dl>
-            )}
-          </Card>
-        )}
-
+        {/* ── What was actually clocked — a manager can run the clock on the
+            member's behalf and correct the times afterwards. ────────────── */}
         {editing && (
-          <p className="text-xs text-muted-foreground">
-            Changes apply to this shift only — other repeats of the same schedule are separate shifts.
-          </p>
+          <div>
+            <DrawerSection
+              id={`${ids}-clock`}
+              title="Clocked time"
+              action={
+                canClock ? (
+                  <div className="flex flex-wrap items-center gap-1.5">
+                    {!running && editing.userId && !addingWorked && (
+                      <Button variant="ghost" size="sm" onClick={() => setAddingWorked(true)} className="gap-1.5">
+                        <Plus size={13} /> Add hours
+                      </Button>
+                    )}
+                    {running ? (
+                      <Button
+                        variant="destructive"
+                        size="sm"
+                        onClick={() => stopClock.mutate(running.id)}
+                        disabled={clockBusy}
+                        className="gap-1.5"
+                      >
+                        <LogOut size={13} /> {stopClock.isPending ? 'Stopping…' : 'Stop shift'}
+                      </Button>
+                    ) : (
+                      editing.userId && (
+                        <Button variant="outline" size="sm" onClick={() => startClock.mutate()} disabled={clockBusy} className="gap-1.5">
+                          <LogIn size={13} /> {startClock.isPending ? 'Starting…' : 'Start shift now'}
+                        </Button>
+                      )
+                    )}
+                  </div>
+                ) : undefined
+              }
+            >
+              {clocked.map((entry) => (
+                // Remount when the entry's times change so the editable
+                // fields re-seed instead of holding the old value.
+                <ClockEntryRow
+                  key={`${entry.id}:${entry.clockedIn}:${entry.clockedOut ?? 'open'}`}
+                  entry={entry}
+                  canEdit={canClock}
+                  onSaved={applyClock}
+                  onDeleted={applyClockDeletion}
+                />
+              ))}
+              {clocked.length === 0 && !addingWorked && (
+                <p className="px-4 py-3 text-sm text-muted-foreground">
+                  {editing.state === 'no_show' ? 'Nobody clocked in for this shift.' : 'Not clocked in yet.'}
+                </p>
+              )}
+              {addingWorked && <AddWorkedPeriod record={editing} onSaved={applyClock} onCancel={() => setAddingWorked(false)} />}
+            </DrawerSection>
+            {clocked.length > 0 && (
+              <Note tone={editing.startDeltaMinutes && editing.startDeltaMinutes > 5 ? 'warning' : 'muted'}>
+                {fmtDuration(editing.workedMinutes)} on the clock
+                {editing.startDeltaMinutes != null && editing.startDeltaMinutes !== 0
+                  ? ` · started ${Math.abs(editing.startDeltaMinutes)} min ${editing.startDeltaMinutes > 0 ? 'late' : 'early'}`
+                  : ''}
+                {editing.paidMinutes !== editing.workedMinutes ? ` · ${fmtDuration(editing.paidMinutes)} payable` : ''}
+              </Note>
+            )}
+            {clockError && <p className="mt-2 px-1 text-sm text-destructive">{clockError.message}</p>}
+          </div>
+        )}
+
+        {/* ── Estimated cost ────────────────────────────────────────────── */}
+        {money && (
+          <div>
+            <DrawerSection id={`${ids}-cost`} title="Estimated cost">
+              {hourlyRate == null ? (
+                <p className="px-4 py-3 text-sm text-muted-foreground">
+                  {!userId ? 'Assign someone to estimate the cost.' : 'No hourly rate on file — salaried staff are costed by payroll.'}
+                </p>
+              ) : (
+                <>
+                  <ValueLine label="Payable hours" value={`${(payableMinutes / 60).toFixed(2)} h`} />
+                  <ValueLine label="Hourly rate" value={`${fmtMoney(hourlyRate)}/h`} />
+                  {occurrences.length > 1 && <ValueLine label="Shifts" value={occurrences.length} />}
+                  <ValueLine label="Estimated total" value={fmtMoney(estimatedCost)} strong />
+                </>
+              )}
+            </DrawerSection>
+            {hourlyRate != null && <Note>From the planned hours — payroll pays the clocked hours, capped at what was scheduled.</Note>}
+          </div>
         )}
 
         {error && <p className="text-sm text-destructive">{error.message}</p>}

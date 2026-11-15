@@ -8,6 +8,7 @@ import { ClipboardPaste, FileText, UploadCloud } from '@/components/icons';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { getCmsContentTypes, getCmsLocales, importCmsEntries } from '@/lib/modules/cms/client';
@@ -245,7 +246,7 @@ export function ImportDialog({
             .
           </p>
           {result.failed.length > 0 && (
-            <ul className="max-h-64 divide-y divide-rule/40 overflow-auto rounded-lg border border-rule/60 text-xs">
+            <ul className="max-h-64 divide-y divide-border overflow-auto rounded-lg border border-border text-xs">
               {result.failed.map((failure) => (
                 <li key={`${failure.row}-${failure.error}`} className="flex gap-3 px-3 py-2">
                   <span className="shrink-0 tabular-nums text-muted-foreground">Row {failure.row}</span>
@@ -279,7 +280,7 @@ export function ImportDialog({
               </span>
             </button>
             <div className="space-y-1">
-              <p className="text-label uppercase text-muted-foreground">Into model</p>
+              <FieldLabel as="span">Into model</FieldLabel>
               <Select
                 ariaLabel="Content model"
                 className="w-full"
@@ -295,7 +296,7 @@ export function ImportDialog({
               />
             </div>
             <div className="space-y-1">
-              <p className="text-label uppercase text-muted-foreground">Language</p>
+              <FieldLabel as="span">Language</FieldLabel>
               <Select
                 ariaLabel="Language"
                 className="w-full"
@@ -309,7 +310,7 @@ export function ImportDialog({
           {source && type && (
             <div>
               <p className="mb-1.5 text-label uppercase text-muted-foreground">Match columns to fields</p>
-              <div className="max-h-[40vh] overflow-auto rounded-lg border border-rule/60">
+              <div className="max-h-[40vh] overflow-auto rounded-lg border border-border">
                 <table className="w-full text-sm">
                   <thead className="sticky top-0 bg-band/70 text-left text-xs text-muted-foreground">
                     <tr>
@@ -318,7 +319,7 @@ export function ImportDialog({
                       <th className="w-56 px-3 py-2 font-medium">Field</th>
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-rule/40">
+                  <tbody className="divide-y divide-border">
                     {source.headers.map((header, column) => (
                       <tr key={`${header}-${column}`}>
                         <td className="px-3 py-2 font-medium text-foreground">{header || `Column ${column + 1}`}</td>

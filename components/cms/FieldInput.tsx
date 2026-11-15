@@ -796,7 +796,7 @@ function ReferenceInput({
         {ids.map((id, index) => {
           const linked = byDocument.get(id);
           return (
-            <li key={id} className="flex items-center gap-2 rounded-md border border-rule/60 bg-control px-3 py-2">
+            <li key={id} className="flex items-center gap-2 rounded-md border border-border bg-control px-3 py-2">
               <Link2 size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-sm font-medium">
@@ -873,7 +873,7 @@ function GroupInput({
         <legend className="w-full">
           <GroupHeader field={field} />
         </legend>
-        <div className="mt-2 rounded-lg border border-rule/60 bg-control p-4">
+        <div className="mt-2 rounded-lg border border-border bg-control p-4">
           <FieldSet fields={fields} value={item} onChange={onChange} disabled={disabled} locale={locale} />
         </div>
         {help}
@@ -896,8 +896,8 @@ function GroupInput({
       </legend>
       <ol className="mt-2 space-y-2">
         {items.map((item, index) => (
-          <li key={index} className="rounded-lg border border-rule/60 bg-control">
-            <div className="flex items-center gap-2 border-b border-rule/50 py-1 pl-3 pr-1">
+          <li key={index} className="rounded-lg border border-border bg-control">
+            <div className="flex items-center gap-2 border-b border-border py-1 pl-3 pr-1">
               <span className="flex-1 truncate text-sm font-semibold text-foreground">
                 <span className="tabular-nums text-muted-foreground">{index + 1}.</span> {titleOf(item) ?? field.label}
               </span>

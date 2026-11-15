@@ -99,7 +99,7 @@ export function LineEditor({
           <div className="flex items-center gap-3">
             <div className="min-w-0 flex-1">
               <p className="text-xs text-muted-foreground">Net pay</p>
-              <p className="text-lg font-semibold text-foreground">{money(net)}</p>
+              <p className="text-lg font-semibold tabular-nums text-foreground">{money(net)}</p>
             </div>
             <Button variant="outline" size="default" onClick={onClose} disabled={save.isPending}>
               Cancel
@@ -117,8 +117,8 @@ export function LineEditor({
       }
     >
       <div className="space-y-6">
-        <section className="rounded-lg border border-rule/60 bg-field">
-          <dl className="divide-y divide-rule/45">
+        <section className="rounded-lg border border-border bg-field">
+          <dl className="divide-y divide-border">
             <Row label="Gross pay" value={money(line.grossPay)} />
             <Row label="Taken from their pay" value={`− ${money(totals.employee)}`} />
             <Row
@@ -143,7 +143,7 @@ export function LineEditor({
           {netOverride !== null && editable && (
             <button
               type="button"
-              className="w-full border-t border-rule/45 px-4 py-2 text-left text-xs font-semibold text-primary"
+              className="w-full border-t border-border px-4 py-2 text-left text-xs font-semibold text-primary"
               onClick={() => setNetOverride(null)}
             >
               Use the worked-out net ({money(suggested)})
@@ -153,13 +153,13 @@ export function LineEditor({
 
         <section>
           <div className="flex items-baseline justify-between">
-            <h3 className="text-sm font-semibold text-foreground">Deductions and contributions</h3>
+            <h3 className="text-sm font-semibold text-heading">Deductions and contributions</h3>
             <span className="text-xs text-muted-foreground">Your accountant’s figures</span>
           </div>
 
-          <ul className="mt-2.5 space-y-2">
+          <ul className="mt-2.5 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
             {items.map((item, index) => (
-              <li key={index} className="rounded-lg border border-rule/60 bg-field p-3">
+              <li key={index} className="border-b border-border p-3 last:border-b-0">
                 <div className="flex flex-wrap items-center gap-2">
                   <input
                     value={item.label}
@@ -177,7 +177,7 @@ export function LineEditor({
                     placeholder="0.00"
                     aria-label={`${item.label || 'Line'} amount`}
                     disabled={!editable}
-                    className="h-9 w-28 flex-1 sm:flex-none rounded-md border border-input bg-background px-3 text-right text-sm font-semibold text-foreground outline-none focus-visible:border-ring disabled:opacity-60"
+                    className="h-9 w-28 flex-1 sm:flex-none rounded-md border border-input bg-background px-3 text-right text-sm font-semibold tabular-nums text-foreground outline-none focus-visible:border-ring disabled:opacity-60"
                   />
                   {editable && (
                     <Button
@@ -212,9 +212,7 @@ export function LineEditor({
               </li>
             ))}
             {items.length === 0 && (
-              <li className="rounded-lg border border-dashed border-rule/70 px-4 py-5 text-center text-sm text-muted-foreground">
-                No deductions — net pay will equal gross.
-              </li>
+              <li className="px-4 py-5 text-center text-sm text-muted-foreground">No deductions — net pay will equal gross.</li>
             )}
           </ul>
 
@@ -225,7 +223,7 @@ export function LineEditor({
                   key={preset.label}
                   type="button"
                   onClick={() => setItems((current) => [...current, { ...preset, amount: '' }])}
-                  className="flex h-8 items-center gap-1 rounded-md border border-rule/60 bg-field px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-band/60"
+                  className="flex h-8 items-center gap-1 rounded-md border border-border bg-field px-2.5 text-xs font-medium text-foreground transition-colors hover:bg-band/60"
                 >
                   <Plus size={12} aria-hidden="true" /> {preset.label}
                   {preset.paidBy === 'employer' && <span className="text-muted-foreground">· employer</span>}
@@ -234,7 +232,7 @@ export function LineEditor({
               <button
                 type="button"
                 onClick={() => setItems((current) => [...current, { label: '', kind: 'other', paidBy: 'employee', amount: '' }])}
-                className="flex h-8 items-center gap-1 rounded-md border border-dashed border-rule/70 px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
+                className="flex h-8 items-center gap-1 rounded-md border border-dashed border-border px-2.5 text-xs font-medium text-muted-foreground hover:text-foreground"
               >
                 <Plus size={12} aria-hidden="true" /> Another line
               </button>
@@ -258,7 +256,12 @@ function Row({ label, value, strong, muted }: { label: string; value: React.Reac
   return (
     <div className="flex items-center justify-between gap-3 px-4 py-2.5">
       <dt className={cn('text-sm', muted ? 'text-muted-foreground' : 'text-foreground', strong && 'font-semibold')}>{label}</dt>
-      <dd className={cn('text-sm', strong ? 'font-semibold text-foreground' : muted ? 'text-muted-foreground' : 'text-foreground')}>
+      <dd
+        className={cn(
+          'text-sm tabular-nums',
+          strong ? 'font-semibold text-foreground' : muted ? 'text-muted-foreground' : 'text-foreground',
+        )}
+      >
         {value}
       </dd>
     </div>

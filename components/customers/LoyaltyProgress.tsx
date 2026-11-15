@@ -30,16 +30,6 @@ export function LoyaltyProgress({ customer }: { customer: Customer }) {
           {ladder.points.toLocaleString()}
           <span className="ml-1.5 text-sm font-normal text-muted-foreground">pts</span>
         </p>
-        <p className="mt-1 text-sm text-muted-foreground">
-          {ladder.next ? (
-            <>
-              <span className="font-semibold tabular-nums text-foreground">{ladder.next.needed.toLocaleString()}</span> to{' '}
-              {ladder.next.label}
-            </>
-          ) : (
-            'Top tier reached'
-          )}
-        </p>
       </div>
 
       <ol className="grid grid-cols-4 gap-1.5" aria-label="Tier ladder">
@@ -67,7 +57,12 @@ export function LoyaltyProgress({ customer }: { customer: Customer }) {
               {step.state === 'passed' && <Check size={12} className="shrink-0 text-stock" aria-hidden="true" />}
               {step.label}
             </p>
-            <p className="text-micro tabular-nums text-muted-foreground">{step.from.toLocaleString()}+</p>
+            <p className="text-micro tabular-nums text-muted-foreground">
+              {step.from.toLocaleString()}+{/* How far off the next tier is, said under that tier rather than beside the balance. */}
+              {ladder.next?.label === step.label && (
+                <span className="font-sans font-semibold text-foreground"> · {ladder.next.needed.toLocaleString()} to go</span>
+              )}
+            </p>
           </li>
         ))}
       </ol>

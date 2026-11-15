@@ -359,7 +359,7 @@ export function StockOverview({
                   <Bone className="h-4 w-28" />
                   <Bone className="h-3 w-24" />
                 </div>
-                <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                <div className="overflow-hidden rounded-lg border border-border bg-card">
                   {Array.from({ length: rows }, (_, index) => (
                     <RowSkeleton key={index} index={index + group} />
                   ))}
@@ -399,14 +399,14 @@ export function StockOverview({
             {groups.map((group) => (
               <section key={group.category ?? 'none'} aria-labelledby={`cat-${group.category ?? 'none'}`}>
                 <div className="mb-2 flex items-baseline justify-between px-1">
-                  <h2 id={`cat-${group.category ?? 'none'}`} className="text-sm font-semibold text-foreground">
+                  <h2 id={`cat-${group.category ?? 'none'}`} className="text-sm font-semibold text-heading">
                     {categoryMeta(group.category).label}
                   </h2>
                   <p className="text-xs text-muted-foreground">
                     {group.lines.length} {group.lines.length === 1 ? 'item' : 'items'} · {money(stockValue(group.lines).value)}
                   </p>
                 </div>
-                <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                <ul className="overflow-hidden rounded-lg border border-border bg-card">
                   {group.lines.map((line) => (
                     <StockRow
                       key={line.stockItemId}

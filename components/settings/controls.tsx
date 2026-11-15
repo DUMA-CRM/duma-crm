@@ -77,7 +77,7 @@ export function SettingRow({
         {Icon && (
           <span
             className={cn(
-              'flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground',
+              'flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground',
               !titleOnly && 'mt-0.5',
             )}
           >
@@ -95,7 +95,7 @@ export function SettingRow({
 }
 
 export function SettingRows({ children, dividers = true }: { children: React.ReactNode; dividers?: boolean }) {
-  return <div className={cn(dividers && 'divide-y divide-rule/40')}>{children}</div>;
+  return <div className={cn(dividers && 'divide-y divide-border')}>{children}</div>;
 }
 
 /**
@@ -146,29 +146,30 @@ export function SaveBar({
   }, [justSaved, reduceMotion]);
   const settled = justSaved && !dirty;
 
+  const shown = dirty || settled;
+
   return (
-    <AnimatePresence>
-      {(dirty || settled) && (
-        <motion.div
-          initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
-          animate={{ opacity: 1, y: 0 }}
-          exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
-          transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-          className="sticky bottom-4 z-20 mt-6"
-          role="region"
-          aria-label={settled ? 'Changes saved' : 'Unsaved changes'}
-        >
-          <div
-            className={cn(
-              'flex flex-wrap items-center gap-3 rounded-lg border bg-card/95 px-4 py-3 shadow-lg backdrop-blur-sm transition-colors duration-300',
-              settled ? 'border-success/50' : 'border-rule/70',
-            )}
+    <>
+      {/* The bar floats over the page, so leave room for it at the foot: the last row stays reachable. */}
+      {shown && <div aria-hidden="true" className="h-16" />}
+      <AnimatePresence>
+        {shown && (
+          // The Orders page's bulk bar: a compact card floating centred at the foot of the screen.
+          <motion.div
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 24 }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4"
+            role="region"
+            aria-label={settled ? 'Changes saved' : 'Unsaved changes'}
           >
-            <span className="mr-auto flex items-center gap-2 text-sm font-medium text-foreground">
-              <span
-                className={cn('size-2 rounded-full transition-colors duration-300', settled ? 'bg-success' : 'bg-stock')}
-                aria-hidden="true"
-              />
+            <div
+              className={cn(
+                'pointer-events-auto flex flex-wrap items-center gap-2 rounded-lg border bg-card py-2 pr-2 pl-4 shadow-lg transition-colors duration-300',
+                settled ? 'border-success/50' : 'border-border',
+              )}
+            >
               <AnimatePresence mode="popLayout" initial={false}>
                 <motion.span
                   key={settled ? 'saved' : 'dirty'}
@@ -176,40 +177,31 @@ export function SaveBar({
                   animate={{ opacity: 1, y: 0 }}
                   exit={{ opacity: 0, y: reduceMotion ? 0 : -6 }}
                   transition={{ duration: 0.2 }}
+                  className="pr-1 text-sm font-semibold text-heading"
                 >
                   {settled ? 'All changes saved' : message}
                 </motion.span>
               </AnimatePresence>
-            </span>
-            <Button
-              type="button"
-              variant="ghost"
-              size="lg"
-              className="h-11 px-4"
-              onClick={() => {
-                setWatch((current) => ({ ...current, awaiting: false }));
-                onDiscard();
-              }}
-              disabled={saving || settled}
-            >
-              Discard
-            </Button>
-            {extra}
-            <ActionButton
-              type="button"
-              size="lg"
-              className="h-11 min-w-32 px-5"
-              onClick={onSave}
-              pending={saving}
-              done={settled}
-              disabled={disabled}
-            >
-              {saveLabel}
-            </ActionButton>
-          </div>
-        </motion.div>
-      )}
-    </AnimatePresence>
+              <Button
+                type="button"
+                variant="ghost"
+                onClick={() => {
+                  setWatch((current) => ({ ...current, awaiting: false }));
+                  onDiscard();
+                }}
+                disabled={saving || settled}
+              >
+                Discard
+              </Button>
+              {extra}
+              <ActionButton type="button" className="min-w-28" onClick={onSave} pending={saving} done={settled} disabled={disabled}>
+                {saveLabel}
+              </ActionButton>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </>
   );
 }
 
@@ -217,7 +209,7 @@ export function SaveBar({
 export function ReadOut({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-baseline gap-4 py-2.5">
-      <dt className="w-36 shrink-0 text-label uppercase text-muted-foreground">{label}</dt>
+      <dt className="w-36 shrink-0 text-sm text-muted-foreground">{label}</dt>
       <dd className="min-w-0 flex-1 truncate text-sm text-foreground">{children}</dd>
     </div>
   );
@@ -256,24 +248,25 @@ export function Fact({
   /** 'panel' (default) for tiles inside a settings card; 'page' for tiles straight on the page background; 'card' for white tiles, e.g. on a drawer. */
   surface?: 'panel' | 'page' | 'card';
 }) {
-  // The icon is a rail, not a chip: a tinted strip from the card's edge, full
-  // height, so a row of tiles lines up on its icons and its numbers alike.
+  // Like a marketing feature card: the icon on a small soft tile inside the
+  // padding, then a sentence-case label over the value.
   const body = (
     <>
+      {/* A fixed-width tile as tall as the text beside it, inside the card's padding; the icon stays one size. */}
       <span
         className={cn(
-          'flex w-12 shrink-0 items-center justify-center',
+          'flex min-h-10 w-10 shrink-0 items-center justify-center self-stretch rounded-md',
           tone === 'danger'
-            ? 'bg-exception/14 text-exception'
+            ? 'bg-exception/10 text-exception'
             : tone === 'warning'
-              ? 'bg-measured/18 text-measured'
-              : 'bg-primary/14 text-primary',
+              ? 'bg-measured/12 text-measured'
+              : 'bg-primary/8 text-primary',
         )}
       >
-        <Icon size={18} aria-hidden="true" />
+        <Icon size={20} aria-hidden="true" />
       </span>
-      <div className="min-w-0 flex-1 self-center px-3.5 py-3">
-        <dt className="text-label uppercase text-muted-foreground">{label}</dt>
+      <div className="min-w-0 flex-1 self-center">
+        <dt className="text-sm text-muted-foreground">{label}</dt>
         <dd
           className={cn(
             'mt-0.5 truncate font-semibold tabular-nums',
@@ -289,7 +282,7 @@ export function Fact({
       {action && onSelect && (
         <span
           className={cn(
-            'mr-3 inline-flex shrink-0 items-center gap-1 self-center rounded-md border border-rule/70 bg-background px-2 py-1 text-xs font-semibold text-foreground',
+            'inline-flex shrink-0 items-center gap-1 self-center rounded-md border border-edge bg-background px-2 py-1 text-xs font-semibold text-foreground',
             'transition-colors group-hover:border-primary/40 group-hover:bg-primary/8 group-hover:text-primary',
           )}
         >
@@ -300,18 +293,18 @@ export function Fact({
     </>
   );
   const className = cn(
-    'flex items-stretch overflow-hidden rounded-lg border',
+    'flex items-center gap-3 rounded-lg border px-3.5 py-3',
     selected
       ? 'border-primary bg-primary/5'
       : surface === 'page'
-        ? 'border-rule/60 bg-field'
+        ? 'border-border bg-card shadow-sm'
         : surface === 'card'
-        ? 'border-rule/60 bg-card'
-          : 'border-rule/50 bg-band/35',
+          ? 'border-border bg-card shadow-sm'
+          : 'border-border bg-band/35',
   );
   const interactive = cn(
     className,
-    'text-left transition-colors hover:border-rule hover:bg-band/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+    'text-left transition-colors hover:border-edge hover:bg-band/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
   );
   if (href)
     return (
@@ -362,7 +355,7 @@ export function ToggleCard({
         checked
           ? tone === 'warning'
             ? 'border-stock/40 bg-warning-highlight'
-            : 'border-rule/50 bg-background/60'
+            : 'border-border bg-background/60'
           : 'border-dashed border-rule/60 bg-transparent',
         disabled && 'opacity-55',
       )}
@@ -422,7 +415,7 @@ export function StepperCard({
   const current = Number.isFinite(value) ? value : min;
 
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-background/60 px-3.5 py-3">
       <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
         <Icon size={18} aria-hidden="true" />
       </span>
@@ -440,7 +433,7 @@ export function StepperCard({
           <DurationPicker aria-label={title} value={current} onValueChange={onChange} min={min} max={max} minuteStep={step} />
         </div>
       ) : (
-        <div className="flex w-36 shrink-0 items-center rounded-md border border-rule/60 bg-field focus-within:border-ring">
+        <div className="flex w-36 shrink-0 items-center rounded-md border border-border bg-field focus-within:border-ring">
           <button
             type="button"
             aria-label={`Less — ${title}`}
@@ -450,7 +443,7 @@ export function StepperCard({
           >
             <Minus size={15} aria-hidden="true" />
           </button>
-          <label className="flex h-9 flex-1 items-center justify-center gap-1 border-x border-rule/60 px-2">
+          <label className="flex h-9 flex-1 items-center justify-center gap-1 border-x border-border px-2">
             <input
               type="number"
               inputMode="numeric"
@@ -486,4 +479,77 @@ export function StepperCard({
       )}
     </div>
   );
+}
+
+/**
+ * Icon tile, label and value, with a Change button that opens its form in place —
+ * Settings → Account's sign-in rows. Callers keep one open at a time.
+ *
+ * Without `onToggle` it is the same row with no button: a value that cannot be
+ * changed here (a date of birth, a tax code) sitting in a list of ones that can.
+ */
+export function ChangeRow({
+  icon: Icon,
+  label,
+  value,
+  open = false,
+  onToggle,
+  trailing,
+  verbs = ['Change', 'Cancel'],
+  children,
+}: {
+  icon: IconComponent;
+  label: string;
+  value: React.ReactNode;
+  open?: boolean;
+  onToggle?: () => void;
+  /** A one-tap action on the value itself (Copy, Call), left of Change. */
+  trailing?: React.ReactNode;
+  /** The button's words, closed and open — ['Show', 'Hide'] for a row that opens read-only detail. */
+  verbs?: readonly [string, string];
+  children?: React.ReactNode;
+}) {
+  const reduceMotion = useReducedMotion();
+  return (
+    <div className="py-2.5 first:pt-0 last:pb-0">
+      <div className="flex items-center gap-3">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
+          <Icon size={18} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-label uppercase text-muted-foreground">{label}</p>
+          <div className="mt-0.5 flex min-w-0 items-center gap-2 text-sm font-semibold text-foreground">{value}</div>
+        </div>
+        {trailing && <div className="flex shrink-0 items-center gap-1">{trailing}</div>}
+        {onToggle && (
+          <Button variant={open ? 'ghost' : 'outline'} size="sm" onClick={onToggle} aria-expanded={open}>
+            {open ? verbs[1] : verbs[0]}
+          </Button>
+        )}
+      </div>
+      <AnimatePresence initial={false}>
+        {open && onToggle && (
+          <motion.div
+            initial={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: 'auto' }}
+            exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
+            transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
+            className="overflow-hidden"
+          >
+            <div className="pt-4 sm:pl-13">{children}</div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+}
+
+/** A `ChangeRow` value it has not got — quiet, so the "needs you" list is the one place that shouts. */
+export function ValueMissing({ children }: { children: React.ReactNode }) {
+  return <span className="font-normal text-muted-foreground">{children}</span>;
+}
+
+/** The quiet half of a `ChangeRow` value — "· 2 years" after a start date. */
+export function ValueAside({ children }: { children: React.ReactNode }) {
+  return <span className="truncate font-normal text-muted-foreground">{children}</span>;
 }

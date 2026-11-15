@@ -54,7 +54,7 @@ export function PayLineDrawer({
     <Drawer icon={Banknote} title={line.name} description={`${line.jobTitle} · ${formatRange(from, to)}`} onClose={onClose}>
       <div className="space-y-5">
         {/* The sum itself, stated once, before any of the detail. */}
-        <section className="rounded-md border border-rule bg-field p-4">
+        <section className="rounded-md border border-border bg-field p-4">
           {explanation.basis === 'salaried' ? (
             <>
               <p className="text-sm text-muted-foreground">
@@ -98,7 +98,7 @@ export function PayLineDrawer({
         </section>
 
         {/* Where the clocked time went. */}
-        <section className="grid grid-cols-3 gap-px overflow-hidden rounded-md border border-rule bg-rule">
+        <section className="grid grid-cols-3 gap-px overflow-hidden rounded-md border border-border bg-border">
           <Figure label="Clocked" value={hours(line.rawHours)} />
           <Figure label="Payable" value={hours(explanation.payableHours)} />
           <Figure label="Unpaid" value={hours(explanation.unpaidHours)} tone={explanation.unpaidHours > 0 ? 'measured' : undefined} />
@@ -137,9 +137,9 @@ export function PayLineDrawer({
 
         {/* Shift by shift. */}
         <section>
-          <h3 className="mb-2 text-sm font-semibold text-foreground">Shifts in this period</h3>
+          <h3 className="mb-2 text-sm font-semibold text-heading">Shifts in this period</h3>
           {isError ? (
-            <div className="rounded-md border border-rule bg-field">
+            <div className="rounded-md border border-border bg-field">
               <ErrorState
                 icon={Clock}
                 title="The timesheet couldn’t be loaded"
@@ -154,7 +154,7 @@ export function PayLineDrawer({
               role="status"
               aria-busy="true"
               aria-label="Loading the timesheet"
-              className="divide-y divide-rule overflow-hidden rounded-md border border-rule bg-field"
+              className="divide-y divide-border overflow-hidden rounded-md border border-border bg-field"
             >
               {[0, 1, 2].map((index) => (
                 <div key={index} className="flex items-center gap-3 px-4 py-3" aria-hidden="true">
@@ -167,9 +167,9 @@ export function PayLineDrawer({
               ))}
             </div>
           ) : explanation.shifts.length === 0 ? (
-            <p className="rounded-md border border-rule bg-field p-4 text-sm text-muted-foreground">No shifts clocked in this period.</p>
+            <p className="rounded-md border border-border bg-field p-4 text-sm text-muted-foreground">No shifts clocked in this period.</p>
           ) : (
-            <ul className="divide-y divide-rule overflow-hidden rounded-md border border-rule bg-field">
+            <ul className="divide-y divide-border overflow-hidden rounded-md border border-border bg-field">
               {explanation.shifts.map(({ shift, overtimeHours, breakHours, unrostered }) => (
                 <li key={shift.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-4 py-3">
                   <div className="min-w-0 flex-1">

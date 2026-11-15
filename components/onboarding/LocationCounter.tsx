@@ -70,7 +70,7 @@ export function LocationCounter({ value, onChange }: { value: number; onChange: 
             onClick={() => set(preset)}
             className={cn(
               'h-11 min-w-11 rounded-md border px-3 text-sm font-semibold tabular-nums transition-colors',
-              value === preset ? 'border-primary bg-primary text-primary-foreground' : 'border-rule/70 bg-field text-foreground hover:bg-band',
+              value === preset ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-field text-foreground hover:bg-band',
             )}
           >
             {preset === 10 ? '10+' : preset}

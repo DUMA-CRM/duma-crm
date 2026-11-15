@@ -2,8 +2,10 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { ChefHat, LayoutDashboard, LayoutGrid, Monitor, QrCode, Receipt, Sparkles, Timer } from '@/components/icons';
+import { ChefHat, type IconComponent, LayoutDashboard, LayoutGrid, Monitor, QrCode, Receipt, Timer } from '@/components/icons';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
 
 import { type Capability, hasAnyCapability } from '@/lib/auth/capabilities';
@@ -13,15 +15,21 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { SettingsDestination, type SettingsDestinationProps } from './SettingsDestination';
-
-type Destination = SettingsDestinationProps & {
+type Destination = {
+  href: string;
+  title: string;
+  icon: IconComponent;
   group: 'workspace' | 'screens';
+  /** Where a screen's settings are kept — the one thing its title can't say. */
+  scope?: string;
   capabilities?: Capability[];
   module?: ModuleId;
 };
 
-/** Each tile opens one editor; scope labels distinguish shared and personal changes. */
+/**
+ * Operations settings: one row per editor, in two short lists — what the
+ * workspace shares | how your own screens look, each saying where it is kept.
+ */
 export function ConfigurationHome() {
   const capabilities = useAuthStore((state) => state.capabilities);
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -33,16 +41,8 @@ export function ConfigurationHome() {
   });
   const destinations: Destination[] = [
     {
-      href: '/settings/assistant',
-      title: 'Ask DUMA',
-      description: 'Choose the AI provider used on this device.',
-      icon: Sparkles,
-      group: 'screens',
-    },
-    {
       href: '/settings/modules',
       title: 'Modules',
-      description: 'Choose the tools your business uses.',
       icon: LayoutGrid,
       group: 'workspace',
       capabilities: ['settings:write'],
@@ -50,7 +50,6 @@ export function ConfigurationHome() {
     {
       href: '/settings/trading',
       title: 'Receipts & tax',
-      description: 'Receipt details, currency and tax rules.',
       icon: Receipt,
       group: 'workspace',
       capabilities: ['settings:write'],
@@ -58,7 +57,6 @@ export function ConfigurationHome() {
     {
       href: '/settings/configuration/orders',
       title: 'Orders',
-      description: 'Set when an order is marked late.',
       icon: Timer,
       group: 'workspace',
       module: 'ordering',
@@ -66,7 +64,6 @@ export function ConfigurationHome() {
     {
       href: '/settings/qr-ordering',
       title: 'QR ordering',
-      description: 'Set up how customers order by QR code.',
       icon: QrCode,
       group: 'workspace',
       module: 'qr-ordering',
@@ -75,14 +72,14 @@ export function ConfigurationHome() {
     {
       href: '/settings/configuration/dashboard',
       title: 'Dashboard',
-      description: 'Choose and arrange your panels.',
+      scope: 'Your account',
       icon: LayoutDashboard,
       group: 'screens',
     },
     {
       href: '/settings/configuration/pos',
       title: 'Till',
-      description: 'Menu layout, favourites and stock warnings.',
+      scope: 'This device',
       icon: Monitor,
       group: 'screens',
       module: 'pos',
@@ -91,7 +88,7 @@ export function ConfigurationHome() {
     {
       href: '/settings/configuration/kitchen',
       title: 'Kitchen screen',
-      description: 'Tickets, display options and order alerts.',
+      scope: 'This device',
       icon: ChefHat,
       group: 'screens',
       module: 'kds',
@@ -103,8 +100,13 @@ export function ConfigurationHome() {
 
   if (!tenantId) return <p className="text-sm text-muted-foreground">Choose a workspace to see its operations settings.</p>;
 
+  const groups = [
+    { id: 'workspace', title: 'Workspace' },
+    { id: 'screens', title: 'Screens' },
+  ] as const;
+
   return (
-    <div className="space-y-6">
+    <div className="flex flex-col gap-5">
       {modules.isError && (
         <ErrorState
           title="Some settings couldn’t be loaded"
@@ -112,43 +114,36 @@ export function ConfigurationHome() {
           onRetry={() => void modules.refetch()}
         />
       )}
-      {(
-        [
-          { id: 'workspace', title: 'Workspace settings' },
-          { id: 'screens', title: 'Screen preferences' },
-        ] as const
-      ).map((group) => {
-        const items = allowed.filter((item) => item.group === group.id && (!item.module || enabled.has(item.module)));
-        const pending = modules.isPending && allowed.some((item) => item.group === group.id && item.module);
-        if (!items.length && !pending) return null;
-        return (
-          <section key={group.id} aria-labelledby={`operations-${group.id}`}>
-            <div className="mb-3">
-              <h2 id={`operations-${group.id}`} className="text-base font-semibold text-foreground">
-                {group.title}
-              </h2>
-            </div>
-            <div className="grid gap-2 md:grid-cols-2">
-              {items.map((item) => (
-                <SettingsDestination key={item.href} {...item} titleOnly={group.id === 'screens'} />
-              ))}
-              {pending && (
-                <div
-                  role="status"
-                  aria-label="Loading available settings"
-                  className="flex min-h-18 items-center gap-3 rounded-lg border border-rule/60 bg-field px-3 py-3"
-                >
-                  <Bone className="size-[42px] shrink-0 rounded-md" />
-                  <div className="flex-1 space-y-2">
-                    <Bone className="h-4 w-28" />
-                    <Bone className="h-3 w-3/4" />
-                  </div>
-                </div>
-              )}
-            </div>
-          </section>
-        );
-      })}
+      {/* Two short lists side by side: what the workspace shares | how your own screens look. */}
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        {groups.map((group) => {
+          const items = allowed.filter((item) => item.group === group.id && (!item.module || enabled.has(item.module)));
+          const pending = modules.isPending && allowed.some((item) => item.group === group.id && item.module);
+          if (!items.length && !pending) return null;
+          return (
+            <RecordGroup key={group.id} id={`operations-${group.id}`} title={group.title}>
+              <ListRowGroup>
+                {items.map((item) => (
+                  <ListRow
+                    key={item.href}
+                    href={item.href}
+                    icon={item.icon}
+                    title={item.title}
+                    meta={item.scope}
+                    targetLabel={`Configure ${item.title}`}
+                  />
+                ))}
+                {pending && (
+                  <li role="status" aria-label="Loading available settings" className="flex items-center gap-3 px-3.5 py-3">
+                    <Bone className="size-9 shrink-0 rounded-md" />
+                    <Bone className="h-3.5 w-32" />
+                  </li>
+                )}
+              </ListRowGroup>
+            </RecordGroup>
+          );
+        })}
+      </div>
     </div>
   );
 }

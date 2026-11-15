@@ -15,6 +15,7 @@ import { SlideToClockIn } from '@/components/shifts/SlideToClockIn';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { FieldLabel } from '@/components/ui/label';
 import { TimePicker } from '@/components/ui/time-picker';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -62,7 +63,6 @@ function startOfWeek(): Date {
 
 const inp =
   'w-full h-9 bg-control border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
-const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
 
 /** Weekday over day number — the rota row's leading tile. */
 function DateTile({ iso }: { iso: string }) {
@@ -143,7 +143,7 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
               </span>
               <p className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">My workday</p>
             </div>
-            <h1 className="text-2xl font-semibold tracking-headline text-foreground md:text-metric">
+            <h1 className="text-2xl font-semibold tracking-headline text-heading md:text-metric">
               {greeting(zonedParts(now).hour)}
               {user?.name ? `, ${user.name.split(' ')[0]}` : ''}
             </h1>
@@ -354,17 +354,23 @@ function SuggestShiftCard({
         <DatePicker label="Date" value={date} onValueChange={setDate} required />
         <div className="grid grid-cols-2 gap-3">
           <div>
-            <label className={lbl}>From</label>
+            <FieldLabel as="span" className="mb-1.5" required>
+              From
+            </FieldLabel>
             <TimePicker value={start} onValueChange={setStart} required aria-label="From" />
           </div>
           <div>
-            <label className={lbl}>To</label>
+            <FieldLabel as="span" className="mb-1.5" required>
+              To
+            </FieldLabel>
             <TimePicker value={end} onValueChange={setEnd} required aria-label="To" />
           </div>
         </div>
         {end && start && durationMins <= 0 && <p className="text-xs text-destructive">End time must be after the start time.</p>}
         <div>
-          <label className={lbl}>Notes (optional)</label>
+          <FieldLabel as="span" className="mb-1.5">
+            Notes (optional)
+          </FieldLabel>
           <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the manager should know" className={inp} />
         </div>
         {!locationId && <p className="text-xs text-muted-foreground">Select your location before sending a suggestion.</p>}

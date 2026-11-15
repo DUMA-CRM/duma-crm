@@ -1,0 +1,13 @@
+{
+  "path": "/features/reservations",
+  "name": "Reservations",
+  "summary": "Bookings, a floor plan of your tables and a walk-in waitlist.",
+  "description": "Bookings, a floor plan of your tables and a walk-in waitlist.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/reservations",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "Restaurant host adjusts a neatly set table for two and welcomes arriving guests in a small neighbourhood restaurant."
+}

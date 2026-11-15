@@ -1,41 +1,58 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useEffect, useState } from 'react';
+import Link from 'next/link';
+import { useEffect, useRef, useState } from 'react';
 
+import { copyText } from '@/components/cms/shared';
 import { SendEmailModal } from '@/components/email/SendEmailModal';
 import {
+  ArrowUpRight,
   Banknote,
+  Check,
   ChevronDown,
+  ChevronRight,
   ChevronUp,
   Clock,
+  Copy,
   CreditCard,
   Download,
   Globe,
+  Hash,
+  type IconComponent,
   Loader2,
   Mail,
   MapPin,
+  MoreHorizontal,
+  Phone,
+  Printer,
   Receipt,
   ReceiptText,
   RotateCcw,
+  ShoppingBag,
   Timer,
   Truck,
   User,
+  UtensilsCrossed,
   XCircle,
 } from '@/components/icons';
-import { Drawer } from '@/components/shared/Drawer';
+import { Avatar } from '@/components/shared/Avatar';
+import { Drawer, type DrawerEnter, DrawerHeaderButton } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Modal } from '@/components/shared/Modal';
 import { LoadingState } from '@/components/shared/Skeleton';
-import { TONE_INK } from '@/components/shared/tone';
+import { TONE_INK, TONE_TINT, type Tone } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
+import { CopyButton } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
 import { API_PREFIX } from '@/lib/modules/core/client';
 import { getCustomer } from '@/lib/modules/customers/client';
 import { type OrderDetail, getOrder } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDateTime } from '@/lib/utils/date';
 import {
@@ -60,8 +77,8 @@ import { OrderDeliveryEditor } from './OrderDeliveryEditor';
 import { OrderNote } from './OrderNote';
 import { PaymentDueCard } from './PaymentDueCard';
 import { RefundBody, RefundFooter, useRefundDraft } from './RefundPanel';
-import { StatusMenu, useStatusChange } from './StatusMenu';
-import { REFUND_REASON_OPTIONS, SOURCE_META, STATUS_META, VOID_REASON_OPTIONS, optionLabel } from './orderMeta';
+import { StatusPill, VoidModal, nextStatuses, useStatusChange } from './StatusMenu';
+import { FULFILMENT_LABEL, REFUND_REASON_OPTIONS, SOURCE_META, STATUS_META, VOID_REASON_OPTIONS, optionLabel } from './orderMeta';
 
 /** Stands in for the order while it loads, so the refund hook can run unconditionally. */
 const PLACEHOLDER_ORDER = {
@@ -76,11 +93,19 @@ const PLACEHOLDER_ORDER = {
   createdAt: '',
 } as OrderDetail;
 
+/** A white card on the drawer — every section shares it. */
+const CARD = 'overflow-hidden rounded-lg border border-border bg-card shadow-sm';
+const SECTION_HEADING = 'mb-2 px-1 text-sm font-semibold text-heading';
+const MENU_ITEM =
+  'flex h-10 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-band/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring';
+
 /**
- * One order, beside the list it came from. Read top to bottom: what was
- * ordered and what it came to, how it was paid and by whom, then what happened
- * to it. The next step (Mark ready, Complete) is the primary action; receipt,
- * email and refund sit beside it. ↑/↓ steps through the list without closing.
+ * One order, beside the list it came from, laid out the way Square's order
+ * details read: where it's up to and what it came to, who it's for and how it
+ * reaches them, what was ordered and how it was paid, then the note, what
+ * happened to it and the reference details. The next step (Mark ready,
+ * Complete) is the primary action; receipt and refund sit beside it; the rarer
+ * actions (email, copy, cancel) live under ⋯. ↑/↓ step through the list.
  */
 export function OrderDrawer({
   orderId,
@@ -89,6 +114,7 @@ export function OrderDrawer({
   onClose,
   onPrev,
   onNext,
+  enter,
 }: {
   orderId: string;
   staffName: (userId: string | null | undefined) => string | null;
@@ -96,40 +122,33 @@ export function OrderDrawer({
   onClose: () => void;
   onPrev?: () => void;
   onNext?: () => void;
+  /** `instant` when ↑/↓ brought this order in: no slide, just the new order. */
+  enter?: DrawerEnter;
 }) {
   const money = useWorkspaceMoney();
-  const canRefund = hasCapability(
-    useAuthStore((state) => state.capabilities),
-    'orders:refund',
-  );
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const canRefund = hasCapability(capabilities, 'orders:refund');
   // Anyone who works orders can keep a note on one (POST /orders/:id/notes checks the same).
-  const canNote = hasAnyCapability(
-    useAuthStore((state) => state.capabilities),
-    'orders:status',
-    'orders:create',
-  );
+  const canNote = hasAnyCapability(capabilities, 'orders:status', 'orders:create');
   // Whoever can take an order by hand can record its payment (the API checks the same).
-  const canTakeOrders = hasCapability(
-    useAuthStore((state) => state.capabilities),
-    'orders:create',
-  );
+  const canTakeOrders = hasCapability(capabilities, 'orders:create');
   const [showReceipt, setShowReceipt] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
   const [showRefund, setShowRefund] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [voiding, setVoiding] = useState(false);
   const { data, isPending, isError, refetch } = useQuery<OrderDetail>({
     queryKey: moduleQueryKeys.ordering.key('order', orderId),
     queryFn: () => getOrder(orderId),
   });
-  // Orders created before the API recorded the customer's name carry only their id — look the name up.
+  // The linked customer: their name for orders created before the API stored
+  // one, and their phone and email so staff can reach them from the order.
   const linkedCustomer = useQuery({
     queryKey: moduleQueryKeys.customers.key('customer', data?.customerId ?? null),
     queryFn: () => getCustomer(data!.customerId!),
-    enabled: !!data?.customerId && !data.customerName,
+    enabled: !!data?.customerId,
   });
-  const linkedCustomerName = linkedCustomer.data
-    ? [linkedCustomer.data.firstName, linkedCustomer.data.lastName].filter(Boolean).join(' ') || linkedCustomer.data.email || null
-    : null;
   const advance = useStatusChange({ id: orderId });
 
   // ↑/↓ step through the list, the way a mail client does — unless a field or
@@ -158,19 +177,19 @@ export function OrderDrawer({
   const draft = useRefundDraft(data ?? PLACEHOLDER_ORDER, refundableNow, !!data && showRefund, () => setShowRefund(false));
 
   const nav = (
-    <div className="flex items-center gap-0.5">
-      <Button variant="ghost" size="icon" onClick={onPrev} disabled={!onPrev} aria-label="Previous order (↑)">
-        <ChevronUp />
-      </Button>
-      <Button variant="ghost" size="icon" onClick={onNext} disabled={!onNext} aria-label="Next order (↓)">
-        <ChevronDown />
-      </Button>
-    </div>
+    <>
+      <DrawerHeaderButton label="Previous order (↑)" onClick={onPrev} disabled={!onPrev}>
+        <ChevronUp size={16} />
+      </DrawerHeaderButton>
+      <DrawerHeaderButton label="Next order (↓)" onClick={onNext} disabled={!onNext}>
+        <ChevronDown size={16} />
+      </DrawerHeaderButton>
+    </>
   );
 
   if (isPending || isError || !data) {
     return (
-      <Drawer icon={ReceiptText} title={orderCode(orderId)} onClose={onClose} actions={nav}>
+      <Drawer icon={ReceiptText} title={orderCode(orderId)} onClose={onClose} actions={nav} enter={enter}>
         {isError ? (
           <ErrorState title="This order couldn’t be loaded" onRetry={() => void refetch()} />
         ) : (
@@ -182,23 +201,85 @@ export function OrderDrawer({
 
   const source = SOURCE_META[data.source];
   const payment = paymentSummary({ paymentMethod: data.paymentMethod, paymentStatus: data.paymentStatus });
-  const refunded = (data.refunds ?? []).reduce((sum, refund) => sum + Number(refund.amount), 0);
-  const refundable = Math.max(0, Number(data.totalAmount) - refunded);
+  const refunded = refundedSoFar;
+  const refundable = refundableNow;
+  const refundedFull = refunded > 0 && refundable === 0;
   const step = nextStep(data);
+  const canCancel = nextStatuses(data).includes('cancelled');
+  const mayRefund = canRefund && data.status === 'done' && refundable > 0;
   // Refund mode: the same drawer, its body and footer swapped for the refund.
-  const refunding = canRefund && showRefund && data.status === 'done' && refundable > 0;
+  const refunding = mayRefund && showRefund;
   const discount = Number(data.discountAmount ?? 0);
+  const deliveryFee = Number(data.deliveryFee ?? 0);
+  const itemsTotal = data.items.reduce((sum, item) => sum + Number(item.subtotal), 0);
   const sendsOut = data.fulfilmentType === 'delivery' || data.fulfilmentType === 'shipping';
-  const listOrder = {
-    ...data,
-    totalAmount: Number(data.totalAmount),
-    updatedAt: data.updatedAt ?? data.createdAt,
-    tenantId: data.tenantId ?? '',
-  };
+  const count = itemCount(data.items) ?? 0;
+  const paymentDue = canRecordPayment(data) && canTakeOrders;
+
+  const customer = linkedCustomer.data;
+  const customerName =
+    data.customerName || (customer ? [customer.firstName, customer.lastName].filter(Boolean).join(' ') || customer.email : null) || null;
+  const phone = customer?.phone ?? data.shippingAddress?.phone ?? null;
+  // The number to ring about the drop-off: the one given with the address, else the customer's own.
+  const deliveryPhone = data.shippingAddress?.phone ?? customer?.phone ?? null;
+  const email = customer?.email ?? data.customerEmail ?? null;
+  const editableDelivery = canEditDelivery(data) && canTakeOrders;
 
   // Status changes and refunds, in the order they happened, with the gap between each.
-  const activity = orderActivity(data.statusHistory, data.refunds);
+  const activity = orderActivity(data.statusHistory, data.refunds, data.payments);
   const summary = turnaround(data.statusHistory);
+
+  const more = (
+    <Popover open={moreOpen} onOpenChange={setMoreOpen}>
+      <PopoverTrigger asChild>
+        <DrawerHeaderButton label="More actions">
+          <MoreHorizontal size={16} />
+        </DrawerHeaderButton>
+      </PopoverTrigger>
+      <PopoverContent align="end" className="w-56 p-1.5">
+        {data.customerId && (
+          <button
+            type="button"
+            className={MENU_ITEM}
+            onClick={() => {
+              setMoreOpen(false);
+              setShowEmail(true);
+            }}
+          >
+            <Mail size={16} className="text-muted-foreground" aria-hidden="true" />
+            Email the customer
+          </button>
+        )}
+        <button
+          type="button"
+          className={MENU_ITEM}
+          onClick={() => {
+            setMoreOpen(false);
+            void navigator.clipboard.writeText(orderCode(data.id)).then(
+              () => toast('success', `${orderCode(data.id)} copied.`),
+              () => toast('error', 'Couldn’t copy the code.'),
+            );
+          }}
+        >
+          <Copy size={16} className="text-muted-foreground" aria-hidden="true" />
+          Copy order code
+        </button>
+        {canCancel && (
+          <button
+            type="button"
+            className={cn(MENU_ITEM, 'text-exception hover:bg-exception/8')}
+            onClick={() => {
+              setMoreOpen(false);
+              setVoiding(true);
+            }}
+          >
+            <XCircle size={16} aria-hidden="true" />
+            Cancel order…
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
 
   return (
     <Drawer
@@ -206,7 +287,15 @@ export function OrderDrawer({
       title={refunding ? `Refund order ${orderCode(data.id)}` : `Order ${orderCode(data.id)}`}
       description={refunding ? undefined : `${source.label} · ${formatDateTime(data.createdAt)}`}
       onClose={onClose}
-      actions={refunding ? undefined : nav}
+      enter={enter}
+      actions={
+        refunding ? undefined : (
+          <>
+            {nav}
+            {more}
+          </>
+        )
+      }
       footer={
         refunding ? (
           <RefundFooter draft={draft} money={money} onCancel={() => setShowRefund(false)} />
@@ -216,14 +305,8 @@ export function OrderDrawer({
               <Receipt data-icon="inline-start" />
               Receipt
             </Button>
-            {data.customerId && (
-              <Button type="button" variant="outline" onClick={() => setShowEmail(true)}>
-                <Mail data-icon="inline-start" />
-                Email
-              </Button>
-            )}
-            {canRefund && data.status === 'done' && refundable > 0 && (
-              <Button type="button" variant="destructive" onClick={() => setShowRefund(true)}>
+            {mayRefund && (
+              <Button type="button" variant="outline" onClick={() => setShowRefund(true)}>
                 <RotateCcw data-icon="inline-start" />
                 Refund
               </Button>
@@ -247,55 +330,171 @@ export function OrderDrawer({
         <RefundBody draft={draft} order={data} refundable={refundable} money={money} />
       ) : (
         <div className="space-y-6">
-          {/* The headline: what it came to, how it was paid, where it's up to. */}
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-            <div className="flex items-start gap-3.5 px-4 pt-4 pb-3.5">
-              <span className={cn('flex size-12 shrink-0 items-center justify-center rounded-lg', STATUS_META[data.status].tint)}>
-                <source.icon size={22} aria-hidden="true" />
-              </span>
-              <div className="min-w-0 flex-1">
-                <p className={cn('text-2xl font-semibold tracking-headline', refunded > 0 ? 'text-muted-foreground' : 'text-foreground')}>
-                  {money(data.totalAmount)}
-                  {refunded > 0 && <span className="ml-2 text-sm font-medium text-exception">− {money(refunded)} refunded</span>}
-                </p>
-                <p className="mt-1 flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
-                  <span>
-                    {itemCount(data.items) ?? 0} {itemCount(data.items) === 1 ? 'item' : 'items'}
-                  </span>
-                  <span aria-hidden="true">·</span>
-                  <span
-                    className={cn(
-                      'inline-flex items-center gap-1 font-medium',
-                      payment.tone === 'success' ? 'text-foreground' : TONE_INK[payment.tone],
-                    )}
-                  >
-                    {data.paymentMethod === 'cash' ? (
-                      <Banknote size={13} aria-hidden="true" />
-                    ) : (
-                      <CreditCard size={13} aria-hidden="true" />
-                    )}
-                    {payment.state ? `${payment.method} · ${payment.state}` : payment.method}
-                  </span>
-                  {(data.customerName || linkedCustomerName) && (
-                    <>
-                      <span aria-hidden="true">·</span>
-                      <span className="truncate">For {data.customerName || linkedCustomerName}</span>
-                    </>
+          {/* Where it's up to, what it came to, how it was paid. */}
+          <section aria-label="Summary" className={CARD}>
+            <div className="flex items-start justify-between gap-3 px-4 pt-4 pb-3.5">
+              <div className="min-w-0">
+                <p
+                  className={cn(
+                    'text-3xl font-semibold tracking-headline tabular-nums',
+                    refundedFull ? 'text-muted-foreground line-through decoration-exception/50' : 'text-heading',
                   )}
+                >
+                  {money(data.totalAmount)}
+                </p>
+                <p className="mt-1 flex flex-wrap items-center gap-x-1.5 gap-y-0.5 text-sm text-muted-foreground">
+                  <span className={cn('inline-flex items-center gap-1 font-medium', TONE_INK[payment.tone])}>
+                    {data.paymentMethod === 'cash' ? (
+                      <Banknote size={14} aria-hidden="true" />
+                    ) : (
+                      <CreditCard size={14} aria-hidden="true" />
+                    )}
+                    {payment.state
+                      ? `${payment.method} · ${payment.state}`
+                      : payment.tone === 'success'
+                        ? `Paid · ${payment.method}`
+                        : payment.method}
+                  </span>
+                  {refunded > 0 && !refundedFull && <span className="font-medium text-exception">· {money(refunded)} refunded</span>}
+                  <span aria-hidden="true">·</span>
+                  <span>
+                    {count} {count === 1 ? 'item' : 'items'}
+                  </span>
                 </p>
               </div>
               <div className="shrink-0">
-                <StatusMenu order={listOrder} />
+                <StatusPill status={data.status} />
               </div>
             </div>
-            <OrderProgress status={data.status} history={data.statusHistory ?? []} />
-          </div>
+            <OrderProgress
+              status={data.status}
+              history={data.statusHistory ?? []}
+              reason={
+                data.voidReason
+                  ? `${optionLabel(VOID_REASON_OPTIONS, data.voidReason)}${data.voidNotes ? ` — ${data.voidNotes}` : ''}`
+                  : null
+              }
+            />
+          </section>
 
+          {/* Taken by hand, or a website order awaiting a transfer, and still to be paid — gone once it is. */}
+          {paymentDue && <PaymentDueCard orderId={data.id} amountDue={Number(data.totalAmount)} defaultMethod={data.paymentMethod} />}
+
+          {/* Who it's for and how it reaches them — Square puts the customer first, with a way to reach them. */}
+          <section aria-labelledby="order-customer" className={CARD}>
+            {/* Sized like the DetailRows under it: a 36px square tile, name over contact. */}
+            <div className="flex items-center gap-3 px-4 py-3">
+              {customerName ? (
+                <Avatar name={customerName} email={email} size="md" />
+              ) : (
+                <span
+                  className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground"
+                  aria-hidden="true"
+                >
+                  <User size={16} />
+                </span>
+              )}
+              <div className="min-w-0 flex-1">
+                <h3 id="order-customer" className="truncate text-sm font-semibold text-heading">
+                  {customerName ?? (editableDelivery ? 'No customer yet' : 'Walk-in')}
+                </h3>
+                {phone || email ? (
+                  <p className="flex min-w-0 flex-wrap gap-x-3 text-xs text-muted-foreground">
+                    {phone && (
+                      <a href={`tel:${phone}`} className="inline-flex items-center gap-1 hover:text-foreground hover:underline">
+                        <Phone size={12} aria-hidden="true" />
+                        {phone}
+                      </a>
+                    )}
+                    {email && (
+                      <a
+                        href={`mailto:${email}`}
+                        className="inline-flex min-w-0 items-center gap-1 truncate hover:text-foreground hover:underline"
+                      >
+                        <Mail size={12} aria-hidden="true" />
+                        <span className="truncate">{email}</span>
+                      </a>
+                    )}
+                  </p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    {data.customerId
+                      ? 'No phone or email on file'
+                      : editableDelivery
+                        ? 'Add who it’s for — needed to deliver it'
+                        : 'No customer attached'}
+                  </p>
+                )}
+              </div>
+              {data.customerId && (
+                <Button asChild size="sm" variant="ghost">
+                  <Link href={`/customers/${data.customerId}`}>
+                    Profile
+                    <ArrowUpRight data-icon="inline-end" />
+                  </Link>
+                </Button>
+              )}
+              {editableDelivery && (
+                <Button size="sm" variant="outline" onClick={() => setEditingDelivery(true)}>
+                  {data.customerId ? 'Edit' : 'Add'}
+                </Button>
+              )}
+            </div>
+            {(data.fulfilmentType || data.collectionTime || data.shippingAddress) && (
+              <dl className="border-t border-border">
+                {data.fulfilmentType && FULFILMENT_LABEL[data.fulfilmentType] && (
+                  <DetailRow
+                    icon={
+                      data.fulfilmentType === 'eat_in'
+                        ? UtensilsCrossed
+                        : data.fulfilmentType === 'takeaway' || data.fulfilmentType === 'collection'
+                          ? ShoppingBag
+                          : Truck
+                    }
+                    label="Order type"
+                    value={
+                      sendsOut
+                        ? [FULFILMENT_LABEL[data.fulfilmentType], data.deliveryMethod, deliveryFee > 0 ? money(deliveryFee) : 'Free']
+                            .filter(Boolean)
+                            .join(' · ')
+                        : FULFILMENT_LABEL[data.fulfilmentType]
+                    }
+                  />
+                )}
+                {data.collectionTime && (
+                  <DetailRow icon={Clock} tone="info" label="Collect at" value={formatDateTime(data.collectionTime)} />
+                )}
+                {sendsOut && (
+                  <DetailRow
+                    icon={MapPin}
+                    label="Send to"
+                    value={data.shippingAddress ? shippingAddressLines(data.shippingAddress).join(', ') : 'No address yet'}
+                    tone={data.shippingAddress ? 'info' : 'warning'}
+                    copy={data.shippingAddress ? shippingAddressLines(data.shippingAddress).join(', ') : undefined}
+                  />
+                )}
+                {sendsOut && deliveryPhone && (
+                  <DetailRow
+                    icon={Phone}
+                    label="Contact number"
+                    value={
+                      <a href={`tel:${deliveryPhone}`} className="hover:underline">
+                        {deliveryPhone}
+                      </a>
+                    }
+                    copy={deliveryPhone}
+                  />
+                )}
+              </dl>
+            )}
+          </section>
+
+          {/* What was ordered, what it came to, and how the money moved. */}
           <section aria-labelledby="order-items">
-            <h3 id="order-items" className="mb-2 text-sm font-semibold text-foreground">
+            <h3 id="order-items" className={SECTION_HEADING}>
               Items
             </h3>
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+            <div className={CARD}>
               <ul>
                 {data.items.map((item) => {
                   const refundedLine = item.refundStatus && item.refundStatus !== 'none';
@@ -303,11 +502,11 @@ export function OrderDrawer({
                     Number(modifier.priceAdjust) !== 0 ? `${modifier.name} +${money(modifier.priceAdjust)}` : modifier.name,
                   );
                   return (
-                    <li key={item.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+                    <li key={item.id} className="flex items-start gap-3 border-b border-border px-4 py-3 last:border-b-0">
                       <span
                         className={cn(
-                          'flex size-9 shrink-0 items-center justify-center rounded-md text-sm font-semibold',
-                          refundedLine ? 'bg-exception/8 text-exception' : 'bg-band text-foreground',
+                          'w-7 shrink-0 text-sm font-semibold tabular-nums',
+                          refundedLine ? 'text-exception' : 'text-muted-foreground',
                         )}
                       >
                         {item.quantity}×
@@ -315,7 +514,7 @@ export function OrderDrawer({
                       <span className="min-w-0 flex-1">
                         <span
                           className={cn(
-                            'block text-sm font-semibold',
+                            'block text-sm font-medium',
                             item.refundStatus === 'refunded' ? 'text-muted-foreground line-through' : 'text-foreground',
                           )}
                         >
@@ -325,155 +524,88 @@ export function OrderDrawer({
                         {extras.length > 0 && <span className="mt-0.5 block text-xs text-muted-foreground">{extras.join(' · ')}</span>}
                         {item.notes && <span className="mt-0.5 block text-xs italic text-muted-foreground">“{item.notes}”</span>}
                         {(item.quantity > 1 || refundedLine) && (
-                          <span className="mt-1 flex flex-wrap items-center gap-1.5">
-                            {item.quantity > 1 && <span className="text-xs text-muted-foreground">{money(item.unitPrice)} each</span>}
+                          <span className="mt-0.5 block text-xs text-muted-foreground">
+                            {item.quantity > 1 && `${money(item.unitPrice)} each`}
+                            {item.quantity > 1 && refundedLine && ' · '}
                             {refundedLine && (
-                              <span className="rounded-md bg-exception/8 px-1.5 py-0.5 text-micro font-semibold text-exception">
+                              <span className="font-medium text-exception">
                                 {item.refundStatus === 'refunded' ? 'Refunded' : 'Part refunded'}
                               </span>
                             )}
                           </span>
                         )}
                       </span>
-                      <span className="shrink-0 text-sm font-semibold text-foreground">{money(item.subtotal)}</span>
+                      <span className="shrink-0 text-sm font-medium text-foreground tabular-nums">{money(item.subtotal)}</span>
                     </li>
                   );
                 })}
               </ul>
-              {/* Totals: the lines that adjust it muted, the figure that matters largest. */}
-              <dl className="space-y-1 border-t border-rule/60 bg-band/25 px-3.5 py-3 text-sm">
-                {discount !== 0 && (
-                  <div className="flex justify-between text-muted-foreground">
-                    <dt>Discount</dt>
-                    <dd className="text-momentum">− {money(discount)}</dd>
-                  </div>
+              {/* Totals: the lines that adjust it muted, the figure that matters in ink. */}
+              <dl className="space-y-1.5 border-t border-border px-4 py-3 text-sm">
+                {(discount !== 0 || deliveryFee > 0) && <TotalRow label="Subtotal" value={money(itemsTotal)} />}
+                {discount !== 0 && <TotalRow label="Discount" value={`− ${money(discount)}`} tone="momentum" />}
+                {deliveryFee > 0 && (
+                  <TotalRow label={data.fulfilmentType === 'shipping' ? 'Shipping' : 'Delivery'} value={money(deliveryFee)} />
                 )}
-                <div className="flex items-baseline justify-between">
-                  <dt className="font-semibold text-foreground">Total</dt>
-                  <dd className="text-base font-semibold text-foreground">{money(data.totalAmount)}</dd>
-                </div>
-                {refunded > 0 && (
-                  <>
-                    <div className="flex justify-between text-muted-foreground">
-                      <dt>Refunded</dt>
-                      <dd className="text-exception">− {money(refunded)}</dd>
-                    </div>
-                    <div className="flex justify-between border-t border-rule/45 pt-1 font-semibold text-foreground">
-                      <dt>Kept</dt>
-                      <dd>{money(refundable)}</dd>
-                    </div>
-                  </>
-                )}
+                <TotalRow label="Total" value={money(data.totalAmount)} strong />
               </dl>
+              {/* The money: what was taken and how, what went back, what was kept. Refund detail is in Activity. */}
+              {!paymentDue && (
+                <dl className="space-y-1.5 border-t border-border bg-band/30 px-4 py-3 text-sm">
+                  <TotalRow
+                    label={
+                      payment.tone === 'success' || payment.state === 'Refunded'
+                        ? [payment.method, paymentSourceLabel(data.paymentProvider, data.paymentReference)].filter(Boolean).join(' · ')
+                        : payment.state
+                          ? `${payment.method} · ${payment.state}`
+                          : payment.method
+                    }
+                    value={payment.tone === 'success' || payment.state === 'Refunded' ? money(data.totalAmount) : '—'}
+                  />
+                  {refunded > 0 && (
+                    <>
+                      <TotalRow label="Refunded" value={`− ${money(refunded)}`} tone="exception" />
+                      <TotalRow label="Net" value={money(refundable)} strong />
+                    </>
+                  )}
+                </dl>
+              )}
             </div>
           </section>
-
-          {/* An order taken by hand or from the website: who it's for and how it reaches them, filled in or changed later. */}
-          {canEditDelivery(data) && canTakeOrders && (
-            <section aria-labelledby="order-delivery" className="rounded-lg border border-rule/60 bg-control px-3.5 py-3">
-              <div className="flex items-center gap-3">
-                <span
-                  className={cn(
-                    'flex size-9 shrink-0 items-center justify-center rounded-md',
-                    data.customerId ? 'bg-primary/8 text-primary' : 'bg-measured/10 text-measured',
-                  )}
-                  aria-hidden="true"
-                >
-                  {sendsOut ? <Truck size={15} /> : <User size={15} />}
-                </span>
-                <div className="min-w-0 flex-1">
-                  <h3 id="order-delivery" className="truncate text-sm font-semibold text-foreground">
-                    {data.customerId ? data.customerName || linkedCustomerName || 'Customer' : 'No customer yet'}
-                  </h3>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {sendsOut
-                      ? data.shippingAddress
-                        ? `${data.fulfilmentType === 'shipping' ? 'Shipping' : 'Delivery'} to ${shippingAddressLines(data.shippingAddress).slice(1).join(', ')}`
-                        : 'Delivery — no address yet'
-                      : data.customerId
-                        ? 'They collect it'
-                        : 'Add who it’s for — needed to deliver it'}
-                  </p>
-                </div>
-                <Button size="sm" variant="outline" onClick={() => setEditingDelivery(true)}>
-                  {data.customerId ? 'Edit' : 'Add'}
-                </Button>
-              </div>
-            </section>
-          )}
-
-          {/* Taken by hand, or a website order awaiting a transfer, and still to be paid — gone once it is. */}
-          {canRecordPayment(data) && canTakeOrders && (
-            <PaymentDueCard orderId={data.id} amountDue={Number(data.totalAmount)} defaultMethod={data.paymentMethod} />
-          )}
 
           {/* The order's note: added or changed whenever there's something worth keeping. */}
           <OrderNote key={data.notes ?? ''} orderId={data.id} notes={data.notes} canEdit={canNote} />
 
-          <section aria-labelledby="order-details">
-            <h3 id="order-details" className="mb-2 text-sm font-semibold text-foreground">
-              Details
-            </h3>
-            <dl className="grid grid-cols-2 gap-2">
-              <Detail
-                icon={User}
-                label="Taken by"
-                value={staffName(data.createdBy) ?? (data.createdBy ? 'A former team member' : 'Self-service')}
-              />
-              <Detail icon={MapPin} label="Location" value={locationName(data.locationId) ?? 'Unknown location'} />
-              {data.collectionTime && <Detail icon={Clock} label="Collect at" value={formatDateTime(data.collectionTime)} />}
-              {/* From the business's own website: its number, who took the money, where it goes. */}
-              {data.externalReference && <Detail icon={Globe} label="Website order" value={data.externalReference} />}
-              {paymentSourceLabel(data.paymentProvider, data.paymentReference) && (
-                <Detail icon={CreditCard} label="Paid via" value={paymentSourceLabel(data.paymentProvider, data.paymentReference)!} />
-              )}
-              {data.fulfilmentType && data.fulfilmentType !== 'collection' && (
-                <Detail
-                  icon={Truck}
-                  label={data.fulfilmentType === 'shipping' ? 'Shipping' : 'Delivery'}
-                  value={[data.deliveryMethod, Number(data.deliveryFee ?? 0) > 0 ? money(data.deliveryFee!) : 'Free']
-                    .filter(Boolean)
-                    .join(' · ')}
-                />
-              )}
-              {data.shippingAddress && (
-                <Detail wide icon={MapPin} label="Send to" value={shippingAddressLines(data.shippingAddress).join(', ')} />
-              )}
-              {data.voidReason && (
-                <Detail
-                  wide
-                  tone="exception"
-                  icon={XCircle}
-                  label="Cancelled because"
-                  value={`${optionLabel(VOID_REASON_OPTIONS, data.voidReason)}${data.voidNotes ? ` — ${data.voidNotes}` : ''}`}
-                />
-              )}
-            </dl>
-          </section>
-
-          <section aria-labelledby="order-activity">
-            <div className="mb-2 flex items-baseline justify-between gap-3">
-              <h3 id="order-activity" className="text-sm font-semibold text-foreground">
-                Activity
-              </h3>
-              {summary && (
-                <span className="inline-flex items-center gap-1 text-xs font-medium text-muted-foreground">
+          <FoldSection
+            id="order-activity"
+            title="Activity"
+            summary={
+              summary ? (
+                <span className="inline-flex items-center gap-1">
                   <Timer size={12} aria-hidden="true" />
                   {summary}
                 </span>
-              )}
-            </div>
+              ) : (
+                `${activity.length} ${activity.length === 1 ? 'event' : 'events'}`
+              )
+            }
+          >
             {activity.length === 0 ? (
-              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-5 text-center text-sm text-muted-foreground">
+              <p className="rounded-lg border border-dashed border-edge px-4 py-5 text-center text-sm text-muted-foreground">
                 No history recorded.
               </p>
             ) : (
-              <ol className="rounded-lg border border-rule/60 bg-field px-4 py-3">
+              <ol className={CARD}>
                 {activity.map((event, index) => (
                   <ActivityItem
-                    key={event.kind === 'status' ? `s-${event.entry.id}` : `r-${event.refund.id}`}
+                    key={
+                      event.kind === 'status'
+                        ? `s-${event.entry.id}`
+                        : event.kind === 'refund'
+                          ? `r-${event.refund.id}`
+                          : `p-${event.payment.id}`
+                    }
                     event={event}
-                    first={index === 0}
                     last={index === activity.length - 1}
                     staffName={staffName}
                     money={money}
@@ -481,17 +613,45 @@ export function OrderDrawer({
                 ))}
               </ol>
             )}
-          </section>
+          </FoldSection>
+
+          {/* Reference details — the header already says the channel and when. */}
+          <FoldSection
+            id="order-details"
+            title="Details"
+            summary={`Taken by ${staffName(data.createdBy) ?? (data.createdBy ? 'a former team member' : 'self-service')}`}
+          >
+            <dl className={CARD}>
+              <DetailRow
+                icon={User}
+                label="Taken by"
+                value={staffName(data.createdBy) ?? (data.createdBy ? 'A former team member' : 'Self-service')}
+              />
+              <DetailRow icon={MapPin} tone="info" label="Location" value={locationName(data.locationId) ?? 'Unknown location'} />
+              {/* From the business's own website: its number for the order. */}
+              {data.externalReference && (
+                <DetailRow icon={Globe} tone="info" label="Website order" value={data.externalReference} copy={data.externalReference} />
+              )}
+              <DetailRow
+                icon={Hash}
+                tone="info"
+                label="Order ID"
+                value={<span className="font-mono text-xs break-all">{data.id}</span>}
+                copy={data.id}
+              />
+            </dl>
+          </FoldSection>
         </div>
       )}
 
       {showReceipt && <ReceiptModal orderId={data.id} onClose={() => setShowReceipt(false)} />}
       {editingDelivery && <OrderDeliveryEditor order={data} onClose={() => setEditingDelivery(false)} />}
+      {voiding && <VoidModal order={data} onClose={() => setVoiding(false)} />}
       {showEmail && data.customerId && (
         <SendEmailModal
           customerId={data.customerId}
           orderId={data.id}
-          recipientName={data.customerName || `Customer for order ${orderCode(data.id)}`}
+          recipientName={customerName || `Customer for order ${orderCode(data.id)}`}
           onClose={() => setShowEmail(false)}
         />
       )}
@@ -499,96 +659,160 @@ export function OrderDrawer({
   );
 }
 
+/**
+ * A drawer section that starts folded: the heading is the toggle, with a
+ * one-line summary on the right so the folded section still says something.
+ * For what's looked up now and then (history, references), not every time.
+ */
+function FoldSection({
+  id,
+  title,
+  summary,
+  defaultOpen = false,
+  children,
+}: {
+  id: string;
+  title: string;
+  summary?: React.ReactNode;
+  defaultOpen?: boolean;
+  children: React.ReactNode;
+}) {
+  const [open, setOpen] = useState(defaultOpen);
+  return (
+    <section aria-labelledby={id}>
+      <h3 className={cn(open && 'mb-2')}>
+        <button
+          type="button"
+          id={id}
+          aria-expanded={open}
+          aria-controls={`${id}-body`}
+          onClick={() => setOpen((value) => !value)}
+          className="flex h-8 w-full items-center gap-1.5 rounded-md px-1 text-left text-sm font-semibold text-heading transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <ChevronRight
+            size={14}
+            className={cn('shrink-0 text-muted-foreground transition-transform', open && 'rotate-90')}
+            aria-hidden="true"
+          />
+          {title}
+          {summary && <span className="ml-auto min-w-0 truncate pl-3 text-xs font-medium text-muted-foreground">{summary}</span>}
+        </button>
+      </h3>
+      {open && <div id={`${id}-body`}>{children}</div>}
+    </section>
+  );
+}
+
+/** One line of the totals: muted label, the amount on the right; `strong` for the figure that matters. */
+function TotalRow({
+  label,
+  value,
+  strong = false,
+  tone,
+}: {
+  label: string;
+  value: string;
+  strong?: boolean;
+  tone?: 'momentum' | 'exception';
+}) {
+  return (
+    <div className="flex items-baseline justify-between gap-4">
+      <dt className={cn('min-w-0 truncate', strong ? 'font-semibold text-foreground' : 'text-muted-foreground')}>{label}</dt>
+      <dd
+        className={cn(
+          'shrink-0 tabular-nums',
+          strong ? 'text-base font-semibold text-foreground' : 'text-foreground',
+          tone === 'momentum' && 'text-momentum',
+          tone === 'exception' && 'text-exception',
+        )}
+      >
+        {value}
+      </dd>
+    </div>
+  );
+}
+
 const ACTIVITY_TIME = () => workspaceFormatter({ hour: '2-digit', minute: '2-digit' });
 const ACTIVITY_DAY = () => workspaceFormatter({ day: 'numeric', month: 'short' });
 
 /**
- * One step in the order's life, as an activity feed reads: a tinted marker on
- * a line that joins the steps, what happened and who did it, the time on the
- * right (full date on hover), and — on the line leading into it — how long it
- * took since the step before. The latest step's marker is ringed: it's where
- * the order is now. A refund is its own inset card, because it is money moving.
+ * One step in the order's life, sized like the rows around it: a 36px tinted
+ * square tile on a line that joins the steps, what happened with the time on
+ * the right, and underneath who did it and how long after the step before. A
+ * refund adds why, where the money went, the lines and the note — plain text
+ * under the row, not a card inside the card.
  */
 function ActivityItem({
   event,
-  first,
   last,
   staffName,
   money,
 }: {
-  event: ActivityEvent<NonNullable<OrderDetail['statusHistory']>[number], NonNullable<OrderDetail['refunds']>[number]>;
-  first: boolean;
+  event: ActivityEvent<
+    NonNullable<OrderDetail['statusHistory']>[number],
+    NonNullable<OrderDetail['refunds']>[number],
+    NonNullable<OrderDetail['payments']>[number]
+  >;
   last: boolean;
   staffName: (userId: string | null | undefined) => string | null;
   money: (amount: string | number | null | undefined) => string;
 }) {
   const refund = event.kind === 'refund' ? event.refund : null;
+  const payment = event.kind === 'payment' ? event.payment : null;
+  const failed = payment?.status === 'failed';
   const meta = event.kind === 'status' ? STATUS_META[event.entry.status] : null;
-  const Icon = meta ? meta.icon : RotateCcw;
-  const tint = meta ? meta.tint : 'bg-exception/8 text-exception';
-  const actor = staffName(event.kind === 'status' ? event.entry.changedBy : event.refund.createdBy);
+  const Icon = meta ? meta.icon : payment ? (payment.provider === 'cash' ? Banknote : CreditCard) : RotateCcw;
+  const tint = meta ? meta.tint : payment && !failed ? 'bg-momentum/8 text-momentum' : 'bg-exception/8 text-exception';
+  const actor = staffName(
+    event.kind === 'status'
+      ? event.entry.changedBy
+      : event.kind === 'refund'
+        ? event.refund.createdBy
+        : (event.payment.confirmedBy ?? event.payment.createdBy),
+  );
+  const title = refund
+    ? `${refund.kind === 'full' ? 'Refunded in full' : 'Refund issued'} · ${money(refund.amount)}`
+    : payment
+      ? `${failed ? 'Payment failed' : 'Payment received'} · ${money(payment.amount)}`
+      : STATUS_EVENT[event.kind === 'status' ? event.entry.status : 'done'];
+  // A payment's method is the useful second line; who took it follows.
+  const method = payment ? paymentSummary({ paymentMethod: payment.provider, paymentStatus: 'paid' }).method : null;
   const at = new Date(event.at);
   const sameDayAsNow = workspaceDateKey(at) === workspaceDateKey();
+  const who = actor ?? (event.kind === 'status' && event.entry.status === 'pending' ? 'Self-service' : payment ? null : 'Automatically');
+  const after = event.gapMs !== null && event.gapMs >= 1000 ? `${formatGap(event.gapMs)} later` : null;
 
   return (
-    <li className="relative flex gap-3">
-      {/* The line joining this step to its neighbours, broken around the marker. */}
-      <div className="relative flex w-7 shrink-0 flex-col items-center">
-        <span className={cn('w-px flex-none bg-rule/70', first ? 'h-2 bg-transparent' : 'h-2')} aria-hidden="true" />
-        <span
-          className={cn(
-            'relative z-10 flex size-7 shrink-0 items-center justify-center rounded-full',
-            tint,
-            last && 'ring-2 ring-offset-2 ring-offset-card',
-            last && (meta ? meta.ring : 'ring-exception/35'),
-          )}
-        >
-          <Icon size={14} aria-hidden="true" />
-        </span>
-        {!last && <span className="w-px flex-1 bg-rule/70" aria-hidden="true" />}
-      </div>
+    <li className="relative flex gap-3 px-4 py-3">
+      {/* The line down to the next step's tile: from under this tile (12px padding + 36px) into the next row's top padding. */}
+      {!last && <span className="absolute top-12 -bottom-3 left-[2.125rem] w-px -translate-x-1/2 bg-border" aria-hidden="true" />}
+      <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', tint)}>
+        <Icon size={16} aria-hidden="true" />
+      </span>
 
-      <div className={cn('min-w-0 flex-1 pt-2', last ? 'pb-1' : 'pb-4')}>
-        {event.gapMs !== null && event.gapMs >= 1000 && (
-          <span className="absolute -top-2 left-9 rounded-sm bg-band px-1.5 py-px text-micro font-semibold text-muted-foreground">
-            +{formatGap(event.gapMs)}
-          </span>
-        )}
+      <div className="min-w-0 flex-1">
         <div className="flex items-baseline justify-between gap-3">
-          <p className={cn('text-sm font-medium', refund ? 'text-exception' : 'text-foreground')}>
-            {refund
-              ? `${refund.kind === 'full' ? 'Refunded in full' : 'Part refunded'} · ${money(refund.amount)}`
-              : STATUS_EVENT[event.kind === 'status' ? event.entry.status : 'done']}
-          </p>
-          <time dateTime={event.at} title={formatDateTime(event.at)} className="shrink-0 text-xs text-muted-foreground">
+          <p className={cn('text-sm font-medium', refund || failed ? 'text-exception' : 'text-foreground')}>{title}</p>
+          <time dateTime={event.at} title={formatDateTime(event.at)} className="shrink-0 text-xs text-muted-foreground tabular-nums">
             {sameDayAsNow ? ACTIVITY_TIME().format(at) : `${ACTIVITY_DAY().format(at)}, ${ACTIVITY_TIME().format(at)}`}
           </time>
         </div>
-        <p className="mt-0.5 text-xs text-muted-foreground">
-          {actor ? `by ${actor}` : event.kind === 'status' && event.entry.status === 'pending' ? 'Self-service' : 'Automatically'}
-        </p>
+        <p className="text-xs text-muted-foreground">{[method, who, after].filter(Boolean).join(' · ')}</p>
         {refund && (
-          <div className="mt-2 rounded-md border border-exception/20 bg-exception/4 px-3 py-2 text-xs">
-            <p className="text-foreground">
-              {optionLabel(REFUND_REASON_OPTIONS, refund.reason)} ·{' '}
-              <span className="text-muted-foreground">
-                {refund.processingMode === 'stripe'
-                  ? 'back to the card'
-                  : refund.processingMode === 'cash_manual'
-                    ? 'cash handed back'
-                    : 'recorded'}
-              </span>
+          <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
+            <p>
+              <span className="text-foreground">{optionLabel(REFUND_REASON_OPTIONS, refund.reason)}</span>
+              {' · '}
+              {refund.processingMode === 'stripe'
+                ? 'back to the card'
+                : refund.processingMode === 'cash_manual'
+                  ? 'cash handed back'
+                  : 'recorded'}
             </p>
             {refund.lines && refund.lines.length > 0 && (
-              <ul className="mt-1.5 flex flex-wrap gap-1">
-                {refund.lines.map((line) => (
-                  <li key={line.id} className="rounded-sm bg-card px-1.5 py-0.5 text-muted-foreground">
-                    {line.quantity}× {line.name} · {money(line.amount)}
-                  </li>
-                ))}
-              </ul>
+              <p>{refund.lines.map((line) => `${line.quantity}× ${line.name} ${money(line.amount)}`).join(' · ')}</p>
             )}
-            {refund.notes && <p className="mt-1.5 italic text-muted-foreground">“{refund.notes}”</p>}
+            {refund.notes && <p className="italic">“{refund.notes}”</p>}
           </div>
         )}
       </div>
@@ -597,45 +821,84 @@ function ActivityItem({
 }
 
 const PROGRESS: OrderDetail['status'][] = ['pending', 'preparing', 'ready', 'done'];
-const PROGRESS_LABEL: Record<string, string> = { pending: 'Placed', preparing: 'Preparing', ready: 'Ready', done: 'Done' };
+// Square's fulfilment steps, in DUMA's words: placed, preparing, ready, completed.
+const PROGRESS_LABEL: Record<string, string> = { pending: 'Placed', preparing: 'Preparing', ready: 'Ready', done: 'Completed' };
 
 /**
- * Where the order is in the kitchen, as a four-step track — placed, preparing,
- * ready, done — with the time each step was reached. A cancelled or expired
- * order has no track to be on; it says so instead.
+ * Where the order is, as a four-step tracker — placed, preparing, ready,
+ * completed — each a square tile on a line with the time it was reached.
+ * Steps behind are checked off in green, the current one is filled in its
+ * status colour, the ones ahead are greyed. A cancelled or expired order has no
+ * track to be on; it says so instead, with when.
  */
-function OrderProgress({ status, history }: { status: OrderDetail['status']; history: NonNullable<OrderDetail['statusHistory']> }) {
+function OrderProgress({
+  status,
+  history,
+  reason,
+}: {
+  status: OrderDetail['status'];
+  history: NonNullable<OrderDetail['statusHistory']>;
+  /** Why it was cancelled — kept up here, not in the folded Details. */
+  reason?: string | null;
+}) {
   if (status === 'cancelled' || status === 'expired') {
     const meta = STATUS_META[status];
     const at = history.find((entry) => entry.status === status)?.createdAt;
     return (
-      <div className={cn('flex items-center gap-2 border-t border-rule/45 px-4 py-2.5 text-xs font-medium', meta.tint)}>
-        <meta.icon size={13} aria-hidden="true" />
-        {status === 'cancelled' ? 'Cancelled' : 'Expired before it was paid'}
-        {at && <span className="font-normal opacity-80">· {ACTIVITY_TIME().format(new Date(at))}</span>}
+      <div className="flex items-center gap-3 border-t border-border px-4 py-3">
+        <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-md', meta.tint)}>
+          <meta.icon size={15} aria-hidden="true" />
+        </span>
+        <div className="min-w-0 flex-1">
+          <p className="text-sm font-medium text-foreground">{status === 'cancelled' ? 'Order cancelled' : 'Expired before it was paid'}</p>
+          {reason && <p className="text-xs text-muted-foreground">{reason}</p>}
+        </div>
+        {at && <span className="shrink-0 text-xs text-muted-foreground tabular-nums">{ACTIVITY_TIME().format(new Date(at))}</span>}
       </div>
     );
   }
   const reached = PROGRESS.indexOf(status);
   return (
-    <ol className="grid grid-cols-4 gap-1.5 border-t border-rule/45 px-4 pt-3 pb-3.5" aria-label="Progress">
+    <ol className="flex border-t border-border px-2 pt-3.5 pb-3" aria-label="Progress">
       {PROGRESS.map((step, index) => {
-        const done = index <= reached;
+        const passed = index < reached;
+        const current = index === reached;
         const at = history.find((entry) => entry.status === step)?.createdAt;
+        // The finished order's last step is a tick too: nothing is left to happen.
+        const Icon = passed || (current && step === 'done') ? Check : STATUS_META[step].icon;
         return (
-          <li key={step} aria-current={index === reached ? 'step' : undefined}>
-            <span
-              className={cn('block h-1.5 rounded-full', done ? (index === reached ? STATUS_META[step].dot : 'bg-momentum/50') : 'bg-band')}
-            />
+          <li key={step} className="relative flex flex-1 flex-col items-center text-center" aria-current={current ? 'step' : undefined}>
+            {/* The line from the step before, through the gap between tiles. */}
+            {index > 0 && (
+              <span
+                className={cn(
+                  'absolute top-4 right-[calc(50%+1.25rem)] left-[calc(-50%+1.25rem)] h-px',
+                  index <= reached ? 'bg-momentum/50' : 'bg-border',
+                )}
+                aria-hidden="true"
+              />
+            )}
             <span
               className={cn(
-                'mt-1.5 block text-xs',
-                index === reached ? 'font-semibold text-foreground' : done ? 'text-foreground' : 'text-muted-foreground',
+                'flex size-8 items-center justify-center rounded-md',
+                current
+                  ? cn(STATUS_META[step].dot, 'text-white')
+                  : passed
+                    ? 'bg-momentum/10 text-momentum'
+                    : 'bg-band text-muted-foreground/60',
+              )}
+            >
+              <Icon size={15} strokeWidth={current || passed ? 2.25 : 2} aria-hidden="true" />
+            </span>
+            <span
+              className={cn(
+                'mt-1.5 text-xs',
+                current ? 'font-semibold text-heading' : passed ? 'font-medium text-foreground' : 'text-muted-foreground',
               )}
             >
               {PROGRESS_LABEL[step]}
             </span>
-            <span className="block text-xs text-muted-foreground">{at ? ACTIVITY_TIME().format(new Date(at)) : '—'}</span>
+            <span className="text-xs text-muted-foreground tabular-nums">{at ? ACTIVITY_TIME().format(new Date(at)) : '—'}</span>
           </li>
         );
       })}
@@ -643,40 +906,48 @@ function OrderProgress({ status, history }: { status: OrderDetail['status']; his
   );
 }
 
-/** One detail as a small tile — a grid of these reads faster than a table of label/value rows. */
-function Detail({
+/**
+ * One reference detail as a row, sized like a `ListRow`: a 36px tinted icon
+ * tile with the label over the value, so the two lines fill the tile's height.
+ * `copy` adds a copy button on the right, for values staff paste elsewhere.
+ */
+function DetailRow({
   icon: Icon,
   label,
   value,
-  wide = false,
-  tone = 'default',
+  tone = 'primary',
+  copy,
 }: {
-  icon: React.ElementType;
+  icon: IconComponent;
   label: string;
-  value: string;
-  wide?: boolean;
-  tone?: 'default' | 'exception';
+  value: React.ReactNode;
+  tone?: Tone;
+  copy?: string;
 }) {
   return (
-    <div
-      className={cn(
-        'flex items-start gap-2.5 rounded-lg border px-3 py-2.5',
-        wide && 'col-span-2',
-        tone === 'exception' ? 'border-exception/25 bg-exception/4' : 'border-rule/60 bg-card',
-      )}
-    >
-      <span
-        className={cn(
-          'mt-0.5 flex size-7 shrink-0 items-center justify-center rounded-md',
-          tone === 'exception' ? 'bg-exception/8 text-exception' : 'bg-band/70 text-muted-foreground',
-        )}
-      >
-        <Icon size={14} aria-hidden="true" />
+    <div className="flex items-center gap-3 border-b border-border px-4 py-3 last:border-b-0">
+      <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', TONE_TINT[tone])}>
+        <Icon size={16} aria-hidden="true" />
       </span>
-      <div className="min-w-0">
-        <dt className="text-label uppercase text-muted-foreground">{label}</dt>
-        <dd className={cn('mt-0.5 text-sm font-medium text-foreground', !wide && 'truncate')}>{value}</dd>
+      <div className="min-w-0 flex-1">
+        <dt className="text-xs text-muted-foreground">{label}</dt>
+        <dd className={cn('text-sm font-medium', tone === 'exception' ? 'text-exception' : 'text-foreground')}>{value}</dd>
       </div>
+      {copy && (
+        <CopyButton
+          iconOnly
+          size="icon-sm"
+          variant="ghost"
+          className="shrink-0"
+          label={`Copy ${label.toLowerCase()}`}
+          copiedLabel="Copied"
+          onCopy={async () => {
+            const copied = await copyText(copy);
+            if (!copied) toast('error', `Copy failed — select the ${label.toLowerCase()} instead.`);
+            return copied;
+          }}
+        />
+      )}
     </div>
   );
 }
@@ -686,6 +957,18 @@ function Detail({
 function ReceiptModal({ orderId, onClose }: { orderId: string; onClose: () => void }) {
   const [url, setUrl] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const frameRef = useRef<HTMLIFrameElement>(null);
+
+  // Print the receipt in place (a customer asking for a VAT receipt at the counter);
+  // a browser that won't print a PDF frame gets it in a tab to print from there.
+  const print = () => {
+    try {
+      frameRef.current?.contentWindow?.focus();
+      frameRef.current?.contentWindow?.print();
+    } catch {
+      if (url) window.open(url, '_blank', 'noopener');
+    }
+  };
 
   useEffect(() => {
     let objectUrl: string | null = null;
@@ -718,20 +1001,24 @@ function ReceiptModal({ orderId, onClose }: { orderId: string; onClose: () => vo
           <Button variant="outline" size="lg" className="flex-1" onClick={onClose}>
             Close
           </Button>
-          <Button asChild size="lg" className="flex-1" disabled={!url}>
+          <Button asChild variant="outline" size="lg" className="flex-1" disabled={!url}>
             <a href={url ?? undefined} download={`receipt-${orderId.slice(0, 8)}.pdf`} aria-disabled={!url}>
               <Download data-icon="inline-start" />
               Download PDF
             </a>
           </Button>
+          <Button size="lg" className="flex-1" disabled={!url} onClick={print}>
+            <Printer data-icon="inline-start" />
+            Print
+          </Button>
         </div>
       }
     >
-      <div className="h-[65vh] overflow-hidden rounded-lg border border-rule/60 bg-band/40">
+      <div className="h-[65vh] overflow-hidden rounded-lg border border-border bg-band/40">
         {error ? (
           <div className="flex h-full items-center justify-center px-6 text-center text-sm text-exception">{error}</div>
         ) : url ? (
-          <iframe src={url} title="Receipt" className="h-full w-full" />
+          <iframe ref={frameRef} src={url} title="Receipt" className="h-full w-full" />
         ) : (
           <LoadingState label="Loading the receipt" className="h-full" />
         )}

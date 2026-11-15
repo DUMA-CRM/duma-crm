@@ -15,7 +15,7 @@ export function CartBar({ cart, onOpen, currency }: { cart: CartItem[]; onOpen: 
     <button
       type="button"
       onClick={onOpen}
-      className="fixed inset-x-4 bottom-4 z-10 flex h-16 touch-manipulation items-center justify-between rounded-xl bg-primary px-5 text-primary-foreground shadow-lg transition-transform active:scale-[0.99] lg:hidden"
+      className="fixed inset-x-4 bottom-4 z-10 flex h-16 touch-manipulation items-center justify-between rounded-md bg-primary px-5 text-primary-foreground shadow-lg transition-colors active:bg-primary-hover lg:hidden"
     >
       <span className="flex items-center gap-3 text-base font-semibold">
         <ShoppingCart size={20} aria-hidden="true" />

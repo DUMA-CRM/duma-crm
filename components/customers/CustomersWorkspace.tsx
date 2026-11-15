@@ -5,20 +5,18 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { CustomerBulkBar } from '@/components/customers/CustomerBulkBar';
-import { CustomerCards } from '@/components/customers/CustomerCards';
 import { CustomerFilterBar } from '@/components/customers/CustomerFilterBar';
 import { CreateCustomerDrawer } from '@/components/customers/CustomerForm';
 import { CustomerList, CustomerListSkeleton } from '@/components/customers/CustomerList';
 import { MergeCustomersModal } from '@/components/customers/MergeCustomersModal';
 import { SegmentBar } from '@/components/customers/SegmentBar';
 import { useCustomerFilters } from '@/components/customers/useCustomerFilters';
-import { Combine, Gift, LayoutGrid, ListView, Mail, Plus, UserMinus, Users } from '@/components/icons';
-import { Fact } from '@/components/settings/controls';
+import { Combine, Gift, Plus, Users } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { NeedsAttention } from '@/components/shared/NeedsAttention';
-import type { SegmentedOption } from '@/components/shared/SegmentedControl';
+import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { useWorkspaceCurrency } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 
@@ -26,41 +24,24 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { getCustomers, getDuplicateCandidates, hasActiveFilters } from '@/lib/modules/customers/client';
 import { getSegment, getSegments } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { QUICK_VIEW_KEYS, type QuickViewKey, activeQuickView, quickViewFilters } from '@/lib/utils/customer-views';
 import { zonedParts } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
-import { type ListView as ListViewMode, useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-import type { Customer, CustomerFilters } from '@/types/customers';
-
-const VIEW_OPTIONS: SegmentedOption<ListViewMode>[] = [
-  { value: 'table', label: 'List view', icon: ListView },
-  { value: 'cards', label: 'Card view', icon: LayoutGrid },
-];
+import type { Customer } from '@/types/customers';
 
 const PAGE_SIZE = 20;
-
-/** The four facts over the list — each one count, from a one-row request. */
-const SUMMARY: { key: string; filters: (month: number) => CustomerFilters }[] = [
-  { key: 'all', filters: () => ({}) },
-  { key: 'emailable', filters: () => ({ marketing: 'opted_in' }) },
-  { key: 'birthdays', filters: (month) => ({ birthdayMonth: month }) },
-  { key: 'lapsed', filters: () => ({ lapsedDays: 60 }) },
-];
 
 /**
  * The customers list.
  *
- * Built for a manager at a desk: it opens on the tile grid, the table is one
- * click away and stays chosen once picked, columns sort, and the filters that
- * matter — who has lapsed, whose birthday it is, who can be emailed — are one
- * click rather than buried. Filter state lives in the URL so a view can be
- * shared or saved as a segment.
- *
- * Everything above the first row is one toolbar. It used to be three stacked
- * regions — a segment row, a four-tier filter card and a summary line — which
- * cost most of a screen and printed the same count in three places. The page now
- * states its total once, in the toolbar, and the table footer carries paging
- * alone.
+ * One list, as Square's directory and Shopify's customers page have it — a
+ * card view was a second way to see the same twenty rows. The questions asked
+ * daily — who can be emailed, whose birthday it is, who has lapsed — are the
+ * tabs under the header, each with its count, so a count is also the click that
+ * shows those people. Below: search, segments and one Filters button, then the
+ * list. Filter state lives in the URL so a view can be shared or saved as a
+ * segment.
  */
 export function CustomersWorkspace() {
   const router = useRouter();
@@ -68,15 +49,11 @@ export function CustomersWorkspace() {
   const { tenantId } = useWorkspaceStore();
   const capabilities = useAuthStore((state) => state.capabilities);
 
-  const { filters, page, appliedSegmentId, setFilters, setPage, clearFilters, applySegment, toggleSort } = useCustomerFilters();
+  const { filters, page, appliedSegmentId, setFilters, setPage, clearFilters, applySegment, applyView, toggleSort } = useCustomerFilters();
 
   const [showCreate, setShowCreate] = useState(false);
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [mergePair, setMergePair] = useState<{ a: Customer; b: Customer } | null>(null);
-
-  // Lists scan quickly; keep any layout this device has already chosen.
-  const view = useUiSettingsStore((state) => state.listViews.customers ?? 'table');
-  const setListView = useUiSettingsStore((state) => state.setListView);
 
   const canWriteSegments = hasCapability(capabilities, 'segments:write');
   const canMerge = hasCapability(capabilities, 'customers:merge');
@@ -99,14 +76,27 @@ export function CustomersWorkspace() {
   const [month] = useState(() => zonedParts().month);
   // Under 'customers', so creating, merging or editing refreshes these too.
   const summary = useQueries({
-    queries: SUMMARY.map((item) => ({
-      queryKey: moduleQueryKeys.customers.key('customers', tenantId, 'summary', item.key, month),
-      queryFn: () => getCustomers({ ...item.filters(month), page: 1, limit: 1, tenantId: tenantId ?? undefined }),
+    queries: QUICK_VIEW_KEYS.map((key) => ({
+      queryKey: moduleQueryKeys.customers.key('customers', tenantId, 'summary', key, month),
+      queryFn: () => getCustomers({ ...quickViewFilters(key, month), page: 1, limit: 1, tenantId: tenantId ?? undefined }),
       enabled: !!tenantId,
       staleTime: 60_000,
     })),
   });
-  const count = (index: number) => (summary[index]?.data ? summary[index].data!.total.toLocaleString() : '—');
+  const monthName = new Date(2000, month - 1, 1).toLocaleDateString('en-GB', { month: 'long' });
+  const VIEW_LABEL: Record<QuickViewKey, string> = {
+    all: 'All',
+    emailable: 'Can be emailed',
+    birthdays: `Birthdays in ${monthName}`,
+    lapsed: 'Not seen in 60 days',
+  };
+  // A segment, or filters that match no tab, light none of them.
+  const quickView = appliedSegmentId ? null : activeQuickView(filters, month);
+  const viewTabs: SectionTab<QuickViewKey | 'custom'>[] = QUICK_VIEW_KEYS.map((key, index) => ({
+    value: key,
+    label: VIEW_LABEL[key],
+    count: summary[index]?.data?.total,
+  }));
 
   const duplicates = useQuery({
     queryKey: moduleQueryKeys.customers.key('customers', tenantId, 'duplicates'),
@@ -218,7 +208,7 @@ export function CustomersWorkspace() {
       icon={<Users size={20} aria-hidden="true" />}
       actions={
         tenantId ? (
-          <div className="hidden items-center gap-2 md:flex">
+          <div className="flex items-center gap-1.5 md:gap-2">
             {canMerge && (
               <Button
                 variant="outline"
@@ -235,12 +225,12 @@ export function CustomersWorkspace() {
               <Button
                 variant="outline"
                 size="sm"
-                aria-label="Loyalty rules"
+                aria-label="Loyalty"
                 onClick={() => router.push('/customers/loyalty')}
                 className="gap-1.5"
               >
                 <Gift size={15} aria-hidden="true" />
-                <span className="hidden lg:inline">Loyalty rules</span>
+                <span className="hidden lg:inline">Loyalty</span>
               </Button>
             )}
             {canCreate && (
@@ -254,26 +244,12 @@ export function CustomersWorkspace() {
       }
       subheader={
         tenantId ? (
-          <div className="flex flex-wrap items-center gap-2 border-b border-rule/60 bg-background px-3 py-2 md:hidden">
-            {canCreate && (
-              <Button size="sm" onClick={() => setShowCreate(true)}>
-                <Plus size={14} aria-hidden="true" />
-                New customer
-              </Button>
-            )}
-            {canMerge && (
-              <Button size="sm" variant="outline" onClick={() => router.push('/customers/duplicates')}>
-                <Combine size={14} aria-hidden="true" />
-                Duplicates
-              </Button>
-            )}
-            {hasCapability(capabilities, 'customers:points') && (
-              <Button size="sm" variant="outline" onClick={() => router.push('/customers/loyalty')}>
-                <Gift size={14} aria-hidden="true" />
-                Loyalty
-              </Button>
-            )}
-          </div>
+          <SectionTabs
+            tabs={viewTabs}
+            value={quickView ?? 'custom'}
+            onChange={(key) => key !== 'custom' && applyView(quickViewFilters(key, month))}
+            ariaLabel="Customer views"
+          />
         ) : undefined
       }
     >
@@ -281,26 +257,6 @@ export function CustomersWorkspace() {
         <EmptyState icon={Users} title="No workspace selected" description="Choose a workspace to view its customers." />
       ) : (
         <div className="flex flex-1 flex-col gap-5">
-          <dl className="grid grid-cols-2 gap-3 xl:grid-cols-4 [&_dd+dd]:hidden sm:[&_dd+dd]:block">
-            <Fact surface="card" icon={Users} label="Customers" value={count(0)} hint="Everyone on your list" />
-            <Fact surface="card" icon={Mail} label="Can be emailed" value={count(1)} hint="Opted in to marketing" />
-            <Fact
-              surface="card"
-              icon={Gift}
-              label="Birthdays this month"
-              value={count(2)}
-              hint={new Date(2000, month - 1, 1).toLocaleDateString('en-GB', { month: 'long' })}
-            />
-            <Fact
-              surface="card"
-              icon={UserMinus}
-              label="Not seen in 60 days"
-              value={count(3)}
-              tone="warning"
-              hint="Worth a win-back email"
-            />
-          </dl>
-
           {canMerge && (
             <NeedsAttention
               items={
@@ -324,9 +280,6 @@ export function CustomersWorkspace() {
             filters={filters}
             onChange={setFilters}
             onClear={clearFilters}
-            view={view}
-            onViewChange={(next) => setListView('customers', next)}
-            viewOptions={VIEW_OPTIONS}
             total={total}
             emailReachable={appliedSegmentId ? appliedSegment?.emailReachable : undefined}
             isLoading={isLoading}
@@ -352,7 +305,7 @@ export function CustomersWorkspace() {
           />
 
           {isError ? (
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <div className="overflow-hidden rounded-lg border border-border bg-card">
               <ErrorState
                 title="Customers couldn’t be loaded"
                 description="Your search and filters stay in place."
@@ -364,16 +317,6 @@ export function CustomersWorkspace() {
           ) : customers.length === 0 ? (
             // No card: the empty list sits on the page and centres in the space under the filters.
             <div className="flex flex-1 flex-col justify-center">{emptyState}</div>
-          ) : view === 'cards' ? (
-            <CustomerCards
-              customers={customers}
-              emptyState={emptyState}
-              footer={footer}
-              money={money}
-              selectable={canMerge}
-              selectedIds={selectedIds}
-              onToggle={toggleRow}
-            />
           ) : (
             <CustomerList
               customers={customers}

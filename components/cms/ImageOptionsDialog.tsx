@@ -7,6 +7,7 @@ import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
+import { FIELD_LABEL_CLASS, FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 
@@ -34,8 +35,6 @@ import { CropFrame } from './CropFrame';
 import { type EncodedImage, canEncode, encodeImage } from './imageEncode';
 
 type Result = { status: 'pending' } | { status: 'done'; image: EncodedImage } | { status: 'failed'; message: string };
-
-const LABEL = 'text-label uppercase text-muted-foreground';
 
 /**
  * Crop, convert and compress images before they are stored, and see what each
@@ -285,7 +284,7 @@ export function ImageOptionsDialog({
                 />
               </div>
               <div className="flex flex-wrap items-center gap-1.5">
-                <span className={cn(LABEL, 'mr-1 inline-flex items-center gap-1.5')}>
+                <span className={cn(FIELD_LABEL_CLASS, 'mr-1 inline-flex items-center gap-1.5')}>
                   <Crop size={13} aria-hidden="true" /> Crop
                 </span>
                 {[{ value: 'none', label: 'None' }, ...CROP_ASPECTS].map((option) => (
@@ -299,7 +298,7 @@ export function ImageOptionsDialog({
                       'h-7 rounded-md border px-2.5 text-xs font-medium tabular-nums transition-colors disabled:opacity-45',
                       aspect === option.value
                         ? 'border-primary bg-primary/8 text-foreground'
-                        : 'border-rule/60 text-muted-foreground hover:border-rule hover:text-foreground',
+                        : 'border-border text-muted-foreground hover:border-rule hover:text-foreground',
                     )}
                   >
                     {option.label}
@@ -313,7 +312,7 @@ export function ImageOptionsDialog({
               </div>
             </>
           ) : (
-            <ul className="max-h-[min(56vh,32rem)] divide-y divide-rule/50 overflow-auto rounded-lg border border-rule/60">
+            <ul className="max-h-[min(56vh,32rem)] divide-y divide-border overflow-auto rounded-lg border border-border">
               {images.map((file) => {
                 const result = results.get(file);
                 return (
@@ -360,7 +359,7 @@ export function ImageOptionsDialog({
         {/* ── Settings ── */}
         <div className="flex flex-col gap-6">
           <fieldset className="space-y-2">
-            <legend className={LABEL}>Format</legend>
+            <legend className={FIELD_LABEL_CLASS}>Format</legend>
             <div className="grid grid-cols-2 gap-1.5">
               {formats.map((format) => (
                 <Tooltip
@@ -376,7 +375,7 @@ export function ImageOptionsDialog({
                     onClick={() => setOptions({ ...options, format: format.value })}
                     className={cn(
                       'w-full rounded-md border px-3 py-2 text-left transition-colors',
-                      options.format === format.value ? 'border-primary bg-primary/6' : 'border-rule/60 hover:border-rule hover:bg-band/40',
+                      options.format === format.value ? 'border-primary bg-primary/6' : 'border-border hover:border-rule hover:bg-band/40',
                     )}
                   >
                     <span className="block text-sm font-semibold text-foreground">{format.label}</span>
@@ -406,7 +405,7 @@ export function ImageOptionsDialog({
           </div>
 
           <div className="space-y-1.5">
-            <p className={LABEL}>Maximum width</p>
+            <FieldLabel as="span">Maximum width</FieldLabel>
             <Select
               ariaLabel="Maximum width"
               className="w-full"
@@ -417,7 +416,7 @@ export function ImageOptionsDialog({
           </div>
 
           {/* The answer to "was it worth it": what it was, what it will be. */}
-          <div className="mt-auto rounded-lg border border-rule/60 p-4">
+          <div className="mt-auto rounded-lg border border-border p-4">
             <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Original</dt>
               <dd className="text-right tabular-nums text-muted-foreground">
@@ -447,7 +446,7 @@ export function ImageOptionsDialog({
             {!busy && after !== before && (
               <p
                 className={cn(
-                  'mt-3 border-t border-rule/50 pt-3 text-right text-xl font-semibold tabular-nums',
+                  'mt-3 border-t border-border pt-3 text-right text-xl font-semibold tabular-nums',
                   after < before ? 'text-momentum' : 'text-measured',
                 )}
               >

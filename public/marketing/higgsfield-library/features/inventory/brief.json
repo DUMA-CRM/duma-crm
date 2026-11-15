@@ -1,0 +1,13 @@
+{
+  "path": "/features/inventory",
+  "name": "Stock",
+  "summary": "Know what is on hand before you run out, updated by every sale.",
+  "description": "Know what is on hand before you run out, updated by every sale.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/inventory",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "An apron-wearing caf\u00e9 manager counts milk cartons and coffee bags on organised stockroom shelves."
+}

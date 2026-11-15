@@ -130,7 +130,7 @@ const KIND_OPTIONS = [
 
 /** The preview stage: a soft checkerboard, so transparent images read as transparent. */
 const STAGE_CLASS =
-  'relative flex justify-center overflow-hidden rounded-lg border border-rule/50 bg-band/40 bg-[conic-gradient(var(--color-band)_25%,transparent_0_50%,var(--color-band)_0_75%,transparent_0)] bg-size-[16px_16px]';
+  'relative flex justify-center overflow-hidden rounded-lg border border-border bg-band/40 bg-[conic-gradient(var(--color-band)_25%,transparent_0_50%,var(--color-band)_0_75%,transparent_0)] bg-size-[16px_16px]';
 
 /** Does this asset count against the allowance uploads go to? Then replacing it frees its space there. */
 const sharesAllowance = (asset: CmsAsset, connectionId: string | null) =>
@@ -721,7 +721,7 @@ export function MediaPanel({
               }}
               className={cn(
                 'block w-full overflow-hidden rounded-lg border bg-background text-left transition-[border-color,opacity] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                isSelected ? 'border-primary ring-2 ring-primary/25' : 'border-rule/55 hover:border-rule',
+                isSelected ? 'border-primary ring-2 ring-primary/25' : 'border-border hover:border-rule',
                 draggingIds.includes(asset.id) && 'opacity-50',
               )}
             >
@@ -1062,7 +1062,7 @@ export function MediaPanel({
       )}
 
       {/* The breadcrumb footer stays available as navigation and a drag target. */}
-      <div className="sticky bottom-0 z-10 mt-auto flex min-h-11 shrink-0 items-center gap-2 border-t border-rule/60 bg-background py-1">
+      <div className="sticky bottom-0 z-10 mt-auto flex min-h-11 shrink-0 items-center gap-2 border-t border-border bg-background py-1">
         {browsing ? (
           <FolderTrail folder={folder} dropTarget={dropTarget} dropProps={dropProps} onOpen={onOpenFolder} />
         ) : (
@@ -1406,7 +1406,7 @@ export function AssetDrawer({
                 .map((fact) => (
                   <span
                     key={fact}
-                    className="rounded-md border border-rule/55 bg-control px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground"
+                    className="rounded-md border border-border bg-control px-2 py-0.5 text-xs font-medium tabular-nums text-muted-foreground"
                   >
                     {fact}
                   </span>
@@ -1573,7 +1573,7 @@ export function AssetDrawer({
                     {asset.renditions.map((rendition) => (
                       <li
                         key={rendition.url}
-                        className="rounded-md border border-rule/55 bg-background px-2 py-0.5 text-xs tabular-nums text-muted-foreground"
+                        className="rounded-md border border-border bg-background px-2 py-0.5 text-xs tabular-nums text-muted-foreground"
                       >
                         <span className="font-medium text-foreground">{rendition.width}w</span> · {formatBytes(rendition.sizeBytes)}
                       </li>
@@ -1618,7 +1618,7 @@ export function AssetDrawer({
             {asset.usedBy && asset.usedBy.length > 0 ? (
               <ul>
                 {asset.usedBy.map((use) => (
-                  <li key={use.id} className="flex min-w-0 items-center gap-3 border-b border-rule/45 px-4 py-2.5 last:border-b-0">
+                  <li key={use.id} className="flex min-w-0 items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0">
                     <RowTile icon={FileText} />
                     <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{use.title ?? 'Untitled'}</span>
                     <span className="shrink-0 text-xs text-muted-foreground">{use.contentType}</span>

@@ -42,7 +42,7 @@ export function GuestManageBooking({ token }: { token: string }) {
   if (booking.isPending) {
     return (
       <main className="min-h-dvh bg-background" aria-busy="true">
-        <div className="h-20 bg-sidebar" />
+        <div className="h-20 bg-panel" />
         <div className="mx-auto max-w-2xl px-4 py-8">
           <Bone className="h-48 rounded-lg" />
         </div>

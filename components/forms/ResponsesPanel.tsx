@@ -210,7 +210,7 @@ export function ResponsesPanel({ form }: { form: FormDetail }) {
       </div>
 
       {chosen.size > 0 && canTriage && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-rule/60 bg-band/50 px-3 py-2">
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-band/50 px-3 py-2">
           <span className="mr-auto text-sm font-medium">{chosen.size} chosen</span>
           <Button variant="ghost" className="h-8 gap-1.5 text-xs" onClick={() => bulk.mutate({ ids: [...chosen], action: 'reviewed' })}>
             <Check size={13} aria-hidden="true" />
@@ -231,7 +231,7 @@ export function ResponsesPanel({ form }: { form: FormDetail }) {
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+      <div className="overflow-hidden rounded-lg border border-border bg-field">
         {query.isPending ? (
           <div className="space-y-2 p-4" aria-busy="true">
             {Array.from({ length: 6 }, (_, index) => (
@@ -265,7 +265,7 @@ export function ResponsesPanel({ form }: { form: FormDetail }) {
           <div className={cn('overflow-x-auto transition-opacity', query.isPlaceholderData && 'opacity-60')}>
             <table className="w-full text-sm">
               <thead>
-                <tr className="border-b border-rule/50 text-left text-xs text-muted-foreground">
+                <tr className="border-b border-border text-left text-xs text-muted-foreground">
                   {canTriage && (
                     <th className="w-10 py-2.5 pl-4">
                       <input
@@ -293,7 +293,7 @@ export function ResponsesPanel({ form }: { form: FormDetail }) {
                     key={row.id}
                     onClick={() => openResponse(row)}
                     className={cn(
-                      'cursor-pointer border-b border-rule/30 transition-colors last:border-0 hover:bg-band/40',
+                      'cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-band/40',
                       row.status === 'new' && 'font-semibold',
                       chosen.has(row.id) && 'bg-band/50',
                     )}
@@ -485,7 +485,7 @@ function ResponseDrawer({
           </div>
         )}
 
-        <div className="space-y-3 rounded-lg border border-rule/50 bg-field p-4">
+        <div className="space-y-3 rounded-lg border border-border bg-field p-4">
           <InfoRow icon={UserRound} title="Customer">
             {response.customer ? (
               <Link

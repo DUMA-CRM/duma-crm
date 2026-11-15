@@ -33,7 +33,10 @@ export function IconTag({
       <span
         role="img"
         aria-label={label}
-        className={cn('inline-flex shrink-0 items-center justify-center rounded-sm', tile ? cn('size-6', TONE_TINT[tone]) : TONE_INK[tone])}
+        className={cn(
+          'inline-flex shrink-0 items-center justify-center',
+          tile ? cn('size-6 rounded-md', TONE_TINT[tone]) : cn('rounded-sm', TONE_INK[tone]),
+        )}
       >
         <Icon size={size} aria-hidden="true" />
       </span>

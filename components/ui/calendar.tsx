@@ -118,10 +118,10 @@ function Calendar({
             defaultClassNames.button_next,
           ),
           month_caption: cn('flex h-(--cell-size) w-full items-center justify-center px-(--cell-size)', defaultClassNames.month_caption),
-          caption_label: cn('text-sm font-semibold text-foreground select-none', defaultClassNames.caption_label),
+          caption_label: cn('text-sm font-semibold text-heading select-none', defaultClassNames.caption_label),
           month_grid: cn('w-full border-collapse', defaultClassNames.month_grid),
           weekdays: cn('flex', defaultClassNames.weekdays),
-          weekday: cn('flex-1 pb-1 text-label font-normal uppercase text-muted-foreground select-none', defaultClassNames.weekday),
+          weekday: cn('flex-1 pb-1 text-xs font-medium text-muted-foreground select-none', defaultClassNames.weekday),
           week: cn('mt-1 flex w-full', defaultClassNames.week),
           week_number_header: cn('w-(--cell-size) select-none', defaultClassNames.week_number_header),
           week_number: cn('text-label text-muted-foreground select-none', defaultClassNames.week_number),
@@ -170,7 +170,7 @@ function CalendarMonthCaption({ calendarMonth, displayIndex: _displayIndex, chil
   const monthName = calendarMonth.date.toLocaleDateString('en-GB', { month: 'long' });
   const year = calendarMonth.date.getFullYear();
   const word =
-    'relative z-10 rounded-md px-1.5 py-1 text-sm font-semibold text-foreground transition-colors select-none hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring';
+    'relative z-10 rounded-md px-1.5 py-1 text-sm font-semibold text-heading transition-colors select-none hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring';
   return (
     <div {...props}>
       {context ? (
@@ -298,12 +298,12 @@ function MonthYearPicker({
             type="button"
             onClick={() => onView('years')}
             aria-label={`${year} — choose year`}
-            className="rounded-md px-2 py-1 text-sm font-semibold text-primary tabular-nums focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
+            className="rounded-md px-2 py-1 text-sm font-semibold text-heading tabular-nums transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring"
           >
             {year}
           </button>
         ) : (
-          <span className="px-2 py-1 text-sm font-semibold text-primary tabular-nums" aria-live="polite">
+          <span className="px-2 py-1 text-sm font-semibold text-heading tabular-nums" aria-live="polite">
             {pageStart}–{pageStart + 11}
           </span>
         )}
@@ -349,7 +349,7 @@ function MonthYearPicker({
         <button
           type="button"
           onClick={() => onView('days')}
-          className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
+          className="rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring"
         >
           Back to days
         </button>

@@ -45,7 +45,7 @@ export function SegmentedControl<T extends string>({
       role="group"
       aria-label={ariaLabel}
       className={cn(
-        'flex items-center gap-0.5 bg-band/70 w-fit max-w-full min-w-0 p-0.5 rounded-md border border-rule/60 overflow-x-auto',
+        'flex items-center gap-0.5 bg-band/60 w-fit max-w-full min-w-0 p-0.5 rounded-md border border-border overflow-x-auto',
         size === 'lg' ? 'h-11' : 'h-9',
         className,
       )}
@@ -62,7 +62,7 @@ export function SegmentedControl<T extends string>({
             aria-label={iconOnly ? opt.label : undefined}
             title={iconOnly ? opt.label : undefined}
             className={cn(
-              'relative shrink-0 flex items-center justify-center gap-1.5 rounded-[5px] text-xs font-semibold transition-colors duration-150',
+              'relative shrink-0 flex items-center justify-center gap-1.5 rounded-[5px] text-sm font-medium transition-colors duration-150',
               'focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
               size === 'lg' ? 'h-9' : 'h-7',
               iconOnly ? (size === 'lg' ? 'w-9' : 'w-7') : 'px-3.5',
@@ -75,7 +75,7 @@ export function SegmentedControl<T extends string>({
               <motion.span
                 layoutId={indicatorId}
                 aria-hidden="true"
-                className="absolute inset-0 rounded-[5px] border border-rule/50 bg-card shadow-sm"
+                className="absolute inset-0 rounded-[5px] border border-border bg-card shadow-sm"
                 transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 520, damping: 40 }}
               />
             )}

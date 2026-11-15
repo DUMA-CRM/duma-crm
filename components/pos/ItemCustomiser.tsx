@@ -3,7 +3,8 @@
 import Image from 'next/image';
 import { useRef, useState } from 'react';
 
-import { Check, Minus, Plus, X } from '@/components/icons';
+import { Check, Plus, Trash2, X } from '@/components/icons';
+import { QuantityStepper } from '@/components/pos/QuantityStepper';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
@@ -18,18 +19,24 @@ interface ItemCustomiserProps {
   onAdd: (selected: MenuOption[], quantity: number, note: string) => void;
   onCancel: () => void;
   currency?: string;
+  /** A line already on the ticket: the screen opens on its choices and saves back to it. */
+  editing?: { quantity: number; selectedIds: string[]; note: string };
+  /** With `editing`, takes the line off the ticket. */
+  onRemove?: () => void;
 }
 
 /**
- * Takes over the ticket panel while an item is being built. The groups follow
- * the rules `POST /orders` enforces — a required size must be chosen, "choose
- * one" swaps — so the till can't build a drink the API will refuse at payment.
- * Mount with `key={item.id}`: selection, quantity and note start fresh per item.
+ * Takes over the ticket panel while an item is being built — or rebuilt: with
+ * `editing` it opens on a ticket line's own choices, quantity and note and
+ * saves back to that line, the one editor for adding and changing (as Square
+ * does). The groups follow the rules `POST /orders` enforces — a required size
+ * must be chosen, "choose one" swaps — so the till can't build a drink the API
+ * will refuse at payment. Mount with a `key` per item or line: state starts fresh.
  */
-export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: ItemCustomiserProps) {
-  const [selected, setSelected] = useState<string[] | null>(null);
-  const [quantity, setQuantity] = useState(1);
-  const [note, setNote] = useState('');
+export function ItemCustomiser({ item, groups, onAdd, onCancel, currency, editing, onRemove }: ItemCustomiserProps) {
+  const [selected, setSelected] = useState<string[] | null>(editing ? editing.selectedIds : null);
+  const [quantity, setQuantity] = useState(editing?.quantity ?? 1);
+  const [note, setNote] = useState(editing?.note ?? '');
   const [noteOpen, setNoteOpen] = useState(false);
   const [nudged, setNudged] = useState<string | null>(null);
   const groupRefs = useRef(new Map<string, HTMLElement>());
@@ -56,29 +63,40 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <div className="flex shrink-0 items-center gap-3 border-b border-rule/60 px-5 py-4">
-        <div className="size-14 shrink-0 overflow-hidden rounded-lg bg-band">
-          {item.image ? (
-            <Image width={56} height={56} src={item.image} alt="" className="size-full object-cover" />
-          ) : (
-            <span aria-hidden="true" className="flex size-full items-center justify-center text-xl font-semibold text-muted-foreground/70">
-              {item.name[0]?.toUpperCase()}
-            </span>
-          )}
-        </div>
+      <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border pr-2 pl-4">
+        {item.image && (
+          <div className="size-9 shrink-0 overflow-hidden rounded-md bg-band">
+            <Image width={36} height={36} src={item.image} alt="" className="size-full object-cover" />
+          </div>
+        )}
         <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-semibold text-foreground">{item.name}</p>
-          <p data-figure className="text-sm tabular-nums text-muted-foreground">
+          <p className="truncate text-base leading-tight font-semibold text-heading">{item.name}</p>
+          <p data-figure className="text-xs tabular-nums text-muted-foreground">
+            {editing ? 'Editing ticket line · ' : ''}
             {formatPrice(item.price, currency)}
           </p>
         </div>
-        <Button variant="ghost" size="icon" onClick={onCancel} aria-label={`Close ${item.name}`} className="size-12 text-muted-foreground">
-          <X size={22} />
-        </Button>
+        {/* Editing, leaving keeps what was typed — the old inline editor saved as you went, and a
+            note lost to ✕ looked like a bug. A required choice left empty still can't be kept. */}
+        {editing ? (
+          <Button variant="ghost" onClick={missing.length > 0 ? onCancel : add} className="h-11 px-3 font-semibold text-primary">
+            Done
+          </Button>
+        ) : (
+          <Button
+            variant="ghost"
+            size="icon"
+            onClick={onCancel}
+            aria-label={`Close ${item.name}`}
+            className="size-11 text-muted-foreground"
+          >
+            <X size={20} />
+          </Button>
+        )}
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain">
-        <div className="space-y-6 p-5">
+        <div className="space-y-6 p-4">
           {!groups ? (
             <div className="space-y-6" role="status" aria-busy="true" aria-label="Loading options">
               {[0, 1].map((group) => (
@@ -91,7 +109,7 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
                     {[0, 1, 2, 3].map((i) => (
                       <div
                         key={i}
-                        className="flex min-h-14 flex-col justify-center gap-1.5 rounded-lg border border-rule/70 bg-card px-3.5 py-2"
+                        className="flex min-h-14 flex-col justify-center gap-1.5 rounded-lg border border-border bg-card px-3.5 py-2"
                         aria-hidden="true"
                       >
                         <Bone className={i % 2 === 0 ? 'h-3.5 w-20' : 'h-3.5 w-16'} />
@@ -115,10 +133,10 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
                     else groupRefs.current.delete(group.id);
                   }}
                   aria-labelledby={`group-${group.id}`}
-                  className={cn('scroll-mt-4 rounded-xl outline-offset-[6px]', nudged === group.id && 'outline-2 outline-exception')}
+                  className={cn('scroll-mt-4 rounded-md outline-offset-[6px]', nudged === group.id && 'outline-2 outline-exception')}
                 >
                   <div className="mb-2.5 flex items-baseline justify-between gap-3">
-                    <h3 id={`group-${group.id}`} className="text-base font-semibold text-foreground">
+                    <h3 id={`group-${group.id}`} className="text-base font-semibold text-heading">
                       {group.name}
                     </h3>
                     <span
@@ -142,12 +160,12 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
                           aria-pressed={active}
                           onClick={() => setSelected(toggleInGroup(picks, option.id, group))}
                           className={cn(
-                            'flex min-h-14 touch-manipulation select-none items-center justify-between gap-2 rounded-lg border px-3.5 py-2 text-left transition-[transform,background-color,border-color] duration-100 active:scale-[0.97]',
-                            active ? 'border-primary bg-primary/8 shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-rule/70 bg-card',
+                            'flex min-h-14 touch-manipulation select-none items-center justify-between gap-2 rounded-md border px-3.5 py-2 text-left transition-colors duration-75 active:bg-band',
+                            active ? 'border-primary bg-primary/8 shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-border bg-card',
                           )}
                         >
                           <span className="min-w-0">
-                            <span className="block text-sm font-semibold leading-snug text-foreground">{option.label}</span>
+                            <span className="block text-sm font-semibold leading-snug text-heading">{option.label}</span>
                             {option.price !== 0 && (
                               <span data-figure className="block text-xs tabular-nums text-muted-foreground">
                                 {option.price > 0 ? '+' : '−'}
@@ -160,7 +178,7 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
                             className={cn(
                               'flex size-5 shrink-0 items-center justify-center border transition-colors',
                               group.maxSelections === 1 ? 'rounded-full' : 'rounded-[5px]',
-                              active ? 'border-primary bg-primary text-primary-foreground' : 'border-rule',
+                              active ? 'border-primary bg-primary text-primary-foreground' : 'border-edge',
                             )}
                           >
                             {active && <Check size={12} strokeWidth={3} />}
@@ -178,7 +196,7 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
             <section aria-label="Note">
               {noteOpen || note ? (
                 <label className="block">
-                  <span className="mb-2 block text-base font-semibold text-foreground">Note for the kitchen</span>
+                  <span className="mb-2 block text-base font-semibold text-heading">Note for the kitchen</span>
                   <textarea
                     autoFocus={noteOpen && !note}
                     value={note}
@@ -186,7 +204,7 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
                     rows={2}
                     onChange={(event) => setNote(event.target.value)}
                     placeholder="e.g. Extra hot, no foam"
-                    className="w-full resize-none rounded-lg border border-input bg-control px-3.5 py-3 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
+                    className="w-full resize-none rounded-md border border-input bg-control px-3 py-2.5 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30"
                   />
                 </label>
               ) : (
@@ -204,40 +222,35 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency }: Item
         </div>
       </div>
 
-      <div className="shrink-0 space-y-3 border-t border-rule/60 p-4">
-        <div className="flex items-center justify-between gap-3">
-          <span className="text-sm font-medium text-muted-foreground">Quantity</span>
-          <div className="flex items-center rounded-lg border border-rule/70 bg-card">
+      <div className="shrink-0 space-y-3 border-t border-border p-4">
+        <div className="flex items-center gap-3">
+          <QuantityStepper value={quantity} onChange={setQuantity} />
+          {editing && onRemove ? (
             <Button
               variant="ghost"
-              size="icon"
-              onClick={() => setQuantity((q) => Math.max(1, q - 1))}
-              disabled={quantity <= 1}
-              aria-label="One fewer"
-              className="size-12 rounded-r-none active:not-aria-[haspopup]:translate-y-0 active:bg-band"
+              onClick={onRemove}
+              className="ml-auto h-11 gap-2 px-3 text-destructive hover:bg-destructive/8 hover:text-destructive"
             >
-              <Minus size={18} />
+              <Trash2 size={17} aria-hidden="true" /> Remove
             </Button>
-            <span data-figure className="w-10 text-center text-lg font-semibold tabular-nums" aria-live="polite">
-              {quantity}
-            </span>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setQuantity((q) => Math.min(99, q + 1))}
-              aria-label="One more"
-              className="size-12 rounded-l-none active:not-aria-[haspopup]:translate-y-0 active:bg-band"
-            >
-              <Plus size={18} />
-            </Button>
-          </div>
+          ) : (
+            <span className="text-sm text-muted-foreground">Quantity</span>
+          )}
         </div>
         <Button
           onClick={add}
           disabled={!groups}
-          className={cn('h-16 w-full justify-between px-5 text-lg', missing.length > 0 && 'opacity-60')}
+          className={cn('h-14 w-full justify-between px-5 text-lg', missing.length > 0 && 'opacity-60')}
         >
-          <span>{missing.length > 0 ? `Choose ${missing[0].name.toLowerCase()}` : quantity > 1 ? `Add ${quantity}` : 'Add to ticket'}</span>
+          <span>
+            {missing.length > 0
+              ? `Choose ${missing[0].name.toLowerCase()}`
+              : editing
+                ? 'Save changes'
+                : quantity > 1
+                  ? `Add ${quantity}`
+                  : 'Add to ticket'}
+          </span>
           <span data-figure className="tabular-nums">
             {formatPrice(unit * quantity, currency)}
           </span>

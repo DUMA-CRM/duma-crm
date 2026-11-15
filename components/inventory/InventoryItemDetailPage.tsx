@@ -233,7 +233,7 @@ export function InventoryItemDetailPage({ stockItemId }: { stockItemId: string }
       {/* A flex column, so a section's loading or empty state can fill the page and centre. */}
       <div className="flex flex-1 flex-col space-y-4">
         {!locationId && (
-          <div className="flex items-start gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3.5">
+          <div className="flex items-start gap-3 rounded-lg border border-border bg-card px-4 py-3.5">
             <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-measured/10 text-measured" aria-hidden="true">
               <MapPin size={16} />
             </span>

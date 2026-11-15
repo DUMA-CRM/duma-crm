@@ -1,0 +1,13 @@
+{
+  "path": "/features/pos",
+  "name": "Point of sale",
+  "summary": "Take orders and payments at a counter or till, and keep selling offline.",
+  "description": "Take orders and payments at a counter or till, and keep selling offline.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/pos",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A caf\u00e9 staff member takes an order at a tablet till seen from the back, then hands over a cup of coffee."
+}

@@ -296,7 +296,7 @@ function UnitBody({
               </SettingsSection>
             ) : (
               !active && (
-                <p className="rounded-lg border border-rule/60 bg-card px-4 py-3 text-xs leading-relaxed text-muted-foreground">
+                <p className="rounded-lg border border-border bg-card px-4 py-3 text-xs leading-relaxed text-muted-foreground">
                   {unit.status === 'DISCARDED' ? 'This container was thrown away' : 'This container is used up'}
                   {unit.discardedAt ? ` on ${day(unit.discardedAt)}` : ''}. Its history stays here for the record.
                 </p>
@@ -369,7 +369,7 @@ function UnitBody({
         </SettingsSection>
 
         <motion.section variants={SECTION_RISE} aria-labelledby="unit-history" className="space-y-4">
-          <h2 id="unit-history" className="text-base font-semibold tracking-title text-foreground">
+          <h2 id="unit-history" className="text-base font-semibold tracking-title text-heading">
             History
           </h2>
           {ledgerError ? (
@@ -378,14 +378,14 @@ function UnitBody({
             // A day: its label, then the card of movements.
             <div role="status" aria-busy="true" aria-label="Loading the history">
               <Bone className="mb-2 h-3 w-24" />
-              <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              <div className="overflow-hidden rounded-lg border border-border bg-card">
                 {Array.from({ length: 2 }, (_, index) => (
                   <RowSkeleton key={index} index={index} />
                 ))}
               </div>
             </div>
           ) : history.length === 0 ? (
-            <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-4">
+            <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-4">
               <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary" aria-hidden="true">
                 <History size={18} />
               </span>
@@ -395,7 +395,7 @@ function UnitBody({
             history.map((group) => (
               <section key={group.key} aria-label={group.label}>
                 <h3 className="mb-2 text-label uppercase text-muted-foreground">{group.label}</h3>
-                <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                <ul className="overflow-hidden rounded-lg border border-border bg-card">
                   {group.items.map((movement) => (
                     <LedgerRow key={movement.id} movement={movement} fallbackUnit={unit.unitOfMeasure} showContainer={false} />
                   ))}
@@ -470,7 +470,7 @@ function Footer({
 function UnitCard({ unit }: { unit: StockUnit }) {
   const meta = STATUS[unit.status];
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3.5">
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3.5">
       <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', meta.tile)} aria-hidden="true">
         <meta.icon size={18} />
       </span>

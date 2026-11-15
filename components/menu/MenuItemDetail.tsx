@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { useState } from 'react';
+import { useCallback, useRef, useState } from 'react';
 
 import { ChefHat, ImageIcon, Languages, Layers, UtensilsCrossed } from '@/components/icons';
 import { DeleteMenuItemButton } from '@/components/menu/DeleteMenuItemButton';
@@ -56,6 +56,10 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
   const [pending, setPending] = useState(false);
   const [justSaved, flashSaved] = useDoneBeat();
   const [dirty, setDirty] = useState(false);
+  // The recipe tab saves itself; its Save button lives up here with the others.
+  const recipeSave = useRef<(() => void) | null>(null);
+  const [recipe, setRecipe] = useState({ dirty: false, pending: false });
+  const onRecipeStatus = useCallback((status: { dirty: boolean; pending: boolean }) => setRecipe(status), []);
   const words = useCatalogWords();
   // Only the tools this catalogue uses: a shop's product has no recipe, a café's item no sizes.
   const tabs = DETAIL_TABS.filter((entry) =>
@@ -100,7 +104,7 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
       title={item ? item.name : `New ${words.item}`}
       icon={<UtensilsCrossed size={20} aria-hidden="true" />}
       onClose={() => router.push('/menu/items')}
-      dirty={dirty && !pending}
+      dirty={(dirty && !pending) || (recipe.dirty && !recipe.pending)}
       discardMessage={`This ${words.item} has changes that have not been saved. Leaving now discards them.`}
       // A brand-new item has no id yet, so there is nothing for a recipe to
       // attach to — the tab appears once it has been created.
@@ -110,7 +114,18 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
       actions={
         <>
           {item && <DeleteMenuItemButton item={item} onDeleted={() => router.push('/menu/items')} />}
-          {/* Only the details form is a <form>; the recipe tab saves itself. */}
+          {item && tab === 'recipe' && (
+            <ActionButton
+              onClick={() => recipeSave.current?.()}
+              disabled={!recipe.dirty}
+              pending={recipe.pending}
+              done={justSaved}
+              className="h-9 min-w-36 px-5"
+            >
+              {recipe.dirty ? 'Save recipe' : 'Saved'}
+            </ActionButton>
+          )}
+          {/* Only the details form is a <form>; the recipe tab saves through the button above. */}
           {tab === 'details' && (
             <ActionButton type="submit" form={MENU_ITEM_FORM_ID} pending={pending} done={justSaved} className="h-9 min-w-36 px-5">
               {item ? 'Save changes' : `Create ${words.item}`}
@@ -142,7 +157,14 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
       ) : tab === 'languages' ? (
         <ProductLanguages menuItemId={item.id} tenantId={tenantId} />
       ) : (
-        <RecipeEditor menuItemId={item.id} price={item.price} vatRate={item.vatRate} />
+        <RecipeEditor
+          menuItemId={item.id}
+          price={item.price}
+          vatRate={item.vatRate}
+          saveRef={recipeSave}
+          onStatusChange={onRecipeStatus}
+          onSaved={flashSaved}
+        />
       )}
     </EditorShell>
   );

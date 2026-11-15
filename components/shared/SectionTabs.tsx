@@ -25,7 +25,9 @@ export interface SectionTab<T extends string> {
 }
 
 /**
- * Underline tab bar for the section nav of a full-page view. Pass it to
+ * Underline tab bar for the section nav of a full-page view, like the marketing
+ * site: labels on the page colour over a hairline, the active one in heading
+ * ink with a short bar under it that slides between tabs. Pass it to
  * `EditorShell`'s `subheader` so it pins below the header and above the body.
  */
 export function SectionTabs<T extends string>({
@@ -46,7 +48,7 @@ export function SectionTabs<T extends string>({
    */
   animationId?: string;
 }) {
-  // The active "folder" is one shared element that slides between tabs. Scoped
+  // The active underline is one shared element that slides between tabs. Scoped
   // per bar, so two bars on a page never animate into each other.
   const generatedId = useId();
   const indicatorId = animationId ?? generatedId;
@@ -54,7 +56,7 @@ export function SectionTabs<T extends string>({
   return (
     // px matches the app header's px-3 md:px-6 so tabs, masthead and body all
     // sit on one left edge.
-    <nav className="border-b border-rule/70 bg-band/70 px-3 pt-2 md:px-6 overflow-x-auto shrink-0" aria-label={ariaLabel}>
+    <nav className="border-b border-border bg-field px-3 md:px-6 overflow-x-auto shrink-0" aria-label={ariaLabel}>
       <div className="flex min-w-max gap-1" role="tablist">
         {tabs.map((tab) => {
           const Icon = tab.icon;
@@ -67,8 +69,8 @@ export function SectionTabs<T extends string>({
               aria-selected={active}
               onClick={() => onChange(tab.value)}
               className={cn(
-                'relative h-10 px-3 md:px-4 -mb-px rounded-t-md flex items-center gap-2 text-sm font-semibold transition-colors',
-                active ? 'text-foreground' : 'text-muted-foreground hover:bg-card/45 hover:text-foreground',
+                'relative h-11 px-3 flex items-center gap-2 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+                active ? 'text-heading' : 'text-muted-foreground hover:text-foreground',
               )}
             >
               {active && (
@@ -76,10 +78,10 @@ export function SectionTabs<T extends string>({
                   layoutId={indicatorId}
                   aria-hidden="true"
                   transition={reduceMotion ? { duration: 0 } : { type: 'spring', stiffness: 500, damping: 40 }}
-                  className="absolute inset-0 z-0 rounded-t-md border border-rule/70 border-b-card bg-card"
+                  className="absolute inset-x-3 -bottom-px z-0 h-0.5 rounded-full bg-heading"
                 />
               )}
-              {/* z-10 across the whole bar: the sliding folder passes under every label, not just its own. */}
+              {/* z-10 across the whole bar: the sliding underline never covers a label. */}
               {Icon && <Icon size={15} aria-hidden="true" className="relative z-10" />}
               <span className="relative z-10">{tab.label}</span>
               {!!tab.count && (

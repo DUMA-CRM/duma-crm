@@ -207,7 +207,7 @@ export function ContainersSection({
             }
           />
         ) : (
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <ul className="overflow-hidden rounded-lg border border-border bg-card">
             {shown.map((unit) => (
               <ContainerRow
                 key={unit.id}
@@ -224,7 +224,7 @@ export function ContainersSection({
       </motion.section>
 
       {selectedUnits.length > 0 && (
-        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-2 rounded-lg border border-rule/60 bg-card/95 px-3 py-2.5 shadow-md backdrop-blur">
+        <div className="sticky bottom-3 z-10 flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card/95 px-3 py-2.5 shadow-md backdrop-blur">
           <p className="flex-1 text-sm text-foreground">
             <span className="font-semibold">{selectedUnits.length} selected</span>
             <span className="text-muted-foreground">
@@ -308,7 +308,7 @@ function ContainerRow({
     .join(' · ');
 
   return (
-    <li className={cn('flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0', selected && 'bg-primary/5')}>
+    <li className={cn('flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0', selected && 'bg-primary/5')}>
       {selectable ? (
         <input
           type="checkbox"
@@ -619,7 +619,7 @@ function SplitContainerDrawer({ unit, onClose, onDone }: { unit: StockUnit; onCl
                 {parts.map((quantity, index) => (
                   <span
                     key={index}
-                    className="rounded-md border border-rule/60 bg-field px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground"
+                    className="rounded-md border border-border bg-field px-2.5 py-1 text-xs font-semibold tabular-nums text-foreground"
                   >
                     {preciseQty(quantity)} {unit.unitOfMeasure}
                   </span>
@@ -703,11 +703,11 @@ function CombineContainersDrawer({ units, onClose, onDone }: { units: StockUnit[
 /** The containers a split or combine starts from, as the list shows them. */
 function SourceCard({ units }: { units: StockUnit[] }) {
   return (
-    <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+    <ul className="overflow-hidden rounded-lg border border-border bg-card">
       {units.map((unit) => {
         const meta = STATUS[unit.status];
         return (
-          <li key={unit.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+          <li key={unit.id} className="flex items-center gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
             <span className={cn('flex size-8 shrink-0 items-center justify-center rounded-md', meta.tile)} aria-hidden="true">
               <meta.icon size={15} />
             </span>

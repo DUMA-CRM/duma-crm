@@ -141,7 +141,7 @@ export function DayDetailDrawer({ day, onClose, onQuery }: { day: AttendanceDay;
                   : 'Nothing was clocked on this day.'}
             </Empty>
           ) : (
-            <div className="rounded-lg border border-rule/60 bg-field px-4 py-3">
+            <div className="rounded-lg border border-border bg-field px-4 py-3">
               <ClockTimeline shifts={clocked} />
             </div>
           )}
@@ -253,16 +253,16 @@ function ClockTimeline({
 // ── Pieces — the audit inspector's ────────────────────────────────────────
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-sm font-semibold text-foreground">{children}</h3>;
+  return <h3 className="mb-2 text-sm font-semibold text-heading">{children}</h3>;
 }
 
 function Panel({ children }: { children: React.ReactNode }) {
-  return <dl className="overflow-hidden rounded-lg border border-rule/60 bg-field">{children}</dl>;
+  return <dl className="overflow-hidden rounded-lg border border-border bg-field">{children}</dl>;
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-baseline gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+    <div className="flex items-baseline gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
       <dt className="w-24 shrink-0 text-xs text-muted-foreground">{label}</dt>
       <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 text-sm text-foreground">{children}</dd>
     </div>

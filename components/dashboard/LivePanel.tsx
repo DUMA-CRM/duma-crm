@@ -65,9 +65,9 @@ export function LivePanel({
   const activeOrders = pendingOrders + preparingOrders + readyOrders;
 
   return (
-    <aside className="rounded-lg border border-rule/65 bg-band/45 p-4 sm:p-5" aria-label="Live now">
+    <aside className="rounded-lg border border-border bg-band/45 p-4 sm:p-5" aria-label="Live now">
       <div className="flex items-center justify-between gap-3">
-        <h2 className="text-base font-semibold tracking-title text-foreground">Live now</h2>
+        <h2 className="text-base font-semibold tracking-title text-heading">Live now</h2>
         <StatusDot tone={inService ? 'success' : 'muted'} pulse={inService} label={inService ? 'In service' : 'Quiet'} />
       </div>
 
@@ -96,7 +96,7 @@ export function LivePanel({
 
       {/* Who's on comes from Workforce; a workspace without it has no clock to read. */}
       {showStaff && (
-      <div className="mt-4 border-t border-rule/50 pt-4">
+      <div className="mt-4 border-t border-border pt-4">
         <Link href="/staff/shifts" className="flex items-center gap-3 rounded-md px-1 py-1 transition-colors hover:bg-card/70">
           <Users size={15} className="shrink-0 text-momentum" aria-hidden="true" />
           <span className="min-w-0 flex-1 text-sm text-foreground">

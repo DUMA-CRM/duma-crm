@@ -492,7 +492,7 @@ export function MarkdownEditor({
         }}
       >
         {/* One bar on the paper, as in a note: formatting, then Insert, and the view on the right. */}
-        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-rule/50 px-2 py-1.5">
+        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-border px-2 py-1.5">
           {mode !== 'preview' && editable ? (
             <div className="flex min-w-0 flex-wrap items-center gap-0.5" role="toolbar" aria-label="Formatting">
               {/* The Notes text-style selector: Text, Title, Heading, Subheading, Quote. */}
@@ -653,14 +653,14 @@ export function MarkdownEditor({
           <SegmentedControl<Mode> ariaLabel="Editor view" value={mode} onChange={chooseMode} options={VIEW_OPTIONS} />
         </div>
         {blockedFor !== null && mode === 'write' && (
-          <p className="border-b border-rule/50 bg-band/60 px-5 py-2 text-xs text-muted-foreground">
+          <p className="border-b border-border bg-band/60 px-5 py-2 text-xs text-muted-foreground">
             This text uses Markdown the live editor can’t keep exactly, so it opens here, as Markdown. Preview shows it as your website
             will.
           </p>
         )}
         {linkOpen && live && (
           <form
-            className="flex items-center gap-2 border-b border-rule/50 px-3 py-2"
+            className="flex items-center gap-2 border-b border-border px-3 py-2"
             onSubmit={(event) => {
               event.preventDefault();
               const href = linkUrl.trim();
@@ -718,7 +718,7 @@ export function MarkdownEditor({
         {mode === 'preview' && preview}
 
         {editable && mode !== 'preview' && (
-          <div className="flex items-center justify-between gap-3 border-t border-rule/50 px-5 py-2 text-xs text-muted-foreground">
+          <div className="flex items-center justify-between gap-3 border-t border-border px-5 py-2 text-xs text-muted-foreground">
             <button
               type="button"
               className="inline-flex items-center gap-1.5 hover:text-foreground"

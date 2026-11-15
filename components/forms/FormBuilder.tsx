@@ -263,7 +263,7 @@ export function FormBuilder({
         {mode === 'preview' ? (
           <div
             className={cn(
-              'mx-auto rounded-xl border border-rule/60 bg-field p-6 shadow-sm transition-[max-width] sm:p-8',
+              'mx-auto rounded-xl border border-border bg-field p-6 shadow-sm transition-[max-width] sm:p-8',
               device === 'phone' ? 'max-w-[390px]' : 'max-w-2xl',
             )}
           >
@@ -293,7 +293,7 @@ export function FormBuilder({
           </div>
         ) : (
           <div
-            className="mx-auto max-w-2xl rounded-xl border border-rule/60 bg-field shadow-sm"
+            className="mx-auto max-w-2xl rounded-xl border border-border bg-field shadow-sm"
             style={{ '--form-accent': accent } as React.CSSProperties}
             onDragOver={(event) => {
               if (fields.length === 0 && event.dataTransfer.types.includes(DRAG_TYPE)) {
@@ -306,7 +306,7 @@ export function FormBuilder({
               if (!event.currentTarget.contains(event.relatedTarget as Node | null)) setDropAt(null);
             }}
           >
-            <div className="border-b border-rule/40 px-6 pt-6 pb-5 sm:px-8">
+            <div className="border-b border-border px-6 pt-6 pb-5 sm:px-8">
               <input
                 aria-label="Form name"
                 value={draft.name}
@@ -333,7 +333,7 @@ export function FormBuilder({
                 <div
                   className={cn(
                     'flex flex-col items-center justify-center rounded-lg border-2 border-dashed px-6 py-14 text-center transition-colors',
-                    dropAt === 0 ? 'border-(--form-accent) bg-(--form-accent)/5' : 'border-rule/70',
+                    dropAt === 0 ? 'border-(--form-accent) bg-(--form-accent)/5' : 'border-border',
                   )}
                 >
                   <Plus size={22} className="text-muted-foreground" aria-hidden="true" />
@@ -442,7 +442,7 @@ function Palette({
   compact?: boolean;
 }) {
   return (
-    <div className={cn(!compact && 'rounded-lg border border-rule/60 bg-field p-3')}>
+    <div className={cn(!compact && 'rounded-lg border border-border bg-field p-3')}>
       {!compact && <p className="px-1 pb-2 text-sm font-semibold tracking-title text-foreground">Add a question</p>}
       <div className="space-y-3">
         {FIELD_GROUPS.map((group) => (
@@ -465,7 +465,7 @@ function Palette({
                         onClick={() => onPick(entry.type)}
                         className="group flex w-full items-center gap-2.5 rounded-md px-1.5 py-1 text-left text-sm text-foreground transition-colors hover:bg-band/60 disabled:pointer-events-none disabled:opacity-50 focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing"
                       >
-                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground transition-colors group-hover:text-foreground">
+                        <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground transition-colors group-hover:text-foreground">
                           <Icon size={14} aria-hidden="true" />
                         </span>
                         <span className="truncate">{entry.label}</span>
@@ -588,7 +588,7 @@ function FieldCard({
           ? 'border-(--form-accent)/60 bg-background shadow-sm ring-2 ring-(--form-accent)/25'
           : problems
             ? 'border-exception/40 hover:bg-band/30'
-            : 'border-transparent hover:border-rule/60 hover:bg-band/30 focus-visible:ring-2 focus-visible:ring-ring',
+            : 'border-transparent hover:border-border hover:bg-band/30 focus-visible:ring-2 focus-visible:ring-ring',
         dragging && 'opacity-40',
         field.width === 'half' && isInputField(field) && 'sm:mr-[50%]',
       )}
@@ -701,7 +701,7 @@ function CardTools({
   return (
     <span
       className={cn(
-        'flex items-center gap-0.5 rounded-md border border-rule/50 bg-background/95 p-0.5 shadow-xs transition-opacity',
+        'flex items-center gap-0.5 rounded-md border border-border bg-background/95 p-0.5 shadow-xs transition-opacity',
         visible
           ? 'opacity-100'
           : 'pointer-events-none opacity-0 group-hover:pointer-events-auto group-hover:opacity-100 group-focus-within:pointer-events-auto group-focus-within:opacity-100',

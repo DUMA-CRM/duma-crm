@@ -129,7 +129,7 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
       }
     >
       {finding ? (
-        <div className="h-[28rem] overflow-hidden rounded-lg border border-rule/60 bg-control">
+        <div className="h-[28rem] overflow-hidden rounded-lg border border-border bg-control">
           <CustomerAttach
             initialView="find"
             current={customer}
@@ -219,7 +219,7 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
                         onClick={() => setChosen(option.id)}
                         className={cn(
                           'flex w-full items-start gap-2.5 rounded-lg border py-2.5 pr-11 pl-3.5 text-left text-sm transition-colors',
-                          selection === option.id ? 'border-primary bg-primary/5' : 'border-rule/60 bg-control hover:bg-band/40',
+                          selection === option.id ? 'border-primary bg-primary/5' : 'border-border bg-control hover:bg-band/40',
                         )}
                       >
                         {option.id === NEW ? (
@@ -262,7 +262,7 @@ export function OrderDeliveryEditor({ order, onClose }: { order: OrderDetail; on
               )}
 
               {usingNew && (
-                <div className={cn(savedRows.length > 0 && 'border-t border-rule/60 pt-3')}>
+                <div className={cn(savedRows.length > 0 && 'border-t border-border pt-3')}>
                   <DeliveryAddressFields value={address} onChange={set} errors={submitted ? errors : undefined} />
                 </div>
               )}

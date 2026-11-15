@@ -38,7 +38,7 @@ const KIND_HINT: Record<ApiKeyKind, string> = {
   secret: 'Your server only. Can read and change data within the access you give it.',
 };
 
-const API_ICON: Record<PublicApiId, IconComponent> = { store: ShoppingBag, content: BookOpen, manage: Layers, management: Settings };
+export const API_ICON: Record<PublicApiId, IconComponent> = { store: ShoppingBag, content: BookOpen, manage: Layers, management: Settings };
 
 type Row = `api:${PublicApiId}` | 'location' | 'types' | 'origins' | 'expires';
 
@@ -200,7 +200,7 @@ export function NewApiKeyDialog({
         )}
 
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Access</h3>
+          <h3 className="text-sm font-semibold text-heading">Access</h3>
           {apis.map((api) => {
             const apiScopes = (Object.keys(SCOPES) as ApiKeyScope[]).filter((scope) => SCOPES[scope].api === api.id);
             const on = apiScopes.filter((scope) => scopes.includes(scope)).length;
@@ -215,7 +215,7 @@ export function NewApiKeyDialog({
                 open={open === row}
                 onToggle={() => toggleRow(row)}
               >
-                <div className="space-y-3 border-l border-rule/50 pl-4">
+                <div className="space-y-3 border-l border-border pl-4">
                   {apiScopes.map((scope) => {
                     const allowedByKind = kindAllows(kind, scope);
                     const grantable = offered(kind).includes(scope);
@@ -242,7 +242,7 @@ export function NewApiKeyDialog({
         </section>
 
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Limits</h3>
+          <h3 className="text-sm font-semibold text-heading">Limits</h3>
           <PickerRow
             icon={MapPin}
             title={recordsOrders ? 'Sells from' : 'Location'}

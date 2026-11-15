@@ -9,7 +9,7 @@ export default function NotFound() {
         <Coffee size={28} className="text-muted-foreground" aria-hidden="true" />
       </div>
       <div>
-        <h1 className="text-xl font-semibold text-foreground">Page not found</h1>
+        <h1 className="text-xl font-semibold text-heading">Page not found</h1>
         <p className="mt-1 max-w-[60ch] text-base leading-6 text-muted-foreground">
           The page you&apos;re looking for doesn&apos;t exist or has moved.
         </p>

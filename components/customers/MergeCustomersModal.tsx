@@ -4,7 +4,7 @@ import { useState } from 'react';
 
 import { Modal } from '@/components/customers/CustomerDialogs';
 import { AlertTriangle, Check } from '@/components/icons';
-import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
+import { Avatar } from '@/components/shared/Avatar';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -61,11 +61,11 @@ export function MergeCustomersModal({ a, b, isPending, error, onCancel, onConfir
         aria-pressed={chosen}
         className={cn(
           'flex w-full flex-col gap-2 rounded-md border p-3 text-left transition-colors',
-          chosen ? 'border-primary/50 bg-band' : 'border-rule/65 bg-background hover:border-rule',
+          chosen ? 'border-primary/50 bg-band' : 'border-border bg-background hover:border-rule',
         )}
       >
         <div className="flex items-center gap-2">
-          <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} email={customer.email} />
+          <Avatar name={`${customer.firstName} ${customer.lastName}`} email={customer.email} />
           <div className="min-w-0 flex-1">
             <p className="truncate text-sm font-semibold text-foreground">
               {customer.firstName} {customer.lastName}
@@ -124,7 +124,7 @@ export function MergeCustomersModal({ a, b, isPending, error, onCancel, onConfir
         </div>
 
         {/* What will actually happen, in the same order the server does it. */}
-        <dl className="space-y-2 rounded-md border border-rule/65 bg-muted/40 p-3 text-xs">
+        <dl className="space-y-2 rounded-md border border-border bg-muted/40 p-3 text-xs">
           <div className="flex justify-between gap-3">
             <dt className="text-muted-foreground">Orders, emails and history</dt>
             <dd className="text-right font-medium text-foreground">Combined onto {survivor.firstName}</dd>

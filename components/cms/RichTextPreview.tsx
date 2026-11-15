@@ -102,7 +102,7 @@ function inlineToken(token: Token, key: string): ReactNode {
 
 const HEADING_CLASS: Record<number, string> = {
   1: 'mt-6 text-2xl font-semibold tracking-title first:mt-0',
-  2: 'mt-6 border-b border-rule/50 pb-1 text-xl font-semibold tracking-title first:mt-0',
+  2: 'mt-6 border-b border-border pb-1 text-xl font-semibold tracking-title first:mt-0',
   3: 'mt-5 text-lg font-semibold first:mt-0',
   4: 'mt-4 text-base font-semibold first:mt-0',
   5: 'mt-4 text-sm font-semibold first:mt-0',
@@ -139,7 +139,7 @@ function block(token: Token, key: string): ReactNode {
       return text.tokens ? inline(text.tokens, key) : text.text;
     }
     case 'hr':
-      return <hr className="my-6 border-rule/60" />;
+      return <hr className="my-6 border-border" />;
     case 'blockquote': {
       const quote = token as Tokens.Blockquote;
       const [first = '', ...rest] = quote.text.split('\n');
@@ -150,8 +150,8 @@ function block(token: Token, key: string): ReactNode {
     case 'code': {
       const code = token as Tokens.Code;
       return (
-        <div className="my-4 overflow-hidden rounded-md border border-rule/60 bg-band/50">
-          {code.lang && <div className="border-b border-rule/50 px-3 py-1 font-mono text-xs text-muted-foreground">{code.lang}</div>}
+        <div className="my-4 overflow-hidden rounded-md border border-border bg-band/50">
+          {code.lang && <div className="border-b border-border px-3 py-1 font-mono text-xs text-muted-foreground">{code.lang}</div>}
           <pre className="overflow-x-auto p-3 font-mono text-xs leading-5 text-foreground">
             <code>{code.text}</code>
           </pre>
@@ -190,9 +190,9 @@ function block(token: Token, key: string): ReactNode {
         return value === 'center' ? 'text-center' : value === 'right' ? 'text-right' : 'text-left';
       };
       return (
-        <div className="my-4 overflow-x-auto rounded-md border border-rule/60">
+        <div className="my-4 overflow-x-auto rounded-md border border-border">
           <table className="w-full text-sm">
-            <thead className="border-b border-rule/60 bg-band/50">
+            <thead className="border-b border-border bg-band/50">
               <tr>
                 {table.header.map((cell, index) => (
                   <th key={index} className={cn('px-3 py-2 font-semibold text-foreground', align(index))}>
@@ -201,7 +201,7 @@ function block(token: Token, key: string): ReactNode {
                 ))}
               </tr>
             </thead>
-            <tbody className="divide-y divide-rule/40">
+            <tbody className="divide-y divide-border">
               {table.rows.map((row, rowIndex) => (
                 <tr key={rowIndex}>
                   {row.map((cell, index) => (
@@ -252,7 +252,7 @@ function PreviewImage({ src, alt, title }: { src: string; alt: string; title?: s
       alt={alt}
       title={title}
       loading="lazy"
-      className="my-2 inline-block max-h-96 max-w-full rounded-md border border-rule/50"
+      className="my-2 inline-block max-h-96 max-w-full rounded-md border border-border"
     />
   );
 }
@@ -313,7 +313,7 @@ function VideoCard({ provider, url }: { provider: 'youtube' | 'vimeo'; url: stri
       href={url}
       target="_blank"
       rel="noreferrer noopener"
-      className="my-4 flex items-center gap-3 rounded-md border border-rule/60 bg-band/50 px-4 py-3 no-underline hover:border-rule"
+      className="my-4 flex items-center gap-3 rounded-md border border-border bg-band/50 px-4 py-3 no-underline hover:border-rule"
     >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-full bg-foreground text-background">
         <Play size={16} aria-hidden="true" />

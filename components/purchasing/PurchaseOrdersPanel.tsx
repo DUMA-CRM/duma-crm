@@ -251,7 +251,7 @@ function CreatePoDrawer({
               const item = itemMap.get(line.stockItemId);
               const lineTotal = Number(line.quantity) * Number(line.unitCost);
               return (
-                <li key={index} className="space-y-3 border-b border-rule/45 py-3 first:pt-0 last:border-b-0">
+                <li key={index} className="space-y-3 border-b border-border py-3 first:pt-0 last:border-b-0">
                   <div className="flex items-end gap-2">
                     <div className="min-w-0 flex-1 space-y-1.5">
                       <FieldLabel as="span" required>
@@ -504,7 +504,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
             {(po.lines ?? [])
               .filter((l) => outstanding(l) > 0)
               .map((l) => (
-                <li key={l.id} className="rounded-lg border border-rule/60 bg-field p-3.5">
+                <li key={l.id} className="rounded-lg border border-border bg-field p-3.5">
                   <div className="flex items-baseline justify-between gap-3">
                     <p className="text-sm font-semibold text-foreground">{l.stockItem?.name}</p>
                     <p className="text-xs text-muted-foreground">
@@ -558,7 +558,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
       ) : (
         <div className="space-y-6">
           {/* Headline: what it comes to, where it's up to. */}
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <div className="overflow-hidden rounded-lg border border-border bg-field">
             <div className="flex items-start gap-3.5 px-4 pt-4 pb-3.5">
               <span
                 className={cn('flex size-12 shrink-0 items-center justify-center rounded-lg', TONE_TINT[late ? 'exception' : meta.tone])}
@@ -579,11 +579,11 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
               {late && <Pill tone="exception">Overdue</Pill>}
             </div>
             {po.status === 'cancelled' ? (
-              <p className="border-t border-rule/45 px-4 py-2.5 text-xs font-medium text-muted-foreground">
+              <p className="border-t border-border px-4 py-2.5 text-xs font-medium text-muted-foreground">
                 Cancelled — nothing more will arrive.
               </p>
             ) : po.status === 'partially_received' ? (
-              <div className="flex items-center gap-3 border-t border-rule/45 px-4 py-3">
+              <div className="flex items-center gap-3 border-t border-border px-4 py-3">
                 <MiniBar value={share} max={1} tone="warning" label={`${Math.round(share * 100)}% received`} className="flex-1" />
                 <span className="shrink-0 text-xs font-semibold text-foreground">{Math.round(share * 100)}% received</span>
               </div>
@@ -591,14 +591,14 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
           </div>
 
           <section>
-            <h3 className="mb-2 text-sm font-semibold text-foreground">Lines</h3>
-            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+            <h3 className="mb-2 text-sm font-semibold text-heading">Lines</h3>
+            <ul className="overflow-hidden rounded-lg border border-border bg-field">
               {(po.lines ?? []).map((l) => {
                 const ordered = Number(l.quantityOrdered) || 0;
                 const got = Math.min(ordered, Number(l.quantityReceived) || 0);
                 const complete = ordered > 0 && got >= ordered;
                 return (
-                  <li key={l.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+                  <li key={l.id} className="flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
                     <span
                       className={cn(
                         'flex size-9 shrink-0 items-center justify-center rounded-md',
@@ -624,8 +624,8 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
 
           {po.status !== 'draft' && po.status !== 'cancelled' && (
             <section>
-              <h3 className="mb-2 text-sm font-semibold text-foreground">Invoice</h3>
-              <div className="space-y-3 rounded-lg border border-rule/60 bg-field p-3.5">
+              <h3 className="mb-2 text-sm font-semibold text-heading">Invoice</h3>
+              <div className="space-y-3 rounded-lg border border-border bg-field p-3.5">
                 <div className="grid gap-2 sm:grid-cols-2">
                   <label className="block">
                     <FieldLabel as="span">Invoice number</FieldLabel>
@@ -665,7 +665,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
                   </p>
                 )}
                 {canWrite && (
-                  <div className="flex items-center gap-3 border-t border-rule/45 pt-3">
+                  <div className="flex items-center gap-3 border-t border-border pt-3">
                     <Switch
                       label="Invoice matched"
                       checked={po.invoiceMatched}
@@ -862,7 +862,7 @@ export function PurchaseOrdersPanel({
           // A day: its heading, then the card of orders.
           <div role="status" aria-busy="true" aria-label="Loading purchase orders">
             <Bone className="mx-1 mb-2 h-4 w-28" />
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <div className="overflow-hidden rounded-lg border border-border bg-card">
               {Array.from({ length: 5 }, (_, index) => (
                 <RowSkeleton key={index} index={index} />
               ))}
@@ -894,8 +894,8 @@ export function PurchaseOrdersPanel({
           <div className="space-y-5">
             {groups.map(([label, dayOrders]) => (
               <div key={label}>
-                <h2 className="mb-2 px-1 text-sm font-semibold text-foreground">{label}</h2>
-                <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                <h2 className="mb-2 px-1 text-sm font-semibold text-heading">{label}</h2>
+                <ul className="overflow-hidden rounded-lg border border-border bg-card">
                   {dayOrders.map((po) => (
                     <OrderRow
                       key={po.id}
@@ -1001,7 +1001,7 @@ function OrderRow({
             </span>
           )}
           {step && (
-            <span className="hidden h-8 items-center gap-1 rounded-md border border-rule/60 bg-background px-2.5 text-xs font-semibold text-foreground sm:inline-flex">
+            <span className="hidden h-8 items-center gap-1 rounded-md border border-border bg-background px-2.5 text-xs font-semibold text-foreground sm:inline-flex">
               {step === 'Send' ? <Send size={12} aria-hidden="true" /> : <Truck size={12} aria-hidden="true" />}
               {step}
             </span>

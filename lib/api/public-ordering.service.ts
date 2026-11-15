@@ -61,6 +61,10 @@ export interface PublicQrMenu {
 
 export const getPublicQrMenu = (token: string) => apiFetch<PublicQrMenu>(`/qr-ordering/public/${encodeURIComponent(token)}`);
 
+/** The guest menu built from the draft, for the settings page's phone preview — staff only. */
+export const getQrPreviewMenu = (locationId: string) =>
+  apiFetch<PublicQrMenu>(`/qr-ordering/locations/${encodeURIComponent(locationId)}/preview`);
+
 export const requestQrCustomerCode = (token: string, email: string) =>
   apiFetch<{ challengeToken: string; expiresInSeconds: number }>(`/qr-ordering/public/${encodeURIComponent(token)}/customer-code`, {
     method: 'POST',

@@ -92,7 +92,7 @@ export function FormsList({ onOpen }: { onOpen: (id: string, tab?: EditorTab) =>
     return header(
       <div className="mx-auto w-full max-w-5xl py-4">
         <div className="mb-6 max-w-2xl">
-          <h2 className="text-xl font-semibold tracking-title text-foreground">{canWrite ? 'Build your first form' : 'No forms yet'}</h2>
+          <h2 className="text-xl font-semibold tracking-title text-heading">{canWrite ? 'Build your first form' : 'No forms yet'}</h2>
           <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
             {canWrite
               ? 'Enquiries, feedback, sign-ups, applications — share it as a link or QR code, put it on your website, or send answers straight to the API. Respondents can become customers.'

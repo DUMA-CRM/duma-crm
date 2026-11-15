@@ -369,7 +369,7 @@ function MediaStrip({ assets, className }: { assets: Asset[]; className?: string
           title={a.fileName}
           aria-label={`View ${a.fileName}`}
           onClick={() => setViewing(i)}
-          className="group relative aspect-square overflow-hidden rounded-md border border-rule/60 bg-band/40 transition-[border-color] hover:border-primary/60 focus-visible:outline-2 focus-visible:outline-ring"
+          className="group relative aspect-square overflow-hidden rounded-md border border-border bg-band/40 transition-[border-color] hover:border-primary/60 focus-visible:outline-2 focus-visible:outline-ring"
         >
           {a.mimeType.startsWith('video/') ? (
             <>
@@ -413,7 +413,7 @@ function PlatformTabs({
         'flex h-8 shrink-0 items-center gap-1.5 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring',
         tab === value
           ? 'border-primary bg-primary/5 text-foreground shadow-[inset_0_0_0_1px_var(--primary)]'
-          : 'border-rule/70 bg-field text-muted-foreground hover:bg-band/45 hover:text-foreground',
+          : 'border-border bg-field text-muted-foreground hover:bg-band/45 hover:text-foreground',
       )}
     >
       {value !== 'all' && <BrandMark platform={value} />}
@@ -468,7 +468,7 @@ function Destination({
   ];
   const warning = marketingStatusBadge(t.status) === 'warning';
   return (
-    <article className={cn('rounded-lg border bg-field p-3', warning ? 'border-measured/40' : 'border-rule/60')}>
+    <article className={cn('rounded-lg border bg-field p-3', warning ? 'border-measured/40' : 'border-border')}>
       <div className="flex items-center gap-3">
         {accountTile(account)}
         <div className="min-w-0 flex-1">
@@ -680,7 +680,7 @@ function DestinationActivity({
             {log ? 'Hide attempts' : `Every attempt (${attempts.length})`}
           </button>
           {log && (
-            <ol className="mt-2 space-y-2 border-l border-rule/70 pl-4">
+            <ol className="mt-2 space-y-2 border-l border-border pl-4">
               {[...attempts]
                 .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt))
                 .map((h) => {

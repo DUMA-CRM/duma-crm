@@ -68,7 +68,7 @@ function MultiSelect({
           // a select and a multi-select side by side are the same control.
           'inline-flex h-9 min-w-0 items-center gap-2 rounded-sm border border-input bg-control px-3 text-base text-foreground outline-none sm:text-sm',
           'transition-[border-color,outline-color,background-color] duration-100 hover:bg-band aria-expanded:bg-band',
-          'focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured',
+          'focus:border-ring focus:outline-2 focus:outline-offset-0 focus:outline-ring/30',
           'disabled:cursor-not-allowed disabled:opacity-50',
           chosen.length === 0 && 'text-muted-foreground',
           className,
@@ -85,7 +85,7 @@ function MultiSelect({
           collisionPadding={12}
           className={cn(
             'z-100 min-w-[var(--radix-popover-trigger-width)] max-w-[calc(100vw-2rem)] overflow-hidden',
-            'rounded-sm border border-rule bg-surface shadow-lg outline-none',
+            'rounded-lg border border-border bg-surface shadow-lg outline-none',
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
             contentClassName,
@@ -120,7 +120,7 @@ function MultiSelect({
           </div>
 
           {chosen.length > 0 && (
-            <div className="border-t border-rule/60 p-1">
+            <div className="border-t border-border p-1">
               <button
                 type="button"
                 onClick={() => onChange([])}

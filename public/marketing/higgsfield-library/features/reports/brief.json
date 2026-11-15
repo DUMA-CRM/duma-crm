@@ -1,0 +1,13 @@
+{
+  "path": "/features/reports",
+  "name": "Analytics",
+  "summary": "Sales, margin and labour trends for one location or all of them.",
+  "description": "Sales, margin and labour trends for one location or all of them.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/reports",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A caf\u00e9 owner reviews the business after closing at a tidy table with a calculator and a laptop seen from behind, thoughtful rather than celebratory."
+}

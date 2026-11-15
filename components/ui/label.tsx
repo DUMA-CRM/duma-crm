@@ -7,7 +7,8 @@ import { useDrawerForm } from '@/components/shared/DrawerFormContext';
 import { cn } from '@/lib/utils';
 import { fieldLabel } from '@/lib/utils/field-label';
 
-export const FIELD_LABEL_CLASS = 'block text-label uppercase text-muted-foreground';
+// Sentence case, as on the marketing site — not small uppercase captions.
+export const FIELD_LABEL_CLASS = 'block text-sm font-medium text-foreground';
 
 function LabelText({ children, required, optional }: { children: ReactNode; required?: boolean; optional?: boolean }) {
   const drawer = useDrawerForm();

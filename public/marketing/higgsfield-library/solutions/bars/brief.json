@@ -1,0 +1,13 @@
+{
+  "path": "/solutions/bars",
+  "name": "Bars and pubs",
+  "summary": "",
+  "description": "",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "solutions/bars",
+  "local_sources": [
+    "app/(marketing)/solutions/bars/page.tsx"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A quiet British pub before opening, bartender arranging clean glasses and setting tables, amber window light."
+}

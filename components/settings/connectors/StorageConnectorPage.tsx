@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 import { useCmsTenantId, useContentPaths } from '@/components/cms/ContentScope';
 import { StorageMeter } from '@/components/cms/StorageMeter';
-import { BrandTile, RowMenu, type RowMenuItem, RowTile, SectionInfo } from '@/components/cms/rows';
+import { BrandTile, RowMenu, type RowMenuItem, RowTile } from '@/components/cms/rows';
 import { cmsKeys, invalidateCms } from '@/components/cms/shared';
 import {
   AlertTriangle,
@@ -19,8 +19,9 @@ import {
   RefreshCw,
   Trash2,
 } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,6 @@ import {
 } from '@/lib/modules/cms/client';
 import { toast } from '@/lib/toast';
 import { formatBytes } from '@/lib/utils/cms';
-import { cn } from '@/lib/utils/cn';
 
 import { ConnectorManagePage, type ConnectorStatus } from './ConnectorManagePage';
 import { EditStorageDialog } from './EditStorageDialog';
@@ -258,13 +258,19 @@ function StorageBody({
     onClick: () => onMoveFiles(from, name, files),
   });
   return (
-    <SettingsSection
+    <RecordGroup
+      id="storage-where"
       title="Where files are kept"
       actions={
-        <SectionInfo label="Uploads go to the storage marked Receiving uploads. Switching only affects new uploads — files already stored stay where they are, so no link breaks." />
+        connections.length === 0 ? (
+          <Button variant="outline" size="sm" className="gap-1.5" onClick={onConnect}>
+            <Plug size={14} aria-hidden="true" /> Connect a bucket
+          </Button>
+        ) : undefined
       }
+      footnote="Switching only affects new uploads — files already stored stay where they are, so no link breaks."
     >
-      <div className="flex flex-col gap-2">
+      <ListRowGroup>
         <StorageRow
           tile={<RowTile icon={Database} />}
           name="DUMA storage"
@@ -330,16 +336,8 @@ function StorageBody({
             />
           );
         })}
-      </div>
-
-      {connections.length === 0 && (
-        <div className="mt-4">
-          <Button variant="outline" className="gap-1.5" onClick={onConnect}>
-            <Plug size={14} aria-hidden="true" /> Connect a bucket
-          </Button>
-        </div>
-      )}
-    </SettingsSection>
+      </ListRowGroup>
+    </RecordGroup>
   );
 }
 
@@ -363,7 +361,7 @@ function StorageRow({
   menu: RowMenuItem[];
 }) {
   return (
-    <section className={cn('space-y-3 rounded-lg border bg-field p-3', active ? 'border-primary/50' : 'border-rule/50')} aria-label={name}>
+    <li className="space-y-3 border-b border-border px-3.5 py-3 last:border-b-0" aria-label={name}>
       <div className="flex items-start gap-3">
         {tile}
         <div className="min-w-0 flex-1">
@@ -379,7 +377,7 @@ function StorageRow({
         {menu.length > 0 && <RowMenu label={`${name} actions`} items={menu} />}
       </div>
       {meter}
-    </section>
+    </li>
   );
 }
 

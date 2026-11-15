@@ -970,7 +970,7 @@ function AddFieldDialog({
                       onDoubleClick={() => onAdd(entry.type, label)}
                       className={cn(
                         'flex items-start gap-2.5 rounded-md border px-2.5 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                        on ? 'border-primary bg-primary/6' : 'border-rule/60 hover:bg-band/50',
+                        on ? 'border-primary bg-primary/6' : 'border-border hover:bg-band/50',
                       )}
                     >
                       <RowTile icon={Icon} tone={on ? 'success' : 'default'} />
@@ -1072,7 +1072,7 @@ function FieldSettings({
   /** A group's title, with what it decides behind the ⓘ — so a long panel reads as four short ones. */
   const heading = (text: string, hint: string) => (
     <div className="flex items-center justify-between gap-3">
-      <h4 className="text-sm font-semibold tracking-title text-foreground">{text}</h4>
+      <h4 className="text-sm font-semibold tracking-title text-heading">{text}</h4>
       <SectionInfo label={hint} />
     </div>
   );
@@ -1081,7 +1081,7 @@ function FieldSettings({
     field.type === 'slug' || field.type === 'select' || field.type === 'media' || field.type === 'reference' || field.type === 'group';
 
   return (
-    <div className="divide-y divide-rule/40 [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
+    <div className="divide-y divide-border [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
       <div className="space-y-3">
         {heading('Name', 'What editors see, and the key your website reads')}
         <div className="grid gap-3 sm:grid-cols-2">
@@ -1209,7 +1209,7 @@ function FieldSettings({
             />
           )}
           {field.type === 'group' && (
-            <div className="rounded-lg border border-rule/50 bg-field px-3 py-1.5">
+            <div className="rounded-lg border border-border bg-field px-3 py-1.5">
               <FieldList
                 fields={field.fields ?? []}
                 onChange={(next) => set('fields', next)}

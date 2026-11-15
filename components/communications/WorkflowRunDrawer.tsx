@@ -174,7 +174,7 @@ export function WorkflowRunDrawer({
                           <summary className="cursor-pointer rounded-md px-3 py-2 text-xs font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring">
                             What it did
                           </summary>
-                          <pre className="max-h-64 overflow-auto border-t border-rule/40 p-3 text-label text-muted-foreground">
+                          <pre className="max-h-64 overflow-auto border-t border-border p-3 text-label text-muted-foreground">
                             {JSON.stringify(step.output, null, 2)}
                           </pre>
                         </details>

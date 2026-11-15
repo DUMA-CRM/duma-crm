@@ -1,36 +1,41 @@
 'use client';
 
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
+import Link from 'next/link';
 import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import {
   AlertTriangle,
+  Bell,
   ChefHat,
+  ClipboardList,
   CloudOff,
-  Coffee,
+  ExternalLink,
   History,
   ListChecks,
   MapPin,
-  Maximize,
   RotateCcw,
   Volume2,
   VolumeX,
   X,
 } from '@/components/icons';
-import { KdsTicket, KdsTicketSkeleton, LANE_LABEL } from '@/components/kds/KdsTicket';
+import { KdsTicket, KdsTicketSkeleton, LANE_DOT, LANE_LABEL } from '@/components/kds/KdsTicket';
 import { useMounted } from '@/components/settings/configuration/shared';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Bone } from '@/components/shared/Skeleton';
+import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import { useWakeLock } from '@/lib/hooks/useWakeLock';
 import { type Order, type OrderItem, type OrderStatus, getOrder, getOrders, updateOrderStatus } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { toast } from '@/lib/toast';
+import { dismissToast, toast } from '@/lib/toast';
 import { chime, unlockAudio } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
 import { KDS_LANES, type KdsLane, NEXT_STATUS, PREVIOUS_STATUS, allDay, arrivals, isOnScreen, ticketName } from '@/lib/utils/kds';
 import { formatInstant } from '@/lib/utils/workspace-time';
+import { useAuthStore } from '@/stores/authStore';
 import { type KdsTextSize, useKdsStore } from '@/stores/kdsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -41,7 +46,11 @@ const RECENT_LIMIT = 10;
 /** One size setting scales the whole ticket — header, items and button together. */
 const ZOOM: Record<KdsTextSize, number> = { standard: 1, large: 1.15, xlarge: 1.3 };
 
-const LANE_ACCENT: Record<KdsLane, string> = { pending: 'border-t-measured', preparing: 'border-t-reference', ready: 'border-t-momentum' };
+/** The lanes as the marketing site's kitchen tile draws them: flat columns parted by 1px hairlines. */
+const BOARD =
+  'grid min-h-0 flex-1 grid-flow-col auto-cols-[minmax(20rem,88vw)] gap-px bg-border lg:grid-flow-row lg:grid-cols-3 lg:auto-cols-auto';
+const LANE_HEAD = 'flex h-12 shrink-0 items-center justify-between border-b border-border bg-card px-4';
+
 const LANE_EMPTY: Record<KdsLane, string> = { pending: 'No new orders', preparing: 'Nothing being made', ready: 'Nothing waiting' };
 
 const laneKey = (locationId: string, status: KdsLane) => moduleQueryKeys.ordering.key('kds-orders', locationId, status);
@@ -79,10 +88,6 @@ interface RecentBump {
   at: number;
 }
 
-const subscribeFullscreen = (notify: () => void) => {
-  document.addEventListener('fullscreenchange', notify);
-  return () => document.removeEventListener('fullscreenchange', notify);
-};
 const subscribeOnline = (notify: () => void) => {
   window.addEventListener('online', notify);
   window.addEventListener('offline', notify);
@@ -102,32 +107,28 @@ export default function KdsPage() {
     () => navigator.onLine,
     () => true,
   );
-  const fullscreen = useSyncExternalStore(
-    subscribeFullscreen,
-    () => !!document.fullscreenElement,
-    () => false,
-  );
   const wake = useWakeLock(display.keepAwake);
-  const rootRef = useRef<HTMLDivElement>(null);
 
   const [now, setNow] = useState(() => Date.now());
   const [filter, setFilter] = useState<KdsLane | 'all'>('all');
   const [struck, setStruck] = useState<Set<string>>(() => new Set());
   const [bumping, setBumping] = useState<Set<string>>(() => new Set());
   const [recent, setRecent] = useState<RecentBump[]>([]);
-  const [undo, setUndo] = useState<RecentBump | null>(null);
+  // The toast offering Undo for the last move, so Recall can withdraw it once it's been used.
+  const undoToast = useRef<string | null>(null);
+  const [lastMove, setLastMove] = useState<RecentBump | null>(null);
   const [recallOpen, setRecallOpen] = useState(false);
+  // The Orders screen is gated on orders:read; the menu only offers it to whoever may open it.
+  const canOpenOrders = hasCapability(
+    useAuthStore((state) => state.capabilities),
+    'orders:read',
+  );
 
   useEffect(() => {
     // Timer labels and the ok → nearly late → late colour. The ageing bar animates on its own.
     const timer = setInterval(() => setNow(Date.now()), 5_000);
     return () => clearInterval(timer);
   }, []);
-  useEffect(() => {
-    if (!undo) return;
-    const timer = window.setTimeout(() => setUndo(null), UNDO_MS);
-    return () => window.clearTimeout(timer);
-  }, [undo]);
   // Browsers only let audio start from a gesture: the first tap anywhere on the board unlocks the chime.
   useEffect(() => {
     const unlock = () => unlockAudio();
@@ -216,7 +217,7 @@ export default function KdsPage() {
       }
       const entry = { id, name, to, at: Date.now() };
       setRecent((current) => [entry, ...current.filter((bump) => bump.id !== id)].slice(0, RECENT_LIMIT));
-      setUndo(entry);
+      setLastMove(entry);
     },
     onError: (error, { name }) => {
       if (error instanceof StaleTicket) {
@@ -241,18 +242,35 @@ export default function KdsPage() {
   });
 
   const bump = (order: Order, lane: KdsLane) => move.mutate({ id: order.id, name: ticketName(order), from: lane, to: NEXT_STATUS[lane] });
+  /** Back one stage from the board itself (the ticket's menu), not only from Recall. */
+  const stepBack = (order: Order, lane: KdsLane) => {
+    const back = PREVIOUS_STATUS[lane];
+    if (back) move.mutate({ id: order.id, name: ticketName(order), from: lane, to: back });
+  };
   const moveBack = (entry: RecentBump) => {
     const back = PREVIOUS_STATUS[entry.to];
     if (!back) return;
-    setUndo(null);
+    if (undoToast.current) dismissToast(undoToast.current);
+    undoToast.current = null;
     setRecent((current) => current.filter((bump) => bump.id !== entry.id));
     move.mutate({ id: entry.id, name: entry.name, from: entry.to, to: back });
   };
-
-  const toggleFullscreen = () => {
-    if (document.fullscreenElement) void document.exitFullscreen();
-    else void rootRef.current?.requestFullscreen?.().catch(() => toast('error', 'This browser won’t go full screen here.'));
-  };
+  // The app's own toast for each move: what moved, and Undo while it can still go back.
+  useEffect(() => {
+    if (!lastMove) return;
+    const back = PREVIOUS_STATUS[lastMove.to];
+    if (undoToast.current) dismissToast(undoToast.current);
+    undoToast.current = toast(
+      'success',
+      `${lastMove.name} ${lastMove.to === 'done' ? 'collected' : `moved to ${LANE_LABEL[lastMove.to as KdsLane]}`}`,
+      {
+        duration: UNDO_MS,
+        ...(back ? { button: { title: `Undo — back to ${LANE_LABEL[back]}`, onClick: () => moveBack(lastMove) } } : {}),
+      },
+    );
+    // moveBack is recreated each render; the toast only needs the one from this move.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [lastMove]);
 
   const toBeMade = live.filter(({ lane }) => lane !== 'ready').map(({ order }) => ({ items: detail.get(order.id)?.items }));
   const allDayLines = allDay(toBeMade);
@@ -279,6 +297,8 @@ export default function KdsPage() {
           })
         }
         onBump={() => bump(order, lane)}
+        onBack={PREVIOUS_STATUS[lane] ? () => stepBack(order, lane) : undefined}
+        orderHref={canOpenOrders ? `/orders?order=${encodeURIComponent(order.id)}&location=all` : undefined}
         onRetryItems={() => d?.refetch()}
       />
     );
@@ -292,25 +312,16 @@ export default function KdsPage() {
     return (
       <EditorShell title="Kitchen" icon={<ChefHat size={20} aria-hidden="true" />} flush>
         <div className="flex min-h-0 flex-1 flex-col bg-background" role="status" aria-busy="true" aria-label="Loading the kitchen board">
-          <div className="flex shrink-0 items-center gap-2 border-b border-rule/60 bg-card px-3 py-2 md:px-4" aria-hidden="true">
-            <Bone className="h-12 w-40 rounded-lg" />
-            <Bone className="ml-auto h-9 w-28 rounded-lg" />
+          <div className="flex h-14 shrink-0 items-center gap-2 border-b border-border bg-card px-3 md:px-4" aria-hidden="true">
+            <Bone className="h-9 w-40" />
+            <Bone className="ml-auto h-9 w-28" />
           </div>
-          <div className="grid min-h-0 flex-1 grid-flow-col auto-cols-[minmax(20rem,88vw)] gap-3 overflow-hidden p-3 lg:grid-flow-row lg:grid-cols-3 lg:auto-cols-auto">
+          <div className={BOARD}>
             {KDS_LANES.map((status) => (
-              <div
-                key={status}
-                className="flex min-h-0 flex-col overflow-hidden rounded-xl border border-rule/60 bg-band/40"
-                aria-hidden="true"
-              >
-                <div
-                  className={cn(
-                    'flex shrink-0 items-center justify-between border-b border-t-4 border-rule/60 bg-card px-4 py-3',
-                    LANE_ACCENT[status],
-                  )}
-                >
-                  <Bone className="h-5 w-24" />
-                  <Bone className="size-9 rounded-lg" />
+              <div key={status} className="flex min-h-0 flex-col overflow-hidden bg-background" aria-hidden="true">
+                <div className={LANE_HEAD}>
+                  <Bone className="h-4 w-24" />
+                  <Bone className="h-4 w-5" />
                 </div>
                 <div className="flex min-h-0 flex-1 flex-col gap-3 p-3">
                   {[0, 1].map((i) => (
@@ -326,100 +337,85 @@ export default function KdsPage() {
   }
 
   return (
-    <EditorShell title="Kitchen" icon={<ChefHat size={20} aria-hidden="true" />} flush>
-      <div ref={rootRef} className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
-        {/* Toolbar — hideable in Configuration; the offline banner below still shows. */}
-        {display.showToolbar && (
-          <div className="flex shrink-0 flex-wrap items-center gap-2 border-b border-rule/60 bg-card px-3 py-2 md:px-4">
-            {display.layout === 'tiles' ? (
-              <div role="tablist" aria-label="Show tickets" className="flex gap-1.5">
-                {(['all', ...KDS_LANES] as const).map((value) => {
-                  const count = value === 'all' ? live.length : lanes.find((lane) => lane.status === value)!.orders.length;
-                  return (
-                    <button
-                      key={value}
-                      type="button"
-                      role="tab"
-                      aria-selected={filter === value}
-                      onClick={() => setFilter(value)}
-                      className={cn(
-                        'flex h-12 items-center gap-2 rounded-lg border px-4 text-base font-semibold transition-colors',
-                        filter === value
-                          ? 'border-foreground bg-foreground text-background'
-                          : 'border-rule/70 bg-background text-foreground',
-                      )}
-                    >
-                      {value === 'all' ? 'All' : LANE_LABEL[value]}
-                      <span data-figure className="tabular-nums opacity-70">
-                        {count}
-                      </span>
-                    </button>
-                  );
-                })}
-              </div>
-            ) : (
-              <p data-figure className="px-1 text-base font-semibold tabular-nums text-foreground">
-                {live.length} live {live.length === 1 ? 'ticket' : 'tickets'}
-              </p>
-            )}
-
-            <div className="ml-auto flex items-center gap-1.5">
-              <span
-                role="status"
-                className={cn(
-                  'mr-1 flex items-center gap-2 rounded-lg px-3 py-2 text-sm font-semibold',
-                  syncProblem ? 'bg-exception/10 text-exception' : 'text-muted-foreground',
-                )}
-              >
-                <span
-                  className={cn('size-2.5 rounded-full', syncProblem ? 'bg-exception' : 'animate-pulse bg-momentum')}
-                  aria-hidden="true"
-                />
-                {!online ? 'Offline' : syncProblem ? 'Reconnecting' : 'Live'}
-                {lastSync > 0 && (
-                  <span data-figure className="font-medium tabular-nums opacity-80">
-                    · {formatInstant(lastSync, { hour: '2-digit', minute: '2-digit', second: '2-digit' }, '—', [])}
+    <EditorShell
+      title="Kitchen"
+      icon={<ChefHat size={20} aria-hidden="true" />}
+      flush
+      // The screen's few controls live in the app's own header — no second bar under it.
+      actions={
+        <>
+          {/* Silent while all is well — a clock that only says "still live" is noise. It speaks up
+              when the board stops updating, beside the banner that says since when. */}
+          {syncProblem && (
+            <span
+              role="status"
+              className="flex items-center gap-2 rounded-md bg-exception/10 px-2 py-1.5 text-sm font-semibold text-exception"
+            >
+              <span className="size-2 rounded-full bg-exception" aria-hidden="true" />
+              {online ? 'Reconnecting' : 'Offline'}
+            </span>
+          )}
+          <ToolbarButton
+            active={display.showAllDay}
+            onClick={() => display.setDisplay({ showAllDay: !display.showAllDay })}
+            label="All day"
+          >
+            <ListChecks size={19} aria-hidden="true" />
+          </ToolbarButton>
+          <ToolbarButton active={recallOpen} onClick={() => setRecallOpen((open) => !open)} label="Recall" badge={recent.length}>
+            <History size={19} aria-hidden="true" />
+          </ToolbarButton>
+          <ToolbarButton
+            active={display.soundOn}
+            onClick={() => {
+              const next = !display.soundOn;
+              display.setSoundOn(next);
+              if (next) chime(display.sound);
+            }}
+            label={display.soundOn ? 'Sound on' : 'Sound off'}
+          >
+            {display.soundOn ? <Volume2 size={19} aria-hidden="true" /> : <VolumeX size={19} aria-hidden="true" />}
+          </ToolbarButton>
+        </>
+      }
+      subheader={
+        // Tiles mix the stages, so they get stage tabs; lanes are the stages already.
+        display.layout === 'tiles' ? (
+          <div
+            role="tablist"
+            aria-label="Show tickets"
+            className="flex h-12 shrink-0 items-center gap-1 border-b border-border bg-card px-3 md:px-4"
+          >
+            {(['all', ...KDS_LANES] as const).map((value) => {
+              const count = value === 'all' ? live.length : lanes.find((lane) => lane.status === value)!.orders.length;
+              return (
+                <button
+                  key={value}
+                  type="button"
+                  role="tab"
+                  aria-selected={filter === value}
+                  onClick={() => setFilter(value)}
+                  className={cn(
+                    'flex h-9 touch-manipulation items-center gap-2 rounded-md px-3 text-sm font-semibold transition-colors',
+                    'focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+                    filter === value ? 'bg-band text-heading' : 'text-muted-foreground active:bg-band/60',
+                  )}
+                >
+                  {value !== 'all' && (
+                    <span aria-hidden="true" className="size-2 rounded-[2px]" style={{ backgroundColor: LANE_DOT[value] }} />
+                  )}
+                  {value === 'all' ? 'All' : LANE_LABEL[value]}
+                  <span data-figure className="font-medium tabular-nums text-muted-foreground">
+                    {count}
                   </span>
-                )}
-              </span>
-              <ToolbarButton
-                active={display.showAllDay}
-                onClick={() => display.setDisplay({ showAllDay: !display.showAllDay })}
-                label="All day"
-              >
-                <ListChecks size={20} aria-hidden="true" />
-              </ToolbarButton>
-              <ToolbarButton
-                active={recallOpen}
-                onClick={() => setRecallOpen((open) => !open)}
-                label={`Recall${recent.length ? ` (${recent.length})` : ''}`}
-              >
-                <History size={20} aria-hidden="true" />
-              </ToolbarButton>
-              <ToolbarButton
-                active={display.soundOn}
-                onClick={() => {
-                  const next = !display.soundOn;
-                  display.setSoundOn(next);
-                  if (next) chime(display.sound);
-                }}
-                label={display.soundOn ? 'Sound on' : 'Sound off'}
-                iconOnly
-              >
-                {display.soundOn ? <Volume2 size={20} aria-hidden="true" /> : <VolumeX size={20} aria-hidden="true" />}
-              </ToolbarButton>
-              <ToolbarButton
-                active={fullscreen}
-                onClick={toggleFullscreen}
-                label={fullscreen ? 'Exit full screen' : 'Full screen'}
-                iconOnly
-              >
-                <Maximize size={20} aria-hidden="true" />
-              </ToolbarButton>
-            </div>
+                </button>
+              );
+            })}
           </div>
-        )}
-
+        ) : undefined
+      }
+    >
+      <div className="flex min-h-0 flex-1 flex-col bg-background text-foreground">
         {syncProblem && locationId && (
           <div
             role="alert"
@@ -438,7 +434,7 @@ export default function KdsPage() {
           </div>
         )}
         {display.keepAwake && !wake.supported && (
-          <p className="shrink-0 border-b border-rule/50 bg-band/50 px-4 py-1.5 text-xs text-muted-foreground">
+          <p className="shrink-0 border-b border-border bg-band/50 px-4 py-1.5 text-xs text-muted-foreground">
             This browser can’t keep the screen awake — set the tablet’s auto-lock to Never.
           </p>
         )}
@@ -447,7 +443,7 @@ export default function KdsPage() {
           <div className="flex flex-1 items-center justify-center p-6 text-center">
             <div className="max-w-sm">
               <span
-                className="mx-auto flex size-14 items-center justify-center rounded-2xl bg-band text-muted-foreground"
+                className="mx-auto flex size-12 items-center justify-center rounded-md bg-band text-muted-foreground"
                 aria-hidden="true"
               >
                 <MapPin size={24} />
@@ -460,31 +456,24 @@ export default function KdsPage() {
           <div className="flex min-h-0 flex-1">
             <div className="min-h-0 min-w-0 flex-1" style={zoom}>
               {display.layout === 'lanes' ? (
-                <div className="kds-scrollbar grid h-full min-h-0 snap-x snap-mandatory grid-flow-col auto-cols-[minmax(20rem,88vw)] gap-3 overflow-x-auto p-3 lg:grid-flow-row lg:grid-cols-3 lg:auto-cols-auto lg:overflow-x-hidden">
+                <div className={cn(BOARD, 'kds-scrollbar h-full snap-x snap-mandatory overflow-x-auto lg:overflow-x-hidden')}>
                   {lanes.map((lane) => (
                     <section
                       key={lane.status}
                       aria-labelledby={`lane-${lane.status}`}
-                      className="flex min-h-0 snap-start flex-col overflow-hidden rounded-xl border border-rule/60 bg-band/40"
+                      className="flex min-h-0 snap-start flex-col overflow-hidden bg-background"
                     >
-                      <div
-                        className={cn(
-                          'flex shrink-0 items-center justify-between border-b border-t-4 border-rule/60 bg-card px-4 py-3',
-                          LANE_ACCENT[lane.status],
-                        )}
-                      >
-                        <h2 id={`lane-${lane.status}`} className="flex items-center gap-2 text-lg font-bold">
+                      <div className={LANE_HEAD}>
+                        <h2 id={`lane-${lane.status}`} className="flex items-center gap-2 text-base font-semibold text-heading">
+                          <span aria-hidden="true" className="size-2.5 rounded-[3px]" style={{ backgroundColor: LANE_DOT[lane.status] }} />
                           {LANE_LABEL[lane.status]}
                           {lane.query.isError && <AlertTriangle size={16} className="text-destructive" aria-label="Didn’t refresh" />}
                         </h2>
-                        <span
-                          data-figure
-                          className="flex h-9 min-w-9 items-center justify-center rounded-lg bg-foreground px-2 text-lg font-bold tabular-nums text-background"
-                        >
+                        <span data-figure className="text-base font-semibold tabular-nums text-muted-foreground">
                           {lane.orders.length}
                         </span>
                       </div>
-                      <div className="kds-scrollbar flex min-h-0 flex-1 flex-col gap-3 overflow-y-auto p-3">
+                      <div className="kds-scrollbar flex min-h-0 flex-1 flex-col gap-2.5 overflow-y-auto p-2.5">
                         <LaneBody lane={lane} empty={LANE_EMPTY[lane.status]}>
                           {lane.orders.map((order) => ticket({ order, lane: lane.status }, false))}
                         </LaneBody>
@@ -513,15 +502,15 @@ export default function KdsPage() {
             </div>
 
             {display.showAllDay && (
-              <aside aria-label="All day" className="flex w-72 shrink-0 flex-col border-l border-rule/60 bg-card">
-                <div className="flex h-14 shrink-0 items-center justify-between border-b border-rule/60 px-4">
-                  <h2 className="text-lg font-bold">All day</h2>
+              <aside aria-label="All day" className="flex w-72 shrink-0 flex-col border-l border-border bg-card">
+                <div className="flex h-12 shrink-0 items-center justify-between border-b border-border px-4">
+                  <h2 className="text-base font-semibold text-heading">All day</h2>
                   <span className="text-sm text-muted-foreground">New + preparing</span>
                 </div>
                 {allDayLines.length === 0 ? (
                   <p className="p-4 text-base text-muted-foreground">Nothing to make.</p>
                 ) : (
-                  <ul className="kds-scrollbar min-h-0 flex-1 divide-y divide-rule/45 overflow-y-auto" style={zoom}>
+                  <ul className="kds-scrollbar min-h-0 flex-1 divide-y divide-border overflow-y-auto" style={zoom}>
                     {allDayLines.map((line) => (
                       <li key={line.name} className="flex items-baseline gap-3 px-4 py-2.5">
                         <span data-figure className="w-10 shrink-0 text-2xl font-bold tabular-nums">
@@ -536,9 +525,9 @@ export default function KdsPage() {
             )}
 
             {recallOpen && (
-              <aside aria-label="Recall" className="flex w-80 shrink-0 flex-col border-l border-rule/60 bg-card">
-                <div className="flex h-14 shrink-0 items-center justify-between border-b border-rule/60 pl-4 pr-2">
-                  <h2 className="text-lg font-bold">Recently moved</h2>
+              <aside aria-label="Recall" className="flex w-80 shrink-0 flex-col border-l border-border bg-card">
+                <div className="flex h-12 shrink-0 items-center justify-between border-b border-border pr-1 pl-4">
+                  <h2 className="text-base font-semibold text-heading">Recently moved</h2>
                   <Button variant="ghost" size="icon" onClick={() => setRecallOpen(false)} aria-label="Close recall" className="size-11">
                     <X size={18} />
                   </Button>
@@ -548,13 +537,13 @@ export default function KdsPage() {
                     Tickets you move on this screen appear here, so a mis-tap can be put back.
                   </p>
                 ) : (
-                  <ul className="min-h-0 flex-1 divide-y divide-rule/45 overflow-y-auto">
+                  <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
                     {recent.map((entry) => {
                       const back = PREVIOUS_STATUS[entry.to];
                       return (
-                        <li key={`${entry.id}-${entry.at}`} className="flex items-center gap-3 px-4 py-3">
+                        <li key={`${entry.id}-${entry.at}`} className="flex items-center gap-2 py-3 pr-2 pl-4">
                           <span className="min-w-0 flex-1">
-                            <span className="block truncate text-base font-semibold">{entry.name}</span>
+                            <span className="block truncate text-base font-semibold text-heading">{entry.name}</span>
                             <span className="block text-sm text-muted-foreground">
                               {entry.to === 'done' ? 'Collected' : `Moved to ${LANE_LABEL[entry.to as KdsLane]}`} ·{' '}
                               {formatInstant(entry.at, { hour: '2-digit', minute: '2-digit' }, '—', [])}
@@ -567,6 +556,19 @@ export default function KdsPage() {
                           ) : (
                             <span className="shrink-0 text-xs text-muted-foreground">Can’t reopen</span>
                           )}
+                          {/* A collected order can't come back here, but it can still be looked up. */}
+                          {canOpenOrders && (
+                            <Tooltip label="Open in Orders" side="left">
+                              <Button variant="ghost" size="icon" asChild className="size-11 shrink-0 text-muted-foreground">
+                                <Link
+                                  href={`/orders?order=${encodeURIComponent(entry.id)}&location=all`}
+                                  aria-label={`Open ${entry.name} in Orders`}
+                                >
+                                  <ExternalLink size={17} aria-hidden="true" />
+                                </Link>
+                              </Button>
+                            </Tooltip>
+                          )}
                         </li>
                       );
                     })}
@@ -576,68 +578,47 @@ export default function KdsPage() {
             )}
           </div>
         )}
-
-        {undo && (
-          <div role="status" className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
-            <div className="pointer-events-auto flex items-center gap-4 rounded-xl bg-foreground py-2 pl-5 pr-2 text-background shadow-xl">
-              <span className="text-base font-medium">
-                {undo.name} {undo.to === 'done' ? 'collected' : `moved to ${LANE_LABEL[undo.to as KdsLane]}`}
-              </span>
-              {PREVIOUS_STATUS[undo.to] ? (
-                <Button
-                  variant="ghost"
-                  onClick={() => moveBack(undo)}
-                  className="h-12 gap-2 px-4 text-base text-background hover:bg-background/10 hover:text-background"
-                >
-                  <RotateCcw size={17} aria-hidden="true" /> Undo
-                </Button>
-              ) : (
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  onClick={() => setUndo(null)}
-                  aria-label="Dismiss"
-                  className="size-12 text-background hover:bg-background/10 hover:text-background"
-                >
-                  <X size={18} />
-                </Button>
-              )}
-            </div>
-          </div>
-        )}
       </div>
     </EditorShell>
   );
 }
 
+/** A quiet icon key in the kitchen bar; its word is the tooltip and the accessible name. */
 function ToolbarButton({
   active,
   onClick,
   label,
-  iconOnly = false,
+  badge = 0,
   children,
 }: {
   active: boolean;
   onClick: () => void;
   label: string;
-  iconOnly?: boolean;
+  /** A small count in the corner (Recall's recent moves). */
+  badge?: number;
   children: React.ReactNode;
 }) {
   return (
-    <Button
-      variant="ghost"
-      onClick={onClick}
-      aria-pressed={active}
-      aria-label={iconOnly ? label : undefined}
-      className={cn(
-        'h-12 gap-2 text-base',
-        iconOnly ? 'w-12 px-0' : 'px-3.5',
-        active ? 'bg-band text-foreground' : 'text-muted-foreground',
-      )}
-    >
-      {children}
-      {!iconOnly && label}
-    </Button>
+    <Tooltip label={label} side="bottom">
+      <Button
+        variant="ghost"
+        onClick={onClick}
+        aria-pressed={active}
+        aria-label={badge > 0 ? `${label} (${badge})` : label}
+        className={cn('relative size-10 px-0', active ? 'bg-band text-heading' : 'text-muted-foreground')}
+      >
+        {children}
+        {badge > 0 && (
+          <span
+            data-figure
+            aria-hidden="true"
+            className="absolute top-1 right-1 flex h-4 min-w-4 items-center justify-center rounded-sm bg-heading px-0.5 text-[10px] font-semibold tabular-nums text-background"
+          >
+            {badge}
+          </span>
+        )}
+      </Button>
+    </Tooltip>
   );
 }
 
@@ -674,14 +655,19 @@ function LaneBody({
       </div>
     );
   }
-  if (lane.orders.length === 0) return <Empty label={empty} />;
+  if (lane.orders.length === 0) return <Empty label={empty} icon={LANE_EMPTY_ICON[lane.status]} />;
   return <>{children}</>;
 }
 
-function Empty({ label }: { label: string }) {
+/** Each lane's own picture when it's empty: tickets to come, the pass, the bell. */
+const LANE_EMPTY_ICON: Record<KdsLane, typeof Bell> = { pending: ClipboardList, preparing: ChefHat, ready: Bell };
+
+function Empty({ label, icon: Icon = ClipboardList }: { label: string; icon?: typeof Bell }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center gap-2 py-16 text-center">
-      <Coffee size={30} className="text-muted-foreground/40" aria-hidden="true" />
+      {/* Faded as one layer (opacity), not with a see-through stroke colour — a translucent
+          stroke darkens wherever the icon's own lines cross. */}
+      <Icon size={30} className="text-muted-foreground opacity-40" aria-hidden="true" />
       <p className="text-base font-medium text-muted-foreground">{label}</p>
     </div>
   );

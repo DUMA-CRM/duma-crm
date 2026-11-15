@@ -339,7 +339,7 @@ function StepPanel({
             type="button"
             onClick={onPreview}
             aria-label={`Preview ${selectedTemplate.name}`}
-            className="group relative mt-4 block w-full overflow-hidden rounded-md border border-rule/60 bg-white text-left focus-visible:outline-2 focus-visible:outline-ring"
+            className="group relative mt-4 block w-full overflow-hidden rounded-md border border-border bg-white text-left focus-visible:outline-2 focus-visible:outline-ring"
           >
             <span className="block aspect-4/3 overflow-hidden">
               <iframe
@@ -350,7 +350,7 @@ function StepPanel({
                 className="pointer-events-none h-150 w-[200%] origin-top-left scale-50 border-0 bg-white"
               />
             </span>
-            <span className="flex items-center gap-2 border-t border-rule/45 bg-card px-3 py-2.5">
+            <span className="flex items-center gap-2 border-t border-border bg-card px-3 py-2.5">
               <span className="min-w-0 flex-1">
                 <span className="block truncate text-xs font-semibold text-foreground">{selectedTemplate.subject}</span>
                 <span className="block text-micro text-muted-foreground">Subject line</span>

@@ -282,9 +282,9 @@ function TableMenu({ editor }: { editor: Editor }) {
       className="z-30"
     >
       {state.inTable && (
-        <div role="toolbar" aria-label="Table" className="flex items-center gap-0.5 rounded-lg border border-rule/70 bg-card p-1 shadow-lg">
+        <div role="toolbar" aria-label="Table" className="flex items-center gap-0.5 rounded-lg border border-border bg-card p-1 shadow-lg">
           {groups.map((group, index) => (
-            <div key={index} className={cn('flex items-center gap-0.5', index > 0 && 'ml-0.5 border-l border-rule/50 pl-1')}>
+            <div key={index} className={cn('flex items-center gap-0.5', index > 0 && 'ml-0.5 border-l border-border pl-1')}>
               {group.map((tool) => (
                 <Tooltip key={tool.label} side="top" label={tool.label}>
                   <button
@@ -309,7 +309,7 @@ function TableMenu({ editor }: { editor: Editor }) {
               type="button"
               onMouseDown={(event) => event.preventDefault()}
               onClick={() => editor.chain().focus().mergeOrSplit().run()}
-              className="ml-0.5 h-7 rounded-md border-l border-rule/50 px-2 text-xs font-medium text-foreground transition-colors hover:bg-band"
+              className="ml-0.5 h-7 rounded-md border-l border-border px-2 text-xs font-medium text-foreground transition-colors hover:bg-band"
             >
               {state.canMerge ? 'Merge cells' : 'Split cell'}
             </button>

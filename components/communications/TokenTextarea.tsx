@@ -25,7 +25,7 @@ export const TokenTextarea = forwardRef<
   // stable gutter included, or a scrollbar appearing would rewrap one layer only.
   const type = cn('p-3 whitespace-pre-wrap break-words [scrollbar-gutter:stable]', className);
   return (
-    <div className="relative rounded-md border border-rule/60 bg-background focus-within:border-primary">
+    <div className="relative rounded-md border border-border bg-background focus-within:border-primary">
       <div ref={mirror} aria-hidden="true" className={cn(type, 'pointer-events-none absolute inset-0 overflow-hidden text-transparent')}>
         {tokenSegments(value, variables).map((segment, index) =>
           segment.unknown ? (

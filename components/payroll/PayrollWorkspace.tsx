@@ -1,17 +1,19 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, useReducedMotion } from 'motion/react';
-import { useMemo, useState } from 'react';
+import { motion } from 'motion/react';
+import { Fragment, useMemo, useState } from 'react';
 
+import { RowWarning } from '@/components/cms/rows';
 import {
   AlertTriangle,
   ArrowLeft,
   Banknote,
   Building2,
+  CalendarRange,
   CheckCircle2,
-  ChevronRight,
   CircleAlert,
+  Clock,
   Download,
   History,
   Loader2,
@@ -21,21 +23,26 @@ import {
   Users,
   Wallet,
 } from '@/components/icons';
+import type { IconComponent } from '@/components/icons';
 import { LineEditor } from '@/components/payroll/LineEditor';
 import { PayLineDrawer } from '@/components/payroll/PayLineDrawer';
 import { PayrollSettingsDrawer } from '@/components/payroll/PayrollSettingsDrawer';
-import { Fact } from '@/components/settings/controls';
+import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
+import { ChangeRow, Fact, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { Avatar } from '@/components/shared/Avatar';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { MiniBar } from '@/components/shared/MiniBar';
+import { IconTag } from '@/components/shared/IconTag';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { Pill } from '@/components/shared/Pill';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { Bone, LoadingState } from '@/components/shared/Skeleton';
-import { TileSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { FactsSkeleton, ListSkeleton, LoadingState } from '@/components/shared/Skeleton';
+import type { Tone } from '@/components/shared/tone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -66,21 +73,30 @@ import { useMoney, usePayrollSettings } from './usePayroll';
 
 type View = { kind: 'runs' } | { kind: 'run'; id: string } | { kind: 'new' };
 
-const STATUS_CHIP: Record<string, { label: string; variant: 'muted' | 'warning' | 'success' | 'primary' }> = {
-  draft: { label: 'Draft', variant: 'muted' },
-  figures: { label: 'Needs figures', variant: 'warning' },
-  ready: { label: 'Ready to issue', variant: 'primary' },
-  issued: { label: 'Issued', variant: 'success' },
-  superseded: { label: 'Set aside', variant: 'muted' },
+type Stage = 'draft' | 'figures' | 'ready' | 'issued' | 'superseded';
+
+/** Where a run is up to — the word, the row tile's tone and glyph. */
+const STAGE: Record<Stage, { label: string; tone: Tone; icon: IconComponent }> = {
+  draft: { label: 'Draft', tone: 'muted', icon: History },
+  figures: { label: 'Needs figures', tone: 'warning', icon: Wallet },
+  ready: { label: 'Ready to issue', tone: 'primary', icon: Send },
+  issued: { label: 'Issued', tone: 'success', icon: CheckCircle2 },
+  superseded: { label: 'Set aside', tone: 'muted', icon: History },
 };
 
 /** Where a run is up to, in the words the list and the run agree on. */
-function stageOf(run: PayrollRun): keyof typeof STATUS_CHIP {
+function stageOf(run: PayrollRun): Stage {
   if (run.status === 'issued') return 'issued';
   if (run.status === 'superseded') return 'superseded';
   if (run.status === 'draft') return 'draft';
   return run.lines.length > 0 && run.lines.every(lineIsComplete) ? 'ready' : 'figures';
 }
+
+const CARD = 'rounded-lg border border-border bg-card shadow-sm';
+const FACTS = 'grid gap-2 sm:grid-cols-2 xl:grid-cols-4';
+const STAGGER = { shown: { transition: { staggerChildren: 0.06 } } };
+
+const people = (count: number) => `${count} ${count === 1 ? 'person' : 'people'}`;
 
 /**
  * Payroll, the way pay-run tools work: a list of pay runs, one open run at a
@@ -90,6 +106,10 @@ function stageOf(run: PayrollRun): keyof typeof STATUS_CHIP {
  * Country-agnostic by design: periods are weekly, fortnightly, twice-monthly
  * or monthly; money is in the workspace's currency; deductions are named lines
  * the country only suggests. Nothing here computes tax, in any country.
+ *
+ * Laid out as a workload screen: the figures that matter as `Fact` tiles, the
+ * runs and the people in a run as one list each, a run opening in place of
+ * the list and a payslip in a drawer.
  */
 export function PayrollWorkspace() {
   const capabilities = useAuthStore((state) => state.capabilities);
@@ -104,7 +124,7 @@ export function PayrollWorkspace() {
   const openRun = view.kind === 'run' ? (runs.data ?? []).find((run) => run.id === view.id) : undefined;
 
   return (
-    <div className="space-y-5">
+    <motion.div key={view.kind} className="flex flex-col gap-5" initial="hidden" animate="shown" variants={STAGGER}>
       {view.kind === 'runs' && (
         <RunsView
           runs={runs.data ?? []}
@@ -115,7 +135,7 @@ export function PayrollWorkspace() {
           period={settings.data?.payrollPeriod ?? 'monthly'}
           onOpen={(id) => setView({ kind: 'run', id })}
           onNew={() => setView({ kind: 'new' })}
-          onSettings={() => setSettingsOpen(true)}
+          onSettings={settings.data ? () => setSettingsOpen(true) : undefined}
           country={settings.data?.payrollCountry ?? null}
         />
       )}
@@ -146,7 +166,63 @@ export function PayrollWorkspace() {
           />
         ))}
       {settingsOpen && settings.data && <PayrollSettingsDrawer settings={settings.data} onClose={() => setSettingsOpen(false)} />}
-    </div>
+    </motion.div>
+  );
+}
+
+// ── Aligned figures ───────────────────────────────────────────────────────────
+
+/** One money column. The header names it once; `label` keeps it named for screen readers. */
+function Cell({
+  label,
+  children,
+  narrow = false,
+  className,
+}: {
+  label: string;
+  children: React.ReactNode;
+  /** Dropped below `sm`. */
+  narrow?: boolean;
+  className?: string;
+}) {
+  return (
+    <span className={cn('w-24 text-right text-sm tabular-nums sm:w-28', narrow && 'hidden sm:block', className)}>
+      <span className="sr-only">{label}: </span>
+      {children}
+    </span>
+  );
+}
+
+/**
+ * The column names, once, as the list's first line — drawn on the same grid as
+ * a `ListRow` (tile and text, trailing cells, the chevron's width) so every
+ * figure sits under its name.
+ */
+function ColumnHeads({ first, columns }: { first: string; columns: { label: string; narrow?: boolean }[] }) {
+  return (
+    <li aria-hidden="true" className="flex items-center gap-3 border-b border-border bg-band/35 px-3.5 py-2 text-xs text-muted-foreground">
+      <span className="min-w-0 flex-1">{first}</span>
+      <span className="flex shrink-0 items-center gap-2">
+        {columns.map((column) => (
+          <span key={column.label} className={cn('w-24 text-right sm:w-28', column.narrow && 'hidden sm:block')}>
+            {column.label}
+          </span>
+        ))}
+      </span>
+      <span className="w-3.5 shrink-0" />
+    </li>
+  );
+}
+
+function BackLink({ onBack }: { onBack: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onBack}
+      className="flex w-fit items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
+    >
+      <ArrowLeft size={15} /> Pay runs
+    </button>
   );
 }
 
@@ -173,209 +249,172 @@ function RunsView({
   country: string | null;
   onOpen: (id: string) => void;
   onNew: () => void;
-  onSettings: () => void;
+  onSettings?: () => void;
 }) {
   const money = useMoney();
-  const reduceMotion = useReducedMotion();
   const groups = useMemo(() => groupByPeriod(runs), [runs]);
   const open = runs.find((run) => stageOf(run) === 'figures' || stageOf(run) === 'ready');
+  const lastIssued = runs.filter((run) => run.status === 'issued').sort((a, b) => (b.issuedAt ?? '').localeCompare(a.issuedAt ?? ''))[0];
   const current = periodContaining(period, new Date());
+  const unread = error ? '—' : null;
+
+  const list = loading ? (
+    <ListSkeleton rows={3} label="Loading pay runs" />
+  ) : error ? (
+    // Financial records: "couldn't read" and "there are none" are different claims.
+    <div className={CARD}>
+      <ErrorState
+        icon={History}
+        title="Pay runs couldn’t be loaded"
+        description="No run has been read, so this is not a statement that none exist."
+        onRetry={onRetry}
+      />
+    </div>
+  ) : runs.length === 0 ? (
+    <div className={CARD}>
+      <EmptyState
+        compact
+        icon={History}
+        title="No pay runs yet"
+        description="Run payroll to freeze a period’s hours and pay into a record here."
+        action={canWrite ? { label: 'Run payroll', onClick: onNew, icon: Play } : undefined}
+      />
+    </div>
+  ) : (
+    <ListRowGroup>
+      <ColumnHeads first="Period" columns={[{ label: 'Gross', narrow: true }, { label: 'Net' }]} />
+      {groups.map((group) => (
+        <Fragment key={group.key}>
+          {hasDuplicates(group) && <DuplicateNotice group={group} canWrite={canWrite} />}
+          {group.runs.map((run) => (
+            <RunRow key={run.id} run={run} money={money} onOpen={() => onOpen(run.id)} />
+          ))}
+        </Fragment>
+      ))}
+    </ListRowGroup>
+  );
 
   return (
     <>
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <p className="text-sm text-muted-foreground">
-          {PERIOD_LABEL[period].name} · {countryByCode(country)?.name ?? 'No country set'}
-        </p>
-        <div className="flex items-center gap-2">
-          <Button variant="outline" onClick={onSettings} className="gap-1.5">
-            <Settings size={15} /> Payroll settings
-          </Button>
-          {canWrite && (
-            <Button onClick={onNew} className="gap-1.5">
-              <Play size={15} /> Run payroll
-            </Button>
-          )}
-        </div>
-      </div>
-
-      {/* The one thing to do next. */}
-      {!loading && !error && (
-        <div className="flex flex-wrap items-center gap-4 rounded-lg border border-rule/60 bg-field px-5 py-4">
-          <span
-            className={cn(
-              'flex size-11 shrink-0 items-center justify-center rounded-md',
-              open ? 'bg-measured/10 text-measured' : 'bg-primary/8 text-primary',
-            )}
-          >
-            {open ? <Wallet size={20} aria-hidden="true" /> : <CheckCircle2 size={20} aria-hidden="true" />}
-          </span>
-          <div className="min-w-0 flex-1">
-            {open ? (
-              <>
-                <p className="text-sm font-semibold text-foreground">
-                  {stageOf(open) === 'ready'
-                    ? `${rangeLabel(open.periodStart, open.periodEnd)} is ready to issue`
-                    : `Finish ${rangeLabel(open.periodStart, open.periodEnd)}`}
-                </p>
-                <p className="text-xs text-muted-foreground">
-                  {runTotals(open.lines).entered} of {open.lines.length} payslips have their figures
-                </p>
-              </>
-            ) : (
-              <>
-                <p className="text-sm font-semibold text-foreground">Nothing waiting</p>
-                <p className="text-xs text-muted-foreground">Next pay run: {current.label}</p>
-              </>
-            )}
-          </div>
-          {open ? (
-            <Button variant="outline" onClick={() => onOpen(open.id)} className="gap-1">
-              Continue <ChevronRight size={14} />
-            </Button>
-          ) : (
-            canWrite && (
-              <Button variant="outline" onClick={onNew} className="gap-1">
-                Start {current.label} <ChevronRight size={14} />
-              </Button>
-            )
-          )}
-        </div>
-      )}
-
       {loading ? (
-        <section role="status" aria-busy="true" aria-label="Loading pay runs">
-          <Bone className="mx-1 mb-2 h-3.5 w-20" />
-          <div className="space-y-2" aria-hidden="true">
-            {[0, 1, 2].map((index) => (
-              <TileSkeleton
-                key={index}
-                index={index}
-                tile={null}
-                trailing={['hidden h-8 w-28 sm:block', 'hidden h-8 w-28 md:block']}
-                className="gap-4 border-rule/60 bg-field px-4"
-              />
-            ))}
-          </div>
-        </section>
-      ) : error ? (
-        // Financial records: "couldn't read" and "there are none" are different claims.
-        <ErrorState
-          icon={History}
-          title="Pay runs couldn’t be loaded"
-          description="No run has been read, so this is not a statement that none exist."
-          onRetry={onRetry}
-        />
-      ) : runs.length === 0 ? (
-        <EmptyState
-          icon={History}
-          title="No pay runs yet"
-          description="Run payroll to freeze a period’s hours and pay into a record here."
-          action={canWrite ? { label: 'Run payroll', onClick: onNew, icon: Play } : undefined}
-        />
+        <FactsSkeleton count={4} surface="card" label="Loading payroll" className={FACTS} />
       ) : (
-        <section>
-          <h3 className="mb-2 px-1 text-sm font-semibold text-foreground">Pay runs</h3>
-          <ul className="space-y-2">
-            {groups.map((group) => (
-              <PeriodRows key={group.key} group={group} canWrite={canWrite} onOpen={onOpen} money={money} reduceMotion={!!reduceMotion} />
-            ))}
-          </ul>
-        </section>
+        <motion.dl variants={SECTION_RISE} className={FACTS}>
+          <Fact
+            surface="card"
+            icon={Settings}
+            label="Pay schedule"
+            value={PERIOD_LABEL[period].name}
+            hint={countryByCode(country)?.name ?? 'No country set'}
+            onSelect={onSettings}
+            action={canWrite && onSettings ? 'Change' : undefined}
+          />
+          <Fact surface="card" icon={CalendarRange} label="Next pay run" value={current.label} />
+          {open ? (
+            <Fact
+              surface="card"
+              icon={Wallet}
+              label={STAGE[stageOf(open)].label}
+              value={rangeLabel(open.periodStart, open.periodEnd)}
+              hint={`${runTotals(open.lines).entered} of ${open.lines.length} payslips entered`}
+              tone={stageOf(open) === 'figures' ? 'warning' : 'default'}
+              onSelect={() => onOpen(open.id)}
+            />
+          ) : (
+            <Fact
+              surface="card"
+              icon={CheckCircle2}
+              label="Open run"
+              value={unread ?? 'Nothing waiting'}
+              hint={error ? 'Couldn’t be loaded' : undefined}
+            />
+          )}
+          <Fact
+            surface="card"
+            icon={Banknote}
+            label="Last issued"
+            value={unread ?? (lastIssued ? money(runTotals(lastIssued.lines).net) : 'None yet')}
+            hint={
+              error ? 'Couldn’t be loaded' : lastIssued ? `Net · ${rangeLabel(lastIssued.periodStart, lastIssued.periodEnd)}` : undefined
+            }
+          />
+        </motion.dl>
       )}
+
+      <RecordGroup
+        id="pay-runs"
+        title="Pay runs"
+        actions={
+          canWrite && (
+            <Button size="sm" onClick={onNew}>
+              <Play data-icon="inline-start" />
+              Run payroll
+            </Button>
+          )
+        }
+      >
+        {list}
+      </RecordGroup>
     </>
   );
 }
 
-function PeriodRows({
-  group,
-  canWrite,
-  onOpen,
-  money,
-  reduceMotion,
-}: {
-  group: PeriodGroup;
-  canWrite: boolean;
-  onOpen: (id: string) => void;
-  money: (value: string | number) => string;
-  reduceMotion: boolean;
-}) {
-  const [combining, setCombining] = useState(false);
-  const duplicated = hasDuplicates(group);
-  const blocked = combineBlockedReason(group);
-
+function RunRow({ run, money, onOpen }: { run: PayrollRun; money: (value: string | number) => string; onOpen: () => void }) {
+  const stage = stageOf(run);
+  const totals = runTotals(run.lines);
+  const meta =
+    stage === 'issued' && run.issuedAt ? (
+      <>
+        Issued <RelativeTime iso={run.issuedAt} /> · {people(totals.people)}
+      </>
+    ) : stage === 'figures' ? (
+      `Needs figures · ${totals.entered} of ${totals.people} entered`
+    ) : (
+      `${STAGE[stage].label} · ${people(totals.people)}`
+    );
   return (
-    <li className={cn(duplicated && 'space-y-2 rounded-lg border border-measured/40 bg-measured/5 p-2')}>
-      {duplicated && (
-        <div className="flex flex-wrap items-center gap-2 px-2 py-1">
-          <AlertTriangle size={15} className="shrink-0 text-measured" aria-hidden="true" />
-          <p className="min-w-0 flex-1 text-sm text-foreground">
-            <span className="font-semibold">{group.active.length} runs cover this period</span> — the same work is recorded twice.{' '}
-            {blocked ?? 'Keep one and set the other aside.'}
-          </p>
-          {canWrite && !blocked && (
-            <Button size="sm" variant="outline" onClick={() => setCombining(true)}>
-              Combine
-            </Button>
-          )}
-        </div>
+    <ListRow
+      icon={STAGE[stage].icon}
+      tone={STAGE[stage].tone}
+      iconLabel={STAGE[stage].label}
+      title={rangeLabel(run.periodStart, run.periodEnd)}
+      meta={
+        <>
+          {meta} · {PERIOD_LABEL[run.period].name}
+        </>
+      }
+      muted={stage === 'superseded'}
+      onClick={onOpen}
+      trailing={
+        <>
+          <Cell label="Gross" narrow className="font-semibold text-foreground">
+            {money(totals.gross)}
+          </Cell>
+          <Cell label="Net" className={totals.entered === totals.people ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
+            {totals.entered === totals.people ? money(totals.net) : '—'}
+          </Cell>
+        </>
+      }
+    />
+  );
+}
+
+/** Two live runs for one period: the same work recorded twice. Said once, above the runs it is about. */
+function DuplicateNotice({ group, canWrite }: { group: PeriodGroup; canWrite: boolean }) {
+  const [combining, setCombining] = useState(false);
+  const blocked = combineBlockedReason(group);
+  return (
+    <li className="flex flex-wrap items-center gap-3 border-b border-border bg-measured/6 px-3.5 py-2.5">
+      <AlertTriangle size={15} className="shrink-0 text-measured" aria-hidden="true" />
+      <p className="min-w-0 flex-1 text-sm text-foreground">
+        <span className="font-semibold">{group.active.length} runs cover this period</span> — the same work is recorded twice.{' '}
+        {blocked ?? 'Keep one and set the other aside.'}
+      </p>
+      {canWrite && !blocked && (
+        <Button size="sm" variant="outline" onClick={() => setCombining(true)}>
+          Combine
+        </Button>
       )}
-      <ul className="space-y-2">
-        {group.runs.map((run, index) => {
-          const stage = stageOf(run);
-          const chip = STATUS_CHIP[stage];
-          const totals = runTotals(run.lines);
-          return (
-            <motion.li
-              key={run.id}
-              initial={reduceMotion ? false : { opacity: 0, y: 4 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: reduceMotion ? 0 : Math.min(index, 6) * 0.03 }}
-            >
-              <button
-                type="button"
-                onClick={() => onOpen(run.id)}
-                className={cn(
-                  'group flex w-full items-center gap-4 rounded-lg border border-rule/60 bg-field px-4 py-3 text-left transition-colors hover:bg-band/40',
-                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                  stage === 'superseded' && 'opacity-60',
-                )}
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="flex items-center gap-2">
-                    <span className="text-sm font-semibold text-foreground">{rangeLabel(run.periodStart, run.periodEnd)}</span>
-                    <RunSteps stage={stage} label={chip.label} />
-                  </span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    {PERIOD_LABEL[run.period].name} · {totals.people} {totals.people === 1 ? 'person' : 'people'}
-                    {run.issuedAt && (
-                      <>
-                        {' '}
-                        · issued <RelativeTime iso={run.issuedAt} />
-                      </>
-                    )}
-                  </span>
-                </span>
-                <span className="hidden w-28 text-right sm:block">
-                  <span className="block text-xs text-muted-foreground">Gross</span>
-                  <span className="block text-sm font-semibold text-foreground">{money(totals.gross)}</span>
-                </span>
-                <span className="hidden w-28 text-right md:block">
-                  <span className="block text-xs text-muted-foreground">Net</span>
-                  <span className="block text-sm font-semibold text-foreground">
-                    {totals.entered === totals.people ? money(totals.net) : '—'}
-                  </span>
-                </span>
-                <ChevronRight
-                  size={15}
-                  className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                  aria-hidden="true"
-                />
-              </button>
-            </motion.li>
-          );
-        })}
-      </ul>
       {combining && <CombineDialog group={group} onClose={() => setCombining(false)} />}
     </li>
   );
@@ -403,13 +442,13 @@ function CombineDialog({ group, onClose }: { group: PeriodGroup; onClose: () => 
       message={
         <div className="space-y-3 text-left">
           <p>Nothing is merged or deleted. The run you keep stays as it is; the others are set aside, still readable.</p>
-          <ul className="space-y-2">
+          <ul className="overflow-hidden rounded-lg border border-border">
             {group.active.map((run) => (
-              <li key={run.id}>
-                <label className="flex cursor-pointer items-center gap-3 rounded-lg border border-rule/60 p-3 hover:bg-band/40">
+              <li key={run.id} className="border-b border-border last:border-b-0">
+                <label className="flex cursor-pointer items-center gap-3 p-3 hover:bg-band/40">
                   <input type="radio" name="payroll-survivor" checked={survivorId === run.id} onChange={() => setSurvivorId(run.id)} />
                   <span className="min-w-0 text-sm">
-                    <span className="font-semibold">{STATUS_CHIP[stageOf(run)].label}</span> · {money(runTotals(run.lines).gross)} gross ·
+                    <span className="font-semibold">{STAGE[stageOf(run)].label}</span> · {money(runTotals(run.lines).gross)} gross ·
                     finalised {formatDate(run.finalisedAt)}
                   </span>
                 </label>
@@ -433,10 +472,12 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
   const qc = useQueryClient();
   const money = useMoney();
   const [editing, setEditing] = useState<PayrollRunLine | null>(null);
+  const [issuing, setIssuing] = useState(false);
   const [confirming, setConfirming] = useState(false);
   const [source, setSource] = useState('');
   const stage = stageOf(run);
   const totals = runTotals(run.lines);
+  const allEntered = totals.entered === totals.people;
   const editable = canWrite && (stage === 'figures' || stage === 'ready');
   const lines = [...run.lines].sort(
     (a, b) => Number(lineIsComplete(a)) - Number(lineIsComplete(b)) || (a.employeeName ?? '').localeCompare(b.employeeName ?? ''),
@@ -455,181 +496,178 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
     onError: (error) => toast('error', (error as Error).message || 'The run wasn’t issued. Try again.'),
   });
 
-  const steps = [
-    { label: 'Hours & gross', done: true, detail: 'Frozen when the run was finalised' },
-    {
-      label: 'Deductions',
-      done: totals.entered === totals.people && totals.people > 0,
-      detail: `${totals.entered} of ${totals.people} entered`,
-    },
-    {
-      label: 'Issue payslips',
-      done: stage === 'issued',
-      detail: stage === 'issued' ? `Issued ${formatDate(run.issuedAt)}` : 'Employees see them in My HR',
-    },
-  ];
+  const deductionsDone = allEntered && totals.people > 0;
 
   return (
     <>
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft size={15} /> Pay runs
-      </button>
+      <BackLink onBack={onBack} />
 
-      <header className="flex flex-wrap items-start justify-between gap-3">
-        <div>
-          <h2 className="flex items-center gap-2 text-xl font-semibold tracking-headline text-foreground">
+      <motion.header variants={SECTION_RISE} className="flex flex-wrap items-start justify-between gap-3">
+        <div className="min-w-0">
+          <h2 className="flex flex-wrap items-center gap-2 text-2xl font-semibold tracking-headline text-heading">
             {rangeLabel(run.periodStart, run.periodEnd)}
-            {/* The steps below say where a live run is up to; nothing says a
-                run was set aside, and that is the one reading that must not be missed. */}
+            {/* A set-aside run is the one reading that must not be missed. */}
             {stage === 'superseded' && <Pill tone="muted">Set aside</Pill>}
           </h2>
           <p className="mt-1 text-sm text-muted-foreground">
-            {PERIOD_LABEL[run.period].name} · finalised {formatDate(run.finalisedAt)}
+            {PERIOD_LABEL[run.period].name} · {people(totals.people)}
             {run.deductionsSource ? ` · figures from ${run.deductionsSource}` : ''}
           </p>
         </div>
-        <Button variant="outline" className="gap-1.5" onClick={() => exportRun(run)}>
-          <Download size={15} /> Export for your accountant
+        <Button variant="outline" onClick={() => exportRun(run)}>
+          <Download data-icon="inline-start" />
+          Export for your accountant
         </Button>
-      </header>
+      </motion.header>
 
-      {/* Where this run is up to. */}
-      <ol className="grid gap-2 sm:grid-cols-3">
-        {steps.map((step, index) => (
-          <li
-            key={step.label}
-            className={cn(
-              'flex items-center gap-3 rounded-lg border px-4 py-3',
-              step.done ? 'border-rule/60 bg-field' : 'border-dashed border-rule/70',
-            )}
+      {/* The run's totals beside where it is up to. */}
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+        <motion.dl variants={SECTION_RISE} className="grid min-w-0 gap-2 sm:grid-cols-2">
+          <Fact surface="card" icon={Banknote} label="Gross pay" value={money(totals.gross)} hint={people(totals.people)} />
+          <Fact surface="card" icon={Wallet} label="Taken from pay" value={money(totals.employeeDeductions)} hint="Tax and contributions" />
+          <Fact
+            surface="card"
+            icon={Users}
+            label="Net pay"
+            value={allEntered ? money(totals.net) : '—'}
+            hint={allEntered ? 'Paid to employees' : 'Shown once every payslip is entered'}
+          />
+          <Fact
+            surface="card"
+            icon={Building2}
+            label="Cost to the business"
+            value={money(totals.totalCost)}
+            hint={`Includes ${money(totals.employerCost)} employer contributions`}
+          />
+        </motion.dl>
+
+        <SettingsSection title="Progress">
+          <ChangeRow
+            icon={Clock}
+            label="Hours and gross"
+            value={
+              <>
+                Frozen <ValueAside>· {formatDate(run.finalisedAt)}</ValueAside>
+              </>
+            }
+            trailing={<IconTag icon={CheckCircle2} label="Done" tone="success" size={16} />}
+          />
+          <ChangeRow
+            icon={Wallet}
+            label="Deductions"
+            value={
+              <>
+                {totals.entered} of {totals.people} entered
+                {!deductionsDone && stage !== 'superseded' && <ValueAside>· {totals.people - totals.entered} to go</ValueAside>}
+              </>
+            }
+            trailing={deductionsDone ? <IconTag icon={CheckCircle2} label="Done" tone="success" size={16} /> : undefined}
+          />
+          <ChangeRow
+            icon={Send}
+            label="Payslips"
+            value={
+              stage === 'issued' ? (
+                <>
+                  Issued <ValueAside>· {formatDate(run.issuedAt)}</ValueAside>
+                </>
+              ) : stage === 'superseded' ? (
+                <ValueMissing>Set aside — never issued</ValueMissing>
+              ) : (
+                <ValueMissing>{stage === 'ready' ? 'Ready to issue' : 'Not issued'}</ValueMissing>
+              )
+            }
+            trailing={stage === 'issued' ? <IconTag icon={CheckCircle2} label="Done" tone="success" size={16} /> : undefined}
+            open={issuing}
+            onToggle={
+              editable && stage === 'ready'
+                ? () => {
+                    setIssuing((current) => !current);
+                    setSource('');
+                  }
+                : undefined
+            }
+            verbs={['Issue', 'Cancel']}
           >
-            <span
-              className={cn(
-                'flex size-8 shrink-0 items-center justify-center rounded-md text-sm font-semibold',
-                step.done ? 'bg-primary text-primary-foreground' : 'bg-band text-muted-foreground',
-              )}
-            >
-              {step.done ? <CheckCircle2 size={16} aria-hidden="true" /> : index + 1}
-            </span>
-            <span className="min-w-0">
-              <span className="block text-sm font-semibold text-foreground">{step.label}</span>
-              <span className="block truncate text-xs text-muted-foreground">{step.detail}</span>
-            </span>
-          </li>
-        ))}
-      </ol>
+            <div className="space-y-2">
+              <FieldLabel htmlFor="payroll-figures-source">Where the figures came from</FieldLabel>
+              <div className="flex flex-wrap gap-2">
+                <Input
+                  id="payroll-figures-source"
+                  value={source}
+                  onChange={(event) => setSource(event.target.value)}
+                  placeholder="e.g. BrightPay, or Kowalski Accounting"
+                  className="min-w-48 flex-1"
+                  autoFocus
+                />
+                <Button onClick={() => setConfirming(true)} disabled={!source.trim() || issue.isPending}>
+                  <Send data-icon="inline-start" />
+                  Issue {totals.people} payslips
+                </Button>
+              </div>
+              <p className="text-xs text-muted-foreground">Printed on each payslip.</p>
+            </div>
+          </ChangeRow>
+        </SettingsSection>
+      </div>
 
-      <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <Fact
-          surface="page"
-          icon={Banknote}
-          label="Gross pay"
-          value={money(totals.gross)}
-          hint={`${totals.people} ${totals.people === 1 ? 'person' : 'people'}`}
-        />
-        <Fact surface="page" icon={Wallet} label="Taken from pay" value={money(totals.employeeDeductions)} hint="Tax and contributions" />
-        <Fact
-          surface="page"
-          icon={Users}
-          label="Net pay"
-          value={totals.entered === totals.people ? money(totals.net) : '—'}
-          hint={totals.entered === totals.people ? 'Paid to employees' : 'Shown once every payslip is entered'}
-        />
-        <Fact
-          surface="page"
-          icon={Building2}
-          label="Cost to the business"
-          value={money(totals.totalCost)}
-          hint={`Includes ${money(totals.employerCost)} employer contributions`}
-        />
-      </dl>
-
-      <section>
-        {/* The column names once, above the rows, instead of on every row. */}
-        <div className="mb-2 flex items-end gap-4 px-4">
-          <h3 className="min-w-0 flex-1 text-sm font-semibold text-foreground">Payslips</h3>
-          <span className="hidden w-28 text-right text-xs text-muted-foreground sm:block">Gross</span>
-          <span className="hidden w-28 text-right text-xs text-muted-foreground sm:block">Deductions</span>
-          <span className="w-32 text-right text-xs text-muted-foreground">Net</span>
-          <span className="w-[15px] shrink-0" aria-hidden="true" />
-        </div>
-        <ul className="space-y-2">
-          {lines.map((line) => {
-            const done = lineIsComplete(line);
-            const lineTotals = itemTotals(line.items);
-            return (
-              <li key={line.id}>
-                <button
-                  type="button"
-                  onClick={() => setEditing(line)}
-                  className={cn(
-                    'group flex w-full items-center gap-4 rounded-lg border bg-field px-4 py-3 text-left transition-colors hover:bg-band/40',
-                    'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                    done ? 'border-rule/60' : 'border-dashed border-measured/50',
-                  )}
-                >
-                  <Avatar name={line.employeeName ?? 'Unknown'} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-foreground">{line.employeeName ?? 'Unknown'}</span>
-                    <span className="block text-xs text-muted-foreground">
-                      {hours(line.paidHours)} paid{' '}
-                      {line.payType === 'salaried' ? '· salaried' : line.hourlyRate ? `· ${money(line.hourlyRate)}/h` : ''}
-                    </span>
-                  </span>
-                  <Amount label="Gross" value={money(line.grossPay)} />
-                  <Amount label="Deductions" value={done ? `− ${money(lineTotals.employee)}` : '—'} muted />
-                  <span className="w-32 text-right">
-                    {done ? (
-                      <>
-                        <span className="block text-sm font-semibold text-foreground">{money(line.netPay)}</span>
-                        {Number(line.grossPay) > 0 && (
-                          <MiniBar
-                            value={Number(line.netPay)}
-                            max={Number(line.grossPay)}
-                            tone="success"
-                            label={`Net ${money(line.netPay)} of ${money(line.grossPay)} gross`}
-                            className="mt-1 ml-auto w-20"
-                          />
-                        )}
-                      </>
-                    ) : (
-                      <span className="text-xs font-semibold text-measured">{editable ? 'Enter figures' : 'Not entered'}</span>
-                    )}
-                  </span>
-                  <ChevronRight
-                    size={15}
-                    className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                    aria-hidden="true"
-                  />
-                </button>
-              </li>
-            );
-          })}
-        </ul>
-      </section>
-
-      {editable && stage === 'ready' && (
-        <section className="flex flex-wrap items-end gap-3 rounded-lg border border-primary/30 bg-primary/5 px-5 py-4">
-          <div className="min-w-64 flex-1">
-            <p className="text-sm font-semibold text-foreground">Every payslip has its figures</p>
-            <p className="text-xs text-muted-foreground">Say where they came from — it’s printed on each payslip.</p>
-            <Input
-              value={source}
-              onChange={(event) => setSource(event.target.value)}
-              placeholder="e.g. BrightPay, or Kowalski Accounting"
-              aria-label="Where the figures came from"
-              className="mt-2"
-            />
+      <RecordGroup id="payslips" title="Payslips">
+        {lines.length === 0 ? (
+          <div className={CARD}>
+            <EmptyState compact icon={Users} title="No one in this run" description="Nobody had hours or a salary when it was frozen." />
           </div>
-          <Button onClick={() => setConfirming(true)} disabled={!source.trim() || issue.isPending} className="gap-1.5">
-            <Send size={15} /> Issue {totals.people} payslips
-          </Button>
-        </section>
-      )}
+        ) : (
+          <ListRowGroup>
+            <ColumnHeads
+              first="Person"
+              columns={[{ label: 'Gross', narrow: true }, { label: 'Deductions', narrow: true }, { label: 'Net' }]}
+            />
+            {lines.map((line) => {
+              const done = lineIsComplete(line);
+              return (
+                <ListRow
+                  key={line.id}
+                  leading={<Avatar name={line.employeeName ?? 'Unknown'} />}
+                  title={line.employeeName ?? 'Unknown'}
+                  meta={`${hours(line.paidHours)} paid${
+                    line.payType === 'salaried' ? ' · salaried' : line.hourlyRate ? ` · ${money(line.hourlyRate)}/h` : ''
+                  }`}
+                  onClick={() => setEditing(line)}
+                  trailing={
+                    <>
+                      <Cell label="Gross" narrow className="text-foreground">
+                        {money(line.grossPay)}
+                      </Cell>
+                      <Cell label="Deductions" narrow className="text-muted-foreground">
+                        {done ? `− ${money(itemTotals(line.items).employee)}` : '—'}
+                      </Cell>
+                      <Cell label="Net" className={done ? 'font-semibold text-foreground' : 'text-xs font-semibold text-measured'}>
+                        {done ? money(line.netPay) : editable ? 'Enter figures' : 'Not entered'}
+                      </Cell>
+                    </>
+                  }
+                />
+              );
+            })}
+            {/* The run's own totals, under the columns they add up. */}
+            <li className="flex items-center gap-3 bg-band/35 px-3.5 py-3">
+              <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">Total</span>
+              <span className="flex shrink-0 items-center gap-2">
+                <Cell label="Gross" narrow className="font-semibold text-foreground">
+                  {money(totals.gross)}
+                </Cell>
+                <Cell label="Deductions" narrow className="text-muted-foreground">
+                  − {money(totals.employeeDeductions)}
+                </Cell>
+                <Cell label="Net" className={allEntered ? 'font-semibold text-foreground' : 'text-muted-foreground'}>
+                  {allEntered ? money(totals.net) : '—'}
+                </Cell>
+              </span>
+              <span className="w-3.5 shrink-0" aria-hidden="true" />
+            </li>
+          </ListRowGroup>
+        )}
+      </RecordGroup>
 
       {editing && <LineEditor runId={run.id} line={editing} country={country} editable={editable} onClose={() => setEditing(null)} />}
 
@@ -645,47 +683,6 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
         />
       )}
     </>
-  );
-}
-
-/** A figure under a column header named once above the list; `label` keeps it named for screen readers. */
-function Amount({ label, value, muted }: { label: string; value: string; muted?: boolean }) {
-  return (
-    <span className="hidden w-28 text-right sm:block">
-      <span className="sr-only">{label} </span>
-      <span className={cn('block text-sm', muted ? 'text-muted-foreground' : 'font-semibold text-foreground')}>{value}</span>
-    </span>
-  );
-}
-
-/** The run's three steps as dots — finalised, figures in, issued — with the stage word on hover. */
-const RUN_STEPS_DONE: Record<keyof typeof STATUS_CHIP, number> = { draft: 0, figures: 1, ready: 2, issued: 3, superseded: 0 };
-
-function RunSteps({ stage, label }: { stage: keyof typeof STATUS_CHIP; label: string }) {
-  const done = RUN_STEPS_DONE[stage];
-  return (
-    <span className="inline-flex items-center gap-1" role="img" aria-label={label} title={label}>
-      {[0, 1, 2].map((step) => (
-        <span
-          key={step}
-          aria-hidden="true"
-          className={cn(
-            'size-1.5 rounded-full',
-            stage === 'superseded'
-              ? 'bg-muted-foreground/30'
-              : step < done
-                ? stage === 'issued'
-                  ? 'bg-momentum'
-                  : 'bg-primary'
-                : step === done
-                  ? stage === 'figures'
-                    ? 'bg-measured'
-                    : 'border border-primary/60'
-                  : 'bg-band ring-1 ring-rule',
-          )}
-        />
-      ))}
-    </span>
   );
 }
 
@@ -763,21 +760,63 @@ function NewRunView({
   const unpayable = lines.filter(missingRate);
   const paidHours = worked.reduce((sum, line) => sum + line.paidHours, 0);
 
+  const list = preview.isPending ? (
+    <ListSkeleton rows={3} avatar label="Loading the hours" />
+  ) : preview.isError ? (
+    <div className={CARD}>
+      <ErrorState
+        icon={Users}
+        title="The hours couldn’t be loaded"
+        description="No hours have been read, so this is not a period with nobody in it."
+        onRetry={() => void preview.refetch()}
+      />
+    </div>
+  ) : lines.length === 0 ? (
+    <div className={CARD}>
+      <EmptyState compact icon={Users} title="Nobody to pay" description={`No one on the team has hours or a salary in ${range.label}.`} />
+    </div>
+  ) : (
+    <ListRowGroup>
+      <ColumnHeads first="Person" columns={[{ label: 'Hours', narrow: true }, { label: 'Rate', narrow: true }, { label: 'Gross' }]} />
+      {lines.map((line) => (
+        <ListRow
+          key={line.userId}
+          leading={<Avatar name={line.name} />}
+          title={line.name}
+          meta={line.jobTitle}
+          onClick={() => setExplaining(line)}
+          trailing={
+            <>
+              <Cell label="Hours" narrow className="text-muted-foreground">
+                {hours(line.paidHours)}
+              </Cell>
+              <Cell label="Rate" narrow className="text-muted-foreground">
+                {line.payType === 'salaried' ? 'Salaried' : line.hourlyRate ? `${money(line.hourlyRate)}/h` : '—'}
+              </Cell>
+              {missingRate(line) ? (
+                <Cell label="Gross" className="text-xs font-semibold text-exception">
+                  <span className="inline-flex items-center gap-1">
+                    <CircleAlert size={13} aria-hidden="true" /> No rate
+                  </span>
+                </Cell>
+              ) : (
+                <Cell label="Gross" className="font-semibold text-foreground">
+                  {money(line.grossPay)}
+                </Cell>
+              )}
+            </>
+          }
+        />
+      ))}
+    </ListRowGroup>
+  );
+
   return (
     <>
-      <button
-        type="button"
-        onClick={onBack}
-        className="flex items-center gap-1.5 text-sm font-medium text-muted-foreground hover:text-foreground"
-      >
-        <ArrowLeft size={15} /> Pay runs
-      </button>
+      <BackLink onBack={onBack} />
 
-      <header className="flex flex-wrap items-end gap-3">
-        <div className="min-w-0 flex-1">
-          <h2 className="text-xl font-semibold tracking-headline text-foreground">Run payroll</h2>
-          <p className="mt-1 text-sm text-muted-foreground">Check the hours and gross pay, then freeze them. Deductions come next.</p>
-        </div>
+      <motion.header variants={SECTION_RISE} className="flex flex-wrap items-end gap-3">
+        <h2 className="min-w-0 flex-1 text-2xl font-semibold tracking-headline text-heading">Run payroll</h2>
         <Select
           value={period}
           onValueChange={(value) => {
@@ -795,117 +834,61 @@ function NewRunView({
           ariaLabel="Which period"
           className="w-56"
         />
-      </header>
+      </motion.header>
 
       {existing && (
-        <p
-          className="flex items-start gap-2 rounded-lg border border-measured/40 bg-measured/5 px-4 py-3 text-sm text-foreground"
-          role="status"
-        >
-          <AlertTriangle size={15} className="mt-0.5 shrink-0 text-measured" aria-hidden="true" />
-          <span>
-            <span className="font-semibold">This period already has a pay run</span> ({STATUS_CHIP[stageOf(existing)].label.toLowerCase()}).
-            Running it again would record the same work twice.
-          </span>
-        </p>
+        <RowWarning className="text-sm">
+          This period already has a pay run ({STAGE[stageOf(existing)].label.toLowerCase()}). Running it again would record the same work
+          twice.
+        </RowWarning>
       )}
-
-      <dl className="grid gap-2 sm:grid-cols-2 xl:grid-cols-4">
-        <Fact
-          surface="page"
-          icon={Users}
-          label="To be paid"
-          value={preview.isPending ? '—' : worked.length}
-          hint={lines.length > worked.length ? `${lines.length - worked.length} with no hours` : 'Everyone on the team'}
-        />
-        <Fact
-          surface="page"
-          icon={History}
-          label="Paid hours"
-          value={preview.isPending ? '—' : hours(paidHours)}
-          hint="After unpaid breaks"
-        />
-        <Fact
-          surface="page"
-          icon={Banknote}
-          label="Gross pay"
-          value={preview.data ? money(preview.data.totals.gross) : '—'}
-          hint="Before deductions"
-        />
-        <Fact
-          surface="page"
-          icon={CircleAlert}
-          label="Can’t be paid"
-          value={preview.isPending ? '—' : unpayable.length}
-          hint={unpayable.length ? 'Hourly, with hours but no rate' : 'Everyone has a rate'}
-          tone={unpayable.length ? 'danger' : 'default'}
-        />
-      </dl>
 
       {preview.isPending ? (
-        <TilesSkeleton
-          count={3}
-          label="Loading the hours"
-          tile={null}
-          trailing={['hidden h-4 w-28 sm:block', 'hidden h-4 w-28 sm:block', 'h-4 w-32']}
-          tileClassName="gap-4 border-rule/60 bg-field px-4"
-        />
-      ) : preview.isError ? (
-        <ErrorState
-          icon={Users}
-          title="The hours couldn’t be loaded"
-          description="No hours have been read, so this is not a period with nobody in it."
-          onRetry={() => void preview.refetch()}
-        />
-      ) : lines.length === 0 ? (
-        <EmptyState icon={Users} title="Nobody to pay" description={`No one on the team has hours or a salary in ${range.label}.`} />
+        <FactsSkeleton count={4} surface="card" label="Loading the period" className={FACTS} />
       ) : (
-        <ul className="space-y-2">
-          {lines.map((line) => (
-            <li key={line.userId}>
-              <button
-                type="button"
-                onClick={() => setExplaining(line)}
-                className="group flex w-full items-center gap-4 rounded-lg border border-rule/60 bg-field px-4 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-foreground">{line.name}</span>
-                  <span className="block truncate text-xs text-muted-foreground">{line.jobTitle}</span>
-                </span>
-                <Amount label="Hours" value={hours(line.paidHours)} muted />
-                <Amount
-                  label="Rate"
-                  value={line.payType === 'salaried' ? 'Salaried' : line.hourlyRate ? `${money(line.hourlyRate)}/h` : '—'}
-                  muted
-                />
-                <span className="w-32 text-right">
-                  {missingRate(line) ? (
-                    <span className="inline-flex items-center gap-1 text-xs font-semibold text-exception">
-                      <CircleAlert size={13} aria-hidden="true" /> No rate
-                    </span>
-                  ) : (
-                    <>
-                      <span className="block text-xs text-muted-foreground">Gross</span>
-                      <span className="block text-sm font-semibold text-foreground">{money(line.grossPay)}</span>
-                    </>
-                  )}
-                </span>
-                <ChevronRight size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-              </button>
-            </li>
-          ))}
-        </ul>
+        <motion.dl variants={SECTION_RISE} className={FACTS}>
+          <Fact
+            surface="card"
+            icon={Users}
+            label="To be paid"
+            value={preview.isError ? '—' : worked.length}
+            hint={lines.length > worked.length ? `${lines.length - worked.length} with no hours` : 'Everyone on the team'}
+          />
+          <Fact
+            surface="card"
+            icon={Clock}
+            label="Paid hours"
+            value={preview.isError ? '—' : hours(paidHours)}
+            hint="After unpaid breaks"
+          />
+          <Fact
+            surface="card"
+            icon={Banknote}
+            label="Gross pay"
+            value={preview.data ? money(preview.data.totals.gross) : '—'}
+            hint="Before deductions"
+          />
+          <Fact
+            surface="card"
+            icon={CircleAlert}
+            label="Can’t be paid"
+            value={preview.isError ? '—' : unpayable.length}
+            hint={unpayable.length ? 'Hourly, with hours but no rate' : 'Everyone has a rate'}
+            tone={unpayable.length ? 'danger' : 'default'}
+          />
+        </motion.dl>
       )}
 
-      <div className="flex flex-wrap items-center justify-end gap-3 border-t border-rule/50 pt-4">
-        <p className="text-xs text-muted-foreground">
-          Freezing locks these hours and this pay for {range.label}. Later rota edits won’t change it.
-        </p>
-        <Button
-          onClick={() => setConfirming(true)}
-          disabled={!preview.data || lines.length === 0 || !!existing || finalise.isPending}
-          className="gap-1.5"
-        >
+      <RecordGroup
+        id="payroll-preview"
+        title="Hours and gross"
+        footnote={`Freezing locks these hours and this pay for ${range.label}. Later rota edits won’t change it.`}
+      >
+        {list}
+      </RecordGroup>
+
+      <div className="flex justify-end">
+        <Button onClick={() => setConfirming(true)} disabled={!preview.data || lines.length === 0 || !!existing || finalise.isPending}>
           {finalise.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
           Freeze and continue
         </Button>

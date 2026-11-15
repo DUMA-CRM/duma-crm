@@ -46,17 +46,17 @@ export function ShopSetupChecklist({ onImport }: { onImport: () => void }) {
   ];
 
   return (
-    <section className="overflow-hidden rounded-lg border border-rule/60 bg-control">
-      <div className="flex items-baseline justify-between gap-3 border-b border-rule/50 px-4 py-3 md:px-5">
-        <h2 className="text-sm font-semibold text-foreground">Set up your shop</h2>
+    <section className="overflow-hidden rounded-lg border border-border bg-control">
+      <div className="flex items-baseline justify-between gap-3 border-b border-border px-4 py-3 md:px-5">
+        <h2 className="text-sm font-semibold text-heading">Set up your shop</h2>
         <p className="text-label text-muted-foreground">Three steps to your first online order</p>
       </div>
       <ol>
         {steps.map((step, index) => {
           const Icon = step.icon;
           return (
-            <li key={step.title} className="flex flex-wrap items-center gap-3 border-b border-rule/45 px-4 py-3.5 last:border-0 md:px-5">
-              <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+            <li key={step.title} className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-3.5 last:border-0 md:px-5">
+              <span className="flex size-7 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
                 <Icon size={14} aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">

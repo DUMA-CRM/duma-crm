@@ -41,7 +41,7 @@ export function OrderNote({ orderId, notes, canEdit }: { orderId: string; notes:
           autoFocus
           placeholder="Anything worth keeping — a callback number, where it was left, what they asked…"
           aria-label="Order note"
-          className="w-full resize-y rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
+          className="w-full resize-y rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30"
         />
         <div className="flex items-center justify-between gap-2">
           <span className="text-xs tabular-nums text-muted-foreground">{draft.length}/1000</span>
@@ -74,7 +74,7 @@ export function OrderNote({ orderId, notes, canEdit }: { orderId: string; notes:
     ) : null;
 
   return (
-    <section aria-label="Order note" className="flex items-start gap-3 rounded-lg border border-rule/60 bg-control px-3.5 py-3">
+    <section aria-label="Order note" className="flex items-start gap-3 rounded-lg border border-border bg-card px-3.5 py-3 shadow-sm">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground" aria-hidden="true">
         <FileText size={15} />
       </span>

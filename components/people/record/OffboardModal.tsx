@@ -62,7 +62,7 @@ export function OffboardModal({
       }
     >
       <p className="mb-2 text-label uppercase text-muted-foreground">Before you confirm</p>
-      <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+      <ul className="overflow-hidden rounded-lg border border-border bg-card">
         <Step icon={CalendarCheck} title="Record the last working day and why" detail="Add it to their documents so the reason is on file." />
         <Step icon={Clock} title="Approve their final hours" detail="Anything unapproved won’t reach their last pay." />
         <Step icon={CalendarDays} title="Settle unused holiday" detail={holiday} />
@@ -75,7 +75,7 @@ export function OffboardModal({
 
 function Step({ icon: Icon, title, detail }: { icon: IconComponent; title: string; detail: string }) {
   return (
-    <li className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+    <li className="flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-measured/8 text-measured">
         <Icon size={16} aria-hidden="true" />
       </span>

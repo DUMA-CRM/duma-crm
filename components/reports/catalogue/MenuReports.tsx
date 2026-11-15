@@ -218,7 +218,7 @@ const QUADRANT_TONE: Record<MenuQuadrant, string> = {
   star: 'border-momentum/35 bg-momentum/5',
   workhorse: 'border-measured/35 bg-measured/5',
   opportunity: 'border-reference/35 bg-reference/5',
-  low: 'border-rule/60 bg-field',
+  low: 'border-border bg-field',
 };
 
 export function MenuEngineeringReport({ filters }: { filters: ReportFilterState }) {
@@ -313,7 +313,7 @@ export function MenuEngineeringReport({ filters }: { filters: ReportFilterState 
                   aria-label={QUADRANT[quadrant].label}
                 >
                   <div className="flex items-baseline justify-between gap-3">
-                    <h2 className="flex items-center gap-1.5 text-sm font-semibold text-foreground">
+                    <h2 className="flex items-center gap-1.5 text-sm font-semibold text-heading">
                       {(() => {
                         const { icon: Icon, tone } = QUADRANT_ICON[quadrant];
                         return <Icon size={14} className={TONE_INK[tone]} aria-hidden="true" />;
@@ -541,9 +541,9 @@ function CategoryDrawer({
             None of its items are among the top 100 sellers.
           </p>
         ) : (
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <ul className="overflow-hidden rounded-lg border border-border bg-field">
             {members.map((row) => (
-              <li key={row.id} className="border-b border-rule/45 last:border-b-0">
+              <li key={row.id} className="border-b border-border last:border-b-0">
                 <button
                   type="button"
                   onClick={() => onOpenItem(row.id)}

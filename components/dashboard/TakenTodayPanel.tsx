@@ -89,10 +89,10 @@ export function TakenTodayPanel({
   ].filter((stat): stat is { label: string; value: string } => stat !== null);
 
   return (
-    <section aria-labelledby="taken-today-title" className="rounded-lg border border-rule/60 bg-field">
+    <section aria-labelledby="taken-today-title" className="rounded-lg border border-border bg-field">
       <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 px-5 pt-5">
         <div className="min-w-0">
-          <h2 id="taken-today-title" className="text-sm font-semibold text-foreground">
+          <h2 id="taken-today-title" className="text-sm font-semibold text-heading">
             {day.state === 'before-open' ? 'Before open' : day.state === 'closed-today' ? 'Closed today' : 'Taken today'}
           </h2>
           {loading ? (
@@ -192,14 +192,14 @@ export function TakenTodayPanel({
       </div>
 
       {stats.length > 0 && (
-        <dl className={cn('grid border-t border-rule/50', STAT_COLUMNS[stats.length])}>
+        <dl className={cn('grid border-t border-border', STAT_COLUMNS[stats.length])}>
           {stats.map((stat, index) => (
             <div
               key={stat.label}
               className={cn(
                 'min-w-0 px-5 py-3.5',
-                index % 2 === 1 && 'border-l border-rule/50',
-                index >= 2 && 'border-t border-rule/50 sm:border-t-0 sm:border-l',
+                index % 2 === 1 && 'border-l border-border',
+                index >= 2 && 'border-t border-border sm:border-t-0 sm:border-l',
               )}
             >
               <dt className="text-xs text-muted-foreground">{stat.label}</dt>
@@ -211,7 +211,7 @@ export function TakenTodayPanel({
         </dl>
       )}
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-rule/50 px-5 py-3">
+      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3">
         <TrendLegend
           comparison={!!series.typical}
           seriesLabel={showToday ? 'Today' : typicalLabel}

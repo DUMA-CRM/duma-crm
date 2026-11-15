@@ -108,8 +108,8 @@ function Input({ className, type, label, hint, error, leftIcon, rightIcon, right
             'w-full h-9 bg-control border border-input rounded-md text-base sm:text-sm text-foreground shadow-sm',
             'placeholder:text-muted-foreground outline-none',
             'transition-[border-color,outline-color,box-shadow] duration-150',
-            // Focus is the crosshair marker: a hard amber outline, no soft glow.
-            'focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured',
+            // Focus, as on the marketing site: a brand border with a soft brand halo.
+            'focus:border-ring focus:outline-2 focus:outline-offset-0 focus:outline-ring/30',
             // Error state
             error && 'border-exception focus:border-exception focus:outline-exception',
             // Dynamic horizontal padding based on icons

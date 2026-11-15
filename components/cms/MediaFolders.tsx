@@ -105,7 +105,7 @@ export function FolderTile({
           ? DROP_TARGET_CLASS
           : selected
             ? 'border-primary/60 bg-primary/8'
-            : 'border-rule/55 bg-control hover:border-rule hover:bg-band/50',
+            : 'border-border bg-control hover:border-rule hover:bg-band/50',
       )}
       {...props}
     >
@@ -365,15 +365,15 @@ export function MediaDetailsPane({
       role="dialog"
       aria-label={`${title} — details`}
       style={{ left: position.x, top: position.y }}
-      className="fixed z-50 flex max-h-[calc(100dvh-1rem)] w-80 max-w-[calc(100vw-1rem)] flex-col rounded-lg border border-rule/60 bg-card shadow-xl"
+      className="fixed z-50 flex max-h-[calc(100dvh-1rem)] w-80 max-w-[calc(100vw-1rem)] flex-col rounded-lg border border-border bg-card shadow-xl"
     >
-      <header className="flex items-center gap-2 border-b border-rule/50 px-4 py-3">
+      <header className="flex items-center gap-2 border-b border-border px-4 py-3">
         {subject.kind === 'asset' ? (
           <FileText size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
         ) : (
           <FolderIcon size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
         )}
-        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{title}</h2>
+        <h2 className="min-w-0 flex-1 truncate text-sm font-semibold text-heading">{title}</h2>
         <Button size="icon-sm" variant="ghost" aria-label="Close details" onClick={onClose}>
           <X size={14} aria-hidden="true" />
         </Button>

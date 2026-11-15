@@ -3,6 +3,7 @@
 import { useId } from 'react';
 
 import { Check } from '@/components/icons';
+
 import { BRANDS, type Brand } from '@/lib/utils/brand';
 import { cn } from '@/lib/utils/cn';
 
@@ -21,7 +22,8 @@ export function BrandPicker({
   return (
     <fieldset disabled={disabled} className="disabled:opacity-60">
       <legend className="sr-only">Brand colour</legend>
-      <div className="grid w-full grid-cols-2 gap-3">
+      {/* p-1: room for the selected outline, so a clipping parent (a ChangeRow opening) never cuts it. */}
+      <div className="grid w-full grid-cols-2 gap-3 p-1">
         {BRANDS.map((choice) => {
           const active = value === choice.id;
           return (
@@ -31,8 +33,8 @@ export function BrandPicker({
               className={cn(
                 'relative flex h-16 w-full cursor-pointer items-center justify-center rounded-md border bg-(--brand) text-(--brand-on) in-disabled:cursor-default',
                 'transition-[outline-color,opacity] duration-150 hover:opacity-90',
-                'has-focus-visible:outline-2 has-focus-visible:outline-offset-4 has-focus-visible:outline-ring',
-                active ? 'border-transparent outline-2 outline-offset-4 outline-primary' : 'border-rule/40',
+                'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring',
+                active ? 'border-transparent outline-2 outline-offset-2 outline-primary' : 'border-border',
               )}
             >
               <input

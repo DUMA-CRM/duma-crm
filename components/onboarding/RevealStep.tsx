@@ -116,7 +116,7 @@ export function RevealStep({ draft, onToggleModule, onChangeAnswers }: RevealSte
               initial={reduceMotion ? false : { opacity: 0, y: 14, scale: 0.98 }}
               animate={{ opacity: 1, y: 0, scale: 1 }}
               transition={{ delay: reduceMotion ? 0 : 0.38 + index * 0.07, type: 'spring', stiffness: 380, damping: 30 }}
-              className="flex items-start gap-3 rounded-lg border border-rule/60 bg-field px-3.5 py-3"
+              className="flex items-start gap-3 rounded-lg border border-border bg-field px-3.5 py-3"
             >
               <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
                 <Icon size={17} aria-hidden="true" />
@@ -147,7 +147,7 @@ export function RevealStep({ draft, onToggleModule, onChangeAnswers }: RevealSte
                   className={cn(
                     'inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors',
                     'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring',
-                    active ? 'border-primary bg-primary text-primary-foreground' : 'border-rule/70 bg-field text-foreground hover:bg-band',
+                    active ? 'border-primary bg-primary text-primary-foreground' : 'border-border bg-field text-foreground hover:bg-band',
                   )}
                 >
                   <input type="checkbox" className="sr-only" checked={active} onChange={() => onToggleModule(id)} />
@@ -170,7 +170,7 @@ function RevealLoading() {
       <p className="mt-3 text-2xl font-semibold tracking-headline text-foreground">Matching tools to your answers…</p>
       <div className="mt-9 grid gap-2 sm:grid-cols-2" aria-hidden="true">
         {Array.from({ length: 6 }, (_, index) => (
-          <TileSkeleton key={index} index={index} tile="size-8" className="items-start border-rule/60 bg-field" />
+          <TileSkeleton key={index} index={index} tile="size-8" className="items-start border-border bg-field" />
         ))}
       </div>
     </div>

@@ -73,3 +73,73 @@ export function leaveContext(
 
   return { alsoOff, shiftsDuring, balance };
 }
+
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+const DAY_MS = 86_400_000;
+
+export type LeaveUrgency = 'calm' | 'warning' | 'exception';
+
+export interface LeaveFlag {
+  /** The row's value: the one thing to know before deciding, in words. */
+  label: string;
+  /** How that value is inked; null for nothing to worry about. */
+  tone: Exclude<LeaveUrgency, 'calm'> | null;
+  /** The row's tile: the worse of the problem and the wait. */
+  urgency: LeaveUrgency;
+}
+
+/**
+ * The single word a pending request's row leads with. A problem with the
+ * request outranks how long it has waited: over the allowance first, then
+ * shifts that would need cover, then colleagues already off. With none, the
+ * wait — five days or more is overdue. Clashes are skipped while the approved
+ * leave and rota are still loading, so "checking" never reads as "clear".
+ */
+export function leaveFlag(context: LeaveContext | null, waitedDays: number, checking: boolean): LeaveFlag {
+  const wait: LeaveUrgency = waitedDays >= 5 ? 'exception' : waitedDays >= 1 ? 'warning' : 'calm';
+  const worse = (a: LeaveUrgency, b: LeaveUrgency): LeaveUrgency =>
+    a === 'exception' || b === 'exception' ? 'exception' : a === 'warning' || b === 'warning' ? 'warning' : 'calm';
+
+  if (context?.balance && context.balance.after < 0) {
+    return { label: `${plural(-context.balance.after, 'day')} over allowance`, tone: 'exception', urgency: 'exception' };
+  }
+  if (!checking && context && context.shiftsDuring > 0) {
+    return { label: `${plural(context.shiftsDuring, 'shift')} to cover`, tone: 'warning', urgency: worse('warning', wait) };
+  }
+  if (!checking && context && context.alsoOff.length > 0) {
+    return { label: `${context.alsoOff.length} also off`, tone: 'warning', urgency: worse('warning', wait) };
+  }
+  if (waitedDays >= 1) {
+    return { label: `Waiting ${plural(waitedDays, 'day')}`, tone: wait === 'calm' ? null : wait, urgency: wait };
+  }
+  return { label: 'New today', tone: null, urgency: 'calm' };
+}
+
+export interface LeaveQueueSummary {
+  waiting: number;
+  /** Whole days the oldest request has waited. */
+  longestWait: number;
+  /** Requests whose leave starts within the next seven days (today included). */
+  startingSoon: number;
+  /** Working days asked for across the queue. */
+  days: number;
+}
+
+/** The four figures over the leave queue. `today` is the workspace's date, `YYYY-MM-DD`. */
+export function summariseLeaveQueue(
+  pending: readonly { status: string; startDate: string; totalDays: string; createdAt: string }[],
+  now: Date,
+  today: string,
+): LeaveQueueSummary {
+  const waiting = pending.filter((request) => request.status === 'pending');
+  const weekOut = new Date(Date.parse(`${today}T00:00:00Z`) + 7 * DAY_MS).toISOString().slice(0, 10);
+  return {
+    waiting: waiting.length,
+    longestWait: waiting.reduce(
+      (oldest, request) => Math.max(oldest, Math.floor((now.getTime() - Date.parse(request.createdAt)) / DAY_MS)),
+      0,
+    ),
+    startingSoon: waiting.filter((request) => day(request.startDate) >= today && day(request.startDate) < weekOut).length,
+    days: Math.round(waiting.reduce((sum, request) => sum + Number(request.totalDays), 0) * 100) / 100,
+  };
+}

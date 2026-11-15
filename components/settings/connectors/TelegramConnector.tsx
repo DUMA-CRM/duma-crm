@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { InfoRow, InfoRows } from '@/components/cms/rows';
 import {
   AlertCircle,
   Bell,
@@ -21,7 +20,7 @@ import {
 } from '@/components/icons';
 import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SaveBar, Switch } from '@/components/settings/controls';
+import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Button } from '@/components/ui/button';
@@ -228,7 +227,7 @@ function ChatFields({
                   onClick={() => onChange(chat.id)}
                   className={cn(
                     'flex items-center gap-3 rounded-lg border bg-field px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-ring',
-                    selected ? 'border-primary' : 'border-rule/50 hover:border-rule',
+                    selected ? 'border-primary' : 'border-border hover:border-rule',
                   )}
                 >
                   <span className="min-w-0 flex-1">
@@ -512,32 +511,31 @@ export function TelegramConnectorPage({ onClose, onConnect }: { onClose: () => v
             />
           </SettingsSection>
 
-          <SettingsSection
-            title="Bot"
-            actions={
-              <Button variant={editingBot ? 'ghost' : 'outline'} size="sm" onClick={() => setEditingBot((open) => !open)}>
-                {editingBot ? 'Close' : 'Replace token'}
-              </Button>
-            }
-          >
-            {editingBot ? (
+          <SettingsSection title="Bot" footnote="Skipped notifications aren’t sent later.">
+            {/* The token never comes back, so it reads as one row until you ask to replace it. */}
+            <ChangeRow
+              icon={Send}
+              label="Token"
+              value={
+                <>
+                  <span className="truncate">@{connection.botUsername}</span>
+                  <ValueAside>· saved and encrypted</ValueAside>
+                </>
+              }
+              open={editingBot}
+              onToggle={() => setEditingBot((open) => !open)}
+              verbs={['Replace', 'Close']}
+            >
               <TokenField value={form.botToken} onChange={(value) => update('botToken', value)} hasToken idPrefix="manage" />
-            ) : (
-              // The token never comes back, so this reads as one line until you ask to replace it.
-              <InfoRows>
-                <InfoRow icon={Send} title={`@${connection.botUsername}`} description="Token saved and encrypted">
-                  {null}
-                </InfoRow>
-              </InfoRows>
-            )}
-          </SettingsSection>
-
-          <SettingsSection title="Notifications">
-            <InfoRows>
-              <InfoRow icon={Bell} title="Allow automation notifications" description="Skipped messages aren’t sent later.">
+            </ChangeRow>
+            <ChangeRow
+              icon={Bell}
+              label="Automation notifications"
+              value={form.isEnabled ? 'Allowed' : <ValueMissing>Paused</ValueMissing>}
+              trailing={
                 <Switch label="Allow automation notifications" checked={form.isEnabled} onChange={(value) => update('isEnabled', value)} />
-              </InfoRow>
-            </InfoRows>
+              }
+            />
           </SettingsSection>
         </>
       )}

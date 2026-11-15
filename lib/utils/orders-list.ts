@@ -128,24 +128,32 @@ export const deliveryTypeFor = (order: Pick<Order, 'fulfilmentType'>): 'delivery
 
 export type PaymentTone = 'success' | 'warning' | 'exception' | 'muted';
 
+/** Every method `POST /orders` accepts, as staff say it — never the API's own word. */
+const PAYMENT_METHOD_NAME: Record<string, string> = {
+  cash: 'Cash',
+  card: 'Card',
+  stripe_online: 'Online card',
+  stripe_terminal: 'Card reader',
+  sumup: 'SumUp',
+  square: 'Square',
+  manual_terminal: 'Card terminal',
+  custom: 'Other',
+  bank_transfer: 'Bank transfer',
+};
+
+/** "awaiting_payment" → "Awaiting payment", for a value this file has no word for yet. */
+const humanise = (value: string) => {
+  const words = value.replaceAll('_', ' ');
+  return words.charAt(0).toUpperCase() + words.slice(1);
+};
+
 /** How an order's payment reads in a row: the method, and a state only when it isn't simply paid. */
 export function paymentSummary(order: Pick<Order, 'paymentMethod' | 'paymentStatus'>): {
   method: string;
   state: string | null;
   tone: PaymentTone;
 } {
-  const method =
-    order.paymentMethod === 'cash'
-      ? 'Cash'
-      : order.paymentMethod === 'card'
-        ? 'Card'
-        : order.paymentMethod === 'bank_transfer'
-          ? 'Bank transfer'
-          : order.paymentMethod === 'custom'
-            ? 'Other'
-            : order.paymentMethod
-              ? order.paymentMethod
-              : 'No payment';
+  const method = order.paymentMethod ? (PAYMENT_METHOD_NAME[order.paymentMethod] ?? humanise(order.paymentMethod)) : 'No payment';
   switch (order.paymentStatus) {
     case undefined:
     case 'paid':
@@ -163,7 +171,7 @@ export function paymentSummary(order: Pick<Order, 'paymentMethod' | 'paymentStat
     case 'failed':
       return { method, state: 'Payment failed', tone: 'exception' };
     default:
-      return { method, state: order.paymentStatus.replaceAll('_', ' '), tone: 'muted' };
+      return { method, state: humanise(order.paymentStatus), tone: 'muted' };
   }
 }
 
@@ -246,37 +254,45 @@ export function formatGap(ms: number): string {
   return `${days} ${days === 1 ? 'day' : 'days'}`;
 }
 
-/** What each status change is called in the activity feed. */
+/** What each status change is called in the activity feed — Square's wording where it has one. */
 export const STATUS_EVENT: Record<OrderStatus, string> = {
   pending: 'Order placed',
   preparing: 'Started preparing',
   ready: 'Marked ready',
-  done: 'Completed',
-  cancelled: 'Cancelled',
+  done: 'Order completed',
+  cancelled: 'Order cancelled',
   expired: 'Expired unpaid',
 };
 
-export type ActivityEvent<S, R> =
+export type ActivityEvent<S, R, P = never> =
   | { kind: 'status'; at: string; gapMs: number | null; entry: S }
-  | { kind: 'refund'; at: string; gapMs: number | null; refund: R };
+  | { kind: 'refund'; at: string; gapMs: number | null; refund: R }
+  | { kind: 'payment'; at: string; gapMs: number | null; payment: P };
+
+/** A payment worth a line in the feed: one that went through or failed — not a pending or abandoned attempt. */
+const PAYMENT_EVENTS = new Set(['succeeded', 'failed']);
 
 /**
- * Status changes and refunds as one feed, oldest first, each carrying how long
- * after the previous event it happened — the gap is what shows how fast the
- * kitchen turned an order round.
+ * Status changes, payments and refunds as one feed, oldest first, each carrying
+ * how long after the event before it happened. A payment is placed when it was
+ * confirmed (cash approved at the counter), else when it was taken.
  */
-export function orderActivity<S extends { createdAt: string }, R extends { createdAt: string }>(
-  history: S[] = [],
-  refunds: R[] = [],
-): ActivityEvent<S, R>[] {
+export function orderActivity<
+  S extends { createdAt: string },
+  R extends { createdAt: string },
+  P extends { createdAt: string; confirmedAt?: string | null; status: string } = never,
+>(history: S[] = [], refunds: R[] = [], payments: P[] = []): ActivityEvent<S, R, P>[] {
   const events = [
     ...history.map((entry) => ({ kind: 'status' as const, at: entry.createdAt, entry })),
+    ...payments
+      .filter((payment) => PAYMENT_EVENTS.has(payment.status))
+      .map((payment) => ({ kind: 'payment' as const, at: payment.confirmedAt ?? payment.createdAt, payment })),
     ...refunds.map((refund) => ({ kind: 'refund' as const, at: refund.createdAt, refund })),
   ].sort((a, b) => a.at.localeCompare(b.at));
   return events.map((event, index) => ({
     ...event,
     gapMs: index === 0 ? null : new Date(event.at).getTime() - new Date(events[index - 1].at).getTime(),
-  })) as ActivityEvent<S, R>[];
+  })) as ActivityEvent<S, R, P>[];
 }
 
 /**
@@ -322,4 +338,53 @@ export function paymentSourceLabel(provider: string | null | undefined, referenc
   const name = provider.replace(/[_-]+/g, ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
   if (!reference) return name;
   return `${name} · ${reference.length > 18 ? `${reference.slice(0, 16)}…` : reference}`;
+}
+
+// ── Bulk actions and the money filter ────────────────────────────────────────
+
+export type BulkAction = 'ready' | 'done';
+
+/**
+ * The orders a bulk action may take. The API refuses a whole batch if any order
+ * is already completed, so only eligible ones are sent:
+ * - Mark ready — orders still new or being made;
+ * - Complete — orders not yet finished *and paid*: completing an unpaid order
+ *   would close it with money still owed, so that stays a one-at-a-time step.
+ */
+export function bulkEligible<T extends Pick<Order, 'id' | 'status' | 'paymentStatus'>>(orders: T[], action: BulkAction): T[] {
+  return orders.filter((order) =>
+    action === 'ready'
+      ? order.status === 'pending' || order.status === 'preparing'
+      : (order.status === 'pending' || order.status === 'preparing' || order.status === 'ready') && order.paymentStatus === 'paid',
+  );
+}
+
+export type MoneyFilter = 'all' | 'paid' | 'unpaid' | 'awaiting_cash_approval' | 'awaiting_payment' | 'partially_refunded' | 'refunded';
+
+/** One "Money" choice, read as the API's two separate filters: payment state or refund state. */
+export function moneyFilterParams(value: MoneyFilter): {
+  paymentStatus?: 'paid' | 'unpaid' | 'awaiting_cash_approval' | 'awaiting_payment';
+  refundStatus?: 'partially_refunded' | 'refunded';
+} {
+  if (value === 'all') return {};
+  if (value === 'partially_refunded' || value === 'refunded') return { refundStatus: value };
+  return { paymentStatus: value };
+}
+
+/**
+ * A typed refund amount, checked the way the API checks it: a positive sum with
+ * at most two decimals (a leading £ is fine), no more than is still refundable.
+ * Returns the API's decimal string, or why it can't be sent.
+ */
+export function parseRefundAmount(
+  text: string,
+  refundable: number,
+): { ok: true; amount: string; value: number } | { ok: false; problem: string | null } {
+  const raw = text.trim().replace(/^£\s*/, '');
+  if (!raw) return { ok: false, problem: null };
+  if (!/^\d+(\.\d{1,2})?$/.test(raw)) return { ok: false, problem: 'Enter an amount like 4.50' };
+  const cents = Math.round(Number(raw) * 100);
+  if (cents <= 0) return { ok: false, problem: 'The amount must be more than zero' };
+  if (cents > Math.round(refundable * 100)) return { ok: false, problem: 'That’s more than is left to refund' };
+  return { ok: true, amount: (cents / 100).toFixed(2), value: cents / 100 };
 }

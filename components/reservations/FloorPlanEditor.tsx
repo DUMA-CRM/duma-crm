@@ -33,6 +33,7 @@ import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select } from '@/components/ui/select';
 
@@ -301,7 +302,7 @@ export function FloorPlanEditor({ locationId, floor }: { locationId: string; flo
                 options={floor.data.map((candidate) => ({ value: candidate.id, label: candidate.name }))}
               />
             ) : (
-              <h2 className="text-base font-semibold tracking-title text-foreground">{area.name}</h2>
+              <h2 className="text-base font-semibold tracking-title text-heading">{area.name}</h2>
             )}
             <div className="flex items-center gap-2">
               <AddTableMenu disabled={addTable.isPending} onAdd={(shape) => addTable.mutate({ area, shape })} />
@@ -467,7 +468,7 @@ function AddTableMenu({ disabled, onAdd }: { disabled: boolean; onAdd: (shape: D
             }}
             className="flex w-full items-center gap-3 rounded-md px-2.5 py-2 text-left transition-colors hover:bg-band focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
           >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background">
+            <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background">
               <ShapeGlyph shape={shape.value} />
             </span>
             <span className="min-w-0 flex-1">
@@ -637,7 +638,7 @@ function TableInspector({
         >
           <div className="grid grid-cols-2 gap-3">
             <div className="space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Width</span>
+              <FieldLabel as="span">Width</FieldLabel>
               <NumberStepper
                 label="Width"
                 value={table.width}
@@ -648,7 +649,7 @@ function TableInspector({
               />
             </div>
             <div className="space-y-1.5">
-              <span className="text-xs font-medium text-muted-foreground">Depth</span>
+              <FieldLabel as="span">Depth</FieldLabel>
               <NumberStepper
                 label="Depth"
                 value={table.height}
@@ -693,7 +694,7 @@ function TableInspector({
             />
           </PickerRow>
         )}
-        <div className="!mt-4 flex items-center justify-between gap-2 border-t border-rule/40 pt-4">
+        <div className="!mt-4 flex items-center justify-between gap-2 border-t border-border pt-4">
           <Button
             type="button"
             variant="ghost"

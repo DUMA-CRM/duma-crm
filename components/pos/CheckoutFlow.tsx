@@ -77,7 +77,7 @@ export function CheckoutFlow(props: Props) {
     // A large sheet over the dimmed till rather than a page of its own: the
     // ticket stays in view behind it. Tapping the backdrop does nothing — a
     // stray tap mid-payment must not abandon it. Full screen on a phone.
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 backdrop-blur-[2px] md:p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-foreground/35 md:p-6">
       <motion.div
         role="dialog"
         aria-modal="true"
@@ -85,9 +85,9 @@ export function CheckoutFlow(props: Props) {
         initial={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.97, y: 8 }}
         animate={{ opacity: 1, scale: 1, y: 0 }}
         transition={{ duration: 0.22, ease: EASE }}
-        className="flex h-full w-full flex-col overflow-hidden bg-background md:h-[min(46rem,100%)] md:max-w-5xl md:rounded-2xl md:border md:border-rule/60 md:shadow-2xl"
+        className="flex h-full w-full flex-col overflow-hidden bg-background md:h-[min(46rem,100%)] md:max-w-5xl md:rounded-lg md:border md:border-border md:shadow-2xl"
       >
-        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-rule/60 bg-card px-3 md:px-5">
+        <header className="flex h-16 shrink-0 items-center justify-between gap-4 border-b border-border bg-card px-3 md:px-5">
           {step === 'done' ? (
             <span className="w-28" />
           ) : step === 'method' ? (
@@ -121,15 +121,15 @@ export function CheckoutFlow(props: Props) {
               initial={false}
               animate={{ width: summaryOpen ? '20rem' : 0 }}
               transition={reduceMotion ? { duration: 0 } : { duration: 0.24, ease: EASE }}
-              className={cn('shrink-0 overflow-hidden bg-card', summaryOpen && 'border-r border-rule/60')}
+              className={cn('shrink-0 overflow-hidden bg-card', summaryOpen && 'border-r border-border')}
             >
               <div className="flex h-full w-80 flex-col">
                 {customerName && (
-                  <p className="shrink-0 border-b border-rule/60 px-5 py-3 text-sm text-muted-foreground">
+                  <p className="shrink-0 border-b border-border px-5 py-3 text-sm text-muted-foreground">
                     For <span className="font-medium text-foreground">{customerName}</span>
                   </p>
                 )}
-                <ul className="min-h-0 flex-1 divide-y divide-rule/45 overflow-y-auto">
+                <ul className="min-h-0 flex-1 divide-y divide-border overflow-y-auto">
                   {lines.map((line) => (
                     <li key={line.cartId} className="flex items-start gap-3 px-5 py-3 text-sm">
                       <span data-figure className="w-6 shrink-0 font-semibold tabular-nums">
@@ -149,14 +149,14 @@ export function CheckoutFlow(props: Props) {
                   ))}
                 </ul>
                 {props.loyaltyReward && (
-                  <div className="flex shrink-0 items-center justify-between gap-3 border-t border-rule/60 px-5 py-3 text-sm text-primary">
+                  <div className="flex shrink-0 items-center justify-between gap-3 border-t border-border px-5 py-3 text-sm text-primary">
                     <span className="truncate">{props.loyaltyReward.label}</span>
                     <span data-figure className="shrink-0 font-semibold tabular-nums">
                       −{formatPrice(props.loyaltyReward.discountCents, currency)}
                     </span>
                   </div>
                 )}
-                <div className="flex shrink-0 items-baseline justify-between border-t border-rule/60 px-5 py-4">
+                <div className="flex shrink-0 items-baseline justify-between border-t border-border px-5 py-4">
                   <span className="text-base font-medium text-muted-foreground">Total</span>
                   <span data-figure className="text-2xl font-semibold tabular-nums">
                     {amount}
@@ -175,7 +175,7 @@ export function CheckoutFlow(props: Props) {
               aria-expanded={summaryOpen}
               aria-controls="checkout-order-summary"
               aria-label={summaryOpen ? 'Hide the order' : `Show the order, ${itemCount} item${itemCount === 1 ? '' : 's'}`}
-              className="z-10 -ml-px flex h-20 w-10 shrink-0 touch-manipulation flex-col items-center justify-center gap-1 self-center rounded-r-xl border border-l-0 border-rule/60 bg-card text-muted-foreground transition-colors active:bg-band"
+              className="z-10 -ml-px flex h-20 w-10 shrink-0 touch-manipulation flex-col items-center justify-center gap-1 self-center rounded-r-md border border-l-0 border-border bg-card text-muted-foreground transition-colors active:bg-band"
             >
               {summaryOpen ? <ChevronLeft size={20} aria-hidden="true" /> : <ChevronRight size={20} aria-hidden="true" />}
               {!summaryOpen && <span className="text-xs font-semibold tabular-nums">{itemCount}</span>}
@@ -242,11 +242,11 @@ function MethodStep({ methods, busy, offline, onSelectMethod, amount }: Props & 
                 onSelectMethod(method);
               }}
               className={cn(
-                'flex min-h-28 touch-manipulation flex-col items-start justify-between gap-3 rounded-xl border p-5 text-left transition-[transform,border-color] duration-100 active:scale-[0.98] disabled:opacity-45',
-                cash ? 'border-primary bg-primary text-primary-foreground' : 'border-rule/70 bg-card text-foreground',
+                'flex min-h-28 touch-manipulation flex-col items-start justify-between gap-3 rounded-md border p-5 text-left transition-colors duration-75 active:bg-band disabled:opacity-45',
+                'border-border bg-card text-foreground',
               )}
             >
-              <span className={cn('flex size-11 items-center justify-center rounded-lg', cash ? 'bg-primary-foreground/15' : 'bg-band')}>
+              <span className="flex size-11 items-center justify-center rounded-md bg-primary/10 text-primary">
                 {spinning ? (
                   <Loader2 size={22} className="animate-spin" aria-hidden="true" />
                 ) : cash ? (
@@ -256,8 +256,8 @@ function MethodStep({ methods, busy, offline, onSelectMethod, amount }: Props & 
                 )}
               </span>
               <span>
-                <span className="block text-lg font-semibold">{method.displayName}</span>
-                <span className={cn('block text-sm', cash ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+                <span className="block text-lg font-semibold text-heading">{method.displayName}</span>
+                <span className="block text-sm text-muted-foreground">
                   {unavailable
                     ? 'Needs a connection'
                     : cash
@@ -363,7 +363,7 @@ function CashStep({ total, currency = 'GBP', busy, onTender }: Props) {
               setEntry('');
             }}
             aria-label={key === 'back' ? 'Delete last digit' : key}
-            className="flex h-16 touch-manipulation select-none items-center justify-center rounded-xl border border-rule/60 bg-card text-2xl font-medium tabular-nums text-foreground transition-[transform,background-color] duration-75 active:scale-[0.97] active:bg-band disabled:opacity-50"
+            className="flex h-16 touch-manipulation select-none items-center justify-center rounded-md border border-border bg-card text-2xl font-medium tabular-nums text-foreground transition-colors duration-75 active:bg-band disabled:opacity-50"
           >
             {key === 'back' ? <ArrowLeft size={24} aria-hidden="true" /> : key}
           </button>
@@ -395,7 +395,7 @@ function VerifyStep({ paymentLabel, queued, offline, busy, onPaymentOutcome, amo
   return (
     <div className="text-center">
       <motion.span
-        className="mx-auto flex size-20 items-center justify-center rounded-2xl bg-primary/8 text-primary"
+        className="mx-auto flex size-20 items-center justify-center rounded-lg bg-primary/8 text-primary"
         animate={reduceMotion ? undefined : { scale: [1, 1.05, 1] }}
         transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
         aria-hidden="true"
@@ -467,9 +467,7 @@ function DoneStep({ total, currency = 'GBP', queued, change, canPrint, drawerNot
         </>
       ) : (
         <>
-          <h2 className="mt-6 text-3xl font-semibold tracking-tight text-foreground">
-            {queued ? 'Saved on this till' : 'Payment complete'}
-          </h2>
+          <h2 className="mt-6 text-3xl font-semibold tracking-tight text-heading">{queued ? 'Saved on this till' : 'Payment complete'}</h2>
           <p data-figure className="mt-2 text-base tabular-nums text-muted-foreground">
             {formatPrice(total, currency)} paid
           </p>

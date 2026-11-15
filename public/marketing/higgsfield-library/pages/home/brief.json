@@ -1,0 +1,14 @@
+{
+  "path": "/",
+  "name": "Home",
+  "summary": "",
+  "description": "",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "pages/home",
+  "local_sources": [
+    "app/(marketing)/page.tsx",
+    "lib/marketing/home.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "An independent caf\u00e9 owner opening the shutters, setting fresh coffee on an oak counter and welcoming the first customer."
+}

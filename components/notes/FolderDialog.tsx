@@ -209,10 +209,10 @@ function Section({ icon: Icon, title, info, children }: { icon: IconComponent; t
   return (
     <section className="space-y-2.5">
       <div className="flex items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+        <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
           <Icon size={16} aria-hidden="true" />
         </span>
-        <h3 className="min-w-0 flex-1 text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="min-w-0 flex-1 text-sm font-semibold text-heading">{title}</h3>
         <InfoTip label={info} />
       </div>
       <div className="flex flex-col gap-2">{children}</div>

@@ -2,21 +2,22 @@
 
 import { usePathname, useRouter } from 'next/navigation';
 
-import { LayoutGrid, SlidersHorizontal, Tag, UtensilsCrossed } from '@/components/icons';
+import { LayoutDashboard, LayoutGrid, SlidersHorizontal, Tag, UtensilsCrossed } from '@/components/icons';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 
-type Section = 'items' | 'categories' | 'modifiers';
+type Section = 'overview' | 'items' | 'categories' | 'modifiers';
 
 const TABS: SectionTab<Section>[] = [
+  { value: 'overview', label: 'Overview', icon: LayoutDashboard },
   { value: 'items', label: 'Items', icon: UtensilsCrossed },
   { value: 'categories', label: 'Categories', icon: LayoutGrid },
   { value: 'modifiers', label: 'Modifiers', icon: SlidersHorizontal },
 ];
 
 /**
- * Items / Modifiers switch for the two menu list pages.
+ * Overview / Items / Categories / Modifiers — the menu's pages.
  *
  * They are separate routes rather than local state, so the browser's Back
  * button works and a tab can be linked to. Each list page owns its own
@@ -35,13 +36,15 @@ export function MenuSectionTabs() {
     ? 'modifiers'
     : pathname.startsWith('/menu/categories')
       ? 'categories'
-      : 'items';
+      : pathname.startsWith('/menu/items')
+        ? 'items'
+        : 'overview';
 
   return (
     <SectionTabs
       tabs={tabs}
       value={section}
-      onChange={(value) => router.push(`/menu/${value}`)}
+      onChange={(value) => router.push(value === 'overview' ? '/menu' : `/menu/${value}`)}
       ariaLabel={`${words.section} sections`}
       animationId="menu-section-tabs"
     />

@@ -23,13 +23,13 @@ export function BusinessPlanCard({ className }: { className?: string }) {
   return (
     <article
       className={cn(
-        'relative flex flex-col overflow-hidden rounded-[14px] bg-sidebar px-6 py-7 text-sidebar-foreground sm:px-8 sm:py-8',
+        'relative flex flex-col overflow-hidden rounded-[14px] bg-panel px-6 py-7 text-panel-foreground sm:px-8 sm:py-8',
         className,
       )}
     >
       <div className="flex min-h-9 flex-wrap items-center justify-between gap-3">
         <h2 className="flex items-center gap-3 text-2xl font-semibold tracking-display">
-          <span className="grid size-9 place-items-center rounded-[10px] bg-white/10 text-sidebar-foreground">
+          <span className="grid size-9 place-items-center rounded-[10px] bg-white/10 text-panel-foreground">
             <Building2 className="size-[1.125rem]" aria-hidden="true" />
           </span>
           Business
@@ -44,8 +44,8 @@ export function BusinessPlanCard({ className }: { className?: string }) {
                 aria-checked={billing === option}
                 onClick={() => setBilling(option)}
                 className={cn(
-                  'rounded-[6px] px-3 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-foreground',
-                  billing === option ? 'bg-white/15 text-sidebar-foreground' : 'text-sidebar-foreground/70 hover:bg-white/8 hover:text-sidebar-foreground',
+                  'rounded-[6px] px-3 py-1 text-sm font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-panel-foreground',
+                  billing === option ? 'bg-white/15 text-panel-foreground' : 'text-panel-foreground/75 hover:bg-white/8 hover:text-panel-foreground',
                 )}
               >
                 {option === 'monthly' ? 'Monthly' : 'Yearly'}
@@ -55,10 +55,10 @@ export function BusinessPlanCard({ className }: { className?: string }) {
         </div>
       </div>
 
-      <p className="mt-5 min-h-12 text-pretty text-[0.9375rem] leading-relaxed text-sidebar-foreground/75">For businesses that outgrow the free allowances. One flat price, every part of DUMA.</p>
+      <p className="mt-5 min-h-12 text-pretty text-[0.9375rem] leading-relaxed text-panel-foreground/75">For businesses that outgrow the free allowances. One flat price, every part of DUMA.</p>
 
-      <PlanPrice amount={formatPounds(price.total).slice(1)} period={price.period} muted="text-sidebar-foreground/60" />
-      <p className="mt-2 min-h-5 text-sm text-sidebar-foreground/75">
+      <PlanPrice amount={formatPounds(price.total).slice(1)} period={price.period} muted="text-panel-foreground/75" />
+      <p className="mt-2 min-h-5 text-sm text-panel-foreground/75">
         {billing === 'yearly'
           ? `One month free: you save ${formatPounds(yearlySaving())}.`
           : `Or ${formatPounds(businessPrice('yearly').total)} a year, one month free.`}
@@ -73,7 +73,7 @@ export function BusinessPlanCard({ className }: { className?: string }) {
         ))}
       </ul>
 
-      <Link href={SIGN_UP_PATH} className={cn(buttonVariants({ size: 'touch' }), 'mt-auto w-full bg-sidebar-foreground text-sidebar hover:bg-sidebar-foreground/90')}>
+      <Link href={SIGN_UP_PATH} className={cn(buttonVariants({ size: 'touch' }), 'mt-auto w-full bg-panel-foreground text-panel hover:bg-panel-foreground/90')}>
         Coming soon. Start free today
         <ArrowRight className="size-4" aria-hidden="true" />
       </Link>

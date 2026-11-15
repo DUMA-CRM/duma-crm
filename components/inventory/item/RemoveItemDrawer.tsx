@@ -103,10 +103,10 @@ export function RemoveItemDrawer({
         )}
 
         <section>
-          <h3 className="mb-2 text-sm font-semibold text-foreground">{blocked ? 'Once it’s empty, removing it' : 'What happens'}</h3>
-          <ul className={cn('overflow-hidden rounded-lg border border-rule/60 bg-card', blocked && 'opacity-70')}>
+          <h3 className="mb-2 text-sm font-semibold text-heading">{blocked ? 'Once it’s empty, removing it' : 'What happens'}</h3>
+          <ul className={cn('overflow-hidden rounded-lg border border-border bg-card', blocked && 'opacity-70')}>
             {rows.map(({ icon: Icon, title, detail, tone }) => (
-              <li key={title} className="flex items-start gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+              <li key={title} className="flex items-start gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
                 <span
                   className={cn(
                     'flex size-9 shrink-0 items-center justify-center rounded-md',

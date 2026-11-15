@@ -23,8 +23,8 @@ import { SettingsChoice } from '@/components/settings/SettingsChoice';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact, SettingRow, SettingRows } from '@/components/settings/controls';
+import { Avatar } from '@/components/shared/Avatar';
 import { IconTag } from '@/components/shared/IconTag';
-import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { Logo } from '@/components/shared/Logo';
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
@@ -60,18 +60,12 @@ export function ProfileTab() {
   const role = useAuthStore((state) => state.role);
   const { tenant, location } = useCurrentWorkspace();
   const { theme, setTheme } = useTheme();
-  const [firstName = '', lastName = ''] = (user?.name ?? '').split(' ');
 
   return (
     <SettingsTabBody>
       <SettingsSection>
         <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
-          <InitialsAvatar
-            firstName={firstName || 'U'}
-            lastName={lastName}
-            email={user?.email}
-            className="size-24 shrink-0 rounded-xl text-3xl shadow-sm"
-          />
+          <Avatar name={user?.name} email={user?.email} size="xl" />
           <div className="min-w-0">
             <p className="truncate text-2xl font-semibold tracking-headline text-foreground">{user?.name ?? 'Your account'}</p>
             <p className="mt-1.5 flex flex-wrap items-center justify-center gap-2 text-sm text-muted-foreground sm:justify-start">
@@ -183,11 +177,11 @@ function InstallRow() {
           illustration={
             <div className="relative flex h-28 w-full max-w-[18rem] items-center justify-center" aria-hidden="true">
               <div className="w-full overflow-hidden rounded-xl border border-rule bg-field shadow-sm">
-                <div className="flex h-8 items-center gap-1.5 border-b border-rule/70 bg-band/65 px-3">
+                <div className="flex h-8 items-center gap-1.5 border-b border-border bg-band/65 px-3">
                   <span className="size-1.5 rounded-full bg-muted-foreground/35" />
                   <span className="size-1.5 rounded-full bg-muted-foreground/35" />
                   <span className="size-1.5 rounded-full bg-muted-foreground/35" />
-                  <span className="ml-2 flex h-5 min-w-0 flex-1 items-center justify-center rounded-md border border-rule/60 bg-card px-2 text-[10px] font-medium text-muted-foreground">
+                  <span className="ml-2 flex h-5 min-w-0 flex-1 items-center justify-center rounded-md border border-border bg-card px-2 text-[10px] font-medium text-muted-foreground">
                     Your DUMA workspace
                   </span>
                 </div>
@@ -222,7 +216,7 @@ function InstallRow() {
             </div>
           )}
           {platform === 'firefox' ? (
-            <div role="note" className="flex items-start gap-3 rounded-lg border border-rule/70 bg-band/45 px-4 py-4">
+            <div role="note" className="flex items-start gap-3 rounded-lg border border-border bg-band/45 px-4 py-4">
               <span className="flex size-11 shrink-0 items-center justify-center rounded-lg bg-field text-muted-foreground">
                 <Globe size={20} aria-hidden="true" />
               </span>
@@ -236,7 +230,7 @@ function InstallRow() {
               {guide.steps.map((step, index) => (
                 <li
                   key={step}
-                  className="flex items-start gap-3 rounded-lg border border-rule/70 bg-field/60 px-3.5 py-3 text-sm leading-5 text-foreground"
+                  className="flex items-start gap-3 rounded-lg border border-border bg-field/60 px-3.5 py-3 text-sm leading-5 text-foreground"
                 >
                   <span className="flex size-6 shrink-0 items-center justify-center rounded-full bg-primary/10 text-xs font-semibold tabular-nums text-primary">
                     {index + 1}

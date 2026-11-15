@@ -7,7 +7,9 @@ import { useState } from 'react';
 
 import { InfoRow, PickerRow, RowTile } from '@/components/cms/rows';
 import {
+  AlertTriangle,
   CalendarDays,
+  Check,
   ChevronLeft,
   ChevronRight,
   CircleDot,
@@ -32,6 +34,8 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards } from '@/components/shared/FormParts';
+import { ListRowGroup } from '@/components/shared/ListRow';
+import { Pill } from '@/components/shared/Pill';
 import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -51,7 +55,7 @@ import {
 } from '@/lib/modules/marketing/client';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { canDeletePost, marketingStatusBadge, marketingStatusLabel } from '@/lib/utils/marketing-status';
+import { type MarketingTone, canDeletePost, marketingStatusLabel, marketingStatusTone, needsAttention } from '@/lib/utils/marketing-status';
 import { calendarDays, moveDay } from '@/lib/utils/marketing-time';
 import { formatInstant, resolvedTimeZone, workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
@@ -68,6 +72,22 @@ const VIEWS: { value: View; label: string }[] = [
   { value: 'week', label: 'Week' },
   { value: 'agenda', label: 'Agenda' },
 ];
+
+/** The edge colour of a post card — status as a colour as well as a word. */
+const TONE_EDGE: Record<MarketingTone, string> = {
+  muted: 'border-l-muted-foreground/40',
+  info: 'border-l-reference',
+  success: 'border-l-momentum',
+  warning: 'border-l-measured',
+  exception: 'border-l-exception',
+};
+const TONE_TEXT: Record<MarketingTone, string> = {
+  muted: 'text-muted-foreground',
+  info: 'text-reference',
+  success: 'text-momentum',
+  warning: 'font-medium text-measured',
+  exception: 'font-medium text-exception',
+};
 const STATUSES = [
   'draft',
   'scheduled',
@@ -95,9 +115,10 @@ export function MarketingWorkspace() {
     canWrite = hasCapability(caps, 'marketing:write'),
     canPublish = hasCapability(caps, 'marketing:publish');
   const [anchor, setAnchor] = useState(() => workspaceDateKey()),
-    [view, setView] = useState<View>('month'),
+    [view, setView] = useState<View>('week'),
     [platform, setPlatform] = useState('all'),
-    [accountFilter, setAccountFilter] = useState('all'),
+    // Several accounts can be shown at once; none chosen means all of them.
+    [accountFilter, setAccountFilter] = useState<string[]>([]),
     [status, setStatus] = useState('all'),
     [page, setPage] = useState(1);
   // One filter open at a time; a tap on the open one closes it.
@@ -122,9 +143,11 @@ export function MarketingWorkspace() {
     (p) =>
       (status === 'all' || p.status === status) &&
       (platform === 'all' || p.targets.some((t) => as.find((a) => a.id === t.connectionId)?.provider === platform)) &&
-      (accountFilter === 'all' || p.targets.some((t) => t.connectionId === accountFilter)),
+      (accountFilter.length === 0 || p.targets.some((t) => accountFilter.includes(t.connectionId))),
   );
-  const filtering = platform !== 'all' || accountFilter !== 'all' || status !== 'all';
+  const filtering = platform !== 'all' || accountFilter.length > 0 || status !== 'all';
+  // Anything that went wrong in this period — shown whatever the filters say.
+  const attention = all.filter((p) => needsAttention(p.status));
   /** A filter: what it's set to on the row, the choices underneath; picking one closes it. */
   const pickerRow = <T extends string>(
     row: Filter,
@@ -196,7 +219,7 @@ export function MarketingWorkspace() {
   const card = (post: Post, day?: string) => {
     const target = post.targets.find((t) => t.scheduledAt && workspaceDateKey(t.scheduledAt, zone) === day);
     const providers = PLATFORMS.filter((p) => post.targets.some((t) => as.find((a) => a.id === t.connectionId)?.provider === p));
-    const tone = marketingStatusBadge(post.status);
+    const tone = marketingStatusTone(post.status);
     const label = marketingStatusLabel(post.status);
     const media = post.targets.flatMap((t) => t.assets)[0];
     return (
@@ -205,7 +228,10 @@ export function MarketingWorkspace() {
         type="button"
         data-post={post.id}
         title={`${post.title} · ${label}`}
-        className="group relative flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md border border-rule/50 bg-field p-1.5 text-left transition-[border-color,box-shadow] hover:border-rule hover:shadow-sm focus-visible:outline-2 focus-visible:outline-ring"
+        className={cn(
+          'group relative flex w-full min-w-0 items-center gap-2 overflow-hidden rounded-md border border-l-2 border-border bg-field p-1.5 text-left transition-shadow hover:shadow-sm focus-visible:outline-2 focus-visible:outline-ring',
+          TONE_EDGE[tone],
+        )}
         onClick={() => setOpened(post.id)}
       >
         {media && (
@@ -231,18 +257,60 @@ export function MarketingWorkspace() {
             </span>
           </span>
           <span className="block truncate text-xs font-semibold leading-4 text-foreground">{post.title}</span>
-          {post.status !== 'scheduled' && (
-            <span
-              className={cn(
-                'block truncate text-[11px] leading-4',
-                tone === 'warning' ? 'font-medium text-measured' : tone === 'success' ? 'text-momentum' : 'text-muted-foreground',
-              )}
-            >
-              {label}
-            </span>
-          )}
+          {post.status !== 'scheduled' && <span className={cn('block truncate text-[11px] leading-4', TONE_TEXT[tone])}>{label}</span>}
         </span>
       </button>
+    );
+  };
+  /** A post as an agenda row: when, its picture, what it is and where it goes, and its state. */
+  const agendaRow = (post: Post, day: string) => {
+    const target = post.targets.find((t) => t.scheduledAt && workspaceDateKey(t.scheduledAt, zone) === day);
+    const providers = PLATFORMS.filter((p) => post.targets.some((t) => as.find((a) => a.id === t.connectionId)?.provider === p));
+    const tone = marketingStatusTone(post.status);
+    const media = post.targets.flatMap((t) => t.assets)[0];
+    return (
+      <li key={post.id} className="border-b border-border last:border-b-0">
+        <button
+          type="button"
+          data-post={post.id}
+          onClick={() => setOpened(post.id)}
+          className="group flex w-full items-center gap-3 px-3.5 py-2.5 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        >
+          <span className="w-11 shrink-0 text-xs font-semibold tabular-nums text-foreground">
+            {target?.scheduledAt ? formatInstant(target.scheduledAt, { hour: '2-digit', minute: '2-digit' }) : '—'}
+          </span>
+          <span className="flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-band/60 text-muted-foreground">
+            {media ? (
+              media.mimeType.startsWith('image/') ? (
+                <Image unoptimized width={80} height={80} src={assetSrc(media)} alt="" className="size-full object-cover" />
+              ) : (
+                <Play size={14} aria-hidden="true" />
+              )
+            ) : (
+              <FileText size={16} aria-hidden="true" />
+            )}
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block truncate text-sm font-semibold text-foreground">{post.title}</span>
+            <span className="mt-0.5 flex items-center gap-1.5 text-xs text-muted-foreground">
+              <span className="flex items-center gap-0.5">
+                {providers.map((p) => (
+                  <BrandMark key={p} platform={p} />
+                ))}
+              </span>
+              <span className="truncate">{platformsOf(post)}</span>
+            </span>
+          </span>
+          <Pill tone={tone} className="hidden shrink-0 sm:inline-flex">
+            {marketingStatusLabel(post.status)}
+          </Pill>
+          <ChevronRight
+            size={14}
+            className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+            aria-hidden="true"
+          />
+        </button>
+      </li>
     );
   };
   const dayPosts = (day: string) =>
@@ -252,7 +320,7 @@ export function MarketingWorkspace() {
           t.scheduledAt &&
           workspaceDateKey(t.scheduledAt, zone) === day &&
           (platform === 'all' || as.find((a) => a.id === t.connectionId)?.provider === platform) &&
-          (accountFilter === 'all' || t.connectionId === accountFilter),
+          (accountFilter.length === 0 || accountFilter.includes(t.connectionId)),
       ),
     );
   const dayLabel = (day: string) =>
@@ -312,7 +380,7 @@ export function MarketingWorkspace() {
                       className="h-9"
                       onClick={() => {
                         setPlatform('all');
-                        setAccountFilter('all');
+                        setAccountFilter([]);
                         setStatus('all');
                         setOpen(null);
                       }}
@@ -338,16 +406,48 @@ export function MarketingWorkspace() {
                     platform,
                     setPlatform,
                   )}
-                  {pickerRow(
-                    'account',
-                    Users,
-                    'Account',
-                    as.find((a) => a.id === accountFilter)?.name ?? 'All accounts',
-                    accountFilter === 'all',
-                    [{ value: 'all', label: 'All accounts' }, ...as.map((a) => ({ value: a.id, label: a.name }))],
-                    accountFilter,
-                    setAccountFilter,
-                  )}
+                  {/* Accounts pick several — one per row with its network's logo, ticked when shown. */}
+                  <PickerRow
+                    icon={Users}
+                    title="Account"
+                    value={
+                      accountFilter.length === 0
+                        ? 'All accounts'
+                        : accountFilter.length === 1
+                          ? (as.find((a) => a.id === accountFilter[0])?.name ?? '1 account')
+                          : `${accountFilter.length} accounts`
+                    }
+                    muted={accountFilter.length === 0}
+                    open={open === 'account'}
+                    onToggle={() => setOpen((current) => (current === 'account' ? null : 'account'))}
+                  >
+                    <ul className="space-y-1.5" aria-label="Accounts to show">
+                      {as.map((a) => {
+                        const on = accountFilter.includes(a.id);
+                        return (
+                          <li key={a.id}>
+                            <button
+                              type="button"
+                              aria-pressed={on}
+                              onClick={() => setAccountFilter((current) => (on ? current.filter((id) => id !== a.id) : [...current, a.id]))}
+                              className={cn(
+                                'flex h-10 w-full items-center gap-2.5 rounded-md border px-3 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring',
+                                on
+                                  ? 'border-primary bg-primary/6 font-semibold text-foreground'
+                                  : 'border-border bg-field text-foreground hover:bg-band/50',
+                              )}
+                            >
+                              <BrandMark platform={a.provider} />
+                              <span className="min-w-0 flex-1 truncate">{a.name}</span>
+                              <span className="shrink-0 text-xs font-normal text-muted-foreground">{LABELS[a.provider]}</span>
+                              {on && <Check size={14} className="shrink-0 text-primary" aria-hidden="true" />}
+                            </button>
+                          </li>
+                        );
+                      })}
+                    </ul>
+                    {as.length === 0 && <p className="text-xs text-muted-foreground">No accounts connected yet.</p>}
+                  </PickerRow>
                   {pickerRow(
                     'status',
                     CircleDot,
@@ -437,7 +537,7 @@ export function MarketingWorkspace() {
         >
           <motion.section variants={SECTION_RISE} aria-label={heading} className="min-w-0">
             <header className="mb-4 flex flex-wrap items-center justify-between gap-3">
-              <h2 className="text-base font-semibold tracking-title text-foreground">{heading}</h2>
+              <h2 className="text-base font-semibold tracking-title text-heading">{heading}</h2>
               <div className="flex items-center gap-2">
                 <Button size="icon" variant="outline" className="size-9" aria-label="Previous period" onClick={() => move(-1)}>
                   <ChevronLeft />
@@ -457,6 +557,24 @@ export function MarketingWorkspace() {
                 </Button>
               </div>
             </header>
+            {attention.length > 0 && (
+              <div className="mb-4 flex flex-wrap items-center gap-3 rounded-md bg-exception/8 px-3 py-2 text-sm">
+                <AlertTriangle size={15} className="shrink-0 text-exception" aria-hidden="true" />
+                <span className="min-w-0 flex-1 font-medium text-exception">
+                  {attention.length} {attention.length === 1 ? 'post needs' : 'posts need'} attention — failed, blocked or only partly
+                  published.
+                </span>
+                {attention.length === 1 ? (
+                  <Button variant="outline" size="sm" onClick={() => setOpened(attention[0]!.id)}>
+                    Open it
+                  </Button>
+                ) : (
+                  <Button variant="outline" size="sm" onClick={() => setStatus('failed')}>
+                    Show failed
+                  </Button>
+                )}
+              </div>
+            )}
             {q.isPending ? (
               <Bone className="h-96 w-full rounded-lg" />
             ) : q.error ? (
@@ -467,8 +585,8 @@ export function MarketingWorkspace() {
                   <ContextMenuTrigger asChild onContextMenu={onMenu}>
                     <div>
                       <div className={view === 'agenda' ? 'hidden' : 'hidden md:block'}>
-                        <div className="overflow-hidden rounded-md border border-rule/60 bg-control">
-                          <div className="grid grid-cols-7 border-b border-rule/60 bg-band/30">
+                        <div className="overflow-hidden rounded-md border border-border bg-control">
+                          <div className="grid grid-cols-7 border-b border-border bg-band/30">
                             {['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'].map((d) => (
                               <div key={d} className="px-2 py-1.5 text-xs font-medium text-muted-foreground">
                                 {d}
@@ -481,7 +599,7 @@ export function MarketingWorkspace() {
                                 key={day}
                                 data-day={day}
                                 onClick={onDayClick(day)}
-                                className={`group/day min-h-36 min-w-0 space-y-1.5 border-b border-r border-rule/60 p-1.5 transition-colors ${day.slice(0, 7) !== anchor.slice(0, 7) && view === 'month' ? 'bg-band/30' : ''} ${canWrite ? 'cursor-pointer hover:bg-band/40' : ''}`}
+                                className={`group/day min-h-36 min-w-0 space-y-1.5 border-b border-r border-border p-1.5 transition-colors ${day.slice(0, 7) !== anchor.slice(0, 7) && view === 'month' ? 'bg-band/30' : ''} ${canWrite ? 'cursor-pointer hover:bg-band/40' : ''}`}
                               >
                                 {/* The keyboard way in; a click on it bubbles to the day like any other. */}
                                 <button
@@ -493,30 +611,60 @@ export function MarketingWorkspace() {
                                   {Number(day.slice(-2))}
                                 </button>
                                 {dayPosts(day).map((p) => card(p, day))}
+                                {/* On hover, the day offers a slot to fill — a dashed card with a plus — on that day only. */}
+                                {canWrite && (
+                                  <span
+                                    aria-hidden="true"
+                                    className="hidden h-9 items-center justify-center gap-1 rounded-md border border-dashed border-rule/70 text-xs font-medium text-muted-foreground group-hover/day:flex"
+                                  >
+                                    <Plus size={13} /> Add post
+                                  </span>
+                                )}
                               </div>
                             ))}
                           </div>
                         </div>
                       </div>
-                      <div className={view === 'agenda' ? 'space-y-5' : 'space-y-5 md:hidden'}>
-                        {days.map((day) => (
-                          <section key={day} data-day={day} className="space-y-2">
-                            <div className="flex items-center justify-between gap-3">
-                              <h3 className="text-sm font-semibold text-foreground">{dayLabel(day)}</h3>
-                              {canWrite && (
-                                <Button size="sm" variant="ghost" onClick={() => setCompose({ day })}>
-                                  <Plus size={14} aria-hidden="true" />
-                                  Add post
-                                </Button>
-                              )}
-                            </div>
-                            {dayPosts(day).length ? (
-                              dayPosts(day).map((p) => card(p, day))
-                            ) : (
-                              <p className="text-xs text-muted-foreground">No posts planned</p>
-                            )}
-                          </section>
-                        ))}
+                      {/* The agenda as the audit log reads: each day's heading on the page over one card
+                          of rows. Every day of a week shows, an empty one saying so; a month on a phone
+                          keeps to the days with something on them (and today), not 42 headings. */}
+                      <div className={view === 'agenda' ? 'space-y-6' : 'space-y-6 md:hidden'}>
+                        {days
+                          .filter((day) => view !== 'month' || day === workspaceDateKey() || dayPosts(day).length > 0)
+                          .map((day) => {
+                            const list = dayPosts(day);
+                            return (
+                              <section key={day} data-day={day} aria-labelledby={`agenda-${day}`}>
+                                <div className="mb-2 flex items-center gap-2 px-1">
+                                  <h3 id={`agenda-${day}`} className="text-sm font-semibold text-heading">
+                                    {dayLabel(day)}
+                                  </h3>
+                                  {day === workspaceDateKey() && <Pill tone="primary">Today</Pill>}
+                                  {list.length > 0 && (
+                                    <span className="rounded-full bg-band px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
+                                      {list.length}
+                                    </span>
+                                  )}
+                                  {canWrite && (
+                                    <Button
+                                      size="icon-sm"
+                                      variant="ghost"
+                                      className="ml-auto text-muted-foreground"
+                                      onClick={() => setCompose({ day })}
+                                      aria-label={`New post on ${dayLabel(day)}`}
+                                    >
+                                      <Plus aria-hidden="true" />
+                                    </Button>
+                                  )}
+                                </div>
+                                {list.length ? (
+                                  <ListRowGroup>{list.map((p) => agendaRow(p, day))}</ListRowGroup>
+                                ) : (
+                                  <p className="px-1 text-xs text-muted-foreground">Nothing planned.</p>
+                                )}
+                              </section>
+                            );
+                          })}
                       </div>
                     </div>
                   </ContextMenuTrigger>

@@ -3,7 +3,6 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { InfoRow, InfoRows } from '@/components/cms/rows';
 import {
   AlertCircle,
   Building2,
@@ -22,7 +21,7 @@ import {
 } from '@/components/icons';
 import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SaveBar, Switch } from '@/components/settings/controls';
+import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/label';
@@ -364,7 +363,7 @@ function SenderFields({
         hint="If replies should go somewhere else."
       />
       {showSwitch && (
-        <div className="flex items-center justify-between gap-4 rounded-lg border border-rule/50 bg-field px-3 py-2.5">
+        <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-field px-3 py-2.5">
           <span className="min-w-0">
             <span className="block text-sm font-semibold text-foreground">Send emails</span>
             <span className="block text-xs text-muted-foreground">Off holds everything — automations wait until you turn it back on.</span>
@@ -582,28 +581,26 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
         <SenderFields form={form} update={update} idPrefix="manage" />
       </SettingsSection>
 
-      <SettingsSection
-        title="Mail server"
-        actions={
-          <Button variant={editingServer ? 'ghost' : 'outline'} size="sm" onClick={() => setEditingServer((open) => !open)}>
-            {editingServer ? 'Close' : 'Change'}
-          </Button>
-        }
-      >
-        {editingServer ? (
+      <SettingsSection title="Mail server">
+        {/* It rarely changes, so it reads as one row until you ask to edit it. */}
+        <ChangeRow
+          icon={Server}
+          label="Server"
+          value={
+            <>
+              <span className="truncate">{form.host || <ValueMissing>No server set</ValueMissing>}</span>
+              <ValueAside>
+                · Port {form.port} · {security}
+                {form.username ? ` · ${form.username}` : ''}
+              </ValueAside>
+            </>
+          }
+          open={editingServer}
+          onToggle={() => setEditingServer((open) => !open)}
+          verbs={['Change', 'Close']}
+        >
           <ServerFields form={form} update={update} hasPassword={Boolean(connection?.hasPassword)} idPrefix="manage" />
-        ) : (
-          // It rarely changes, so it reads as one row until you ask to edit it.
-          <InfoRows>
-            <InfoRow
-              icon={Server}
-              title={form.host || 'No server set'}
-              description={`Port ${form.port} · ${security}${form.username ? ` · ${form.username}` : ''}`}
-            >
-              {null}
-            </InfoRow>
-          </InfoRows>
-        )}
+        </ChangeRow>
       </SettingsSection>
     </ConnectorManagePage>
   );

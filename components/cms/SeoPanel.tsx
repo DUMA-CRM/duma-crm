@@ -13,6 +13,7 @@ import { CopyButton } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { type CmsFieldDefinition, createCmsPreviewLink, getCmsAssets } from '@/lib/modules/cms/client';
 import { toast } from '@/lib/toast';
@@ -147,7 +148,7 @@ export function SeoPanel({
       <div className="space-y-4">
         {/* The search result, then the shared link — both always in view. */}
         <>
-          <div className="rounded-lg border border-rule/50 bg-control px-4 py-3">
+          <div className="rounded-lg border border-border bg-control px-4 py-3">
             <p className="flex items-center gap-1.5 truncate text-xs text-muted-foreground">
               <span className="size-4 shrink-0 rounded-full bg-band" aria-hidden="true" />
               <span className="truncate">
@@ -168,7 +169,7 @@ export function SeoPanel({
             )}
           </div>
 
-          <div className="overflow-hidden rounded-lg border border-rule/50 bg-control">
+          <div className="overflow-hidden rounded-lg border border-border bg-control">
             {image ? (
               // eslint-disable-next-line @next/next/no-img-element -- tenant media served by the API
               <img
@@ -180,7 +181,7 @@ export function SeoPanel({
             ) : (
               <div className="flex aspect-[1.91/1] items-center justify-center bg-band/60 text-xs text-muted-foreground">No image</div>
             )}
-            <div className="border-t border-rule/50 px-3 py-2">
+            <div className="border-t border-border px-3 py-2">
               <p className="truncate text-[0.6875rem] uppercase text-muted-foreground">{crumb.host}</p>
               <p className="truncate text-sm font-semibold text-foreground">{snapshot.socialTitle || 'Untitled'}</p>
               <p className="truncate text-xs text-muted-foreground">{snapshot.socialDescription}</p>
@@ -260,7 +261,7 @@ function RowTile({ icon: Icon, tone = 'default' }: { icon: IconComponent; tone?:
           ? 'border-measured/40 bg-measured/8 text-measured'
           : tone === 'success'
             ? 'border-momentum/35 bg-momentum/8 text-momentum'
-            : 'border-rule/55 bg-background text-muted-foreground',
+            : 'border-border bg-background text-muted-foreground',
       )}
     >
       <Icon size={16} aria-hidden="true" />
@@ -310,7 +311,7 @@ export function SharePreviewDialog({ entryId, onClose }: { entryId: string; onCl
     >
       {!result ? (
         <div className="space-y-2">
-          <p className="text-label uppercase text-muted-foreground">Expires after</p>
+          <FieldLabel as="span">Expires after</FieldLabel>
           <SegmentedControl ariaLabel="Expires after" value={hours} onChange={setHours} options={DURATIONS} />
         </div>
       ) : (

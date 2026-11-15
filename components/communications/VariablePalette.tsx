@@ -95,7 +95,7 @@ export function VariablePalette({ variables }: { variables: string[] }) {
                     'group inline-flex h-8 items-center gap-1.5 rounded-md border px-2.5 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring',
                     done
                       ? 'border-success/50 bg-success/8 text-success'
-                      : 'border-rule/60 bg-background text-foreground hover:border-primary/40 hover:bg-primary/6 hover:text-primary',
+                      : 'border-border bg-background text-foreground hover:border-primary/40 hover:bg-primary/6 hover:text-primary',
                   )}
                 >
                   {variableLabel(variable)}

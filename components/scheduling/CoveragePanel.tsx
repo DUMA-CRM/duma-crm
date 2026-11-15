@@ -4,20 +4,21 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { NumberWheelPicker } from '@/components/ui/number-wheel-picker';
-import { AlertTriangle, CheckCircle2, SlidersHorizontal, TrendingUp } from '@/components/icons';
+import { SlidersHorizontal, TrendingUp, X } from '@/components/icons';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
+import { FieldLabel } from '@/components/ui/label';
+import { NumberWheelPicker } from '@/components/ui/number-wheel-picker';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type ScheduledShift, getCoverage, isWeekdayRow } from '@/lib/modules/workforce/client';
 import { cn } from '@/lib/utils/cn';
-import { coverageForDay } from '@/lib/utils/coverage-check';
+import { type CoverageDay, coverageForDay } from '@/lib/utils/coverage-check';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const DEFAULTS = { lookbackDays: 30, ordersPerStaff: 15, minStaff: 1 };
-const hourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
+export const hourLabel = (hour: number) => `${String(hour).padStart(2, '0')}:00`;
 const WEEKDAY = new Intl.DateTimeFormat('en-GB', { weekday: 'short' });
 const WEEKDAY_LONG = new Intl.DateTimeFormat('en-GB', { weekday: 'long' });
 
@@ -26,24 +27,24 @@ const parseDay = (key: string) => {
   return new Date(year, month - 1, date);
 };
 
+/** Short hours in a day's check — what the rota grid flags on the day's heading. */
+export const shortHoursOf = (day: CoverageDay | null | undefined) => day?.short.reduce((sum, run) => sum + (run.to - run.from), 0) ?? 0;
+
+export type CoverageCheck = ReturnType<typeof useCoverageCheck>;
+
 /**
- * Cover vs demand, for one day of the rota: how many people are planned each
- * hour against how many the recent order history says the hour needs. The
- * demand comes from `GET /scheduled-shifts/coverage`; the headcount from the
- * rota rows already on this page (`lib/utils/coverage-check.ts` joins them).
+ * Cover vs demand for every day of the week on screen: how many people are
+ * planned each hour against how many the recent order history says the hour
+ * needs. The demand comes from `GET /scheduled-shifts/coverage`; the headcount
+ * from the rota rows already on the page (`lib/utils/coverage-check.ts` joins
+ * them). Lifted out of the panel so the grid can flag short days on their
+ * headings; the panel shows one day's hours.
  */
-export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShift[]; days: string[]; todayKey: string }) {
+export function useCoverageCheck(shifts: ScheduledShift[], days: string[]) {
   const { locationId } = useWorkspaceStore();
-  const reduceMotion = useReducedMotion();
-  const [picked, setPicked] = useState<string | null>(null);
-  const [tuning, setTuning] = useState(false);
   const [lookbackDays, setLookbackDays] = useState(DEFAULTS.lookbackDays);
   const [ordersPerStaff, setOrdersPerStaff] = useState(DEFAULTS.ordersPerStaff);
   const [minStaff, setMinStaff] = useState(DEFAULTS.minStaff);
-
-  // Today when it is in view, else the first day of the period.
-  const dayKey = picked && days.includes(picked) ? picked : days.includes(todayKey) ? todayKey : days[0];
-  const day = dayKey ? parseDay(dayKey) : null;
 
   const demand = useQuery({
     queryKey: moduleQueryKeys.workforce.key('coverage', locationId, lookbackDays, ordersPerStaff, minStaff, true),
@@ -51,34 +52,69 @@ export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShi
     enabled: !!locationId,
   });
 
-  const result = useMemo(() => {
-    if (!day || !demand.data) return null;
-    const weekday = day.getDay();
-    const rows = demand.data.coverage.filter((row) => isWeekdayRow(row) && row.weekday === weekday);
-    return coverageForDay(rows, shifts, day);
-  }, [day, demand.data, shifts]);
+  const byDay = useMemo(() => {
+    const map = new Map<string, CoverageDay>();
+    if (!demand.data) return map;
+    for (const key of days) {
+      const day = parseDay(key);
+      const weekday = day.getDay();
+      const rows = demand.data.coverage.filter((row) => isWeekdayRow(row) && row.weekday === weekday);
+      map.set(key, coverageForDay(rows, shifts, day));
+    }
+    return map;
+  }, [days, demand.data, shifts]);
+
+  return {
+    locationId,
+    demand,
+    byDay,
+    settings: { lookbackDays, ordersPerStaff, minStaff },
+    setLookbackDays,
+    setOrdersPerStaff,
+    setMinStaff,
+    reset: () => {
+      setLookbackDays(DEFAULTS.lookbackDays);
+      setOrdersPerStaff(DEFAULTS.ordersPerStaff);
+      setMinStaff(DEFAULTS.minStaff);
+    },
+  };
+}
+
+/** One day's cover, hour by hour — opened from a day's heading or the toolbar. */
+export function CoveragePanel({
+  check,
+  days,
+  day: dayKey,
+  todayKey,
+  onDayChange,
+  onClose,
+}: {
+  check: CoverageCheck;
+  days: string[];
+  day: string;
+  todayKey: string;
+  onDayChange: (day: string) => void;
+  onClose: () => void;
+}) {
+  const reduceMotion = useReducedMotion();
+  const [tuning, setTuning] = useState(false);
+  const { demand, settings } = check;
+  const day = parseDay(dayKey);
+  const result = check.byDay.get(dayKey) ?? null;
 
   const scale = Math.max(1, ...(result?.hours ?? []).flatMap((row) => [row.needed, row.rostered]));
-  const shortHours = result?.short.reduce((sum, run) => sum + (run.to - run.from), 0) ?? 0;
+  const shortHours = shortHoursOf(result);
 
-  if (!locationId || !day) return null;
+  if (!check.locationId) return null;
 
   return (
-    <section className="overflow-hidden rounded-lg border border-rule/60 bg-field" aria-labelledby="cover-vs-demand">
-      <header className="flex flex-wrap items-center gap-3 px-5 py-4">
-        <span
-          className={cn(
-            'flex size-10 shrink-0 items-center justify-center rounded-md',
-            shortHours > 0 ? 'bg-exception/8 text-exception' : 'bg-primary/8 text-primary',
-          )}
-        >
-          {shortHours > 0 ? <AlertTriangle size={18} aria-hidden="true" /> : <CheckCircle2 size={18} aria-hidden="true" />}
-        </span>
+    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm" aria-labelledby="cover-vs-demand">
+      <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         <div className="min-w-0 flex-1">
-          <h3 id="cover-vs-demand" className="text-base font-semibold tracking-title text-foreground">
+          <h3 id="cover-vs-demand" className="text-sm font-semibold text-heading">
             Cover vs demand
           </h3>
-          <p className="text-xs text-muted-foreground">
+          <p className={cn('text-xs', shortHours > 0 ? 'font-medium text-exception' : 'text-muted-foreground')}>
             {demand.isPending
               ? 'Reading recent orders…'
               : demand.isError
@@ -90,45 +126,48 @@ export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShi
                     : `Covered all day${result.peak ? ` · busiest at ${hourLabel(result.peak.hour)}` : ''}`}
           </p>
         </div>
-        {days.length > 1 && (
-          <SegmentedControl
-            options={days.map((key) => ({ value: key, label: key === todayKey ? 'Today' : WEEKDAY.format(parseDay(key)) }))}
-            value={dayKey}
-            onChange={setPicked}
-            ariaLabel="Day to check"
-          />
-        )}
-        <Button
-          variant="ghost"
-          size="icon"
-          aria-label="Adjust how demand is worked out"
-          aria-pressed={tuning}
-          title="Adjust"
-          onClick={() => setTuning((value) => !value)}
-        >
-          <SlidersHorizontal size={16} />
-        </Button>
+        <SegmentedControl
+          options={days.map((key) => ({ value: key, label: key === todayKey ? 'Today' : WEEKDAY.format(parseDay(key)) }))}
+          value={dayKey}
+          onChange={onDayChange}
+          ariaLabel="Day to check"
+        />
+        <div className="flex items-center gap-1">
+          <Button
+            variant="ghost"
+            size="icon"
+            aria-label="Adjust how demand is worked out"
+            aria-pressed={tuning}
+            title="Adjust"
+            onClick={() => setTuning((value) => !value)}
+          >
+            <SlidersHorizontal size={16} />
+          </Button>
+          <Button variant="ghost" size="icon" aria-label="Close cover check" onClick={onClose}>
+            <X size={16} />
+          </Button>
+        </div>
       </header>
 
       {tuning && (
-        <div className="flex flex-wrap items-end gap-4 border-t border-rule/50 bg-background/40 px-5 py-3.5">
-          <NumberSetting label="Look back" unit="days" value={lookbackDays} min={7} max={365} onChange={setLookbackDays} />
+        <div className="flex flex-wrap items-end gap-4 border-t border-border bg-band/40 px-4 py-3">
+          <NumberSetting label="Look back" unit="days" value={settings.lookbackDays} min={7} max={365} onChange={check.setLookbackDays} />
           <NumberSetting
             label="One person per"
             unit="orders an hour"
-            value={ordersPerStaff}
+            value={settings.ordersPerStaff}
             min={1}
             max={200}
-            onChange={setOrdersPerStaff}
+            onChange={check.setOrdersPerStaff}
           />
           <div className="flex flex-col gap-1">
-            <span className="text-xs font-semibold text-foreground">At least</span>
+            <FieldLabel as="span">At least</FieldLabel>
             <span className="flex items-center gap-2">
               <div className="w-32">
                 <NumberWheelPicker
                   aria-label="At least this many on while open"
-                  value={minStaff}
-                  onValueChange={setMinStaff}
+                  value={settings.minStaff}
+                  onValueChange={check.setMinStaff}
                   min={0}
                   max={20}
                   unit={(count) => (count === 1 ? 'person' : 'people')}
@@ -137,21 +176,13 @@ export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShi
               <span className="text-xs text-muted-foreground">on while open</span>
             </span>
           </div>
-          <button
-            type="button"
-            className="h-9 text-xs font-semibold text-muted-foreground hover:text-foreground"
-            onClick={() => {
-              setLookbackDays(DEFAULTS.lookbackDays);
-              setOrdersPerStaff(DEFAULTS.ordersPerStaff);
-              setMinStaff(DEFAULTS.minStaff);
-            }}
-          >
+          <button type="button" className="h-9 text-xs font-semibold text-muted-foreground hover:text-foreground" onClick={check.reset}>
             Reset
           </button>
         </div>
       )}
 
-      <div className="border-t border-rule/50 px-5 pt-4 pb-3">
+      <div className="border-t border-border px-4 pt-4 pb-3">
         {demand.isPending ? (
           // The chart's own frame: a column per hour (count above, hour below), then the legend.
           <div role="status" aria-busy="true" aria-label="Checking coverage">
@@ -159,7 +190,7 @@ export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShi
               {Array.from({ length: 12 }, (_, index) => (
                 <div key={index} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
                   <Bone className="h-3 w-6 max-w-full" />
-                  <Bone className="h-32 w-full rounded-sm" />
+                  <Bone className="h-24 w-full rounded-sm" />
                   <Bone className="h-2.5 w-4 max-w-full" />
                 </div>
               ))}
@@ -167,8 +198,8 @@ export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShi
             <Bone className="mt-3 h-3 w-64 max-w-full" />
           </div>
         ) : !result || result.hours.length === 0 ? (
-          <div className="flex h-32 flex-col items-center justify-center gap-1 text-center">
-            <TrendingUp size={20} className="text-muted-foreground" aria-hidden="true" />
+          <div className="flex h-24 flex-col items-center justify-center gap-1 text-center">
+            <TrendingUp size={18} className="text-muted-foreground" aria-hidden="true" />
             <p className="text-sm text-muted-foreground">The check fills in once there are a few weeks of orders for this day.</p>
           </div>
         ) : (
@@ -184,10 +215,10 @@ export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShi
                 const over = row.gap > 0;
                 return (
                   <div key={row.hour} className="flex min-w-0 flex-1 flex-col items-center gap-1.5">
-                    <span className={cn('text-xs font-semibold', short ? 'text-exception' : 'text-muted-foreground')}>
+                    <span className={cn('text-xs font-semibold tabular-nums', short ? 'text-exception' : 'text-muted-foreground')}>
                       {row.rostered}/{row.needed}
                     </span>
-                    <div className="relative h-32 w-full rounded-sm bg-band/60">
+                    <div className="relative h-24 w-full rounded-sm bg-band/60">
                       <motion.div
                         className={cn(
                           'absolute inset-x-1 bottom-0 origin-bottom rounded-t-sm',
@@ -207,7 +238,7 @@ export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShi
                         />
                       )}
                     </div>
-                    <span className="text-micro text-muted-foreground">{String(row.hour).padStart(2, '0')}</span>
+                    <span className="text-micro tabular-nums text-muted-foreground">{String(row.hour).padStart(2, '0')}</span>
                   </div>
                 );
               })}
@@ -223,7 +254,7 @@ export function CoveragePanel({ shifts, days, todayKey }: { shifts: ScheduledShi
                 <span className="size-2.5 rounded-sm bg-exception/70" aria-hidden="true" /> Short
               </span>
               <span className="ml-auto">
-                From the last {lookbackDays} days of orders · one person per {ordersPerStaff} an hour
+                From the last {settings.lookbackDays} days of orders · one person per {settings.ordersPerStaff} an hour
               </span>
             </div>
           </>
@@ -250,7 +281,7 @@ function NumberSetting({
 }) {
   return (
     <label className="flex flex-col gap-1">
-      <span className="text-xs font-semibold text-foreground">{label}</span>
+      <FieldLabel as="span">{label}</FieldLabel>
       <span className="flex items-center gap-2">
         <input
           type="number"

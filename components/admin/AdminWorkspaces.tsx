@@ -13,6 +13,7 @@ import { Bone } from '@/components/shared/Skeleton';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { getPlatformWorkspaces, provisionInternalWorkspace } from '@/lib/api/platform.service';
 import { useWorkspaceSwitch } from '@/lib/hooks/useWorkspaceSwitch';
@@ -62,9 +63,9 @@ function ProvisionInternalForm({ onClose }: { onClose: () => void }) {
         hint="Lower case, no spaces. It must not be any client’s."
       />
       <div className="space-y-1.5">
-        <label htmlFor="internal-timezone" className="text-sm font-semibold text-foreground">
+        <FieldLabel htmlFor="internal-timezone" required>
           Timezone
-        </label>
+        </FieldLabel>
         <TimezoneSelect id="internal-timezone" value={timezone} onChange={setTimezone} required />
       </div>
       <fieldset>
@@ -81,7 +82,7 @@ function ProvisionInternalForm({ onClose }: { onClose: () => void }) {
                 key={id}
                 className={cn(
                   'flex cursor-pointer items-center gap-2 rounded-md border px-2.5 py-2 text-sm',
-                  checked ? 'border-primary bg-primary/5' : 'border-rule/70 hover:bg-band/45',
+                  checked ? 'border-primary bg-primary/5' : 'border-border hover:bg-band/45',
                 )}
               >
                 <input
@@ -120,13 +121,13 @@ function InternalWorkspaceCard() {
   const internal = platform.data?.internalWorkspace;
 
   return (
-    <section aria-labelledby="internal-heading" className="rounded-lg border border-rule/60 bg-card p-4">
+    <section aria-labelledby="internal-heading" className="rounded-lg border border-border bg-card p-4">
       <div className="flex flex-wrap items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+        <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
           <LayoutDashboard size={17} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
-          <h2 id="internal-heading" className="text-sm font-semibold text-foreground">
+          <h2 id="internal-heading" className="text-sm font-semibold text-heading">
             DUMA internal workspace
           </h2>
           {platform.isLoading ? (

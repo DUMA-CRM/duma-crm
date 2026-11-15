@@ -124,7 +124,7 @@ function DrawingView({ node, editor, extension, updateAttributes, deleteNode, se
   return (
     <NodeViewWrapper as="figure" data-drawing="" className="my-3" contentEditable={false}>
       <div
-        className={`group relative overflow-hidden rounded-lg border bg-card ${selected && editable ? 'border-primary ring-2 ring-primary/25' : 'border-rule/60'}`}
+        className={`group relative overflow-hidden rounded-lg border bg-card ${selected && editable ? 'border-primary ring-2 ring-primary/25' : 'border-border'}`}
       >
         {src ? (
           // eslint-disable-next-line @next/next/no-img-element -- the drawing's own picture, from the note's storage

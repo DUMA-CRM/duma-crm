@@ -1,0 +1,13 @@
+{
+  "path": "/solutions/blogs",
+  "name": "Blogs and creators",
+  "summary": "",
+  "description": "",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "solutions/blogs",
+  "local_sources": [
+    "app/(marketing)/solutions/blogs/page.tsx"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "An independent writer at a sunlit desk arranging photographs and a notebook beside a laptop viewed from behind."
+}

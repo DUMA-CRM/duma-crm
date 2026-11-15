@@ -340,7 +340,7 @@ function StepCard({
           ? cn('border-exception/70', selected && 'ring-2 ring-exception/15')
           : selected
             ? 'border-primary ring-2 ring-primary/15'
-            : 'border-rule/60 hover:border-primary/40',
+            : 'border-border hover:border-primary/40',
         dragging && 'opacity-40',
       )}
     >

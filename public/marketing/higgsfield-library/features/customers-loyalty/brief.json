@@ -1,0 +1,13 @@
+{
+  "path": "/features/customers-loyalty",
+  "name": "Customers & loyalty",
+  "summary": "Recognise your regulars and reward them for coming back.",
+  "description": "Recognise your regulars and reward them for coming back.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/customers-loyalty",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A barista recognises a returning customer and warmly hands over their usual flat white."
+}

@@ -162,7 +162,7 @@ export function MediaPicker({
                   onClick={() => toggle(asset.id)}
                   className={cn(
                     'relative overflow-hidden rounded-md border text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                    on ? 'border-primary ring-2 ring-primary/40' : 'border-rule/60 hover:border-rule',
+                    on ? 'border-primary ring-2 ring-primary/40' : 'border-border hover:border-rule',
                   )}
                 >
                   {isImage(asset.mimeType) ? (

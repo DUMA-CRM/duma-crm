@@ -101,7 +101,7 @@ export function ReviewStep({ draft, error, onEdit, update }: ReviewStepProps) {
           {error}
         </p>
       )}
-      <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+      <ul className="overflow-hidden rounded-lg border border-border bg-card">
         {rows.map((row) => {
           const yesNo = row.on !== undefined;
           return (

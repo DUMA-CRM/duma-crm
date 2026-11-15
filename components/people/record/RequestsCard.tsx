@@ -5,13 +5,14 @@ import Link from 'next/link';
 import { STATUS_ICON, STATUS_META, fmtAgo, ticketKey } from '@/components/helpdesk/shared';
 import { ChevronRight, CircleHelp } from '@/components/icons';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
 import type { HelpdeskTicket, TicketStatus } from '@/lib/modules/people/client';
 import { openTicketsFor, recordRequestList } from '@/lib/utils/employee-record';
 
-import { RecordBlock, RecordList, RecordListRow } from './shared';
+import { RecordList, RecordListRow } from './shared';
 
 /** A ticket's status as the row's tint and pill — waiting on them is the one that wants attention. */
 const STATUS_ROW: Record<
@@ -49,10 +50,10 @@ export function EmployeeRequestsCard({
   const more = tickets ? tickets.length - shown.length : 0;
 
   return (
-    <RecordBlock
+    <RecordGroup
       id="record-requests"
       title="Requests"
-      action={
+      actions={
         <>
           {open > 0 && <Badge variant="warning">{open} open</Badge>}
           <Link
@@ -64,7 +65,7 @@ export function EmployeeRequestsCard({
           </Link>
         </>
       }
-      note={
+      footnote={
         more > 0 && (
           <Link href="/staff/helpdesk" className="font-semibold hover:text-foreground">
             {more} older {more === 1 ? 'request' : 'requests'} on the helpdesk
@@ -105,6 +106,6 @@ export function EmployeeRequestsCard({
           )}
         </RecordList>
       )}
-    </RecordBlock>
+    </RecordGroup>
   );
 }

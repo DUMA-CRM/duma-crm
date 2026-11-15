@@ -1,6 +1,6 @@
-import { redirect } from 'next/navigation';
+import { MenuOverview } from '@/components/menu/MenuOverview';
 
-/** /menu has no content of its own — the sections are the real routes. */
+/** /menu opens on the overview — what needs fixing, margins, what's switched off. */
 export default function MenuPage() {
-  redirect('/menu/items');
+  return <MenuOverview />;
 }

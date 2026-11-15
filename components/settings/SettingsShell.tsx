@@ -2,8 +2,8 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
-import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
 import {
@@ -18,14 +18,13 @@ import {
   QrCode,
   Receipt,
   Settings,
-  Sparkles,
   ShieldCheck,
   SlidersHorizontal,
   UserRound,
 } from '@/components/icons';
+import { SettingsAreaContent } from '@/components/settings/SettingsAreaContent';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SectionTabs } from '@/components/shared/SectionTabs';
-import { SettingsAreaContent } from '@/components/settings/SettingsAreaContent';
 
 import { type Capability, hasAnyCapability } from '@/lib/auth/capabilities';
 import { type WorkspaceModuleId, getCurrentTenantModules } from '@/lib/modules/organization/client';
@@ -59,11 +58,41 @@ interface SettingsArea {
 
 // Five stable destinations. Each area combines its related settings in one view.
 export const SETTINGS_AREAS: readonly SettingsArea[] = [
-  { id: 'account', label: 'Account', icon: UserRound, href: '/settings/account', description: 'Profile, appearance, sign-in and active sessions.' },
-  { id: 'workspace', label: 'Workspace', icon: Building2, href: '/settings/workspaces', description: 'Business details, brand and locations.' },
-  { id: 'operations', label: 'Operations', icon: LayoutGrid, href: '/settings/configuration', description: 'Modules, screens, Ask DUMA, receipts and tax.' },
-  { id: 'connections', label: 'Connections', icon: Plug, href: '/settings/connectors', description: 'Integrations, card readers and connected services.' },
-  { id: 'developers', label: 'Developers', icon: Code, href: '/settings/developers', description: 'API keys, webhooks, MCP and documentation.' },
+  {
+    id: 'account',
+    label: 'Account',
+    icon: UserRound,
+    href: '/settings/account',
+    description: 'Profile, appearance, sign-in and active sessions.',
+  },
+  {
+    id: 'workspace',
+    label: 'Workspace',
+    icon: Building2,
+    href: '/settings/workspaces',
+    description: 'Business details, brand and locations.',
+  },
+  {
+    id: 'operations',
+    label: 'Operations',
+    icon: LayoutGrid,
+    href: '/settings/configuration',
+    description: 'Modules, screens, Ask DUMA, receipts and tax.',
+  },
+  {
+    id: 'connections',
+    label: 'Connections',
+    icon: Plug,
+    href: '/settings/connectors',
+    description: 'Integrations, card readers and connected services.',
+  },
+  {
+    id: 'developers',
+    label: 'Developers',
+    icon: Code,
+    href: '/settings/developers',
+    description: 'API keys, webhooks, MCP and documentation.',
+  },
 ];
 
 export const SETTINGS_TABS: readonly SettingsTab[] = [
@@ -133,13 +162,6 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
     superAdminOnly: true,
   },
   {
-    href: '/settings/assistant',
-    label: 'Ask DUMA',
-    icon: Sparkles,
-    area: 'operations',
-    anyOf: [],
-  },
-  {
     // Every public API in one place: keys, webhooks and the API reference.
     href: '/settings/developers',
     label: 'Keys & webhooks',
@@ -195,14 +217,14 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
     '/settings/configuration/pos': 'Till',
     '/settings/configuration/orders': 'Orders',
     '/settings/configuration/kitchen': 'Kitchen screen',
-    '/settings/developers/docs': 'API reference',
     '/settings/profile': 'Profile & appearance',
     '/settings/security': 'Sign-in & active sessions',
     '/settings/roles': 'Roles & access',
   };
-  const pageTitle = pathname === '/settings'
-    ? 'Settings'
-    : pageTitles[pathname] ?? (isOperationsDetail ? active?.label : activeArea?.label) ?? 'Settings';
+  const pageTitle =
+    pathname === '/settings'
+      ? 'Settings'
+      : (pageTitles[pathname] ?? (isOperationsDetail ? active?.label : activeArea?.label) ?? 'Settings');
 
   useEffect(() => {
     if (!modules.data || !pathname.startsWith('/settings/qr-ordering') || qrOrderingEnabled) return;
@@ -216,18 +238,22 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
       title={pageTitle}
       onClose={isOperationsDetail ? () => router.push('/settings/configuration') : undefined}
       // A gear, not the user's face — the Profile tab already shows that, a few pixels below.
-      leading={isOperationsDetail ? undefined : (
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
-          <Settings size={17} aria-hidden="true" />
-        </span>
-      )}
+      leading={
+        isOperationsDetail ? undefined : (
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
+            <Settings size={17} aria-hidden="true" />
+          </span>
+        )
+      }
       subheader={
         <>
           <div className="hidden lg:block">
             <SectionTabs
               ariaLabel="Settings areas"
               tabs={SETTINGS_AREAS.filter((area) => tabs.some((tab) => tab.area === area.id)).map((area) => ({
-                value: area.id, label: area.label, icon: area.icon,
+                value: area.id,
+                label: area.label,
+                icon: area.icon,
               }))}
               value={activeArea?.id ?? 'account'}
               onChange={(areaId) => {
@@ -237,7 +263,10 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
             />
           </div>
           {pathname !== '/settings' && !isOperationsDetail && (
-            <Link href="/settings" className="flex min-h-12 items-center gap-2 border-b border-rule px-4 text-sm font-medium text-muted-foreground hover:text-foreground lg:hidden">
+            <Link
+              href="/settings"
+              className="flex min-h-12 items-center gap-2 border-b border-border px-4 text-sm font-medium text-muted-foreground hover:text-foreground lg:hidden"
+            >
               <ArrowLeft size={16} aria-hidden="true" /> All settings
             </Link>
           )}
@@ -253,30 +282,46 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
       >
         {pathname === '/settings' ? (
           <>
-            <nav aria-label="Settings categories" className="divide-y divide-rule rounded-lg border border-rule bg-field lg:hidden">
+            <nav aria-label="Settings categories" className="divide-y divide-border rounded-lg border border-border bg-card lg:hidden">
               {SETTINGS_AREAS.filter((area) => tabs.some((tab) => tab.area === area.id)).map((area) => (
-                <Link key={area.id} href={area.href} className="flex min-h-20 items-center gap-3 p-4 hover:bg-band/45 focus-visible:outline-2 focus-visible:outline-ring">
+                <Link
+                  key={area.id}
+                  href={area.href}
+                  className="flex min-h-20 items-center gap-3 p-4 hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
+                >
                   <area.icon size={20} aria-hidden="true" className="shrink-0 text-primary" />
                   <span className="min-w-0 flex-1">
-                    <span className="block text-base font-semibold text-foreground">{area.label}</span>
+                    <span className="block text-base font-semibold text-heading">{area.label}</span>
                     <span className="mt-1 block text-sm text-muted-foreground">{area.description}</span>
                   </span>
                   <ArrowRight size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
                 </Link>
               ))}
             </nav>
-            <div className="hidden lg:block"><SettingsAreaContent area="account" /></div>
+            <div className="hidden lg:block">
+              <SettingsAreaContent area="account" />
+            </div>
           </>
-        ) : (activeArea?.id === 'operations' && pathname !== '/settings/configuration') || pathname === '/settings/security' || pathname === '/settings/profile' || pathname === '/settings/roles' ? (
+        ) : (activeArea?.id === 'operations' && pathname !== '/settings/configuration') ||
+          pathname === '/settings/security' ||
+          pathname === '/settings/profile' ||
+          pathname === '/settings/roles' ? (
           <div className="space-y-5">
             {!isOperationsDetail && !pathname.startsWith('/settings/configuration/') && (
-              <Link href={activeArea?.href ?? '/settings'} className="inline-flex min-h-11 items-center gap-1.5 rounded-sm text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring">
+              <Link
+                href={activeArea?.href ?? '/settings'}
+                className="inline-flex min-h-11 items-center gap-1.5 rounded-sm text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+              >
                 <ArrowLeft size={16} aria-hidden="true" /> {activeArea?.label ?? 'Settings'}
               </Link>
             )}
             {children}
           </div>
-        ) : activeArea ? <SettingsAreaContent area={activeArea.id} /> : children}
+        ) : activeArea ? (
+          <SettingsAreaContent area={activeArea.id} />
+        ) : (
+          children
+        )}
       </motion.div>
     </EditorShell>
   );

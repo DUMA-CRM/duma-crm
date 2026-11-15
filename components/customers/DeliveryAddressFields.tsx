@@ -5,7 +5,7 @@ import { useId, useMemo } from 'react';
 import { Globe, Hash, Landmark, MapPin, Phone, User } from '@/components/icons';
 import { DrawerSection, FieldLine } from '@/components/shared/DrawerSection';
 import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { useHomeCountries } from '@/lib/hooks/useHomeCountries';
@@ -141,7 +141,7 @@ export function DeliveryAddressFields({
       <Input label="Town or city" value={value.city} onChange={(e) => onChange({ city: e.target.value })} error={errors?.city} />
       <Input label="Postcode" value={value.postcode} onChange={(e) => onChange({ postcode: e.target.value })} error={errors?.postcode} />
       <div className="flex flex-col gap-1.5 sm:col-span-2">
-        <Label uppercase>Country</Label>
+        <FieldLabel as="span">Country</FieldLabel>
         <Select value={value.country} onValueChange={(country) => onChange({ country })} options={countries} ariaLabel="Country" />
       </div>
     </div>

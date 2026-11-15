@@ -433,7 +433,7 @@ function LoadedNote({
                   </button>
                 )}
                 {note.canEdit && (
-                  <div className="mt-1.5 border-t border-rule/50 pt-1.5">
+                  <div className="mt-1.5 border-t border-border pt-1.5">
                     <MenuItem icon={Trash2} label="Delete" danger onClick={() => act(() => remove.mutate())} />
                   </div>
                 )}
@@ -456,7 +456,7 @@ function LoadedNote({
         </div>
       )}
       {trashed && (
-        <div className="flex items-center gap-3 border-b border-rule/50 bg-band/60 px-5 py-2.5 text-sm text-muted-foreground">
+        <div className="flex items-center gap-3 border-b border-border bg-band/60 px-5 py-2.5 text-sm text-muted-foreground">
           <span className="min-w-0 flex-1">In Recently Deleted. Restore it to edit.</span>
           {note.canEdit && (
             <>

@@ -4,7 +4,7 @@ import { useEffect, useLayoutEffect, useRef, useState, useSyncExternalStore } fr
 import { createPortal } from 'react-dom';
 
 import { cn } from '@/lib/utils/cn';
-import { placeTooltip, type TooltipAlign, type TooltipPlacement, type TooltipSide } from '@/lib/utils/tooltip-position';
+import { type TooltipAlign, type TooltipPlacement, type TooltipSide, placeTooltip } from '@/lib/utils/tooltip-position';
 
 // The entrance slides away from the trigger, so it follows the side the
 // tooltip actually landed on, not the one asked for.
@@ -107,9 +107,12 @@ export function Tooltip({
     if (timer.current) clearTimeout(timer.current);
     timer.current = setTimeout(close, 1800);
   };
-  useEffect(() => () => {
-    if (timer.current) clearTimeout(timer.current);
-  }, []);
+  useEffect(
+    () => () => {
+      if (timer.current) clearTimeout(timer.current);
+    },
+    [],
+  );
 
   const vertical = placement?.side === 'top' || placement?.side === 'bottom';
 
@@ -143,7 +146,9 @@ export function Tooltip({
           >
             <div
               className={cn(
-                'relative rounded-sm bg-foreground px-2.5 py-1.5 text-xs font-semibold text-background shadow-lg',
+                // The colour scheme's own dark (its sidebar's), not the ink: the ink is
+                // forest green whichever scheme is chosen. Night keeps the light tooltip.
+                'relative rounded-md bg-(--brand-shell) px-2.5 py-1.5 text-xs font-medium text-(--brand-on) shadow-lg dark:bg-foreground dark:text-background',
                 wrap
                   ? 'w-max max-w-[min(16rem,calc(100vw-1rem))] whitespace-normal leading-snug'
                   : 'max-w-[calc(100vw-1rem)] whitespace-nowrap',
@@ -153,7 +158,7 @@ export function Tooltip({
                 // Sits on the edge facing the trigger, half outside the box.
                 <span
                   aria-hidden="true"
-                  className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-foreground"
+                  className="absolute h-2 w-2 -translate-x-1/2 -translate-y-1/2 rotate-45 bg-(--brand-shell) dark:bg-foreground"
                   style={
                     vertical
                       ? { left: placement.arrow, top: placement.side === 'top' ? '100%' : 0 }

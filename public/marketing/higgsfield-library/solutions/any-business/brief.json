@@ -1,0 +1,14 @@
+{
+  "path": "/solutions/any-business",
+  "name": "Any business",
+  "summary": "",
+  "description": "",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "solutions/any-business",
+  "local_sources": [
+    "app/(marketing)/solutions/any-business/page.tsx",
+    "lib/marketing/any-business.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "Two small-business colleagues plan their work at a bright studio table with notebooks and a laptop seen from the back."
+}

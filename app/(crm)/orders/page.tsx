@@ -9,13 +9,17 @@ import { Suspense, useCallback, useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   Banknote,
+  Bell,
   CalendarDays,
+  Check,
+  CheckCircle2,
   ChevronLeft,
   ChevronRight,
   Clock,
   CreditCard,
   Download,
   Flame,
+  ListChecks,
   Loader2,
   Package,
   Plus,
@@ -30,17 +34,19 @@ import {
 } from '@/components/icons';
 import { NewOrderModal } from '@/components/orders/NewOrderModal';
 import { OrderDrawer } from '@/components/orders/OrderDrawer';
+import { OrderRowMenu } from '@/components/orders/OrderRowMenu';
 import { StatusMenu } from '@/components/orders/StatusMenu';
-import { LIVE_STATUSES, SOURCE_META, STATUS_META, optionLabel } from '@/components/orders/orderMeta';
+import { FULFILMENT_LABEL, LIVE_STATUSES, SOURCE_META, STATUS_META, optionLabel } from '@/components/orders/orderMeta';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
 import { Avatar } from '@/components/shared/Avatar';
+import type { DrawerEnter } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { FilterChip } from '@/components/shared/FilterChip';
 import { IconTag } from '@/components/shared/IconTag';
-import { ListRow } from '@/components/shared/ListRow';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { LoadMore } from '@/components/shared/LoadMore';
 import { MiniBar } from '@/components/shared/MiniBar';
 import { Pill } from '@/components/shared/Pill';
@@ -48,6 +54,7 @@ import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton'
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 import { Select, type SelectOption } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -55,13 +62,36 @@ import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { API_PREFIX } from '@/lib/modules/core/client';
 import { getCustomer } from '@/lib/modules/customers/client';
 import { getStaff } from '@/lib/modules/identity/client';
-import { type Order, type OrderSource, type OrderStatus, approveCashOrder, getOrders } from '@/lib/modules/ordering/client';
+import {
+  type Order,
+  type OrderSource,
+  type OrderStatus,
+  type OrdersParams,
+  type OrdersSummary,
+  approveCashOrder,
+  bulkUpdateOrderStatus,
+  getOrders,
+  getOrdersSummary,
+  orderFilterQuery,
+} from '@/lib/modules/ordering/client';
 import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { paymentClears } from '@/lib/utils/order-workflow';
-import { groupOrdersByDay, itemCount, itemPreview, orderCode, paymentSummary, shiftDay, todayKey } from '@/lib/utils/orders-list';
+import {
+  type BulkAction,
+  type MoneyFilter,
+  bulkEligible,
+  groupOrdersByDay,
+  itemCount,
+  itemPreview,
+  moneyFilterParams,
+  orderCode,
+  paymentSummary,
+  shiftDay,
+  todayKey,
+} from '@/lib/utils/orders-list';
 import { workspaceFormatter } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -98,6 +128,22 @@ const PAYMENT_FILTERS: SelectOption[] = [
   { value: 'all', label: 'All payments' },
   { value: 'card', label: 'Card' },
   { value: 'cash', label: 'Cash' },
+];
+
+const MONEY_FILTERS: { value: MoneyFilter; label: string }[] = [
+  { value: 'all', label: 'Any payment state' },
+  { value: 'paid', label: 'Paid' },
+  { value: 'unpaid', label: 'Unpaid' },
+  { value: 'awaiting_cash_approval', label: 'Waiting for cash' },
+  { value: 'awaiting_payment', label: 'Waiting for online payment' },
+  { value: 'partially_refunded', label: 'Part refunded' },
+  { value: 'refunded', label: 'Refunded' },
+];
+
+type FulfilmentFilter = 'all' | 'eat_in' | 'takeaway' | 'collection' | 'delivery' | 'shipping';
+const FULFILMENT_FILTERS: { value: FulfilmentFilter; label: string }[] = [
+  { value: 'all', label: 'Any order type' },
+  ...(['eat_in', 'takeaway', 'collection', 'delivery', 'shipping'] as const).map((value) => ({ value, label: FULFILMENT_LABEL[value] })),
 ];
 
 const DATE_FILTERS: SelectOption[] = [
@@ -137,57 +183,97 @@ function OrderRow({
   selected,
   onOpen,
   money,
+  picking = false,
+  picked = false,
+  onPick,
+  onStartSelect,
 }: {
   order: Order;
   selected: boolean;
   onOpen: () => void;
   money: (n: number) => string;
+  /** Select mode: a tap picks the order for a bulk action instead of opening it. */
+  picking?: boolean;
+  picked?: boolean;
+  onPick?: () => void;
+  /** Right-click → Select: starts select mode with this order picked. */
+  onStartSelect?: () => void;
 }) {
   const source = SOURCE_META[order.source];
   const payment = paymentSummary(order);
   const muted = order.status === 'cancelled' || order.status === 'expired';
   // Money went back: the whole row says so, not only a pill — full refunds
   // strike the total through, part refunds colour it.
-  const refundedFull = order.refundStatus === 'refunded' || order.paymentStatus === 'refunded';
-  const refundedPart = !refundedFull && order.refundStatus === 'partially_refunded';
+  // A cancelled order that was paid is refunded automatically. It reads as
+  // cancelled (muted, struck through) — the refund is a quiet note in the
+  // payment column, not the row's headline, as Square shows it.
+  const refundedFull = !muted && (order.refundStatus === 'refunded' || order.paymentStatus === 'refunded');
+  const refundedPart = !muted && !refundedFull && order.refundStatus === 'partially_refunded';
   const refunded = refundedFull || refundedPart;
+  const refundedOnCancel = muted && (order.refundStatus === 'refunded' || order.paymentStatus === 'refunded');
   const preview = itemPreview(order.items);
   const count = itemCount(order.items);
   // Paid is the ordinary case, so it is a mark; anything else is worth reading.
   const paidBy = payment.state === null && (order.paymentMethod === 'card' || order.paymentMethod === 'cash') ? order.paymentMethod : null;
 
-  return (
+  const row = (
     <li
       id={`order-row-${order.id}`}
-      className={cn('border-b border-rule/45 last:border-b-0', refundedFull && !selected && 'bg-exception/4')}
+      className={cn('border-b border-border last:border-b-0', refundedFull && !selected && 'bg-exception/4')}
     >
       <ListRow
         as="div"
         className="border-b-0"
         icon={source.icon}
         iconLabel={source.label}
+        leading={
+          picking ? (
+            <span
+              role="checkbox"
+              aria-checked={picked}
+              aria-label={`Select ${orderCode(order.id)}`}
+              className={cn(
+                'flex size-9 shrink-0 items-center justify-center rounded-md border transition-colors',
+                picked ? 'border-primary bg-primary text-primary-foreground' : 'border-edge bg-card text-transparent',
+              )}
+            >
+              <Check size={16} strokeWidth={3} aria-hidden="true" />
+            </span>
+          ) : undefined
+        }
         tone={refunded ? 'exception' : STATUS_META[order.status].tone}
         muted={muted && !refunded}
-        selected={selected}
-        onClick={onOpen}
-        title={<span className={cn(muted && 'line-through decoration-rule', refundedFull && 'text-exception')}>{orderCode(order.id)}</span>}
+        selected={picking ? picked : selected}
+        onClick={picking ? onPick : onOpen}
+        title={
+          <span className={cn(muted && 'line-through decoration-muted-foreground', refundedFull && 'text-exception')}>
+            {orderCode(order.id)}
+          </span>
+        }
         titleExtra={order.customerName && <span className="truncate text-sm text-foreground">{order.customerName}</span>}
         meta={
           <>
             {TIME().format(new Date(order.createdAt))}
+            {order.fulfilmentType && FULFILMENT_LABEL[order.fulfilmentType] && ` · ${FULFILMENT_LABEL[order.fulfilmentType]}`}
             {preview && ` · ${preview}`}
           </>
         }
         control={
-          <span className="hidden md:block">
-            <StatusMenu order={order} />
-          </span>
+          picking ? undefined : (
+            <span className="hidden md:block">
+              <StatusMenu order={order} />
+            </span>
+          )
         }
         trailing={
           <>
             {refunded ? (
               <Pill tone="exception" icon={RotateCcw} className="hidden sm:inline-flex">
                 {refundedFull ? 'Refunded' : 'Part refunded'}
+              </Pill>
+            ) : refundedOnCancel ? (
+              <Pill tone="muted" icon={RotateCcw} className="hidden sm:inline-flex">
+                Refunded
               </Pill>
             ) : paidBy ? (
               <IconTag
@@ -202,7 +288,7 @@ function OrderRow({
                 {payment.state ?? payment.method}
               </Pill>
             )}
-            <span className="w-20 text-right">
+            <span className="relative w-20 text-right">
               <span
                 className={cn(
                   'block text-sm font-semibold',
@@ -227,6 +313,123 @@ function OrderRow({
         }
       />
     </li>
+  );
+  // Select mode owns the tap and the row; the menu would only compete with it.
+  return picking ? (
+    row
+  ) : (
+    <OrderRowMenu order={order} onOpen={onOpen} onSelect={onStartSelect}>
+      {row}
+    </OrderRowMenu>
+  );
+}
+
+/** A floating bar while orders are picked: the two bulk steps, each saying how many it will take. */
+function BulkBar({
+  count,
+  ready,
+  complete,
+  busy,
+  onAction,
+  onClear,
+}: {
+  count: number;
+  ready: number;
+  complete: number;
+  busy: boolean;
+  onAction: (action: BulkAction) => void;
+  onClear: () => void;
+}) {
+  const skipped = count - Math.max(ready, complete);
+  const none = ready === 0 && complete === 0;
+  return (
+    <div role="region" aria-label="Bulk actions" className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
+      <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card py-2 pr-2 pl-4 shadow-lg">
+        <span className="text-sm font-semibold text-heading tabular-nums">{count} selected</span>
+        {/* Only steps that would take something are offered — finished orders get a sentence, not two dead buttons. */}
+        {none ? (
+          <span className="pr-1 text-xs text-muted-foreground">
+            {count === 1 ? 'This order is' : 'These orders are'} finished or unpaid — nothing to move on
+          </span>
+        ) : (
+          skipped > 0 && <span className="text-xs text-muted-foreground">Unpaid or finished ones are left out</span>
+        )}
+        {ready > 0 && (
+          <Button variant="outline" disabled={busy} onClick={() => onAction('ready')}>
+            {busy ? <Loader2 className="animate-spin" data-icon="inline-start" /> : <Bell data-icon="inline-start" />}
+            Mark ready{ready !== count ? ` (${ready})` : ''}
+          </Button>
+        )}
+        {complete > 0 && (
+          <Button disabled={busy} onClick={() => onAction('done')}>
+            {busy && ready === 0 ? (
+              <Loader2 className="animate-spin" data-icon="inline-start" />
+            ) : (
+              <CheckCircle2 data-icon="inline-start" />
+            )}
+            Complete{complete !== count ? ` (${complete})` : ''}
+          </Button>
+        )}
+        <Button variant="ghost" size="icon" onClick={onClear} aria-label="Clear the selection">
+          <X />
+        </Button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * What the orders on screen add up to, for any filter — "what did card take
+ * last week?" — not only today. Sales are paid orders that weren't cancelled;
+ * refunds are what went back on them; net is the difference.
+ */
+function OrdersTotals({ summary, money, total }: { summary: OrdersSummary; money: (n: number) => string; total: number }) {
+  const methods = summary.byPaymentMethod.slice(0, 3);
+  return (
+    <dl
+      aria-label="Totals for these orders"
+      className="flex flex-wrap items-baseline gap-x-6 gap-y-2 rounded-lg border border-border bg-card px-4 py-3 text-sm shadow-sm"
+    >
+      <Total label={`${total.toLocaleString()} ${total === 1 ? 'order' : 'orders'}`} value={money(Number(summary.sales))} strong />
+      {Number(summary.refunded) > 0 && <Total label="Refunds" value={`−${money(Number(summary.refunded))}`} tone="exception" />}
+      {Number(summary.refunded) > 0 && <Total label="Net" value={money(Number(summary.net))} strong />}
+      {summary.paidCount > 0 && <Total label="Average sale" value={money(Number(summary.average))} />}
+      {methods.length > 1 && (
+        <span className="flex flex-wrap items-baseline gap-x-4 gap-y-1 text-muted-foreground sm:ml-auto">
+          {methods.map((row) => (
+            <span key={row.method} className="tabular-nums">
+              {PAYMENT_METHOD_LABEL[row.method] ?? 'Other'} <span className="font-medium text-foreground">{money(Number(row.total))}</span>
+            </span>
+          ))}
+        </span>
+      )}
+    </dl>
+  );
+}
+
+const PAYMENT_METHOD_LABEL: Record<string, string> = {
+  card: 'Card',
+  cash: 'Cash',
+  manual_terminal: 'Card machine',
+  bank_transfer: 'Bank transfer',
+  custom: 'Other',
+};
+
+function Total({ label, value, strong = false, tone }: { label: string; value: string; strong?: boolean; tone?: 'exception' }) {
+  return (
+    <div className="flex items-baseline gap-2">
+      <dt className="text-muted-foreground">{label}</dt>
+      <dd
+        data-figure
+        className={cn(
+          'tabular-nums',
+          strong ? 'text-base font-semibold text-heading' : 'font-medium text-foreground',
+          tone === 'exception' && 'text-exception',
+        )}
+      >
+        {value}
+      </dd>
+    </div>
   );
 }
 
@@ -294,9 +497,27 @@ function OrdersPageContent() {
     ),
   );
   const [createdBy, setCreatedBy] = useState(searchParams.get('createdBy') ?? 'all');
+  // One box for an order code, an exact total or a customer (older links used customer/customerPhone).
   const [customerSearch, setCustomerSearch] = useState(
-    searchParams.get('customer') ?? searchParams.get('customerId') ?? searchParams.get('customerPhone') ?? '',
+    searchParams.get('q') ?? searchParams.get('customer') ?? searchParams.get('customerId') ?? searchParams.get('customerPhone') ?? '',
   );
+  const [moneyFilter, setMoneyFilter] = useState<MoneyFilter>(
+    pick(
+      searchParams.get('money'),
+      MONEY_FILTERS.map((option) => option.value),
+      'all',
+    ),
+  );
+  const [fulfilmentFilter, setFulfilmentFilter] = useState<FulfilmentFilter>(
+    pick(
+      searchParams.get('type'),
+      FULFILMENT_FILTERS.map((option) => option.value),
+      'all',
+    ),
+  );
+  // Bulk: a select mode, and the orders picked in it.
+  const [selecting, setSelecting] = useState(false);
+  const [picked, setPicked] = useState<ReadonlySet<string>>(new Set());
   const [debouncedSearch, setDebouncedSearch] = useState(customerSearch);
   const [datePreset, setDatePreset] = useState<DatePreset>(
     pick(
@@ -326,13 +547,19 @@ function OrdersPageContent() {
     statusFilter !== 'all' ||
     sourceFilter !== 'all' ||
     paymentFilter !== 'all' ||
+    moneyFilter !== 'all' ||
+    fulfilmentFilter !== 'all' ||
     createdBy !== 'all' ||
     !!debouncedSearch ||
     datePreset !== 'all' ||
     !!from ||
     !!to ||
     reportScope !== null;
-  const moreCount = Number(createdBy !== 'all') + Number(datePreset === 'custom' && (!!from || !!to));
+  const moreCount =
+    Number(createdBy !== 'all') +
+    Number(moneyFilter !== 'all') +
+    Number(fulfilmentFilter !== 'all') +
+    Number(datePreset === 'custom' && (!!from || !!to));
 
   // ── Reference data ──
   const { data: staff = [] } = useQuery({
@@ -411,32 +638,27 @@ function OrdersPageContent() {
   // ── The list ──
   // Pages load as the end of the list comes into view, as on the audit log,
   // and the whole list refreshes on the same beat as the live picture above.
+  // One filter, three readers: the list, its totals and the CSV — the API reads all three
+  // with the same builder, so a total or a file always describes the orders on screen.
+  const filterParams = useMemo<OrdersParams>(
+    () => ({
+      locationId: locationId ?? undefined,
+      status: statusFilter === 'all' ? undefined : statusFilter,
+      source: sourceFilter === 'all' ? undefined : sourceFilter,
+      paymentMethod: paymentFilter === 'all' ? undefined : paymentFilter,
+      createdBy: createdBy === 'all' ? undefined : createdBy,
+      ...moneyFilterParams(moneyFilter),
+      fulfilmentType: fulfilmentFilter === 'all' ? undefined : fulfilmentFilter,
+      customerId: debouncedSearch && isUuid(debouncedSearch) ? debouncedSearch : undefined,
+      q: debouncedSearch && !isUuid(debouncedSearch) ? debouncedSearch : undefined,
+      from: from ? startOfLocalDay(from) : undefined,
+      to: to ? endOfLocalDay(to) : undefined,
+    }),
+    [createdBy, debouncedSearch, from, fulfilmentFilter, locationId, moneyFilter, paymentFilter, sourceFilter, statusFilter, to],
+  );
   const list = useInfiniteQuery({
-    queryKey: moduleQueryKeys.ordering.key(
-      'orders',
-      statusFilter,
-      sourceFilter,
-      paymentFilter,
-      createdBy,
-      debouncedSearch,
-      from,
-      to,
-      locationId,
-    ),
-    queryFn: ({ pageParam }) =>
-      getOrders({
-        page: pageParam,
-        limit: LIMIT,
-        locationId: locationId ?? undefined,
-        status: statusFilter === 'all' ? undefined : statusFilter,
-        source: sourceFilter === 'all' ? undefined : sourceFilter,
-        paymentMethod: paymentFilter === 'all' ? undefined : paymentFilter,
-        createdBy: createdBy === 'all' ? undefined : createdBy,
-        customerId: debouncedSearch && isUuid(debouncedSearch) ? debouncedSearch : undefined,
-        customerPhone: debouncedSearch && !isUuid(debouncedSearch) ? debouncedSearch : undefined,
-        from: from ? startOfLocalDay(from) : undefined,
-        to: to ? endOfLocalDay(to) : undefined,
-      }),
+    queryKey: moduleQueryKeys.ordering.key('orders', filterParams),
+    queryFn: ({ pageParam }) => getOrders({ ...filterParams, page: pageParam, limit: LIMIT }),
     initialPageParam: 1,
     getNextPageParam: (last) => (last.page < last.pages ? last.page + 1 : undefined),
     enabled: !invalidDateRange,
@@ -444,6 +666,15 @@ function OrdersPageContent() {
     refetchInterval: 30_000,
   });
   const { isPending, isFetching, isError, refetch } = list;
+  // What the filtered orders add up to. Under the 'orders' key, so every mutation
+  // that refreshes the list (status, refund, payment) refreshes the totals too.
+  const totals = useQuery({
+    queryKey: moduleQueryKeys.ordering.key('orders', 'summary', filterParams),
+    queryFn: () => getOrdersSummary(filterParams),
+    enabled: !invalidDateRange,
+    placeholderData: (previous) => previous,
+    refetchInterval: 30_000,
+  });
   const total = list.data?.pages[0]?.total ?? 0;
   // A new order arriving while the list refreshes shifts every later page by
   // one, so the same order can appear on two pages — keep its first sighting.
@@ -454,6 +685,29 @@ function OrdersPageContent() {
       .filter((order) => (seen.has(order.id) ? false : (seen.add(order.id), true)));
   }, [list.data?.pages]);
   const days = useMemo(() => groupOrdersByDay(orders, now), [orders, now]);
+
+  // Bulk: only orders the action can take are sent — the API refuses a batch with a completed one in it.
+  const pickedOrders = useMemo(() => orders.filter((order) => picked.has(order.id)), [orders, picked]);
+  const bulk = useMutation({
+    mutationFn: ({ action }: { action: BulkAction }) =>
+      bulkUpdateOrderStatus(
+        bulkEligible(pickedOrders, action).map((order) => order.id),
+        action,
+      ),
+    onSuccess: (result, { action }) => {
+      toast(
+        'success',
+        `${result.updated} ${result.updated === 1 ? 'order' : 'orders'} ${action === 'ready' ? 'marked ready' : 'completed'}.`,
+      );
+      setPicked(new Set());
+    },
+    onError: (error) => toast('error', error instanceof Error ? error.message : 'The orders didn’t change. Try again.'),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('orders-all') });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders') });
+    },
+  });
 
   // Filters, page and the open order all live in the URL, so a view can be
   // bookmarked or sent to someone.
@@ -468,6 +722,9 @@ function OrdersPageContent() {
       'customer',
       'customerId',
       'customerPhone',
+      'q',
+      'money',
+      'type',
       'range',
       'from',
       'to',
@@ -478,7 +735,9 @@ function OrdersPageContent() {
     if (sourceFilter !== 'all') params.set('source', sourceFilter);
     if (paymentFilter !== 'all') params.set('paymentMethod', paymentFilter);
     if (createdBy !== 'all') params.set('createdBy', createdBy);
-    if (debouncedSearch) params.set('customer', debouncedSearch);
+    if (debouncedSearch) params.set('q', debouncedSearch);
+    if (moneyFilter !== 'all') params.set('money', moneyFilter);
+    if (fulfilmentFilter !== 'all') params.set('type', fulfilmentFilter);
     if (datePreset !== 'all') params.set('range', datePreset);
     if (from) params.set('from', from);
     if (to) params.set('to', to);
@@ -487,10 +746,26 @@ function OrdersPageContent() {
     const query = params.toString();
     const next = `${window.location.pathname}${query ? `?${query}` : ''}${window.location.hash}`;
     if (next !== `${window.location.pathname}${window.location.search}${window.location.hash}`) window.history.replaceState(null, '', next);
-  }, [createdBy, datePreset, debouncedSearch, from, paymentFilter, reportScope, selectedId, sourceFilter, statusFilter, to]);
+  }, [
+    createdBy,
+    datePreset,
+    debouncedSearch,
+    from,
+    fulfilmentFilter,
+    moneyFilter,
+    paymentFilter,
+    reportScope,
+    selectedId,
+    sourceFilter,
+    statusFilter,
+    to,
+  ]);
 
   const selectedIndex = selectedId ? orders.findIndex((order) => order.id === selectedId) : -1;
-  const open = useCallback((id: string) => {
+  // How the drawer arrives: from the side when a row is opened, at once when ↑/↓ steps to the next order.
+  const [drawerEnter, setDrawerEnter] = useState<DrawerEnter>('side');
+  const open = useCallback((id: string, enter: DrawerEnter = 'side') => {
+    setDrawerEnter(enter);
     setSelectedId(id);
     window.requestAnimationFrame(() =>
       document.getElementById(`order-row-${id}`)?.scrollIntoView({ block: 'nearest', behavior: 'smooth' }),
@@ -522,6 +797,8 @@ function OrdersPageContent() {
     setStatusFilter('all');
     setSourceFilter('all');
     setPaymentFilter('all');
+    setMoneyFilter('all');
+    setFulfilmentFilter('all');
     setCreatedBy('all');
     setCustomerSearch('');
     setDebouncedSearch('');
@@ -535,11 +812,9 @@ function OrdersPageContent() {
   async function exportCsv() {
     setExporting(true);
     try {
-      const params = new URLSearchParams({ format: 'csv' });
-      if (from) params.set('from', startOfLocalDay(from));
-      if (to) params.set('to', endOfLocalDay(to));
-      if (statusFilter !== 'all') params.set('status', statusFilter);
-      if (locationId) params.set('locationId', locationId);
+      // Every filter on screen, not only dates and status — the file is the list you are looking at.
+      const params = orderFilterQuery(filterParams);
+      params.set('format', 'csv');
       const res = await fetch(`${API_PREFIX}/v1/orders/export?${params}`, { credentials: 'include' });
       if (!res.ok) throw new Error(`The export didn’t work (${res.status}).`);
       const url = URL.createObjectURL(await res.blob());
@@ -593,14 +868,14 @@ function OrdersPageContent() {
           <motion.section
             variants={SECTION_RISE}
             aria-labelledby="cash-waiting"
-            className="overflow-hidden rounded-lg border border-measured/40 bg-field"
+            className="overflow-hidden rounded-lg border border-measured/40 bg-card shadow-sm"
           >
-            <header className="flex items-center gap-3 border-b border-rule/45 px-4 py-3">
+            <header className="flex items-center gap-3 border-b border-border px-4 py-3">
               <span className="flex size-9 items-center justify-center rounded-md bg-measured/10 text-measured">
                 <Banknote size={16} aria-hidden="true" />
               </span>
               <div className="min-w-0 flex-1">
-                <h2 id="cash-waiting" className="text-sm font-semibold text-foreground">
+                <h2 id="cash-waiting" className="text-sm font-semibold text-heading">
                   {cashWaiting.length} cash {cashWaiting.length === 1 ? 'order' : 'orders'} waiting at the counter
                 </h2>
                 <p className="text-xs text-muted-foreground">
@@ -712,10 +987,9 @@ function OrdersPageContent() {
                 onChange={(event) => {
                   setCustomerSearch(event.target.value);
                 }}
-                aria-label="Find orders by customer phone or ID"
-                placeholder="Customer phone or ID"
+                aria-label="Find orders by order code, total, or customer name, phone or email"
+                placeholder="Order code, total or customer"
                 leftIcon={<Search size={14} />}
-                className="border-rule"
               />
             </div>
             <div className="flex items-center gap-1">
@@ -774,7 +1048,7 @@ function OrdersPageContent() {
                   <SlidersHorizontal data-icon="inline-start" />
                   More
                   {moreCount > 0 && (
-                    <span className="flex size-5 items-center justify-center rounded-full bg-primary text-micro font-semibold text-primary-foreground">
+                    <span className="flex h-5 min-w-5 items-center justify-center rounded-sm bg-heading px-1 text-micro font-semibold tabular-nums text-background">
                       {moreCount}
                     </span>
                   )}
@@ -785,12 +1059,12 @@ function OrdersPageContent() {
                   align="end"
                   sideOffset={8}
                   collisionPadding={16}
-                  className="z-90 w-[calc(100vw-2rem)] max-w-sm rounded-lg border border-rule/60 bg-card p-4 shadow-lg outline-none"
+                  className="z-90 w-[calc(100vw-2rem)] max-w-sm rounded-lg border border-border bg-card p-4 shadow-lg outline-none"
                 >
                   <div className="mb-4 flex items-start justify-between gap-3">
                     <div>
-                      <h2 className="text-sm font-semibold text-foreground">More filters</h2>
-                      <p className="mt-0.5 text-xs text-muted-foreground">Who took the order, or exact dates.</p>
+                      <h2 className="text-sm font-semibold text-heading">More filters</h2>
+                      <p className="mt-0.5 text-xs text-muted-foreground">Who took it, whether it’s paid, or exact dates.</p>
                     </div>
                     <Popover.Close asChild>
                       <Button variant="ghost" size="icon" aria-label="Close filters">
@@ -800,7 +1074,7 @@ function OrdersPageContent() {
                   </div>
                   <div className="space-y-4">
                     <div>
-                      <p className="mb-1.5 text-label uppercase text-muted-foreground">Taken by</p>
+                      <p className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>Taken by</p>
                       <Select
                         value={createdBy}
                         onValueChange={(value) => {
@@ -813,7 +1087,27 @@ function OrdersPageContent() {
                       />
                     </div>
                     <div>
-                      <p className="mb-1.5 text-label uppercase text-muted-foreground">Dates</p>
+                      <p className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>Order type</p>
+                      <Select
+                        value={fulfilmentFilter}
+                        onValueChange={(value) => setFulfilmentFilter(value as FulfilmentFilter)}
+                        options={FULFILMENT_FILTERS}
+                        ariaLabel="Order type"
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <p className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>Payment state</p>
+                      <Select
+                        value={moneyFilter}
+                        onValueChange={(value) => setMoneyFilter(value as MoneyFilter)}
+                        options={MONEY_FILTERS}
+                        ariaLabel="Payment state"
+                        className="w-full"
+                      />
+                    </div>
+                    <div>
+                      <p className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>Dates</p>
                       <div className="grid grid-cols-2 gap-2">
                         {[
                           { label: 'From', value: from, set: setFrom },
@@ -829,7 +1123,7 @@ function OrdersPageContent() {
                               setDatePreset('custom');
                             }}
                             aria-label={`${field.label} date`}
-                            className="border-rule px-2"
+                            className="px-2"
                           />
                         ))}
                       </div>
@@ -843,9 +1137,21 @@ function OrdersPageContent() {
                 </Popover.Content>
               </Popover.Portal>
             </Popover.Root>
-            <span className="ml-auto flex items-center gap-1.5 text-xs text-muted-foreground" aria-live="polite">
+            <span className="ml-auto flex items-center gap-2 text-xs text-muted-foreground" aria-live="polite">
               {isFetching && !isPending && <Loader2 size={12} className="animate-spin" aria-label="Updating" />}
-              {list.data ? `${total.toLocaleString()} ${total === 1 ? 'order' : 'orders'}` : ''}
+              {canExport && orders.length > 0 && (
+                <Button
+                  variant={selecting ? 'secondary' : 'outline'}
+                  aria-pressed={selecting}
+                  onClick={() => {
+                    setSelecting((on) => !on);
+                    setPicked(new Set());
+                  }}
+                >
+                  <ListChecks data-icon="inline-start" />
+                  {selecting ? 'Done selecting' : 'Select'}
+                </Button>
+              )}
             </span>
           </div>
 
@@ -887,10 +1193,20 @@ function OrdersPageContent() {
               {createdBy !== 'all' && (
                 <FilterChip variant="tag" label={`Taken by ${optionLabel(staffOptions, createdBy)}`} onRemove={() => setCreatedBy('all')} />
               )}
+              {fulfilmentFilter !== 'all' && (
+                <FilterChip
+                  variant="tag"
+                  label={optionLabel(FULFILMENT_FILTERS, fulfilmentFilter)}
+                  onRemove={() => setFulfilmentFilter('all')}
+                />
+              )}
+              {moneyFilter !== 'all' && (
+                <FilterChip variant="tag" label={optionLabel(MONEY_FILTERS, moneyFilter)} onRemove={() => setMoneyFilter('all')} />
+              )}
               {debouncedSearch && (
                 <FilterChip
                   variant="tag"
-                  label={`${isUuid(debouncedSearch) ? 'Customer' : 'Phone'}: ${debouncedSearch}`}
+                  label={isUuid(debouncedSearch) ? 'One customer' : `“${debouncedSearch}”`}
                   onRemove={() => {
                     setCustomerSearch('');
                     setDebouncedSearch('');
@@ -905,6 +1221,11 @@ function OrdersPageContent() {
                 Clear all
               </button>
             </div>
+          )}
+
+          {/* What the orders on screen add up to — the same filters as the list. */}
+          {!invalidDateRange && !isError && totals.data && totals.data.count > 0 && (
+            <OrdersTotals summary={totals.data} money={money} total={total} />
           )}
 
           {/* The list, a day at a time. */}
@@ -954,14 +1275,14 @@ function OrdersPageContent() {
               {days.map((day) => (
                 <section key={day.key} aria-labelledby={`day-${day.key}`}>
                   <div className="mb-2 flex items-baseline justify-between px-1">
-                    <h2 id={`day-${day.key}`} className="text-sm font-semibold text-foreground">
+                    <h2 id={`day-${day.key}`} className="text-sm font-semibold text-heading">
                       {day.label}
                     </h2>
                     <p className="text-xs text-muted-foreground">
                       {day.count} {day.count === 1 ? 'order' : 'orders'} · {money(day.total)}
                     </p>
                   </div>
-                  <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                  <ListRowGroup>
                     {day.orders.map((order) => (
                       <OrderRow
                         key={order.id}
@@ -969,9 +1290,27 @@ function OrdersPageContent() {
                         selected={order.id === selectedId}
                         onOpen={() => open(order.id)}
                         money={money}
+                        picking={selecting}
+                        picked={picked.has(order.id)}
+                        onStartSelect={
+                          canExport
+                            ? () => {
+                                setSelecting(true);
+                                setPicked(new Set([order.id]));
+                              }
+                            : undefined
+                        }
+                        onPick={() =>
+                          setPicked((current) => {
+                            const next = new Set(current);
+                            if (next.has(order.id)) next.delete(order.id);
+                            else next.add(order.id);
+                            return next;
+                          })
+                        }
                       />
                     ))}
-                  </ul>
+                  </ListRowGroup>
                 </section>
               ))}
             </div>
@@ -985,6 +1324,18 @@ function OrdersPageContent() {
           )}
         </motion.section>
       </motion.div>
+
+      {/* The bulk bar: what the picked orders can have done to them, all at once. */}
+      {selecting && picked.size > 0 && (
+        <BulkBar
+          count={picked.size}
+          ready={bulkEligible(pickedOrders, 'ready').length}
+          complete={bulkEligible(pickedOrders, 'done').length}
+          busy={bulk.isPending}
+          onAction={(action) => bulk.mutate({ action })}
+          onClear={() => setPicked(new Set())}
+        />
+      )}
 
       {showCreate && (
         <NewOrderModal
@@ -1011,8 +1362,9 @@ function OrdersPageContent() {
           staffName={staffName}
           locationName={locationName}
           onClose={() => setSelectedId(null)}
-          onPrev={selectedIndex > 0 ? () => open(orders[selectedIndex - 1].id) : undefined}
-          onNext={selectedIndex >= 0 && selectedIndex < orders.length - 1 ? () => open(orders[selectedIndex + 1].id) : undefined}
+          enter={drawerEnter}
+          onPrev={selectedIndex > 0 ? () => open(orders[selectedIndex - 1].id, 'instant') : undefined}
+          onNext={selectedIndex >= 0 && selectedIndex < orders.length - 1 ? () => open(orders[selectedIndex + 1].id, 'instant') : undefined}
         />
       )}
     </EditorShell>

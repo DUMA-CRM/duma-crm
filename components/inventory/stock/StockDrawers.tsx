@@ -28,7 +28,7 @@ import { TONE_TINT } from '@/components/shared/tone';
 import { useCurrencySymbol, useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FieldLabel, Label } from '@/components/ui/label';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
@@ -118,7 +118,7 @@ function NutritionFields({
   return (
     <>
       <div className="flex flex-col gap-1.5">
-        <Label uppercase>Values per</Label>
+        <FieldLabel as="span">Values per</FieldLabel>
         <ChoiceCards
           columns={3}
           value={draft.basis}
@@ -148,7 +148,7 @@ function NutritionFields({
       )}
 
       <div className="flex flex-col gap-1.5">
-        <Label uppercase>Allergens it contains</Label>
+        <FieldLabel as="span">Allergens it contains</FieldLabel>
         <div className="flex flex-wrap gap-1.5">
           {FSA_ALLERGENS.map((a) => {
             const on = allergens.includes(a);
@@ -162,7 +162,7 @@ function NutritionFields({
                   'inline-flex h-8 items-center gap-1 rounded-md border px-2.5 text-xs font-semibold capitalize transition-colors',
                   on
                     ? 'border-measured/50 bg-measured/10 text-measured'
-                    : 'border-rule/60 bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
+                    : 'border-border bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
                 )}
               >
                 {on && <Check size={12} aria-hidden="true" />}
@@ -291,9 +291,9 @@ export function AddItemDrawer({
     >
       <form id={ADD_ITEM_FORM} onSubmit={handleSubmit} className="space-y-4">
         <div className="flex flex-col gap-1.5">
-          <Label required uppercase>
+          <FieldLabel as="span" required>
             Item
-          </Label>
+          </FieldLabel>
           <Select
             value={stockItemId}
             onValueChange={(value) => {
@@ -359,9 +359,9 @@ export function AddItemDrawer({
         {creatingNew && (
           <div className="space-y-4">
             <div className="flex flex-col gap-1.5">
-              <Label required uppercase>
+              <FieldLabel as="span" required>
                 Category
-              </Label>
+              </FieldLabel>
               <Select
                 value={newCategory}
                 onValueChange={(value) => setNewCategory(value as StockItem['category'])}
@@ -507,7 +507,7 @@ export function EditThresholdDrawer({ item, onClose, onSuccess }: { item: Locati
           if (dirty && !thresholdError && !reorderError) mutate();
         }}
       >
-        <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-field px-4 py-3.5">
           <span className="flex size-10 shrink-0 items-center justify-center rounded-lg bg-primary/8 text-primary" aria-hidden="true">
             <Gauge size={18} />
           </span>
@@ -653,7 +653,7 @@ export function RestockDrawer({
                     'h-8 rounded-md border px-2.5 text-xs font-semibold transition-colors',
                     qty === chip.value
                       ? 'border-primary bg-primary/5 text-primary'
-                      : 'border-rule/60 bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
+                      : 'border-border bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
                   )}
                 >
                   {chip.label}
@@ -810,9 +810,9 @@ export function LogLossDrawer({
         ) : (
           <div className="space-y-3">
             <div className="flex flex-col gap-1.5">
-              <Label required uppercase>
+              <FieldLabel as="span" required>
                 Location
-              </Label>
+              </FieldLabel>
               <Select
                 value={locationId}
                 onValueChange={(value) => {
@@ -830,9 +830,9 @@ export function LogLossDrawer({
               {submitted && errors.location && <p className="text-xs text-destructive">{errors.location}</p>}
             </div>
             <div className="flex flex-col gap-1.5">
-              <Label required uppercase>
+              <FieldLabel as="span" required>
                 Item
-              </Label>
+              </FieldLabel>
               <Select
                 value={stockItemId}
                 onValueChange={setStockItemId}
@@ -927,7 +927,7 @@ export function LogLossDrawer({
 }
 
 const TEXTAREA =
-  'w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured sm:text-sm';
+  'w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30 sm:text-sm';
 
 /** The item a drawer acts on, as a stock row shows it: a health-tinted tile, the level against par. */
 function ItemCard({
@@ -947,7 +947,7 @@ function ItemCard({
 }) {
   const glyph = statusGlyph(status, category);
   return (
-    <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3.5">
+    <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3.5">
       <span
         className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', TONE_TINT[STATUS_TONE[status]])}
         role="img"

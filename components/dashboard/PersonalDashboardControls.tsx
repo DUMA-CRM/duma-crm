@@ -3,9 +3,11 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useState } from 'react';
 
-import { ArrowDown, ArrowUp, Eye, EyeOff, LayoutDashboard, Loader2, RotateCcw } from '@/components/icons';
+import { ArrowDown, ArrowUp, Eye, EyeOff, LayoutDashboard, Loader2, RotateCcw, Sparkles } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { Badge } from '@/components/ui/badge';
+import { ChangeRow, ValueAside, ValueMissing } from '@/components/settings/controls';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Button } from '@/components/ui/button';
 
 import { ANALYTICS_WIDGET_KEYS, widgetDefinition } from '@/lib/dashboard/widget-registry';
@@ -15,6 +17,7 @@ import {
   resetPersonalDashboardLayout,
 } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { cn } from '@/lib/utils/cn';
 
 // Every registered widget renders on the board, so every one can be shown, hidden and ordered.
 // The API decides which of them this viewer may have (module enabled, capability held).
@@ -68,6 +71,7 @@ export function PersonalDashboardControls({
   );
   const [saved, setSaved] = useState(false);
   const [dirty, setDirty] = useState(false);
+  const [presetsOpen, setPresetsOpen] = useState(false);
 
   const byKey = useMemo(() => new Map(layout.availableWidgets.map((widget) => [widget.widgetKey, widget])), [layout.availableWidgets]);
   const widgets = useMemo(
@@ -151,163 +155,159 @@ export function PersonalDashboardControls({
     });
   };
 
+  const activePreset = presets.find(
+    (preset) =>
+      keys.join('|') === preset.ordered.join('|') &&
+      visible.size === preset.shown.size &&
+      [...visible].every((key) => preset.shown.has(key)),
+  );
+
+  // Two blocks side by side: the view and its quick layouts | the panels as a titled list.
   return (
-    <>
-      <SettingsSection
-        title="Dashboard"
-        description="Choose the panels you want to see and arrange them in the order that helps you work."
+    <div className="grid items-start gap-5 xl:grid-cols-2">
+      <SettingsSection footnote="Saved to your account.">
+        <div>
+          <ChangeRow
+            icon={LayoutDashboard}
+            label="View"
+            value={
+              <>
+                <span className="truncate">{layout.source === 'personal' ? 'Personal view' : 'Workspace view'}</span>
+                <ValueAside>
+                  · {visible.size} of {keys.length} panels shown
+                </ValueAside>
+              </>
+            }
+            trailing={
+              layout.source === 'personal' && (
+                <Button variant="outline" size="sm" disabled={pending} onClick={() => reset.mutate()} aria-label="Reset layout to default">
+                  {reset.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
+                  Reset
+                </Button>
+              )
+            }
+          />
+          {keys.some((key) => ANALYTICS_WIDGET_KEYS.has(key)) && (
+            <ChangeRow
+              icon={Sparkles}
+              label="Quick layout"
+              value={activePreset ? activePreset.label : <ValueMissing>Your own order</ValueMissing>}
+              open={presetsOpen}
+              onToggle={() => setPresetsOpen((current) => !current)}
+            >
+              <div className="grid grid-cols-2 gap-2" role="group" aria-label="Dashboard layout presets">
+                {presets.map((preset) => {
+                  const active = preset === activePreset;
+                  return (
+                    <button
+                      key={preset.id}
+                      type="button"
+                      aria-pressed={active}
+                      disabled={pending}
+                      onClick={() => {
+                        changed();
+                        setKeys(preset.ordered);
+                        setVisible(preset.shown);
+                        setPresetsOpen(false);
+                      }}
+                      className={cn(
+                        'rounded-lg border px-3.5 py-2.5 text-left transition-[border-color,background-color,box-shadow] duration-150 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                        active
+                          ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
+                          : 'border-border bg-control hover:border-rule hover:bg-band/45',
+                      )}
+                    >
+                      <span className="block text-sm font-semibold text-foreground">{preset.label}</span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">{preset.detail}</span>
+                    </button>
+                  );
+                })}
+              </div>
+            </ChangeRow>
+          )}
+        </div>
+      </SettingsSection>
+
+      <RecordGroup
+        id="dashboard-panels"
+        title="Panels"
         actions={
-          <Badge variant={layout.source === 'personal' ? 'success' : 'muted'}>
-            {layout.source === 'personal' ? 'Personal view' : 'Workspace view'}
-          </Badge>
+          dirty || publish.isPending ? (
+            <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+              <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> Saving…
+            </span>
+          ) : saved && !pending ? (
+            <span className="text-xs font-medium text-success">Saved</span>
+          ) : undefined
+        }
+        footnote={
+          error && (
+            <span role="alert" className="text-exception">
+              Your dashboard could not be saved. Please try again.
+            </span>
+          )
         }
       >
-        <div className="flex items-center gap-3 rounded-md border border-rule/60 bg-page px-3 py-3">
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-rule/60 bg-field text-primary">
-            <LayoutDashboard className="size-5" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm font-semibold text-foreground">My dashboard</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {visible.size} of {keys.length} panels shown
-            </p>
-          </div>
-        </div>
-
-        {keys.some((key) => ANALYTICS_WIDGET_KEYS.has(key)) && (
-          <div className="mt-5">
-            <p className="mb-2 text-label uppercase text-muted-foreground">Quick layouts</p>
-            <div className="grid grid-cols-2 gap-2" role="group" aria-label="Dashboard layout presets">
-              {presets.map((preset) => {
-                const active =
-                  keys.join('|') === preset.ordered.join('|') &&
-                  visible.size === preset.shown.size &&
-                  [...visible].every((key) => preset.shown.has(key));
-                return (
-                  <button
-                    key={preset.id}
-                    type="button"
-                    aria-pressed={active}
-                    disabled={pending}
-                    onClick={() => {
-                      changed();
-                      setKeys(preset.ordered);
-                      setVisible(preset.shown);
-                    }}
-                    className={
-                      active
-                        ? 'rounded-md border border-foreground bg-band/60 px-3 py-2.5 text-left outline outline-1 outline-foreground'
-                        : 'rounded-md border border-rule/60 bg-background px-3 py-2.5 text-left transition-colors hover:bg-band/35'
-                    }
-                  >
-                    <span className="block text-sm font-semibold text-foreground">{preset.label}</span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">{preset.detail}</span>
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-        )}
-
         {keys.length > 0 ? (
-          <div className="mt-3 overflow-hidden rounded-md border border-rule/60 bg-page">
+          <ListRowGroup>
             {keys.map((key, index) => {
               const widget = byKey.get(key);
               if (!widget) return null;
               const shown = visible.has(key);
               const label = widget.definition?.label ?? key;
               return (
-                <div key={key} className="flex min-h-14 items-center gap-2 border-b border-rule/45 px-3 py-2.5 last:border-b-0">
-                  <button
-                    type="button"
-                    aria-pressed={shown}
-                    aria-label={`Show ${label} on the dashboard`}
-                    title={shown ? 'Shown' : 'Hidden'}
-                    disabled={pending}
-                    onClick={() => {
-                      changed();
-                      setVisible((current) => {
-                        const next = new Set(current);
-                        if (next.has(key)) next.delete(key);
-                        else next.add(key);
-                        return next;
-                      });
-                    }}
-                    className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-                  >
-                    <span
-                      className={
-                        shown
-                          ? 'flex size-8 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground'
-                          : 'flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/60 bg-field text-muted-foreground'
-                      }
-                    >
-                      {shown ? <Eye size={15} aria-hidden="true" /> : <EyeOff size={15} aria-hidden="true" />}
+                <ListRow
+                  key={key}
+                  icon={shown ? Eye : EyeOff}
+                  muted={!shown}
+                  title={label}
+                  pressed={shown}
+                  targetLabel={`Show ${label} on the dashboard`}
+                  chevron={false}
+                  onClick={() => {
+                    if (pending) return;
+                    changed();
+                    setVisible((current) => {
+                      const next = new Set(current);
+                      if (next.has(key)) next.delete(key);
+                      else next.add(key);
+                      return next;
+                    });
+                  }}
+                  control={
+                    <span className="flex items-center gap-1">
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label={`Move ${label} up`}
+                        disabled={pending || index === 0}
+                        onClick={() => move(index, -1)}
+                      >
+                        <ArrowUp aria-hidden="true" />
+                      </Button>
+                      <Button
+                        type="button"
+                        size="icon-sm"
+                        variant="ghost"
+                        aria-label={`Move ${label} down`}
+                        disabled={pending || index === keys.length - 1}
+                        onClick={() => move(index, 1)}
+                      >
+                        <ArrowDown aria-hidden="true" />
+                      </Button>
                     </span>
-                    <span
-                      className={
-                        shown ? 'truncate text-sm font-semibold text-foreground' : 'truncate text-sm font-medium text-muted-foreground'
-                      }
-                    >
-                      {label}
-                    </span>
-                  </button>
-                  <span className="flex items-center gap-1 border-l border-rule/50 pl-2">
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label={`Move ${label} up`}
-                      disabled={pending || index === 0}
-                      onClick={() => move(index, -1)}
-                    >
-                      <ArrowUp aria-hidden="true" />
-                    </Button>
-                    <Button
-                      type="button"
-                      size="icon-sm"
-                      variant="ghost"
-                      aria-label={`Move ${label} down`}
-                      disabled={pending || index === keys.length - 1}
-                      onClick={() => move(index, 1)}
-                    >
-                      <ArrowDown aria-hidden="true" />
-                    </Button>
-                  </span>
-                </div>
+                  }
+                />
               );
             })}
-          </div>
+          </ListRowGroup>
         ) : (
-          <p className="mt-3 rounded-md border border-dashed border-rule/70 px-4 py-8 text-center text-sm text-muted-foreground">
+          <p className="rounded-lg border border-dashed border-border px-4 py-8 text-center text-sm text-muted-foreground">
             No dashboard panels are available for your access yet.
           </p>
         )}
-
-        {(dirty || publish.isPending || saved || error) && (
-          <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-rule/50 pt-4">
-            {(dirty || publish.isPending) && (
-              <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
-                <Loader2 className="size-3.5 animate-spin" aria-hidden="true" /> Saving changes…
-              </span>
-            )}
-            {saved && !pending && !dirty && <span className="text-xs font-medium text-success">Changes saved</span>}
-            {error && (
-              <p role="alert" className="w-full text-xs text-exception">
-                Your dashboard could not be saved. Please try again.
-              </p>
-            )}
-          </div>
-        )}
-      </SettingsSection>
-      {layout.source === 'personal' && (
-        <div className="flex justify-end">
-          <Button variant="outline" disabled={pending} onClick={() => reset.mutate()}>
-            {reset.isPending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <RotateCcw aria-hidden="true" />}
-            Reset layout to default
-          </Button>
-        </div>
-      )}
-    </>
+      </RecordGroup>
+    </div>
   );
 }

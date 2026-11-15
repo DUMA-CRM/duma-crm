@@ -27,11 +27,11 @@ export function AgentChart({ card: source }: { card: AgentChartCard }) {
           <span title={card.title}>{card.title}</span>
           {card.caption && <span className="font-normal tracking-normal normal-case">{card.caption}</span>}
         </p>
-        {card.type !== 'line' ? <div className="flex rounded-md border border-rule/60 bg-field p-0.5" aria-label="Chart view">
+        {card.type !== 'line' ? <div className="flex rounded-md border border-border bg-field p-0.5" aria-label="Chart view">
           {(['column', 'bar'] as const).map((type) => <button key={type} type="button" aria-pressed={view === type} onClick={() => setView(type)} className={cn('rounded px-2 py-0.5 text-label font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ring', view === type ? 'bg-background text-foreground shadow-sm' : 'text-muted-foreground hover:text-foreground')}>{type === 'column' ? 'Columns' : 'Bars'}</button>)}
         </div> : null}
       </div>
-      <div className="mt-1.5 overflow-hidden rounded-lg border border-rule/60 bg-field px-3.5 py-3">
+      <div className="mt-1.5 overflow-hidden rounded-lg border border-border bg-field px-3.5 py-3">
         {card.type === 'line' ? (
           <ReportTrendChart
             labels={card.points.map((point) => point.label)}
@@ -64,7 +64,7 @@ function ColumnComparison({ card, format }: { card: AgentChartCard; format: (val
   return (
     <div>
       <div
-        className="relative grid h-44 items-end gap-4 border-b border-rule/70 px-3 pt-7"
+        className="relative grid h-44 items-end gap-4 border-b border-border px-3 pt-7"
         style={{ gridTemplateColumns: `repeat(${card.points.length}, minmax(0, 1fr))` }}
       >
         <div className="pointer-events-none absolute inset-x-0 top-1/2 border-t border-dashed border-rule/45" aria-hidden="true" />

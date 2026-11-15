@@ -4,10 +4,9 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
-import { CalendarCheck, CalendarDays, CircleHelp, FileText, LayoutDashboard, MessageSquarePlus, Pencil, Plus } from '@/components/icons';
+import { CalendarCheck, CalendarDays, CircleHelp, FileText, LayoutDashboard, MessageSquarePlus, Plus, UserRound } from '@/components/icons';
 import { EnrollEmployeeDrawer } from '@/components/people/PeopleModals';
 import { EditorShell } from '@/components/shared/EditorShell';
-import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
 
@@ -25,8 +24,8 @@ import { AttendancePanel } from './AttendancePanel';
 import { DocumentsPanel } from './DocumentsPanel';
 import { Overview } from './Overview';
 import { TimeOffPanel } from './TimeOffPanel';
-import { EditDetailsDrawer, LeaveRequestDrawer, NewTicketDrawer, type TicketPreset } from './forms';
-import { type BankVisibility, MY_HR_TABS, type MyHrTab } from './shared';
+import { LeaveRequestDrawer, NewTicketDrawer, type TicketPreset } from './forms';
+import { type BankVisibility, type EditRow, MY_HR_TABS, type MyHrTab } from './shared';
 
 /**
  * The employee's own HR workspace.
@@ -54,7 +53,8 @@ export function MyHrWorkspace() {
   const [tab, setTab] = useState<MyHrTab>(MY_HR_TABS.includes(requested as MyHrTab) ? (requested as MyHrTab) : 'overview');
 
   const [leaveOpen, setLeaveOpen] = useState(false);
-  const [editOpen, setEditOpen] = useState(false);
+  // The Overview row whose form is open — held here so a deep link or a "needs you" fix can open it.
+  const [editRow, setEditRow] = useState<EditRow | null>(null);
   const [createEmployeeOpen, setCreateEmployeeOpen] = useState(false);
   const [ticket, setTicket] = useState<TicketPreset | null>(null);
   const [selectedTicket, setSelectedTicket] = useState<string | null>(null);
@@ -83,13 +83,13 @@ export function MyHrWorkspace() {
   });
 
   // AI and notifications may deep-link to a specific self-service action. Once
-  // the employee record has loaded, open the existing form and consume the
-  // intent so closing the drawer does not immediately reopen it.
+  // the employee record has loaded, open the first editable row and consume
+  // the intent so closing it does not immediately reopen it.
   useEffect(() => {
     if (!employee || searchParams.get('action') !== 'edit-details') return;
     const timer = window.setTimeout(() => {
       setTab('overview');
-      setEditOpen(true);
+      setEditRow('address');
       router.replace('/my-hr?tab=overview', { scroll: false });
     }, 0);
     return () => window.clearTimeout(timer);
@@ -158,7 +158,14 @@ export function MyHrWorkspace() {
 
   /** Every action row lands the employee on the thing that resolves it. */
   const runAction = (action: MyHrAction) => {
-    if (action.target === 'details' || action.target === 'bank') return setEditOpen(true);
+    // The row whose form fixes it: NI and bank are separate rows under Pay, the
+    // address and emergency contact separate rows under Personal details.
+    if (action.target === 'details' || action.target === 'bank') {
+      const row: EditRow =
+        action.id === 'ni' ? 'ni' : action.id === 'emergency-contact' ? 'emergency' : action.target === 'bank' ? 'bank' : 'address';
+      setTab('overview');
+      return setEditRow(row);
+    }
     if (action.target === 'documents') return setTab('documents');
     if (action.target === 'time') return setTab('time-off');
     if (action.id === 'written-particulars') return requestDocument();
@@ -172,10 +179,11 @@ export function MyHrWorkspace() {
 
   /**
    * The header offers what this tab is for. "Ask HR" stays available
-   * throughout, because needing to ask is not confined to one section.
+   * throughout, because needing to ask is not confined to one section. The
+   * Overview has no header action: each of its rows carries its own Change.
    */
   const primaryAction: Record<MyHrTab, { label: string; icon: typeof Plus; onClick: () => void } | null> = {
-    overview: { label: 'Edit your details', icon: Pencil, onClick: () => setEditOpen(true) },
+    overview: null,
     'time-off': { label: 'Request time off', icon: Plus, onClick: () => setLeaveOpen(true) },
     attendance: {
       label: 'Report a problem',
@@ -194,13 +202,15 @@ export function MyHrWorkspace() {
   const primary = primaryAction[tab];
   const PrimaryIcon = primary?.icon;
 
-  const [firstName = '', lastName = ''] = (user?.name ?? '').split(' ');
-
   return (
     <EditorShell
-      eyebrow="Your HR"
-      title={user?.name ?? 'My HR'}
-      leading={<InitialsAvatar firstName={firstName || 'U'} lastName={lastName} email={user?.email} className="size-9" />}
+      title="My HR"
+      // The page's name, not the user's face — the Overview's identity card shows that, a few pixels below.
+      leading={
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
+          <UserRound size={17} aria-hidden="true" />
+        </span>
+      }
       actions={
         <>
           {tab !== 'requests' && (
@@ -210,7 +220,7 @@ export function MyHrWorkspace() {
             </Button>
           )}
           {primary && (
-            <Button className="h-9 gap-1.5" onClick={primary.onClick} disabled={primary.label === 'Edit your details' && !employee}>
+            <Button className="h-9 gap-1.5" onClick={primary.onClick}>
               {PrimaryIcon && <PrimaryIcon size={15} />}
               <span className="hidden md:inline">{primary.label}</span>
             </Button>
@@ -229,7 +239,13 @@ export function MyHrWorkspace() {
           bank={bank}
           actions={actions}
           onAction={runAction}
-          onEdit={() => setEditOpen(true)}
+          editRow={editRow}
+          onEditRow={setEditRow}
+          onEdited={() => {
+            setEditRow(null);
+            qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employee-me') });
+            qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('my-bank', employee?.userId) });
+          }}
           go={setTab}
           canCreateOwnEmployeeRecord={canCreateOwnEmployeeRecord}
           onCreateOwnEmployeeRecord={() => setCreateEmployeeOpen(true)}
@@ -263,17 +279,6 @@ export function MyHrWorkspace() {
             setLeaveOpen(false);
             qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('leave-requests-me') });
             qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('leave-entitlements-me') });
-          }}
-        />
-      )}
-      {editOpen && employee && (
-        <EditDetailsDrawer
-          employee={employee}
-          onClose={() => setEditOpen(false)}
-          onDone={() => {
-            setEditOpen(false);
-            qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employee-me') });
-            qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('my-bank', employee.userId) });
           }}
         />
       )}

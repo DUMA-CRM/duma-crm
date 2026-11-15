@@ -1,5 +1,6 @@
 import 'server-only';
 
+import type { RotaPlanner } from '@/lib/api/rota.service';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
 import type { LocationStock } from '@/lib/modules/inventory/client';
 import { encodeNotes } from '@/lib/modules/inventory/client';
@@ -9,13 +10,16 @@ import type { HrEmployee } from '@/lib/modules/people/client';
 import type { LeaveEntitlement, LeaveRequest, LeaveType } from '@/lib/modules/people/client';
 import type { PurchaseOrder } from '@/lib/modules/purchasing/client';
 import type { QrOrderingConfig } from '@/lib/modules/qr-ordering/client';
+import type { CoverageResponse } from '@/lib/modules/workforce/client';
 import { isValidNiNumber, normaliseNiNumber } from '@/lib/utils/my-hr';
+import { type AutofillMode, addDaysIso, autofillRota, formatBlock, mondayWeekday, zonedInstant } from '@/lib/utils/rota-autofill';
+import { rulesFor } from '@/lib/utils/rota-rules';
 import type { Customer, CustomersResponse } from '@/types/customers';
 import type { MenuItem } from '@/types/menu';
 
 import type { FieldValue, ResolvedAction, ResolvedLine } from './action-seal.ts';
 import { resolveSealedSubmission, sealAction } from './action-seal.ts';
-import { formatDateTime, gbp, isIsoDate, optionalText, round, toNumber, zonedIso } from './agent-format.ts';
+import { calendarLabel, formatDateTime, gbp, isIsoDate, optionalText, round, toNumber, zonedIso, zonedNow } from './agent-format.ts';
 import { AgentRuntime } from './agent-runtime.server';
 import type {
   AgentActionSubmission,
@@ -763,6 +767,187 @@ const scheduleShift: ActionDefinition = {
   },
 };
 
+// 8b ─ A week's rota, drafted from coverage ────────────────────────────────────
+
+const WEEKDAY_SHORT = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
+
+/** The Monday of the week holding a YYYY-MM-DD date. */
+function mondayIso(date: string) {
+  const day = new Date(`${date}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+  return day.toISOString().slice(0, 10);
+}
+
+/** A proposed shift travels in its line id, which the seal pins: date|start|end|break|position|n. */
+function encodeProposal(p: {
+  date: string;
+  startMinute: number;
+  endMinute: number;
+  breakMinutes: number;
+  positionId: string | null;
+  id: string;
+}) {
+  return [p.date, p.startMinute, p.endMinute, p.breakMinutes, p.positionId ?? '', p.id].join('|');
+}
+
+function decodeProposal(id: string) {
+  const [date, start, end, breakMinutes, positionId] = id.split('|');
+  const startMinute = Number(start);
+  const endMinute = Number(end);
+  if (!isIsoDate(date) || !Number.isInteger(startMinute) || !Number.isInteger(endMinute) || endMinute <= startMinute) return null;
+  return { date, startMinute, endMinute, breakMinutes: Number(breakMinutes) || 0, positionId: positionId || null };
+}
+
+const draftRotaWeek: ActionDefinition = {
+  kind: 'rota_week',
+  capability: 'scheduling:write',
+  tool: {
+    name: 'draft_rota_week',
+    description:
+      'Draft next week’s rota for approval. Fills each day’s under-covered hours (recommended headcount from order history versus shifts already planned) with 3–8 hour shifts, picking people who are not on leave, not unavailable, qualified, and within working-time rules — most contract headroom first, then the cheapest rate, then the fewest hours. mode "from_last_week" first repeats last week’s shifts where they still fit. Confirming adds draft shifts only; it never publishes.',
+    parameters: schema({
+      locationId: { type: 'string' },
+      weekStart: nullableString('Any YYYY-MM-DD in the week to fill (it is moved to that Monday), or null for next week.'),
+      mode: { type: ['string', 'null'], enum: ['fill_gaps', 'from_last_week', null], description: 'Defaults to fill_gaps.' },
+    }),
+  },
+  async draft(args, runtime) {
+    const locationId = await runtime.resolveLocationId(args.locationId);
+    if (!locationId) return { error: 'Choose a location to draft the rota for.' };
+    const timeZone = await runtime.timezone(locationId);
+    const weekStart = isIsoDate(args.weekStart) ? mondayIso(args.weekStart) : addDaysIso(mondayIso(zonedNow(timeZone).date), 7);
+    const mode: AutofillMode = args.mode === 'from_last_week' ? 'from_last_week' : 'fill_gaps';
+
+    const planner = await runtime.get<RotaPlanner>(`/rota/planner?${new URLSearchParams({ locationId, weekStart })}`);
+    const [coverage, previous] = await Promise.all([
+      runtime.get<CoverageResponse>(`/scheduled-shifts/coverage?${new URLSearchParams({ locationId, byWeekday: 'true' })}`),
+      mode === 'from_last_week'
+        ? runtime.get<RotaPlanner>(`/rota/planner?${new URLSearchParams({ locationId, weekStart: addDaysIso(weekStart, -7) })}`)
+        : Promise.resolve(null),
+    ]);
+    // Coverage hours come back on the API's clock and Sunday-first weekdays.
+    const needs = coverage.coverage.flatMap((row) =>
+      'weekday' in row ? [{ weekday: mondayWeekday(row.weekday), hour: row.hour, recommendedStaff: row.recommendedStaff }] : [],
+    );
+    const result = autofillRota({
+      weekStart,
+      timeZone: planner.location.timeZone || timeZone,
+      staff: planner.staff,
+      shifts: planner.shifts,
+      leave: planner.leave,
+      coverage: needs,
+      rules: rulesFor(planner.targets.rules),
+      mode,
+      previousShifts: previous?.shifts ?? [],
+      sales: planner.sales,
+      targets: planner.targets,
+    });
+
+    const gapLines = result.gaps
+      .slice(0, 6)
+      .map((gap) => `${WEEKDAY_SHORT[gap.weekday]} ${formatBlock(gap.startMinute, gap.endMinute)} (${gap.reason})`);
+    if (result.shifts.length === 0) {
+      if (needs.length === 0) return { error: 'There isn’t enough order history at this location to recommend cover yet.' };
+      return {
+        error: gapLines.length
+          ? `No shift could be filled. Gaps: ${gapLines.join('; ')}.`
+          : `The week of ${weekStart} is already covered — nothing to add.`,
+      };
+    }
+
+    const names = new Map(planner.staff.map((person) => [person.userId, person.name]));
+    const staffOptions: AgentFieldOption[] = [
+      { value: '', label: 'Open shift (unassigned)' },
+      ...planner.staff.map((person) => ({
+        value: person.userId,
+        label: person.name,
+        ...(person.contractedWeeklyHours ? { hint: `${toNumber(person.contractedWeeklyHours)}h contract` } : {}),
+      })),
+    ];
+    const template = [selectField('userId', 'Staff', staffOptions, '', { optional: true })];
+    const { summary } = result;
+    const hours = round(summary.paidMinutesAdded / 60, 1);
+    const figures = [
+      `${result.shifts.length} draft shift${result.shifts.length === 1 ? '' : 's'}`,
+      `${hours}h`,
+      summary.costAdded ? gbp(summary.costAdded) : null,
+      summary.labourPctAfter
+        ? `labour ${toNumber(summary.labourPctAfter).toFixed(1)}%${summary.targetLabourPct ? ` (target ${toNumber(summary.targetLabourPct).toFixed(1)}%)` : ''}`
+        : null,
+    ].filter(Boolean);
+
+    return {
+      kind: 'rota_week',
+      title: `Rota for the week of ${calendarLabel(weekStart)}`,
+      summary: `${figures.join(' · ')} at ${planner.location.name}`,
+      confirmLabel: 'Add drafts',
+      note: [
+        'Adds draft shifts only. Nothing is published and staff see nothing until you publish the rota.',
+        result.gaps.length
+          ? `Couldn’t fill ${result.gaps.length} gap${result.gaps.length === 1 ? '' : 's'}: ${gapLines.join('; ')}${result.gaps.length > 6 ? '; …' : ''}.`
+          : null,
+        summary.costAdded === null ? 'Cost and labour % are hidden: some pay rates aren’t visible to you.' : null,
+      ]
+        .filter(Boolean)
+        .join(' '),
+      fields: [
+        selectField('locationId', 'Location', await runtime.locationOptions(), locationId, { readOnly: true }),
+        field('weekStart', 'Week of', { type: 'date', value: weekStart, readOnly: true }),
+      ],
+      lineGroup: {
+        label: 'Shifts',
+        addLabel: 'Add shift',
+        emptyLabel: 'No shifts left to add.',
+        options: [],
+        template,
+        lines: result.shifts.map((p) => ({
+          id: encodeProposal(p),
+          title: `${WEEKDAY_SHORT[p.weekday]} ${Number(p.date.slice(8))} · ${formatBlock(p.startMinute, p.endMinute)}`,
+          subtitle: [
+            p.breakMinutes ? `${p.breakMinutes} min break` : null,
+            p.source === 'last_week' ? 'as last week' : 'covers a gap',
+            names.get(p.userId) ? null : 'unknown person',
+          ]
+            .filter(Boolean)
+            .join(' · '),
+          fields: [{ ...template[0], value: p.userId }],
+        })),
+        minLines: 1,
+        maxLines: 300,
+      },
+    };
+  },
+  async execute(action, runtime) {
+    const locationId = str(action.fields, 'locationId');
+    const weekStart = str(action.fields, 'weekStart');
+    const timeZone = await runtime.timezone(locationId);
+    const shifts = action.lines.flatMap((line) => {
+      const proposal = decodeProposal(line.id);
+      if (!proposal) return [];
+      return [
+        {
+          locationId,
+          userId: str(line.values, 'userId') || null,
+          startsAt: zonedInstant(proposal.date, proposal.startMinute, timeZone),
+          endsAt: zonedInstant(proposal.date, proposal.endMinute, timeZone),
+          breakMinutes: proposal.breakMinutes,
+          positionId: proposal.positionId,
+          status: 'draft' as const,
+        },
+      ];
+    });
+    if (shifts.length === 0) throw new Error('None of those shifts could be read. Ask DUMA to draft the week again.');
+    // The bulk endpoint creates drafts whatever status is sent; this never publishes.
+    const { created } = await runtime.send<{ created: unknown[] }>('/scheduled-shifts/bulk', 'POST', { shifts });
+    return {
+      message: `Added ${created.length} draft shift${created.length === 1 ? '' : 's'} to the week of ${weekStart}. Review them on the rota and publish when you’re ready — staff can’t see drafts.`,
+      shortcuts: [
+        { label: 'Open the rota', href: '/staff/rota', description: 'Switches the active location', locationId, kind: 'filtered' },
+      ],
+    };
+  },
+};
+
 // 9 ─ Leave decision ─────────────────────────────────────────────────────────
 
 const reviewLeaveRequest: ActionDefinition = {
@@ -1494,6 +1679,7 @@ export const ACTIONS: ActionDefinition[] = [
   adjustCustomerPoints,
   updateMenuItem,
   scheduleShift,
+  draftRotaWeek,
   reviewLeaveRequest,
   updateStockThresholds,
   updateQrOrderingSettings,

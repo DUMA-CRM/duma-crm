@@ -1,7 +1,8 @@
 'use client';
 
-import { AlertTriangle } from '@/components/icons';
+import { AlertTriangle, RefreshCw } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
+import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -31,19 +32,16 @@ export function ErrorState({
 }) {
   return (
     <div className={cn('flex flex-col items-center justify-center px-6 py-14 text-center', className)} role="alert">
-      <div className="mb-4 flex size-12 items-center justify-center rounded-md bg-exception/8 text-exception">
+      <div className="mb-4 flex size-12 items-center justify-center rounded-md bg-exception/10 text-exception">
         <Icon size={22} aria-hidden="true" />
       </div>
-      <p className="text-sm font-semibold text-foreground">{title}</p>
+      <p className="text-sm font-semibold text-heading">{title}</p>
       {description && <p className="mt-1.5 max-w-[60ch] text-sm leading-6 text-muted-foreground">{description}</p>}
       {onRetry && (
-        <button
-          type="button"
-          onClick={onRetry}
-          className="mt-4 rounded-sm border border-rule px-3 py-1.5 text-xs font-semibold transition-colors hover:bg-band focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
-        >
+        <Button type="button" variant="outline" size="sm" onClick={onRetry} className="mt-4">
+          <RefreshCw data-icon="inline-start" aria-hidden="true" />
           {retryLabel}
-        </button>
+        </Button>
       )}
     </div>
   );

@@ -467,7 +467,7 @@ export function NotesGraph({
         role="img"
         aria-label={`Graph of ${model.nodes.length} notes and ${model.links.length} links. The list below has the same notes.`}
       />
-      <div className="absolute bottom-3 right-3 overflow-hidden rounded-md border border-rule/70 bg-card shadow-sm">
+      <div className="absolute bottom-3 right-3 overflow-hidden rounded-md border border-border bg-card shadow-sm">
         <canvas
           ref={minimapRef}
           className="block h-24 w-36 touch-none cursor-crosshair focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring md:h-28 md:w-44"

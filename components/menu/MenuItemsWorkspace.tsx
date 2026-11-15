@@ -17,7 +17,6 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { IconTag } from '@/components/shared/IconTag';
-import { NeedsAttention } from '@/components/shared/NeedsAttention';
 import { Pill } from '@/components/shared/Pill';
 import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
@@ -26,16 +25,13 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { proxiedImage } from '@/lib/api/client';
-import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { type MenuItemCost, useMenuItemCosts } from '@/lib/hooks/useMenuItemCosts';
 import { getMenuCategories, getMenuItems, updateMenuItem } from '@/lib/modules/catalog/client';
-import { getRecipeGaps } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { filterMenuItems, groupByCategory, setupGaps } from '@/lib/utils/menu-list';
-import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { MenuCategory, MenuItem } from '@/types/menu';
 
@@ -49,8 +45,6 @@ export function MenuItemsWorkspace() {
   const qc = useQueryClient();
   const router = useRouter();
   const { tenantId } = useWorkspaceStore();
-  const capabilities = useAuthStore((state) => state.capabilities);
-  const canReadRecipes = hasCapability(capabilities, 'recipes:read');
   const [search, setSearch] = useState('');
   const [importing, setImporting] = useState(false);
   const words = useCatalogWords();
@@ -66,14 +60,6 @@ export function MenuItemsWorkspace() {
     queryFn: () => getMenuCategories(tenantId!),
     enabled: Boolean(tenantId),
   });
-  // Moved here from the Inventory stock tab: a menu item without a recipe is a
-  // menu problem — its sales take no stock off and its allergen answer is incomplete.
-  const gaps = useQuery({
-    queryKey: moduleQueryKeys.inventory.key('menu-item-recipe-gaps', tenantId),
-    queryFn: () => getRecipeGaps(tenantId!),
-    enabled: !!tenantId && canReadRecipes && words.tools.kitchen,
-  });
-
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data]);
   const filtered = useMemo(() => filterMenuItems(items, search, categoryFilter), [items, search, categoryFilter]);
   const groups = groupByCategory(filtered, categories);
@@ -127,7 +113,7 @@ export function MenuItemsWorkspace() {
           </div>
           <div>
             <Bone className="mb-2 h-3 w-24" />
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <div className="overflow-hidden rounded-lg border border-border bg-card">
               {Array.from({ length: 5 }, (_, index) => (
                 <RowSkeleton key={index} index={index} />
               ))}
@@ -142,15 +128,6 @@ export function MenuItemsWorkspace() {
         )
       ) : (
         <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-          {canReadRecipes && words.tools.kitchen && (
-            <RecipeGaps
-              gaps={gaps.data}
-              images={new Map(items.map((i) => [i.id, proxiedImage(i.imageUrl)]))}
-              error={gaps.isError}
-              onRetry={() => void gaps.refetch()}
-            />
-          )}
-
           <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
             <div className="min-w-56 flex-1 lg:max-w-xs">
               <Input
@@ -221,7 +198,7 @@ export function MenuItemsWorkspace() {
               return (
                 <motion.section key={group.id} variants={SECTION_RISE} aria-label={group.name}>
                   <h2 className="mb-2 text-label uppercase text-muted-foreground">{group.name}</h2>
-                  <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                  <ul className="overflow-hidden rounded-lg border border-border bg-card">
                     {group.items.map((item) => (
                       <ItemRow
                         key={item.id}
@@ -241,52 +218,6 @@ export function MenuItemsWorkspace() {
         </motion.div>
       )}
     </EditorShell>
-  );
-}
-
-/**
- * Menu items with no recipe, folded to one line — the same shape as the stock
- * tab's "Needs attention". Hidden when every item has one.
- */
-function RecipeGaps({
-  gaps,
-  images,
-  error,
-  onRetry,
-}: {
-  gaps?: { id: string; name: string }[];
-  /** Each item's image, so a row shows the item rather than a generic icon. */
-  images: Map<string, string | null>;
-  error: boolean;
-  onRetry: () => void;
-}) {
-  if (error)
-    return (
-      <motion.div variants={SECTION_RISE} className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3">
-        <span className="min-w-0 flex-1 text-xs text-muted-foreground">Recipe coverage couldn’t be checked.</span>
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          Try again
-        </Button>
-      </motion.div>
-    );
-  if (!gaps) return null;
-
-  // The shared card — the same one Communications' overview uses.
-  return (
-    <NeedsAttention
-      label="Items without a recipe"
-      icon={ChefHat}
-      summary={`${gaps.length} ${gaps.length === 1 ? 'item needs' : 'items need'} a recipe`}
-      items={gaps.map((gap) => ({
-        key: gap.id,
-        tone: 'measured',
-        icon: ChefHat,
-        image: images.get(gap.id),
-        title: `${gap.name} has no recipe`,
-        detail: 'Its sales can’t take stock off or give a complete allergen answer.',
-        fix: { label: 'Add recipe', href: `/menu/items/${gap.id}?tab=recipe` },
-      }))}
-    />
   );
 }
 
@@ -314,7 +245,7 @@ function ItemRow({
     // The link stretches over the whole row (its ::after), so the padding,
     // margin and price open the item too — the row highlights as one target.
     // Only the switch sits above it, as its own control.
-    <li className="group relative flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40 has-[a:focus-visible]:bg-band/40">
+    <li className="group relative flex items-center gap-3 border-b border-border px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40 has-[a:focus-visible]:bg-band/40">
       <Link
         href={`/menu/items/${item.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring"

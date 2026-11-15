@@ -62,7 +62,7 @@ export function TodayBanners({ canCompare }: { canCompare: boolean }) {
   return (
     <>
       {!selectedLocation && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-rule/65 bg-card px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
           <p className="text-sm text-foreground">
             <span className="font-semibold">Showing every location you can access.</span> Pick one to see its trading hours, pace and target.
           </p>
@@ -98,7 +98,7 @@ export function TodayBanners({ canCompare }: { canCompare: boolean }) {
 /** Today's figures failed as a whole: one notice in place of the trading panels, with a retry. */
 function TodayError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-lg border border-rule/65 bg-card text-center" role="alert">
+    <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-lg border border-border bg-card text-center" role="alert">
       <AlertTriangle size={22} className="text-exception" aria-hidden="true" />
       <div>
         <p className="text-sm font-semibold text-foreground">Today&rsquo;s figures could not be loaded</p>

@@ -35,7 +35,7 @@ export function TileSkeleton({
   const ends = trailing === undefined ? [] : Array.isArray(trailing) ? trailing : [trailing];
   return (
     <div
-      className={cn('flex items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3', className)}
+      className={cn('flex items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3 shadow-sm', className)}
       aria-hidden="true"
     >
       {tile !== null && <Bone className={cn('shrink-0', tile)} />}
@@ -88,7 +88,7 @@ export function FramedRows({
   className?: string;
 }) {
   return (
-    <div className={cn('overflow-hidden rounded-lg border border-rule/60 bg-card', className)} aria-hidden="true">
+    <div className={cn('overflow-hidden rounded-lg border border-border bg-card shadow-sm', className)} aria-hidden="true">
       {Array.from({ length: rows }, (_, index) => (
         <RowSkeleton key={index} index={index} avatar={avatar} trailing={trailing} />
       ))}
@@ -99,7 +99,7 @@ export function FramedRows({
 /** A `SettingsSection` loading: the title, its reason, and `fields` labelled inputs (or `children`). */
 export function SectionSkeleton({ fields = 3, className, children }: { fields?: number; className?: string; children?: React.ReactNode }) {
   return (
-    <div className={cn('rounded-lg border border-rule/60 bg-field', className)} aria-hidden="true">
+    <div className={cn('rounded-lg border border-border bg-card shadow-sm', className)} aria-hidden="true">
       <div className="space-y-2 px-5 pt-5">
         <Bone className="h-4 w-36" />
         <Bone className="h-3 w-64 max-w-full" />

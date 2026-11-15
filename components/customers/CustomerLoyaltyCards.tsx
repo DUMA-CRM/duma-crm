@@ -4,10 +4,11 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
+import { RowTile } from '@/components/cms/rows';
 import { BalanceAdjustModal } from '@/components/customers/BalanceAdjustModal';
 import { Drawer } from '@/components/customers/CustomerDialogs';
 import { Modal } from '@/components/customers/CustomerDialogs';
-import { AlertTriangle, ChevronRight, Coffee, Gift, Minus, Plus, ShoppingBag, Sparkles, Tag, TicketPercent } from '@/components/icons';
+import { AlertTriangle, Check, ChevronRight, Coffee, Gift, Minus, Plus, ShoppingBag, Tag, TicketPercent } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
@@ -20,7 +21,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { rewardsCompleted } from '@/lib/utils/balance-adjust';
 import { cn } from '@/lib/utils/cn';
-import { describeRewardScope, getLoyaltyCardProgress, stampColumns } from '@/lib/utils/loyalty-card';
+import { describeRewardScope, getLoyaltyCardProgress } from '@/lib/utils/loyalty-card';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -30,107 +31,82 @@ function unitLabel(programme: CustomerLoyaltyProgram, amount: number) {
   return amount === 1 ? programme.unitSingular : programme.unitPlural;
 }
 
-/** A hand-stamped look: each impression lands a few degrees off, as a real one does. Fixed, so it never jitters. */
-const STAMP_TILT = [-7, 4, -2, 6, -4, 3, -6, 5, -3, 7, -5, 2];
-
 /**
- * A printed punch card: the programme's band across the top, a perforated tear
- * line, then the stamp grid on card stock with the reward as the last slot —
- * the way Loopy Loyalty and Stamp Me draw theirs, and the way a guest already
- * pictures their card. A stamp is an ink impression, not a tick in a box.
+ * A stamp card the way wallet passes draw one (Apple Wallet store cards, as
+ * PassKit and Loopy issue them): a flat card in the brand colour — name and
+ * count in the header, one strip of identical circles, filled for each stamp
+ * earned and outlined for the rest, the reward as the last circle — then two
+ * label/value fields. Staff actions sit under the card, not on it: the card is
+ * what the guest sees.
  */
-function StampCard({ programme, onAdjust, onGrant }: { programme: CustomerLoyaltyProgram; onAdjust?: () => void; onGrant?: () => void }) {
+export function StampCard({
+  programme,
+  onAdjust,
+  onGrant,
+}: {
+  programme: CustomerLoyaltyProgram;
+  onAdjust?: () => void;
+  onGrant?: () => void;
+}) {
   const progress = getLoyaltyCardProgress(programme.balance, programme.rewardRule.cost);
-  const columns = stampColumns(progress.slots);
-
   return (
-    <article className="relative overflow-hidden rounded-xl border border-rule/60 bg-card shadow-sm">
-      {/* ── The band ─────────────────────────────────────────────────── */}
-      <header className="relative overflow-hidden bg-primary px-5 pt-4 pb-5 text-primary-foreground">
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-14 -right-10 size-40 rounded-full border border-primary-foreground/10"
-        />
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -top-7 -right-3 size-24 rounded-full border border-primary-foreground/10"
-        />
-        <div className="relative flex items-start justify-between gap-4">
-          <div className="min-w-0">
-            <p className="flex items-center gap-1.5 text-micro font-semibold uppercase tracking-micro text-primary-foreground/70">
-              <Coffee size={13} aria-hidden="true" /> Stamp card
-            </p>
-            <h3 className="mt-1.5 truncate text-lg font-semibold">{programme.name}</h3>
-            <p className="mt-0.5 text-sm text-primary-foreground/75">
-              Collect {programme.rewardRule.cost} {unitLabel(programme, programme.rewardRule.cost)}, get{' '}
-              {rewardLabel(programme).toLowerCase()}
+    <div className="space-y-2">
+      <article className="overflow-hidden rounded-xl bg-primary text-primary-foreground shadow-sm">
+        <header className="flex items-start justify-between gap-4 px-4 pt-3">
+          {/* Coloured explicitly: the base heading colour would otherwise paint it dark on the brand fill. */}
+          <h3 className="min-w-0 truncate pt-0.5 text-base font-semibold text-primary-foreground">{programme.name}</h3>
+          <div className="shrink-0 text-right">
+            <p className="text-micro font-semibold uppercase tracking-micro text-primary-foreground/70">{programme.unitPlural}</p>
+            <p className="text-base font-semibold">
+              {progress.stampsTowardNext}/{programme.rewardRule.cost}
             </p>
           </div>
-          {progress.rewardCount > 0 && (
-            <span className="shrink-0 rounded-full border border-primary-foreground/25 bg-primary-foreground/10 px-2.5 py-1 text-xs font-semibold tabular-nums">
-              {progress.rewardCount} earned
-            </span>
-          )}
-        </div>
-      </header>
+        </header>
 
-      {/* ── Perforation ──────────────────────────────────────────────────
-          Notches punched from each edge, joined by the tear line. They take
-          the panel's own colour, so they read as holes in the card. */}
-      <div aria-hidden="true" className="relative h-0">
-        <span className="absolute top-0 -left-3 size-6 -translate-y-1/2 rounded-full border border-rule/60 bg-field" />
-        <span className="absolute top-0 -right-3 size-6 -translate-y-1/2 rounded-full border border-rule/60 bg-field" />
-        <span className="absolute inset-x-4 -top-px border-t-2 border-dashed border-card" />
-      </div>
-
-      {/* ── The stamps ───────────────────────────────────────────────── */}
-      <div className="px-5 pt-5 pb-4">
+        {/* Fixed-size circles in rows, left to right — a wide card no longer spreads them into islands. */}
         <ol
-          className="mx-auto grid max-w-md gap-2.5 sm:gap-3"
-          style={{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }}
+          className="flex flex-wrap gap-1.5 px-4 pt-2 pb-3"
           aria-label={`${progress.stampsTowardNext} of ${programme.rewardRule.cost} ${programme.unitPlural} toward the next reward`}
         >
           {Array.from({ length: progress.slots }, (_, index) => {
             const filled = index < progress.filledSlots;
             const rewardSlot = index === progress.slots - 1;
             return (
-              <li key={index} aria-hidden="true" className="flex justify-center">
-                {filled ? (
-                  <span
-                    className="relative flex aspect-square w-full max-w-16 items-center justify-center rounded-full border-2 border-primary/80 bg-primary/10 text-primary"
-                    style={{ transform: `rotate(${STAMP_TILT[index % STAMP_TILT.length]}deg)` }}
-                  >
-                    {/* The inner ring is what makes a circle read as a rubber stamp. */}
-                    <span className="absolute inset-1 rounded-full border border-dashed border-primary/45" />
-                    <Coffee className="size-[42%]" strokeWidth={2.2} />
-                  </span>
-                ) : rewardSlot ? (
-                  <span className="flex aspect-square w-full max-w-16 flex-col items-center justify-center gap-0.5 rounded-full border-2 border-dashed border-stock/55 bg-stock/6 text-stock">
-                    <Gift className="size-[34%]" />
-                    <span className="text-[0.6rem] font-bold uppercase tracking-micro">Free</span>
-                  </span>
-                ) : (
-                  <span className="flex aspect-square w-full max-w-16 items-center justify-center rounded-full border-2 border-dashed border-rule bg-band/30 text-xs font-semibold tabular-nums text-muted-foreground/60">
-                    {index + 1}
-                  </span>
-                )}
+              <li key={index} aria-hidden="true">
+                <span
+                  className={cn(
+                    'flex size-8 items-center justify-center rounded-full',
+                    filled
+                      ? 'bg-primary-foreground text-primary'
+                      : rewardSlot
+                        ? 'border-2 border-dashed border-primary-foreground/60 text-primary-foreground'
+                        : 'border-2 border-primary-foreground/35',
+                  )}
+                >
+                  {filled ? <Check className="size-1/2" strokeWidth={3} /> : rewardSlot ? <Gift className="size-[45%]" /> : null}
+                </span>
               </li>
             );
           })}
         </ol>
-      </div>
 
-      {/* ── The back of the card ─────────────────────────────────────── */}
-      <footer className="flex flex-wrap items-center justify-between gap-3 border-t border-rule/45 bg-band/25 px-5 py-3">
-        <div>
-          <p className="text-sm font-semibold tabular-nums text-foreground">
-            {progress.stampsTowardNext} of {programme.rewardRule.cost} {programme.unitPlural}
-          </p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            {progress.stampsRemaining} more {unitLabel(programme, progress.stampsRemaining)} to the next reward
-          </p>
-        </div>
-        <div className="flex flex-wrap gap-2">
+        <dl className="grid grid-cols-2 gap-4 border-t border-primary-foreground/15 px-4 py-2.5">
+          <div className="min-w-0">
+            <dt className="text-micro font-semibold uppercase tracking-micro text-primary-foreground/70">Reward</dt>
+            <dd className="truncate text-sm font-semibold">{rewardLabel(programme)}</dd>
+          </div>
+          {/* Rewards already earned are listed above the card, ready to use — not repeated here. */}
+          <div className="min-w-0 text-right">
+            <dt className="text-micro font-semibold uppercase tracking-micro text-primary-foreground/70">To go</dt>
+            <dd className="truncate text-sm font-semibold">
+              {progress.stampsRemaining} {unitLabel(programme, progress.stampsRemaining)}
+            </dd>
+          </div>
+        </dl>
+      </article>
+
+      {(onGrant || onAdjust) && (
+        <div className="flex justify-end gap-2">
           {onGrant && (
             <Button type="button" variant="ghost" size="sm" onClick={onGrant}>
               <Gift data-icon="inline-start" /> Give reward
@@ -142,8 +118,8 @@ function StampCard({ programme, onAdjust, onGrant }: { programme: CustomerLoyalt
             </Button>
           )}
         </div>
-      </footer>
-    </article>
+      )}
+    </div>
   );
 }
 
@@ -175,34 +151,32 @@ function rewardCount(programme: CustomerLoyaltyProgram) {
  * what it is and when it runs out. The whole voucher opens the detail — like
  * Square's "Reward available", it is the thing staff act on, so it is a button.
  */
-function RewardVoucher({ programme, onOpen }: { programme: CustomerLoyaltyProgram; onOpen: () => void }) {
+function RewardRow({ programme, onOpen }: { programme: CustomerLoyaltyProgram; onOpen: () => void }) {
   const count = rewardCount(programme);
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group relative flex w-full items-stretch overflow-hidden rounded-lg border border-stock/40 bg-stock/8 text-left transition-colors hover:border-stock/60 hover:bg-stock/12 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-    >
-      <span className="flex w-16 shrink-0 items-center justify-center bg-stock text-on-fill">
-        <Sparkles size={20} aria-hidden="true" />
-      </span>
-      {/* The stub's tear line, with a notch punched top and bottom. */}
-      <span aria-hidden="true" className="relative w-0 border-l-2 border-dashed border-stock/45">
-        <span className="absolute -top-2 -left-2 size-4 rounded-full border border-stock/40 bg-field" />
-        <span className="absolute -bottom-2 -left-2 size-4 rounded-full border border-stock/40 bg-field" />
-      </span>
-      <span className="min-w-0 flex-1 px-4 py-3">
-        <span className="block text-micro font-semibold uppercase tracking-micro text-stock">Reward ready</span>
-        <span className="mt-0.5 block truncate text-sm font-semibold text-foreground">
-          {rewardLabel(programme)} · {programme.name}
+    <li className="min-w-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      <button
+        type="button"
+        onClick={onOpen}
+        className="group flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+      >
+        <RowTile icon={Gift} tone="success" />
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-foreground">
+            {rewardLabel(programme)}
+            {count > 1 && <span className="ml-1.5 font-normal text-muted-foreground">×{count}</span>}
+          </span>
+          <span className="block truncate text-xs text-muted-foreground">
+            {programme.name} · {rewardExpiryLabel(programme)}
+          </span>
         </span>
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{rewardExpiryLabel(programme)}</span>
-      </span>
-      <span className="flex shrink-0 items-center gap-2 pr-4">
-        {count > 1 && <span className="text-lg font-semibold tabular-nums text-stock">×{count}</span>}
-        <ChevronRight size={16} className="text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
-      </span>
-    </button>
+        <ChevronRight
+          size={16}
+          className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </button>
+    </li>
   );
 }
 
@@ -299,7 +273,7 @@ function RewardDrawer({
         </div>
 
         <section>
-          <h3 className="text-sm font-semibold text-foreground">What it covers</h3>
+          <h3 className="text-sm font-semibold text-heading">What it covers</h3>
           {scopeLoading ? (
             <div className="mt-2 flex flex-wrap gap-1.5" role="status" aria-busy="true" aria-label="Loading what it covers">
               {['w-24', 'w-32', 'w-20'].map((width) => (
@@ -309,7 +283,7 @@ function RewardDrawer({
           ) : (
             <ul className="mt-2 flex flex-wrap gap-1.5">
               {scope.map((line) => (
-                <li key={line} className="rounded-md border border-rule/60 bg-field px-2.5 py-1 text-sm text-foreground">
+                <li key={line} className="rounded-md border border-border bg-field px-2.5 py-1 text-sm text-foreground">
                   {line}
                 </li>
               ))}
@@ -319,10 +293,10 @@ function RewardDrawer({
 
         {wallet.length > 0 && (
           <section>
-            <h3 className="text-sm font-semibold text-foreground">In their wallet</h3>
-            <ul className="mt-2 overflow-hidden rounded-lg border border-rule/60 bg-field">
+            <h3 className="text-sm font-semibold text-heading">In their wallet</h3>
+            <ul className="mt-2 overflow-hidden rounded-lg border border-border bg-field">
               {wallet.map((reward, index) => (
-                <li key={reward.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+                <li key={reward.id} className="flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
                   <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-stock/10 text-stock">
                     <Tag size={16} aria-hidden="true" />
                   </span>
@@ -339,7 +313,7 @@ function RewardDrawer({
         )}
 
         <section>
-          <h3 className="text-sm font-semibold text-foreground">How to use it</h3>
+          <h3 className="text-sm font-semibold text-heading">How to use it</h3>
           <ol className="mt-3 space-y-3">
             {[
               'Start an order — they come with it, already attached.',
@@ -427,17 +401,18 @@ function StampPreview({ programme, after }: { programme: CustomerLoyaltyProgram;
               key={index}
               aria-hidden="true"
               className={cn(
+                // The card's circles: filled for a stamp, outlined for a gap.
                 'flex size-7 items-center justify-center rounded-full border-2',
                 added
-                  ? 'border-momentum bg-momentum/15 text-momentum'
+                  ? 'border-momentum bg-momentum text-white'
                   : filled
-                    ? 'border-primary/80 bg-primary/10 text-primary'
+                    ? 'border-primary bg-primary text-primary-foreground'
                     : removed
                       ? 'border-dashed border-exception/60 text-exception'
-                      : 'border-dashed border-rule',
+                      : 'border-rule',
               )}
             >
-              {filled && <Coffee className="size-3.5" strokeWidth={2.2} />}
+              {filled && <Check className="size-3.5" strokeWidth={3} />}
               {removed && <Minus className="size-3" />}
             </li>
           );
@@ -541,6 +516,7 @@ export function CustomerLoyaltyCards({
   canAdjust,
   canOrder,
   stacked = false,
+  framed = true,
 }: {
   customerId: string;
   customerName: string;
@@ -550,6 +526,8 @@ export function CustomerLoyaltyCards({
   canOrder: boolean;
   /** One column — for a narrow sidebar, where two cards side by side don't fit. */
   stacked?: boolean;
+  /** False inside a section that already has the heading — the record's Loyalty section. */
+  framed?: boolean;
 }) {
   const [selected, setSelected] = useState<CustomerLoyaltyProgram | null>(null);
   const [granting, setGranting] = useState<CustomerLoyaltyProgram | null>(null);
@@ -561,17 +539,21 @@ export function CustomerLoyaltyCards({
   const available = rewardProgrammes.filter((programme) => programme.canRedeem);
   if (stampProgrammes.length === 0 && available.length === 0) return null;
 
-  return (
-    <SettingsSection title="Loyalty cards" bodyClassName="space-y-4">
+  const body = (
+    <>
       {available.length > 0 && (
-        <div className={cn('grid gap-2.5', !stacked && 'xl:grid-cols-2')}>
-          {available.map((programme) => (
-            <RewardVoucher key={`reward-${programme.id}`} programme={programme} onOpen={() => setOpened(programme)} />
-          ))}
+        <div>
+          <p className="mb-2 text-sm font-semibold text-heading">Ready to use</p>
+          {/* A card per reward, two to a row — each is something to hand over, not a line in a table. */}
+          <ul className={cn('grid gap-2', !stacked && 'sm:grid-cols-2')}>
+            {available.map((programme) => (
+              <RewardRow key={`reward-${programme.id}`} programme={programme} onOpen={() => setOpened(programme)} />
+            ))}
+          </ul>
         </div>
       )}
       {stampProgrammes.length > 0 && (
-        <div className={cn('grid gap-4', !stacked && '2xl:grid-cols-2')}>
+        <div className={cn('grid gap-4', !stacked && (stampProgrammes.length > 1 ? 'xl:grid-cols-2' : 'max-w-xl'))}>
           {stampProgrammes.map((programme) => (
             <StampCard
               key={programme.id}
@@ -589,6 +571,12 @@ export function CustomerLoyaltyCards({
       {granting && (
         <GrantRewardModal customerId={customerId} customerName={customerName} programme={granting} onClose={() => setGranting(null)} />
       )}
+    </>
+  );
+  if (!framed) return <div className="space-y-4">{body}</div>;
+  return (
+    <SettingsSection title="Loyalty cards" bodyClassName="space-y-4">
+      {body}
     </SettingsSection>
   );
 }

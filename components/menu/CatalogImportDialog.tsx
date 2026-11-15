@@ -7,6 +7,7 @@ import { TEXTAREA_CLASS } from '@/components/cms/shared';
 import { AlertTriangle, CheckCircle2, Download, FileText, UploadCloud } from '@/components/icons';
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
@@ -152,7 +153,7 @@ export function CatalogImportDialog({ tenantId, onClose }: { tenantId: string; o
             />
           </>
         ) : (
-          <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-control px-3.5 py-2.5">
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-control px-3.5 py-2.5">
             <FileText size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
             <div className="min-w-0 flex-1">
               <p className="truncate text-sm font-semibold text-foreground">{fileName ?? 'Pasted sheet'}</p>
@@ -191,7 +192,7 @@ export function CatalogImportDialog({ tenantId, onClose }: { tenantId: string; o
 
         {hasStock && locations.length > 1 && (
           <div className="space-y-1.5">
-            <p className="text-label uppercase text-muted-foreground">Stock is at</p>
+            <FieldLabel as="span">Stock is at</FieldLabel>
             <Select
               ariaLabel="Stock is at"
               className="w-full"
@@ -212,7 +213,7 @@ export function CatalogImportDialog({ tenantId, onClose }: { tenantId: string; o
               {report.totals.productsCreated} new, {report.totals.productsUpdated} updated · {report.totals.variantsCreated} sizes added,{' '}
               {report.totals.variantsUpdated} updated{report.totals.stockSet > 0 ? ` · stock set for ${report.totals.stockSet}` : ''}
             </p>
-            <ul className="max-h-64 divide-y divide-rule/40 overflow-auto rounded-lg border border-rule/60 bg-control">
+            <ul className="max-h-64 divide-y divide-border overflow-auto rounded-lg border border-border bg-control">
               {report.products.map((product) => (
                 <li key={product.name} className="px-3.5 py-2">
                   <p className="flex items-center justify-between gap-2 text-sm">

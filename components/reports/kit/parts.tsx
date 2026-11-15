@@ -65,7 +65,7 @@ function KpiTile({ kpi, loading }: { kpi: Kpi; loading: boolean }) {
   const Icon = kpi.icon;
   const change = kpi.current !== undefined ? delta(kpi.current, kpi.previous) : null;
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-rule/60 bg-field px-3.5 py-3">
+    <div className="flex items-start gap-3 rounded-lg border border-border bg-field px-3.5 py-3">
       <span className="mt-0.5 flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
         <Icon size={17} aria-hidden="true" />
       </span>
@@ -130,7 +130,7 @@ export function ReportBlock({
     <motion.section variants={SECTION_RISE} className={cn('min-w-0', className)}>
       <div className="mb-2 flex min-h-8 flex-wrap items-end gap-x-3 gap-y-1 px-1">
         <div className="min-w-0 flex-1">
-          <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+          <h2 className="text-sm font-semibold text-heading">{title}</h2>
           {/* Text goes in a <p>; anything richer (a chart legend is its own <p>) in a <div>, so they never nest. */}
           {description &&
             (typeof description === 'string' ? (
@@ -141,7 +141,7 @@ export function ReportBlock({
         </div>
         {actions}
       </div>
-      <div className={cn('overflow-hidden rounded-lg border border-rule/60 bg-field', !flush && 'p-4')}>{children}</div>
+      <div className={cn('overflow-hidden rounded-lg border border-border bg-field', !flush && 'p-4')}>{children}</div>
     </motion.section>
   );
 }
@@ -461,7 +461,7 @@ export function TrendChart({
 
       {current && active !== null && width > 0 && (
         <div
-          className="pointer-events-none absolute top-0 z-10 w-max min-w-44 rounded-lg border border-rule/60 bg-card/95 px-3 py-2.5 shadow-lg backdrop-blur-sm"
+          className="pointer-events-none absolute top-0 z-10 w-max min-w-44 rounded-lg border border-border bg-card/95 px-3 py-2.5 shadow-lg backdrop-blur-sm"
           style={{
             left: x(active),
             transform: `translateX(${x(active) > width / 2 ? 'calc(-100% - 14px)' : '14px'})`,
@@ -502,7 +502,7 @@ export function TrendChart({
             )}
           </dl>
           {currentPrevious !== null && (
-            <div className="mt-2 flex justify-end border-t border-rule/50 pt-2">
+            <div className="mt-2 flex justify-end border-t border-border pt-2">
               <ChangePill change={delta(current.value, currentPrevious)} />
             </div>
           )}
@@ -794,7 +794,7 @@ export function ReportTable<T>({
   return (
     <div className="bg-field">
       {search && (
-        <div className="flex flex-wrap items-center gap-3 border-b border-rule/45 px-4 py-2.5">
+        <div className="flex flex-wrap items-center gap-3 border-b border-border px-4 py-2.5">
           <span className="flex-1 text-xs tabular-nums text-muted-foreground">
             {filtered.length === rows.length
               ? `${rows.length.toLocaleString('en-GB')} ${rows.length === 1 ? search.noun[0] : search.noun[1]}`
@@ -817,7 +817,7 @@ export function ReportTable<T>({
       <div className="overflow-x-auto">
         <table className="w-full min-w-[32rem] border-collapse text-sm">
           <thead>
-            <tr className="border-b border-rule/50 bg-field">
+            <tr className="border-b border-border bg-field">
               {ranked && (
                 <th scope="col" className="w-10 py-2.5 pr-0 pl-4 text-left text-xs font-medium text-muted-foreground" aria-label="Rank" />
               )}
@@ -895,7 +895,7 @@ export function ReportTable<T>({
                         : undefined
                     }
                     className={cn(
-                      'group/row border-b border-rule/45 transition-colors last:border-b-0 hover:bg-band',
+                      'group/row border-b border-border transition-colors last:border-b-0 hover:bg-band',
                       activeKey === key ? 'bg-band' : 'bg-field',
                       clickable && 'cursor-pointer',
                     )}
@@ -982,7 +982,7 @@ export function ReportTable<T>({
           </tbody>
           {hasTotals && filtered.length === rows.length && (
             <tfoot>
-              <tr className="border-t border-rule/70 bg-band">
+              <tr className="border-t border-border bg-band">
                 {ranked && <td />}
                 {columns.map((column, index) => (
                   <td key={column.key} className={cn(cell(column, index), 'py-3 font-semibold text-foreground')}>
@@ -1000,7 +1000,7 @@ export function ReportTable<T>({
         <button
           type="button"
           onClick={() => setAll((current) => !current)}
-          className="flex w-full items-center justify-center gap-1.5 border-t border-rule/45 py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
+          className="flex w-full items-center justify-center gap-1.5 border-t border-border py-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
         >
           {all ? 'Show fewer' : `Show all ${sorted.length.toLocaleString('en-GB')}`}
           <ChevronDown size={13} className={cn('transition-transform', all && 'rotate-180')} aria-hidden="true" />
@@ -1025,7 +1025,7 @@ export function ReportLoading() {
 
 export function ReportError({ onRetry, what = 'This report' }: { onRetry: () => void; what?: string }) {
   return (
-    <div className="rounded-lg border border-rule/60 bg-field">
+    <div className="rounded-lg border border-border bg-field">
       <ErrorState
         title={`${what} couldn’t be loaded`}
         description="Check your connection and try again. Nothing here is a partial figure."

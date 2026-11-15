@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { EyeOff, Search, Star, UtensilsCrossed } from '@/components/icons';
 import { Switch } from '@/components/settings/controls';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Input } from '@/components/ui/input';
 
@@ -66,18 +67,18 @@ export function QrMenuList({
       </div>
 
       {groups.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-rule/60 px-4 py-6 text-center text-sm text-muted-foreground">
+        <p className="rounded-lg border border-dashed border-border px-4 py-6 text-center text-sm text-muted-foreground">
           Nothing matches “{search}”.
         </p>
       ) : (
-        <div className="space-y-6">
+        <div className="space-y-5">
           {groups.map((group) => {
             const groupShown = group.all.filter(isShown).length;
             return (
               <section key={group.id} aria-labelledby={`qr-menu-${group.id}`}>
                 {/* Right padding matches the rows, so this switch sits in the same column as theirs. */}
                 <header className="mb-2 flex items-center gap-2.5 pl-1 pr-[15px]">
-                  <h3 id={`qr-menu-${group.id}`} className="text-base font-semibold text-foreground">
+                  <h3 id={`qr-menu-${group.id}`} className="text-sm font-semibold text-heading">
                     {group.name}
                   </h3>
                   {!group.reachesGuests && (
@@ -96,7 +97,7 @@ export function QrMenuList({
                     />
                   </label>
                 </header>
-                <ul className="grid gap-2">
+                <ListRowGroup>
                   <AnimatePresence initial={false}>
                     {group.items.map((item) => {
                       const shown = isShown(item);
@@ -110,69 +111,73 @@ export function QrMenuList({
                           animate={{ opacity: 1 }}
                           exit={reduceMotion ? { opacity: 0 } : { opacity: 0, scale: 0.98 }}
                           transition={{ duration: 0.2, ease: [0.16, 1, 0.3, 1] }}
-                          className={cn(
-                            'flex items-center gap-3 rounded-lg border p-2 pr-3.5 transition-colors',
-                            shown ? 'border-rule/50 bg-background/60' : 'border-dashed border-rule/60 bg-transparent',
-                          )}
+                          className="border-b border-border last:border-b-0"
                         >
-                          <ItemPhoto item={item} dimmed={!shown} />
-                          <span className="min-w-0 flex-1">
-                            <span className="flex items-center gap-2">
-                              <span className={cn('truncate text-sm font-semibold', shown ? 'text-foreground' : 'text-muted-foreground')}>
-                                {item.name}
-                              </span>
-                              {star && shown && (
-                                <span className="shrink-0 rounded-sm bg-primary/10 px-1.5 py-0.5 text-micro font-semibold text-primary">
-                                  Featured
-                                </span>
-                              )}
-                              {!item.isAvailable && (
-                                <span className="shrink-0 rounded-sm bg-warning-highlight px-1.5 py-0.5 text-micro font-semibold text-stock">
-                                  Sold out
-                                </span>
-                              )}
-                            </span>
-                            <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                              {shown && !reaches
+                          <ListRow
+                            as="div"
+                            className="border-b-0"
+                            leading={<ItemPhoto item={item} dimmed={!shown} />}
+                            muted={!shown}
+                            title={item.name}
+                            titleExtra={
+                              <>
+                                {star && shown && (
+                                  <span className="shrink-0 rounded-sm bg-primary/10 px-1.5 py-0.5 text-micro font-semibold text-primary">
+                                    Featured
+                                  </span>
+                                )}
+                                {!item.isAvailable && (
+                                  <span className="shrink-0 rounded-sm bg-warning-highlight px-1.5 py-0.5 text-micro font-semibold text-stock">
+                                    Sold out
+                                  </span>
+                                )}
+                              </>
+                            }
+                            meta={
+                              shown && !reaches
                                 ? item.isAvailable
                                   ? 'Guests won’t see it until the category is back on.'
                                   : 'Guests will see it once it’s back in stock.'
-                                : item.description || ' '}
-                            </span>
-                          </span>
-                          <span className="shrink-0 text-sm font-medium tabular-nums text-foreground">
-                            {formatMoney(Number(item.price), 2)}
-                          </span>
-                          <button
-                            type="button"
-                            aria-pressed={star}
-                            aria-label={star ? `Stop featuring ${item.name}` : `Feature ${item.name}`}
-                            title={
-                              star
-                                ? 'Featured — shown first with a Featured badge'
-                                : featureFull
-                                  ? `Up to ${MAX_FEATURED} items can be featured`
-                                  : 'Feature — show first with a Featured badge'
+                                : item.description || undefined
                             }
-                            disabled={!star && (featureFull || !shown)}
-                            onClick={() => onFeaturedChange(toggleFeatured(featuredItemIds, item.id))}
-                            className={cn(
-                              'flex size-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-30',
-                              star ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-band hover:text-foreground',
-                            )}
-                          >
-                            <Star size={16} aria-hidden="true" />
-                          </button>
-                          <Switch
-                            checked={shown}
-                            onChange={(next) => onVisibilityChange({ ...visibility, [item.id]: next })}
-                            label={`Show ${item.name} on the QR menu`}
+                            trailing={
+                              <span className="text-sm font-medium tabular-nums text-foreground">{formatMoney(Number(item.price), 2)}</span>
+                            }
+                            control={
+                              <span className="flex items-center gap-2 pr-1.5">
+                                <button
+                                  type="button"
+                                  aria-pressed={star}
+                                  aria-label={star ? `Stop featuring ${item.name}` : `Feature ${item.name}`}
+                                  title={
+                                    star
+                                      ? 'Featured — shown first with a Featured badge'
+                                      : featureFull
+                                        ? `Up to ${MAX_FEATURED} items can be featured`
+                                        : 'Feature — show first with a Featured badge'
+                                  }
+                                  disabled={!star && (featureFull || !shown)}
+                                  onClick={() => onFeaturedChange(toggleFeatured(featuredItemIds, item.id))}
+                                  className={cn(
+                                    'flex size-9 shrink-0 items-center justify-center rounded-md transition-colors focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-30',
+                                    star ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-band hover:text-foreground',
+                                  )}
+                                >
+                                  <Star size={16} aria-hidden="true" />
+                                </button>
+                                <Switch
+                                  checked={shown}
+                                  onChange={(next) => onVisibilityChange({ ...visibility, [item.id]: next })}
+                                  label={`Show ${item.name} on the QR menu`}
+                                />
+                              </span>
+                            }
                           />
                         </motion.li>
                       );
                     })}
                   </AnimatePresence>
-                </ul>
+                </ListRowGroup>
               </section>
             );
           })}
@@ -189,7 +194,7 @@ function ItemPhoto({ item, dimmed }: { item: MenuItem; dimmed: boolean }) {
   return (
     <span
       className={cn(
-        'flex size-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-band text-muted-foreground transition-opacity',
+        'flex size-10 shrink-0 items-center justify-center overflow-hidden rounded-md bg-band text-muted-foreground transition-opacity',
         dimmed && 'opacity-50 grayscale',
       )}
     >

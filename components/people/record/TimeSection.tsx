@@ -18,7 +18,7 @@ import {
   UploadCloud,
 } from '@/components/icons';
 import { usePayrollLocale } from '@/components/payroll/usePayroll';
-import { fmtDate, fmtHours, inp, lbl, leaveIcon } from '@/components/people/shared';
+import { fmtDate, fmtHours, inp, leaveIcon } from '@/components/people/shared';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { IconTag } from '@/components/shared/IconTag';
 import { MiniBar } from '@/components/shared/MiniBar';
@@ -28,6 +28,7 @@ import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { type EmployeeHours, type TimesheetShift, getWorkPattern, updateWorkPattern } from '@/lib/modules/people/client';
@@ -189,7 +190,9 @@ export function AbsenceCard({ userId }: { userId: string }) {
           >
             <DatePicker label="Date" value={form.date} onValueChange={(date) => setForm({ ...form, date })} />
             <div>
-              <label className={lbl}>How long</label>
+              <FieldLabel as="span" className="mb-1.5">
+                How long
+              </FieldLabel>
               <ChoiceCards
                 value={form.isHalfDay ? 'half' : 'full'}
                 onChange={(length) => setForm({ ...form, isHalfDay: length === 'half' })}
@@ -200,7 +203,9 @@ export function AbsenceCard({ userId }: { userId: string }) {
               />
             </div>
             <div>
-              <label className={lbl}>Category</label>
+              <FieldLabel as="span" className="mb-1.5">
+                Category
+              </FieldLabel>
               <Select
                 value={form.leaveTypeId}
                 onValueChange={(value) => setForm({ ...form, leaveTypeId: value })}
@@ -212,9 +217,9 @@ export function AbsenceCard({ userId }: { userId: string }) {
             </div>
             <div>
               <div className="flex items-baseline justify-between">
-                <label className={lbl} htmlFor="absence-reason">
+                <FieldLabel htmlFor="absence-reason" className="mb-1.5">
                   Reason or payroll note
-                </label>
+                </FieldLabel>
                 <span className="text-xs text-muted-foreground">{form.reason.length}/500</span>
               </div>
               <textarea
@@ -287,7 +292,7 @@ export function WorkPatternCard({ userId }: { userId: string }) {
         // The same frame as the list it replaces, so switching to edit doesn't
         // move the page: fields inside, a live summary, actions in a footer.
         <form
-          className="overflow-hidden rounded-lg border border-rule/60 bg-card"
+          className="overflow-hidden rounded-lg border border-border bg-card"
           onSubmit={(event) => {
             event.preventDefault();
             save.mutate();
@@ -295,7 +300,9 @@ export function WorkPatternCard({ userId }: { userId: string }) {
         >
           <div className="space-y-4 p-4">
             <div>
-              <label className={lbl}>Working days</label>
+              <FieldLabel as="span" className="mb-1.5">
+                Working days
+              </FieldLabel>
               <div className="grid grid-cols-7 gap-1.5">
                 {DAY_NAMES.map((name, index) => {
                   const value = index + 1;
@@ -310,7 +317,7 @@ export function WorkPatternCard({ userId }: { userId: string }) {
                         'flex h-12 flex-col items-center justify-center gap-0.5 rounded-lg border text-xs font-semibold transition-colors',
                         active
                           ? 'border-primary bg-primary/5 text-foreground'
-                          : 'border-rule/60 bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
+                          : 'border-border bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
                         index >= 5 && !active && 'bg-band/30',
                       )}
                     >
@@ -322,7 +329,9 @@ export function WorkPatternCard({ userId }: { userId: string }) {
               </div>
             </div>
             <div>
-              <label className={lbl}>Contracted hours a week</label>
+              <FieldLabel as="span" className="mb-1.5">
+                Contracted hours a week
+              </FieldLabel>
               <NumberStepper label="Hours a week" value={weeklyHours} onChange={setHours} min={0} max={168} step={0.5} unit="h" />
             </div>
             <p className="rounded-md bg-band/50 px-3 py-2 text-xs text-muted-foreground">
@@ -336,7 +345,7 @@ export function WorkPatternCard({ userId }: { userId: string }) {
               )}
             </p>
           </div>
-          <div className="flex justify-end gap-2 border-t border-rule/45 bg-band/20 px-4 py-3">
+          <div className="flex justify-end gap-2 border-t border-border bg-band/20 px-4 py-3">
             <Button type="button" variant="ghost" onClick={cancel} disabled={save.isPending}>
               Cancel
             </Button>
@@ -572,7 +581,9 @@ function LeaveAllowanceModal({
       >
         {!entitlement && (
           <div>
-            <label className={lbl}>Leave type</label>
+            <FieldLabel as="span" className="mb-1.5">
+              Leave type
+            </FieldLabel>
             <Select
               value={leaveTypeId}
               onValueChange={(value) => {
@@ -587,7 +598,9 @@ function LeaveAllowanceModal({
           </div>
         )}
         <div>
-          <label className={lbl}>Days a year</label>
+          <FieldLabel as="span" className="mb-1.5">
+            Days a year
+          </FieldLabel>
           <NumberStepper
             label="Days a year"
             value={total}
@@ -600,7 +613,7 @@ function LeaveAllowanceModal({
         </div>
 
         {/* What the new figure means for them, before it is saved. */}
-        <div className="rounded-lg border border-rule/60 bg-field px-4 py-3">
+        <div className="rounded-lg border border-border bg-field px-4 py-3">
           <div className="flex items-baseline justify-between text-sm">
             <span className="text-muted-foreground">{entitlement ? `${used} used so far` : 'None used yet'}</span>
             <span className={cn('font-semibold', tooLow ? 'text-exception' : 'text-foreground')}>
@@ -788,7 +801,9 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
             <FileDrop file={file} onFile={setFile} tooBig={tooBig} />
             <div className="grid gap-3 sm:grid-cols-2">
               <div>
-                <label className={lbl}>Type</label>
+                <FieldLabel as="span" className="mb-1.5">
+                  Type
+                </FieldLabel>
                 <Select
                   value={form.documentType}
                   onValueChange={(value) => setForm({ ...form, documentType: value })}
@@ -798,9 +813,9 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
                 />
               </div>
               <div>
-                <label className={lbl} htmlFor="document-title">
+                <FieldLabel htmlFor="document-title" className="mb-1.5">
                   Title
-                </label>
+                </FieldLabel>
                 <input
                   id="document-title"
                   className={inp}
@@ -811,9 +826,9 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
               </div>
             </div>
             <div>
-              <label className={lbl} htmlFor="document-reference">
+              <FieldLabel htmlFor="document-reference" className="mb-1.5">
                 Check method or reference
-              </label>
+              </FieldLabel>
               <input
                 id="document-reference"
                 className={inp}
@@ -832,9 +847,9 @@ export function EmployeeDocumentsCard({ userId }: { userId: string }) {
               />
             </div>
             <div>
-              <label className={lbl} htmlFor="document-notes">
+              <FieldLabel htmlFor="document-notes" className="mb-1.5">
                 Notes
-              </label>
+              </FieldLabel>
               <textarea
                 id="document-notes"
                 className={cn(inp, 'h-20 resize-none py-2')}
@@ -876,7 +891,7 @@ function FileDrop({ file, onFile, tooBig }: { file: File | null; onFile: (file: 
       }}
       className={cn(
         'flex cursor-pointer items-center gap-3 rounded-lg border border-dashed px-4 py-4 transition-colors',
-        over ? 'border-primary bg-primary/5' : tooBig ? 'border-exception/50 bg-exception/4' : 'border-rule/70 bg-field hover:bg-band/40',
+        over ? 'border-primary bg-primary/5' : tooBig ? 'border-exception/50 bg-exception/4' : 'border-border bg-field hover:bg-band/40',
       )}
     >
       <span
@@ -1094,7 +1109,7 @@ function DaySpan({ segments }: { segments: TimesheetShift[] }) {
 
 function DayFigure({ label, value, tone = 'default' }: { label: string; value: string; tone?: 'default' | 'warning' | 'strong' }) {
   return (
-    <div className="rounded-lg border border-rule/60 bg-field px-3.5 py-2.5">
+    <div className="rounded-lg border border-border bg-field px-3.5 py-2.5">
       <dt className="text-label uppercase text-muted-foreground">{label}</dt>
       <dd className={cn('mt-0.5 text-base font-semibold', tone === 'warning' ? 'text-measured' : 'text-foreground')}>{value}</dd>
     </div>

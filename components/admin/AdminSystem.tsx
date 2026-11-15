@@ -269,7 +269,7 @@ function DatabaseSection() {
             </p>
           )}
 
-          <h3 className="mt-6 mb-3 text-sm font-semibold text-foreground">Largest tables</h3>
+          <h3 className="mt-6 mb-3 text-sm font-semibold text-heading">Largest tables</h3>
           <InfoRows>
             {snapshot.tables.slice(0, 15).map((table) => (
               <InfoRow key={table.table} icon={Table} title={table.table} description={tableFacts(table)}>

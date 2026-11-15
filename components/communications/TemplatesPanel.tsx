@@ -117,7 +117,7 @@ export function TemplatesPanel({
 
   if (templatesQuery.isError)
     return (
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+      <div className="overflow-hidden rounded-lg border border-border bg-field">
         <ErrorState title="Templates couldn’t be loaded" onRetry={() => void templatesQuery.refetch()} />
       </div>
     );
@@ -128,8 +128,8 @@ export function TemplatesPanel({
         <Bone className="mb-2 h-3 w-40" />
         <TemplateGrid>
           {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="flex flex-col overflow-hidden rounded-lg border border-rule/60 bg-field" aria-hidden="true">
-              <Bone className="aspect-16/9 sm:aspect-2/1 w-full rounded-none border-b border-rule/45" />
+            <div key={index} className="flex flex-col overflow-hidden rounded-lg border border-border bg-field" aria-hidden="true">
+              <Bone className="aspect-16/9 sm:aspect-2/1 w-full rounded-none border-b border-border" />
               <span className="space-y-1.5 px-3.5 py-3">
                 <Bone className={cn('h-3.5', index % 2 ? 'w-28' : 'w-36')} />
                 <Bone className="h-3 w-44 max-w-full" />
@@ -181,7 +181,7 @@ export function TemplatesPanel({
       )}
       {shownGroups.map((group) => (
         <motion.section key={group.category} variants={SECTION_RISE} aria-label={templateCategoryLabel(group.category)}>
-          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-heading">
             {templateCategoryLabel(group.category)}
             <span className="text-xs font-normal text-muted-foreground tabular-nums">
               {group.items.length} {group.items.length === 1 ? 'template' : 'templates'} · {group.inUse} in use
@@ -253,13 +253,13 @@ function TemplateCard({
   onDelete: () => void;
 }) {
   return (
-    <article className="group flex flex-col overflow-hidden rounded-lg border border-rule/60 bg-field transition-colors hover:border-rule">
+    <article className="group flex flex-col overflow-hidden rounded-lg border border-border bg-field transition-colors hover:border-rule">
       {/* The thumbnail is the preview — the whole plate is the button. */}
       <button
         type="button"
         onClick={onPreview}
         aria-label={`Preview ${template.name}`}
-        className="relative block aspect-16/9 sm:aspect-2/1 w-full overflow-hidden border-b border-rule/45 bg-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        className="relative block aspect-16/9 sm:aspect-2/1 w-full overflow-hidden border-b border-border bg-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
         <iframe
           title=""

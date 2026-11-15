@@ -145,7 +145,7 @@ export function ReportsHome() {
 
         <motion.section variants={SECTION_RISE} aria-labelledby="report-library-title" className="space-y-4">
           <div className="flex flex-wrap items-center gap-3">
-            <h2 id="report-library-title" className="flex-1 text-base font-semibold tracking-title text-foreground">
+            <h2 id="report-library-title" className="flex-1 text-base font-semibold tracking-title text-heading">
               All reports
             </h2>
             <div className="w-full sm:w-72">
@@ -317,10 +317,10 @@ function SalesPanel({
   ];
 
   return (
-    <motion.section variants={SECTION_RISE} aria-labelledby="net-sales-title" className="rounded-lg border border-rule/60 bg-field">
+    <motion.section variants={SECTION_RISE} aria-labelledby="net-sales-title" className="rounded-lg border border-border bg-field">
       <header className="flex flex-wrap items-start justify-between gap-x-6 gap-y-4 px-5 pt-5">
         <div className="min-w-0">
-          <h2 id="net-sales-title" className="text-sm font-semibold text-foreground">
+          <h2 id="net-sales-title" className="text-sm font-semibold text-heading">
             Net sales
           </h2>
           {loading ? (
@@ -388,14 +388,14 @@ function SalesPanel({
       </div>
 
       {/* The period's counts: one row, each with its change — they were four tiles. */}
-      <dl className="grid grid-cols-2 border-t border-rule/50 sm:grid-cols-4">
+      <dl className="grid grid-cols-2 border-t border-border sm:grid-cols-4">
         {stats.map((stat, index) => (
           <div
             key={stat.label}
             className={cn(
               'min-w-0 px-5 py-3.5',
-              index % 2 === 1 && 'border-l border-rule/50',
-              index >= 2 && 'border-t border-rule/50 sm:border-t-0',
+              index % 2 === 1 && 'border-l border-border',
+              index >= 2 && 'border-t border-border sm:border-t-0',
               index === 2 && 'sm:border-l',
             )}
           >
@@ -412,7 +412,7 @@ function SalesPanel({
         ))}
       </dl>
 
-      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-rule/50 px-5 py-3">
+      <footer className="flex flex-wrap items-center justify-between gap-2 border-t border-border px-5 py-3">
         <TrendLegend
           comparison={!!previousBuckets}
           variant={by === 'month' ? 'bars' : 'line'}
@@ -554,7 +554,7 @@ function WorthKnowing({
 
   return (
     <motion.section variants={SECTION_RISE} aria-labelledby="worth-knowing-title" className="min-w-0">
-      <h2 id="worth-knowing-title" className="mb-2 px-1 text-sm font-semibold text-foreground">
+      <h2 id="worth-knowing-title" className="mb-2 px-1 text-sm font-semibold text-heading">
         Worth knowing
       </h2>
       {!loading && total === 0 ? (
@@ -562,9 +562,9 @@ function WorthKnowing({
           No sales in these dates.
         </p>
       ) : (
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+        <ul className="overflow-hidden rounded-lg border border-border bg-card">
           {rows.map((row) => (
-            <li key={row.label} className="border-b border-rule/45 last:border-b-0">
+            <li key={row.label} className="border-b border-border last:border-b-0">
               <Link
                 href={row.href}
                 className="group flex items-center gap-3 px-3.5 py-3 transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
@@ -611,7 +611,7 @@ function ProfitPanel({ filters }: { filters: ReportFilterState }) {
   return (
     <motion.section variants={SECTION_RISE} aria-labelledby="profit-title" className="min-w-0">
       <div className="mb-2 flex items-baseline justify-between gap-3 px-1">
-        <h2 id="profit-title" className="text-sm font-semibold text-foreground">
+        <h2 id="profit-title" className="text-sm font-semibold text-heading">
           Profit
         </h2>
         <Link href={href} className="flex items-center gap-0.5 text-xs font-semibold text-primary hover:underline">
@@ -619,7 +619,7 @@ function ProfitPanel({ filters }: { filters: ReportFilterState }) {
           <ChevronRight size={13} aria-hidden="true" />
         </Link>
       </div>
-      <div className="rounded-lg border border-rule/60 bg-card px-4 py-4">
+      <div className="rounded-lg border border-border bg-card px-4 py-4">
         {isError ? (
           <ReportError what="Profit" onRetry={refetch} />
         ) : loading ? (
@@ -628,7 +628,7 @@ function ProfitPanel({ filters }: { filters: ReportFilterState }) {
             <Bone className="h-9 w-24" />
             <Bone className="mt-1.5 h-3 w-64 max-w-full" />
             <Bone className="mt-4 h-3 w-full rounded-full" />
-            <div className="mt-4 grid grid-cols-3 divide-x divide-rule/50 border-t border-rule/50 pt-3">
+            <div className="mt-4 grid grid-cols-3 divide-x divide-border border-t border-border pt-3">
               {Array.from({ length: 3 }, (_, index) => (
                 <div key={index} className="flex flex-col items-center gap-1.5">
                   <Bone className="h-3 w-14" />
@@ -659,7 +659,7 @@ function ProfitPanel({ filters }: { filters: ReportFilterState }) {
             </div>
             {/* The exact shares stay here: the bar clamps labour to what is left
                 after food and rounds, so its legend can understate a bad week. */}
-            <dl className="mt-4 grid grid-cols-3 divide-x divide-rule/50 border-t border-rule/50 pt-3 text-center">
+            <dl className="mt-4 grid grid-cols-3 divide-x divide-border border-t border-border pt-3 text-center">
               <div>
                 <dt className="text-xs text-muted-foreground">Food cost</dt>
                 <dd className="text-sm font-semibold tabular-nums text-foreground">{pct(current.foodCostPct)}</dd>
@@ -699,7 +699,7 @@ function Category({
     // Columns, not a grid: each list sits right under the one above, with no
     // gap left by a taller neighbour.
     <section aria-label={label} className="mb-5 min-w-0 break-inside-avoid">
-      <h3 className="mb-1.5 flex items-baseline justify-between px-1 text-sm font-semibold text-foreground">
+      <h3 className="mb-1.5 flex items-baseline justify-between px-1 text-sm font-semibold text-heading">
         {label}
         <span className="text-xs font-normal tabular-nums text-muted-foreground">{list.reports.length}</span>
       </h3>
@@ -746,12 +746,12 @@ function ReportList({
   onToggle: (id: ReportId) => void;
 }) {
   return (
-    <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+    <ul className="overflow-hidden rounded-lg border border-border bg-card">
       {reports.map((report) => {
         const Icon = REPORT_ICON[report.id] ?? DEFAULT_REPORT_ICON;
         const starred = favourites.includes(report.id);
         return (
-          <li key={report.id} className="group/report relative border-b border-rule/45 last:border-b-0">
+          <li key={report.id} className="group/report relative border-b border-border last:border-b-0">
             <Link
               href={`/reports/${report.id}${query ? `?${query}` : ''}`}
               className="flex items-center gap-3 px-3.5 py-2.5 pr-11 transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"

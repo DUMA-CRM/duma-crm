@@ -1,0 +1,13 @@
+{
+  "path": "/compare/duma-vs-square",
+  "name": "DUMA vs Square",
+  "summary": "",
+  "description": "",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "compare/duma-vs-square",
+  "local_sources": [
+    "lib/marketing/compare/square.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A caf\u00e9 staff member takes an order at a tablet till seen from the back, then hands over a cup of coffee. Focus only on the small business; do not show competitor products or make comparative claims."
+}

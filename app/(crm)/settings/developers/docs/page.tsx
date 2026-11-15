@@ -1,5 +1,6 @@
-import { ApiReference } from '@/components/settings/developers/ApiReference';
+import { permanentRedirect } from 'next/navigation';
 
+/** The API reference moved to the public developer docs; old links land there. */
 export default function SettingsDevelopersDocsPage() {
-  return <ApiReference />;
+  permanentRedirect('/developers');
 }

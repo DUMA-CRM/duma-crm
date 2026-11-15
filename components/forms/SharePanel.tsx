@@ -220,7 +220,7 @@ export function SharePanel({
 function CodeSnippet({ code }: { code: string }) {
   return (
     <div className="group relative mt-3">
-      <pre className="max-h-80 overflow-auto rounded-md bg-sidebar px-4 py-3 font-mono text-xs leading-relaxed text-sidebar-foreground">
+      <pre className="max-h-80 overflow-auto rounded-md bg-panel px-4 py-3 font-mono text-xs leading-relaxed text-panel-foreground">
         <code>{code}</code>
       </pre>
       <CopyButton

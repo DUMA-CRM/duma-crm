@@ -1,19 +1,17 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion } from 'motion/react';
 import { useRouter } from 'next/navigation';
 import { useState, useSyncExternalStore } from 'react';
 
-import { Building2, CalendarDays, Globe, Loader2, Pencil, Tag } from '@/components/icons';
+import { Building2, CalendarDays, Globe, Loader2, Palette, Pencil, Tag } from '@/components/icons';
 import { BrandPicker } from '@/components/settings/BrandPicker';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { Fact } from '@/components/settings/controls';
+import { ChangeRow, Fact, ValueAside } from '@/components/settings/controls';
 import { CatalogKindSetting } from '@/components/settings/workspaces/CatalogKindSetting';
 import { LocationList } from '@/components/settings/workspaces/LocationList';
-import { WorkspaceReadinessChecklist } from '@/components/settings/workspaces/WorkspaceReadinessChecklist';
-import { Modal } from '@/components/shared/Modal';
 import { Bone, FactSkeleton } from '@/components/shared/Skeleton';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 import { Badge } from '@/components/ui/badge';
@@ -23,13 +21,7 @@ import { Input } from '@/components/ui/input';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
 import { WORKSPACE_CONTEXT_KEY } from '@/lib/hooks/useWorkspaceContext';
-import {
-  type CurrentTenantPatch,
-  getWorkspaceSetup,
-  renameCurrentTenant,
-  updateCurrentTenant,
-  updateTenant,
-} from '@/lib/modules/organization/client';
+import { type CurrentTenantPatch, renameCurrentTenant, updateCurrentTenant, updateTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { BRANDS, parseBrand } from '@/lib/utils/brand';
@@ -50,38 +42,42 @@ const STATUS = {
   inactive: { label: 'Inactive', variant: 'muted' },
 } as const;
 
+type Row = 'brand' | 'timezone' | 'catalog';
+
 export function WorkspaceTab() {
   const { tenant } = useCurrentWorkspace();
 
   // The workspace this tab is in. Choosing another one happens in DUMA Admin
   // (or the switcher), not here: settings never change where you are working.
+  // The business | where it trades.
   return (
-    <SettingsTabBody>
-      <BusinessSection />
-      <ReadinessSection />
-      <LocationList tenant={tenant} />
-    </SettingsTabBody>
+    <div className="grid items-start gap-5 lg:grid-cols-2">
+      <div className="min-w-0">
+        <SettingsTabBody>
+          <BusinessSection />
+          <WorkspaceSettingsSection />
+        </SettingsTabBody>
+      </div>
+      <div className="min-w-0">
+        <SettingsTabBody>
+          <LocationList tenant={tenant} />
+        </SettingsTabBody>
+      </div>
+    </div>
   );
 }
 
-/**
- * Shown while there is setup left to do, gone once the owner has confirmed the
- * workspace ready. It comes back by itself if a later change (a module switched
- * on, a reader removed) breaks readiness — the API recomputes the checks.
- */
-function ReadinessSection() {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
-  // Same key and fetcher as the checklist, so this reads its cache rather than asking twice.
-  const setup = useQuery({
-    queryKey: ['workspace-setup', tenantId],
-    queryFn: () => getWorkspaceSetup(tenantId!),
-    enabled: Boolean(tenantId),
-  });
-  const confirmed = setup.data?.status === 'completed' && setup.data.readiness.ready;
-  if (!tenantId || confirmed) return null;
+/** Brand colour, timezone and what the business sells: each a row whose Change opens its picker in place, and saves on the pick. */
+function WorkspaceSettingsSection() {
+  const { tenant } = useCurrentWorkspace();
+  const [open, setOpen] = useState<Row | null>(null);
+  const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
+  if (!tenant) return null;
   return (
     <SettingsSection>
-      <WorkspaceReadinessChecklist />
+      <BrandRow open={open === 'brand'} onToggle={() => toggle('brand')} onDone={() => setOpen(null)} />
+      <TimezoneRow open={open === 'timezone'} onToggle={() => toggle('timezone')} onDone={() => setOpen(null)} />
+      <CatalogKindSetting open={open === 'catalog'} onToggle={() => toggle('catalog')} onDone={() => setOpen(null)} />
     </SettingsSection>
   );
 }
@@ -108,17 +104,17 @@ function BusinessSection() {
 
   if (isLoading)
     return (
-      // The business card as it lands: the big tile, the name, then four facts.
-      <div role="status" aria-busy="true" aria-label="Loading workspace" className="rounded-lg border border-rule/60 bg-field p-5">
+      // The business card as it lands: the tile, the name, then the two facts.
+      <div role="status" aria-busy="true" aria-label="Loading workspace" className="rounded-lg border border-border bg-card p-5 shadow-sm">
         <div className="flex items-center gap-4" aria-hidden="true">
-          <Bone className="size-24 shrink-0 rounded-xl" />
+          <Bone className="size-16 shrink-0 rounded-xl" />
           <span className="min-w-0 flex-1 space-y-2">
             <Bone className="h-6 w-56 max-w-full" />
             <Bone className="h-3.5 w-36" />
           </span>
         </div>
-        <div className="mt-6 grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
-          {[0, 1, 2, 3].map((index) => (
+        <div className="mt-6 grid gap-3 sm:grid-cols-2">
+          {[0, 1].map((index) => (
             <FactSkeleton key={index} surface="panel" />
           ))}
         </div>
@@ -137,8 +133,8 @@ function BusinessSection() {
   return (
     <SettingsSection>
       <div className="flex items-center gap-4">
-        <span className="flex size-24 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary">
-          <Building2 size={40} aria-hidden="true" />
+        <span className="flex size-16 shrink-0 items-center justify-center rounded-xl bg-primary/8 text-primary">
+          <Building2 size={28} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
           <AnimatePresence mode="wait" initial={false}>
@@ -183,9 +179,9 @@ function BusinessSection() {
               </motion.div>
             )}
           </AnimatePresence>
-          <div className="mt-2">
-            <BrandControl />
-          </div>
+          {tenant.status !== 'active' && tenant.statusReason && (
+            <p className="mt-1.5 truncate text-sm text-muted-foreground">{tenant.statusReason}</p>
+          )}
         </div>
         {canRename && !editing && (
           <Button
@@ -201,7 +197,7 @@ function BusinessSection() {
           </Button>
         )}
       </div>
-      <dl className="mt-6 grid gap-3 sm:grid-cols-2 2xl:grid-cols-4">
+      <dl className="mt-6 grid gap-3 sm:grid-cols-2">
         <Fact
           icon={CalendarDays}
           label="Created"
@@ -209,12 +205,7 @@ function BusinessSection() {
         />
         {/* The only place an owner can read their workspace ID. */}
         <Fact icon={Tag} label="Workspace ID" value={<span className="font-mono text-xs">{tenant.slug}</span>} />
-        <TimezoneFact />
-        <CatalogKindSetting />
       </dl>
-      {tenant.status !== 'active' && tenant.statusReason && (
-        <p className="mt-3 text-xs text-muted-foreground">Status note: {tenant.statusReason}</p>
-      )}
     </SettingsSection>
   );
 }
@@ -269,112 +260,105 @@ function useNow() {
 const clockIn = (timeZone: string, at: Date) =>
   new Intl.DateTimeFormat('en-GB', { timeZone, hour: '2-digit', minute: '2-digit' }).format(at);
 
-/** The business card's third figure: where the workspace keeps time, and what time it is there. */
-function TimezoneFact() {
+interface RowProps {
+  open: boolean;
+  onToggle: () => void;
+  onDone: () => void;
+}
+
+/** Where the workspace keeps time, and what time it is there. */
+function TimezoneRow({ open, onToggle, onDone }: RowProps) {
   const { tenant, canEdit } = useWorkspaceAppearance();
   const now = useNow();
-  const [editing, setEditing] = useState(false);
   if (!tenant) return null;
 
   const zone = tenant.timezone ?? workspaceTimeZone() ?? 'Europe/London';
   return (
-    <>
-      <Fact
-        icon={Globe}
-        label="Timezone"
-        value={timeZoneCity(zone)}
-        hint={now ? `${timeZoneOffsetLabel(zone, now)} · ${clockIn(zone, now)} there now` : zone}
-        {...(canEdit ? { onSelect: () => setEditing(true), action: 'Change' } : {})}
-      />
-      {editing && <TimezoneDialog current={zone} onClose={() => setEditing(false)} />}
-    </>
+    <ChangeRow
+      icon={Globe}
+      label="Timezone"
+      value={
+        <>
+          <span className="truncate">{timeZoneCity(zone)}</span>
+          <ValueAside>· {now ? `${timeZoneOffsetLabel(zone, now)} · ${clockIn(zone, now)} there now` : zone}</ValueAside>
+        </>
+      }
+      open={open}
+      onToggle={canEdit ? onToggle : undefined}
+    >
+      <TimezoneForm current={zone} onDone={onDone} />
+    </ChangeRow>
   );
 }
 
-function TimezoneDialog({ current, onClose }: { current: string; onClose: () => void }) {
+function TimezoneForm({ current, onDone }: { current: string; onDone: () => void }) {
   const { save } = useWorkspaceAppearance();
   const now = useNow() ?? new Date();
   const [zone, setZone] = useState(current);
   const valid = isValidTimeZone(zone);
 
   return (
-    <Modal title="Workspace timezone" onClose={() => !save.isPending && onClose()}>
-      <div className="space-y-4">
-        <fieldset disabled={save.isPending} className="disabled:opacity-60">
-          <legend className="sr-only">Timezone</legend>
-          <TimezoneSelect
-            value={zone}
-            onChange={(next) => {
-              if (save.isPending || next === current || !isValidTimeZone(next)) return;
-              setZone(next);
-              save.mutate(
-                { timezone: next },
-                {
-                  onSuccess: () => onClose(),
-                  onError: () => setZone(current),
-                },
-              );
-            }}
-            required
-          />
-        </fieldset>
-        {save.isPending && (
-          <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
-            <Loader2 size={14} className="animate-spin" aria-hidden="true" /> Saving…
-          </p>
-        )}
-
-        {valid && (
+    <div className="space-y-3">
+      <fieldset disabled={save.isPending} className="disabled:opacity-60">
+        <legend className="sr-only">Timezone</legend>
+        <TimezoneSelect
+          value={zone}
+          onChange={(next) => {
+            if (save.isPending || next === current || !isValidTimeZone(next)) return;
+            setZone(next);
+            save.mutate(
+              { timezone: next },
+              {
+                onSuccess: () => onDone(),
+                onError: () => setZone(current),
+              },
+            );
+          }}
+          required
+        />
+      </fieldset>
+      {save.isPending ? (
+        <p role="status" className="flex items-center gap-2 text-sm text-muted-foreground">
+          <Loader2 size={14} className="animate-spin" aria-hidden="true" /> Saving…
+        </p>
+      ) : (
+        valid && (
           // The answer to "is this right?": the time it is there, against the time here.
-          <div className="flex items-center gap-4 rounded-lg border border-rule/60 bg-band/40 px-4 py-3">
-            <span className="text-3xl font-semibold tabular-nums tracking-headline text-foreground">{clockIn(zone, now)}</span>
-            <span className="min-w-0">
-              <span className="block truncate text-sm font-semibold text-foreground">
-                {timeZoneCity(zone)} · {timeZoneOffsetLabel(zone, now)}
-              </span>
-              <span className="block truncate text-xs text-muted-foreground">
-                {new Intl.DateTimeFormat('en-GB', { timeZone: zone, weekday: 'long', day: 'numeric', month: 'long' }).format(now)} ·{' '}
-                {timeZoneGap(zone, undefined, now)}
-              </span>
-            </span>
-          </div>
-        )}
-      </div>
-    </Modal>
+          <p className="text-xs text-muted-foreground">
+            {new Intl.DateTimeFormat('en-GB', { timeZone: zone, weekday: 'long', day: 'numeric', month: 'long' }).format(now)} ·{' '}
+            {timeZoneGap(zone, undefined, now)}
+          </p>
+        )
+      )}
+    </div>
   );
 }
 
-function BrandControl() {
+/** The workspace's colour, seen by everyone in it. */
+function BrandRow({ open, onToggle, onDone }: RowProps) {
   const { tenant, canEdit, save } = useWorkspaceAppearance();
-  const [editing, setEditing] = useState(false);
   if (!tenant) return null;
   const brand = parseBrand(tenant.brand);
   const label = BRANDS.find((choice) => choice.id === brand)!.label;
 
   return (
-    <>
-      <button
-        type="button"
-        onClick={() => setEditing(true)}
-        disabled={!canEdit}
-        aria-label={`Brand colour: ${label}. Change brand colour`}
-        className="inline-flex min-h-9 items-center gap-2 rounded-md border border-rule/60 bg-field px-2.5 text-sm text-muted-foreground transition-colors hover:border-rule hover:bg-band/45 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring disabled:cursor-default"
-      >
-        <span data-brand={brand} className="size-3.5 shrink-0 rounded-[3px] border border-rule/30 bg-(--brand)" aria-hidden="true" />
-        <span>
-          Brand colour: <span className="font-medium text-foreground">{label}</span>
-        </span>
-        {canEdit && <Pencil size={13} aria-hidden="true" />}
-      </button>
-      {editing && (
-        <Modal title="Brand colour" size="sm" onClose={() => !save.isPending && setEditing(false)}>
-          <BrandPicker
-            value={save.isPending && save.variables?.brand ? parseBrand(save.variables.brand) : brand}
-            onChange={(next) => next !== brand && save.mutate({ brand: next }, { onSuccess: () => setEditing(false) })}
-            disabled={!canEdit || save.isPending}
-          />
-        </Modal>
-      )}
-    </>
+    <ChangeRow
+      icon={Palette}
+      label="Brand colour"
+      value={
+        <>
+          <span data-brand={brand} className="size-3.5 shrink-0 rounded-[3px] border border-border bg-(--brand)" aria-hidden="true" />
+          <span className="truncate">{label}</span>
+        </>
+      }
+      open={open}
+      onToggle={canEdit ? onToggle : undefined}
+    >
+      <BrandPicker
+        value={save.isPending && save.variables?.brand ? parseBrand(save.variables.brand) : brand}
+        onChange={(next) => next !== brand && save.mutate({ brand: next }, { onSuccess: () => onDone() })}
+        disabled={!canEdit || save.isPending}
+      />
+    </ChangeRow>
   );
 }

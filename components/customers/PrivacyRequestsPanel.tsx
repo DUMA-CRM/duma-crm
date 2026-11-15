@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
@@ -16,25 +16,19 @@ import {
   subjectName,
 } from '@/components/compliance/privacyCopy';
 import { Modal } from '@/components/customers/CustomerDialogs';
-import {
-  AlertTriangle,
-  CalendarClock,
-  CheckCircle2,
-  ChevronDown,
-  ClipboardList,
-  Download,
-  Plus,
-  ShieldCheck,
-  Timer,
-} from '@/components/icons';
+import { AlertTriangle, CheckCircle2, ClipboardList, Download, Plus, ShieldCheck, Timer } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
+import { DetailRow, Facts } from '@/components/shared/DetailRow';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
-import { Badge } from '@/components/ui/badge';
+import { FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
+import type { Tone } from '@/components/shared/tone';
 import { Button } from '@/components/ui/button';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -56,11 +50,15 @@ import { useAuthStore } from '@/stores/authStore';
 /**
  * Privacy requests: recording them, working them, and closing them.
  *
- * Serves two surfaces from one component — a single person's history on their
- * record, and the whole workspace's queue on the Compliance page — because the
- * work is identical and only the scope differs. On the queue the deadline is
- * the headline: each request says how many days it has left, in words, with a
- * bar for how much of the month is used.
+ * Serves three surfaces from one component — the whole workspace's queue on
+ * the Compliance page, and one person's requests on a customer's record (in a
+ * drawer, `chrome="drawer"`) or a staff record (a titled list in a column) —
+ * because the work is identical and only the scope differs.
+ *
+ * Every request is one row in one list, soonest deadline first, so overdue
+ * work leads. The row says how long is left in words, tinted by urgency; a
+ * click opens the request in place — what they asked, the dates, the outcome,
+ * and the actions — as an API key opens on the Developers page.
  */
 
 /** Typed verbatim to confirm an erasure. Deliberately not the person's name:
@@ -70,12 +68,22 @@ const ERASE_PHRASE = 'ERASE';
 const TEXTAREA =
   'w-full rounded-md border border-input bg-control p-3 text-sm text-foreground outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30';
 
-const TONE_TEXT: Record<DeadlineTone, string> = {
-  done: 'text-muted-foreground',
-  calm: 'text-muted-foreground',
-  soon: 'text-measured',
-  today: 'text-exception',
-  overdue: 'text-exception',
+/** The statutory rule the list can't show — kept under every list of requests. */
+const MONTH_RULE = 'Access, correction and erasure requests under data-protection law — each must be answered within a month.';
+
+/** The row's tile: urgency first, so an overdue request is red before it is read. */
+const TONE_TILE: Record<DeadlineTone, Tone> = {
+  done: 'muted',
+  calm: 'primary',
+  soon: 'warning',
+  today: 'exception',
+  overdue: 'exception',
+};
+/** The row's value — the deadline in words — inked the same way. */
+const TONE_VALUE: Partial<Record<DeadlineTone, 'warning' | 'exception'>> = {
+  soon: 'warning',
+  today: 'exception',
+  overdue: 'exception',
 };
 const TONE_BAR: Record<DeadlineTone, string> = {
   done: 'bg-muted-foreground/40',
@@ -85,19 +93,21 @@ const TONE_BAR: Record<DeadlineTone, string> = {
   overdue: 'bg-exception',
 };
 
+const CARD = 'rounded-lg border border-border bg-card shadow-sm';
+
 type View = 'open' | 'closed';
 
 export function PrivacyRequestsPanel({
   customerId,
   employeeUserId,
   tenantId,
-  className,
+  chrome = 'section',
 }: {
   customerId?: string;
   employeeUserId?: string;
   tenantId?: string;
-  /** For the scoped panel only — e.g. to flow it in a record's columns. */
-  className?: string;
+  /** `drawer` drops the heading — the drawer that holds the panel already names it. */
+  chrome?: 'section' | 'drawer';
 }) {
   const qc = useQueryClient();
   const scoped = Boolean(customerId || employeeUserId);
@@ -105,7 +115,7 @@ export function PrivacyRequestsPanel({
   const [recording, setRecording] = useState(false);
   const [completing, setCompleting] = useState<PrivacyRequest | null>(null);
   const [declining, setDeclining] = useState<PrivacyRequest | null>(null);
-  // The one unfolded row on a record, if any.
+  // The one opened row, if any; a tap on it closes it.
   const [expanded, setExpanded] = useState<string | null>(null);
 
   // A minute is fine-grained enough for "due today".
@@ -149,51 +159,37 @@ export function PrivacyRequestsPanel({
   const shown = scoped ? all : view === 'open' ? open : closed;
 
   const list = requests.isPending ? (
-    <div className="space-y-2" role="status" aria-busy="true" aria-label="Loading privacy requests">
-      {[0, 1, 2].map((item) => (
-        <div key={item} className="rounded-lg border border-rule/60 bg-field px-4 py-4" aria-hidden="true">
-          <div className="flex items-start gap-3">
-            <Bone className="size-10 shrink-0" />
-            <span className="min-w-0 flex-1 space-y-1.5 pt-0.5">
-              <Bone className={cn('h-3.5', item % 2 ? 'w-36' : 'w-48')} />
-              <Bone className="h-3 w-64 max-w-full" />
-            </span>
-            <Bone className="h-5 w-20 shrink-0 rounded-sm" />
-          </div>
-          <div className="mt-4 flex items-center justify-between">
-            <Bone className="h-3 w-28" />
-            <Bone className="h-3 w-20" />
-          </div>
-          <Bone className="mt-1.5 h-1.5 rounded-full" />
-        </div>
-      ))}
-    </div>
+    <ListSkeleton rows={scoped ? 2 : 3} label="Loading privacy requests" />
   ) : requests.isError ? (
-    <ErrorState title="Privacy requests couldn’t be loaded" onRetry={() => void requests.refetch()} />
+    <div className={CARD}>
+      <ErrorState title="Privacy requests couldn’t be loaded" onRetry={() => void requests.refetch()} />
+    </div>
   ) : shown.length === 0 ? (
-    <EmptyState
-      icon={scoped ? ShieldCheck : view === 'open' ? CheckCircle2 : ClipboardList}
-      kind={!scoped && view === 'open' ? 'done' : 'start'}
-      className="flex-1"
-      action={scoped && canWrite ? { label: 'Record request', icon: Plus, onClick: () => setRecording(true) } : undefined}
-      title={scoped ? 'No privacy requests' : view === 'open' ? 'Nothing waiting' : 'No closed requests yet'}
-      description={
-        scoped
-          ? 'If they ask for their data, or ask to be deleted, record it here so the clock and the trail both start.'
-          : view === 'open'
-            ? 'Every request has been answered. New ones appear here with their deadline.'
-            : 'Completed and declined requests are kept here as your record that each was handled.'
-      }
-    />
+    <div className={CARD}>
+      <EmptyState
+        compact
+        icon={scoped ? ShieldCheck : view === 'open' ? CheckCircle2 : ClipboardList}
+        kind={!scoped && view === 'open' ? 'done' : 'start'}
+        title={scoped ? 'No privacy requests' : view === 'open' ? 'Nothing waiting' : 'No closed requests yet'}
+        description={
+          scoped
+            ? 'Record one if they ask for their data or to be deleted.'
+            : view === 'open'
+              ? 'New requests appear here with their deadline.'
+              : 'Completed and declined requests stay here as your record that each was handled.'
+        }
+      />
+    </div>
   ) : (
-    <div className="space-y-2">
-      {shown.map((request, index) => (
-        <RequestCard
+    <ListRowGroup>
+      {shown.map((request) => (
+        <RequestRow
           key={request.id}
-          index={index}
           request={request}
           scoped={scoped}
           now={now}
+          open={expanded === request.id}
+          onToggle={() => setExpanded((current) => (current === request.id ? null : request.id))}
           canWrite={canWrite}
           canExport={canExport}
           moving={move.isPending && move.variables?.request.id === request.id}
@@ -202,11 +198,11 @@ export function PrivacyRequestsPanel({
           onDecline={() => setDeclining(request)}
         />
       ))}
-    </div>
+    </ListRowGroup>
   );
 
   const record = canWrite && (
-    <Button variant={scoped ? 'outline' : 'default'} size={scoped ? 'sm' : 'default'} onClick={() => setRecording(true)}>
+    <Button variant={scoped ? 'outline' : 'default'} size="sm" onClick={() => setRecording(true)}>
       <Plus data-icon="inline-start" />
       Record request
     </Button>
@@ -232,74 +228,31 @@ export function PrivacyRequestsPanel({
     </>
   );
 
-  if (scoped) {
-    // On a record: a heading and a list of audit-log rows, like every other
-    // block beside it. A row unfolds to the full request — deadline, actions,
-    // outcome — the way an audit group unfolds to its entries.
+  if (scoped && chrome === 'drawer') {
+    // Inside a drawer titled "Privacy requests": no second heading, the button over the list.
     return (
-      <motion.section variants={SECTION_RISE} className={cn('scroll-mt-6', className)} aria-labelledby="privacy-requests-title">
-        <div className="mb-3 flex min-h-8 items-center gap-3">
-          <h2 id="privacy-requests-title" className="flex-1 text-base font-semibold tracking-title text-foreground">
-            Privacy requests
-          </h2>
-          {record}
-        </div>
-        {requests.isPending ? (
-          <ListSkeleton rows={2} label="Loading privacy requests" />
-        ) : requests.isError ? (
-          <ErrorState title="Privacy requests couldn’t be loaded" onRetry={() => void requests.refetch()} />
-        ) : (
-          <ul className="space-y-2 [&>li]:rounded-lg [&>li]:border [&>li]:border-rule/60 [&>li]:bg-field [&>li:last-child]:border-b">
-            {all.length === 0 ? (
-              <li className="flex items-center gap-3 px-3.5 py-3">
-                <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground">
-                  <ShieldCheck size={16} aria-hidden="true" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm text-muted-foreground">None so far</span>
-                  <span className="mt-0.5 block text-xs text-muted-foreground">
-                    Record one here if they ask for their data or to be deleted.
-                  </span>
-                </span>
-              </li>
-            ) : (
-              all.map((request, index) => (
-                <ScopedRequestRow
-                  key={request.id}
-                  request={request}
-                  now={now}
-                  open={expanded === request.id}
-                  onToggle={() => setExpanded((current) => (current === request.id ? null : request.id))}
-                >
-                  <RequestCard
-                    embedded
-                    index={index}
-                    request={request}
-                    scoped
-                    now={now}
-                    canWrite={canWrite}
-                    canExport={canExport}
-                    moving={move.isPending && move.variables?.request.id === request.id}
-                    onMove={(status) => move.mutate({ request, status })}
-                    onComplete={() => setCompleting(request)}
-                    onDecline={() => setDeclining(request)}
-                  />
-                </ScopedRequestRow>
-              ))
-            )}
-          </ul>
-        )}
-        <p className="mt-2 px-1 text-xs leading-relaxed text-muted-foreground">
-          Access, correction and erasure requests under data-protection law — each must be answered within a month.
-        </p>
+      <div className="space-y-2">
+        {record && <div className="flex justify-end">{record}</div>}
+        {list}
+        <p className="px-1 text-xs leading-relaxed text-muted-foreground">{MONTH_RULE}</p>
         {dialogs}
-      </motion.section>
+      </div>
+    );
+  }
+
+  if (scoped) {
+    // On a record's column: a titled list, like every other block beside it.
+    return (
+      <RecordGroup id="privacy-requests" title="Privacy requests" actions={record || undefined} footnote={MONTH_RULE}>
+        {list}
+        {dialogs}
+      </RecordGroup>
     );
   }
 
   return (
     <motion.div
-      className="flex flex-1 flex-col gap-5"
+      className="flex flex-col gap-5"
       initial="hidden"
       animate="shown"
       variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
@@ -323,12 +276,13 @@ export function PrivacyRequestsPanel({
         </motion.dl>
       )}
 
-      {/* No card around the queue: the requests are cards already, and a
-          second border around them only boxes in the page. */}
-      <motion.section variants={SECTION_RISE} className="flex flex-1 flex-col gap-4">
-        {/* The segment names the view, so no heading repeats it. */}
-        <header className="flex flex-wrap items-center justify-end gap-3">
-          <div className="flex items-center gap-2">
+      {/* The whole queue is one list — no card around it, no card per request. */}
+      <RecordGroup
+        id="privacy-requests"
+        title="Privacy requests"
+        footnote={MONTH_RULE}
+        actions={
+          <div className="flex flex-wrap items-center justify-end gap-2">
             <SegmentedControl
               options={[
                 { value: 'open', label: `Open · ${open.length}` },
@@ -340,99 +294,27 @@ export function PrivacyRequestsPanel({
             />
             {record}
           </div>
-        </header>
+        }
+      >
         {list}
-      </motion.section>
+      </RecordGroup>
       {dialogs}
     </motion.div>
   );
 }
 
-/** One request as an audit-log row: type tile, what was asked, when and how long is left, status. */
-function ScopedRequestRow({
+/**
+ * One request as a row: its type, who (on the queue) or when (on a record),
+ * where it's up to, and on the right how long is left — in words, tinted by
+ * urgency. Opened, it shows what they asked, the dates and outcome, and the
+ * actions.
+ */
+function RequestRow({
   request,
+  scoped,
   now,
   open,
   onToggle,
-  children,
-}: {
-  request: PrivacyRequest;
-  now: number;
-  open: boolean;
-  onToggle: () => void;
-  children: React.ReactNode;
-}) {
-  const reduceMotion = useReducedMotion();
-  const kind = requestType(request.type);
-  const Icon = kind.icon;
-  const closed = isClosedRequest(request);
-  const deadline = requestDeadline(request, now);
-  const status = requestStatus(request.status);
-  return (
-    <li className="border-b border-rule/45 last:border-b-0">
-      <button
-        type="button"
-        onClick={onToggle}
-        aria-expanded={open}
-        className={cn(
-          'flex w-full items-center gap-3 px-3.5 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-          open ? 'bg-band/50' : 'hover:bg-band/40',
-        )}
-      >
-        <span
-          className={cn(
-            'flex size-9 shrink-0 items-center justify-center rounded-md',
-            closed
-              ? 'bg-band text-muted-foreground'
-              : deadline.tone === 'overdue' || request.type === 'erasure'
-                ? 'bg-exception/8 text-exception'
-                : 'bg-reference/8 text-reference',
-          )}
-        >
-          <Icon size={16} aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-foreground">{kind.label}</span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            Received {formatDate(request.receivedAt)}
-            {!closed && (
-              <>
-                {' · '}
-                <span className={cn('font-semibold', TONE_TEXT[deadline.tone])}>{deadline.label}</span>
-              </>
-            )}
-          </span>
-        </span>
-        <Badge variant={status.tone}>{status.label}</Badge>
-        <ChevronDown
-          size={14}
-          aria-hidden="true"
-          className={cn('shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')}
-        />
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
-            exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            transition={{ duration: 0.24, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden bg-band/25"
-          >
-            {children}
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </li>
-  );
-}
-
-function RequestCard({
-  request,
-  index,
-  scoped,
-  embedded = false,
-  now,
   canWrite,
   canExport,
   moving,
@@ -441,11 +323,10 @@ function RequestCard({
   onDecline,
 }: {
   request: PrivacyRequest;
-  index: number;
   scoped: boolean;
-  /** Inside an unfolded record row: the row already shows the header, so only the body renders. */
-  embedded?: boolean;
   now: number;
+  open: boolean;
+  onToggle: () => void;
   canWrite: boolean;
   canExport: boolean;
   moving: boolean;
@@ -455,110 +336,85 @@ function RequestCard({
 }) {
   const reduceMotion = useReducedMotion();
   const kind = requestType(request.type);
-  const Icon = kind.icon;
   const closed = isClosedRequest(request);
   const deadline = requestDeadline(request, now);
   const status = requestStatus(request.status);
   const name = subjectName(request);
   const href = subjectHref(request);
+  const staff = request.subjectType === 'employee';
   const exportable = canExport && (request.type === 'access' || request.type === 'portability');
+  const closedOn = request.completedAt ? formatDate(request.completedAt) : null;
+
+  const who = name ? `${name}${staff ? ' (staff)' : ''}` : 'Unknown person';
+  const meta = scoped
+    ? closed
+      ? `Received ${formatDate(request.receivedAt)}`
+      : `Received ${formatDate(request.receivedAt)} · ${status.label}`
+    : closed
+      ? [who, closedOn].filter(Boolean).join(' · ')
+      : `${who} · ${status.label}`;
 
   return (
-    <motion.article
-      initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ delay: reduceMotion ? 0 : Math.min(index, 8) * 0.03, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-      className={cn(
-        embedded
-          ? 'px-3.5 pt-1 pb-4 pl-15'
-          : cn('rounded-lg border px-4 py-4 bg-field', deadline.tone === 'overdue' ? 'border-exception/40' : 'border-rule/60'),
-      )}
+    <DetailRow
+      icon={kind.icon}
+      tone={TONE_TILE[deadline.tone]}
+      title={kind.label}
+      meta={meta}
+      value={closed ? status.label : deadline.label}
+      valueTone={closed ? undefined : TONE_VALUE[deadline.tone]}
+      quiet={closed}
+      muted={closed}
+      open={open}
+      onToggle={onToggle}
     >
-      {!embedded && (
-        <div className="flex items-start gap-3">
-          <span
-            className={cn(
-              'flex size-10 shrink-0 items-center justify-center rounded-md',
-              closed
-                ? 'bg-band text-muted-foreground'
-                : request.type === 'erasure'
-                  ? 'bg-exception/8 text-exception'
-                  : 'bg-primary/8 text-primary',
-            )}
-          >
-            <Icon size={18} aria-hidden="true" />
-          </span>
-          <div className="min-w-0 flex-1">
-            <p className="text-sm text-foreground">
-              <span className="font-semibold">{kind.label}</span>
-              {!scoped && name && (
-                <>
-                  <span className="text-muted-foreground"> · </span>
-                  {href ? (
-                    <Link href={href} className="font-medium underline decoration-rule underline-offset-2 hover:decoration-foreground">
-                      {name}
-                    </Link>
-                  ) : (
-                    <span className="font-medium">{name}</span>
-                  )}
-                  {request.subjectType === 'employee' && <span className="text-muted-foreground"> (staff)</span>}
-                </>
-              )}
-            </p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              {kind.legal} · Received {formatDate(request.receivedAt)} · {channelLabel(request.requestChannel)}
-            </p>
-          </div>
-          <Badge variant={status.tone}>{status.label}</Badge>
-        </div>
-      )}
-
       {request.details && (
-        <blockquote className={cn(embedded ? 'mt-0' : 'mt-3', 'border-l-2 border-rule pl-3 text-sm leading-relaxed text-muted-foreground')}>
-          “{request.details}”
-        </blockquote>
+        <blockquote className="border-l-2 border-border pl-3 text-sm leading-relaxed text-muted-foreground">“{request.details}”</blockquote>
       )}
 
-      {closed ? (
-        request.resolutionNotes && (
-          <div className="mt-3 rounded-md bg-band/60 px-3 py-2.5 text-sm text-foreground">
-            <span className="font-semibold">{request.status === 'declined' ? 'Why it was declined' : 'Outcome'}:</span>{' '}
-            {request.resolutionNotes}
-            {request.completedAt && <span className="text-muted-foreground"> · {formatDate(request.completedAt)}</span>}
-          </div>
-        )
-      ) : (
-        <div className="mt-4">
-          {/* Unfolded under a record's row, the row already says how long is left — only the date here. */}
-          <div className={cn('flex items-center gap-3 text-xs', embedded ? 'justify-end' : 'justify-between')}>
-            {!embedded && (
-              <span className={cn('flex items-center gap-1.5 font-semibold', TONE_TEXT[deadline.tone])}>
-                <CalendarClock size={13} aria-hidden="true" />
-                {deadline.label}
-              </span>
-            )}
-            <span className="text-muted-foreground">{embedded ? `Due ${formatDate(request.dueAt)}` : formatDate(request.dueAt)}</span>
-          </div>
-          <div
-            className="mt-1.5 h-1.5 overflow-hidden rounded-full bg-band"
-            role="progressbar"
-            aria-label="Time used of the one-month deadline"
-            aria-valuemin={0}
-            aria-valuemax={100}
-            aria-valuenow={Math.round(deadline.used * 100)}
-          >
-            <motion.div
-              className={cn('h-full rounded-full', TONE_BAR[deadline.tone])}
-              initial={reduceMotion ? false : { width: 0 }}
-              animate={{ width: `${Math.max(4, deadline.used * 100)}%` }}
-              transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
-            />
-          </div>
+      <Facts
+        rows={[
+          ['Asked for', kind.legal],
+          !scoped && [
+            'Person',
+            href ? (
+              <Link
+                key="person"
+                href={href}
+                className="font-medium underline decoration-border underline-offset-2 hover:decoration-foreground"
+              >
+                {who}
+              </Link>
+            ) : (
+              who
+            ),
+          ],
+          ['Received', `${formatDate(request.receivedAt)} · ${channelLabel(request.requestChannel)}`],
+          !closed && ['Due', formatDate(request.dueAt)],
+          closed && request.resolutionNotes && [request.status === 'declined' ? 'Why declined' : 'Outcome', request.resolutionNotes],
+          closed && closedOn && [request.status === 'declined' ? 'Declined' : 'Completed', closedOn],
+        ]}
+      />
+
+      {!closed && (
+        <div
+          className="h-1.5 overflow-hidden rounded-full bg-band"
+          role="progressbar"
+          aria-label="Time used of the one-month deadline"
+          aria-valuemin={0}
+          aria-valuemax={100}
+          aria-valuenow={Math.round(deadline.used * 100)}
+        >
+          <motion.div
+            className={cn('h-full rounded-full', TONE_BAR[deadline.tone])}
+            initial={reduceMotion ? false : { width: 0 }}
+            animate={{ width: `${Math.max(4, deadline.used * 100)}%` }}
+            transition={{ duration: 0.6, ease: [0.16, 1, 0.3, 1] }}
+          />
         </div>
       )}
 
       {!closed && (canWrite || exportable) && (
-        <div className="mt-4 flex flex-wrap items-center gap-2 border-t border-rule/45 pt-3.5">
+        <div className="flex flex-wrap items-center gap-2">
           {canWrite && (
             <Select
               value={request.status}
@@ -590,7 +446,7 @@ function RequestCard({
           )}
         </div>
       )}
-    </motion.article>
+    </DetailRow>
   );
 }
 
@@ -624,9 +480,7 @@ function DeclineRequest({ request, onClose, onDone }: { request: PrivacyRequest;
       }
     >
       <div className="space-y-2">
-        <label htmlFor="privacy-decline-reason" className="block text-sm font-semibold text-foreground">
-          Why are you declining it?
-        </label>
+        <FieldLabel htmlFor="privacy-decline-reason">Why are you declining it?</FieldLabel>
         <textarea
           id="privacy-decline-reason"
           value={reason}
@@ -723,9 +577,7 @@ function CompleteRequest({ request, onClose, onDone }: { request: PrivacyRequest
         )}
 
         <div className="space-y-2">
-          <label htmlFor="privacy-resolution" className="block text-sm font-semibold text-foreground">
-            What did you do?
-          </label>
+          <FieldLabel htmlFor="privacy-resolution">What did you do?</FieldLabel>
           <textarea
             id="privacy-resolution"
             value={resolution}
@@ -743,9 +595,9 @@ function CompleteRequest({ request, onClose, onDone }: { request: PrivacyRequest
             that destroys data with no way back is too important for one click. */}
         {isErasure && canErase && (
           <div className="space-y-2">
-            <label htmlFor="erasure-confirm" className="block text-sm font-semibold text-foreground">
+            <FieldLabel htmlFor="erasure-confirm">
               Type <span className="font-mono text-destructive">{ERASE_PHRASE}</span> to confirm
-            </label>
+            </FieldLabel>
             <input
               id="erasure-confirm"
               value={phrase}

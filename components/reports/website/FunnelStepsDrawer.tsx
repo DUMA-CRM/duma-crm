@@ -100,7 +100,7 @@ export function FunnelStepsDrawer({
               <option key={event} value={event} />
             ))}
           </datalist>
-          <ol className="divide-y divide-rule/50">
+          <ol className="divide-y divide-border">
             {draft.map((step, index) => (
               <li key={index} className="space-y-2 px-4 py-3">
                 <div className="flex items-center gap-3">
@@ -169,7 +169,7 @@ export function FunnelStepsDrawer({
             type="button"
             disabled={full}
             onClick={() => setDraft((current) => addStep(current))}
-            className="flex w-full items-center justify-center gap-1.5 border-t border-rule/50 px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-band disabled:cursor-not-allowed disabled:text-muted-foreground disabled:hover:bg-transparent"
+            className="flex w-full items-center justify-center gap-1.5 border-t border-border px-4 py-3 text-sm font-medium text-primary transition-colors hover:bg-band disabled:cursor-not-allowed disabled:text-muted-foreground disabled:hover:bg-transparent"
           >
             <Plus size={14} aria-hidden="true" />
             {full ? `Up to ${MAX_FUNNEL_STEPS} steps` : 'Add step'}
@@ -238,8 +238,8 @@ function SuggestionGroup({
               disabled={disabled || taken}
               onClick={() => onPick(value)}
               className={cn(
-                'inline-flex items-center gap-1 rounded-md border border-rule/70 bg-background px-2 py-1 text-xs text-foreground transition-colors',
-                'hover:border-primary/50 hover:bg-primary/6 disabled:cursor-default disabled:opacity-45 disabled:hover:border-rule/70 disabled:hover:bg-background',
+                'inline-flex items-center gap-1 rounded-md border border-border bg-background px-2 py-1 text-xs text-foreground transition-colors',
+                'hover:border-primary/50 hover:bg-primary/6 disabled:cursor-default disabled:opacity-45 disabled:hover:border-border disabled:hover:bg-background',
                 mono && 'font-mono',
               )}
             >

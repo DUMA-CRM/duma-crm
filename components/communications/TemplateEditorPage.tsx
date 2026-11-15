@@ -33,6 +33,7 @@ import { Tooltip } from '@/components/shared/Tooltip';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { absoluteMediaUrl, proxiedImageForEmail } from '@/lib/api/client';
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -509,7 +510,7 @@ export function TemplateEditorPage({
       >
         {!readOnly && (
           <aside className="overflow-auto border-b border-divider bg-card p-4 lg:border-b-0 lg:border-r">
-            <h2 className="text-base font-semibold tracking-title text-foreground">Content</h2>
+            <h2 className="text-base font-semibold tracking-title text-heading">Content</h2>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Drag onto the email, or click to add at the end.</p>
             <div className="-mx-2 mt-3 flex flex-col gap-0.5">
               {BLOCKS.map(({ type, label, icon: Icon }) => (
@@ -534,7 +535,7 @@ export function TemplateEditorPage({
             </div>
 
             {/* Layouts come second: pick the shape of a row, then fill its cells. */}
-            <h2 className="mt-6 border-t border-rule/50 pt-5 text-base font-semibold tracking-title text-foreground">Columns</h2>
+            <h2 className="mt-6 border-t border-border pt-5 text-base font-semibold tracking-title text-heading">Columns</h2>
             <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Pick a row’s shape, then fill each cell.</p>
             <div className="mt-3 grid grid-cols-2 gap-2">
               {COLUMN_LAYOUTS.map(({ value, label, widths }) => (
@@ -552,7 +553,7 @@ export function TemplateEditorPage({
                   onClick={() => addBlock({ kind: 'new', type: 'columns', layout: value })}
                   title={label}
                   aria-label={`Add a ${label} row`}
-                  className="flex h-11 cursor-grab items-stretch gap-1 rounded-md border border-rule/60 bg-field p-2 transition-colors hover:border-primary/50 hover:bg-primary/6 focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
+                  className="flex h-11 cursor-grab items-stretch gap-1 rounded-md border border-border bg-field p-2 transition-colors hover:border-primary/50 hover:bg-primary/6 focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
                 >
                   {widths.map((width, index) => (
                     <span key={index} style={{ width: `${width}%` }} className="rounded-sm bg-band" aria-hidden="true" />
@@ -577,7 +578,7 @@ export function TemplateEditorPage({
             )}
 
             {/* How it lands in the inbox — the subject and preview text are the first thing anyone reads. */}
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3">
+            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-field px-4 py-3">
               <div className="flex min-w-0 items-center gap-3">
                 <RowTile icon={Mail} />
                 <div className="min-w-0">
@@ -617,13 +618,13 @@ export function TemplateEditorPage({
 
             {readOnly ? (
               // Reading, not building: the email as it renders.
-              <div className="overflow-hidden rounded-lg border border-rule/60 bg-white">
+              <div className="overflow-hidden rounded-lg border border-border bg-white">
                 <iframe title="Email" sandbox="" srcDoc={previewHtml} className="h-[calc(100dvh-16rem)] min-h-96 w-full border-0" />
               </div>
             ) : mode === 'html' ? (
-              <div className="space-y-4 rounded-lg border border-rule/60 bg-field p-5">
+              <div className="space-y-4 rounded-lg border border-border bg-field p-5">
                 <div className="space-y-1.5">
-                  <p className="text-label uppercase text-muted-foreground">HTML</p>
+                  <FieldLabel as="span">HTML</FieldLabel>
                   <TokenTextarea
                     ref={htmlRef}
                     value={htmlBody}
@@ -640,7 +641,7 @@ export function TemplateEditorPage({
                 </div>
                 <div className="space-y-1.5">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-label uppercase text-muted-foreground">Plain-text version</p>
+                    <FieldLabel as="span">Plain-text version</FieldLabel>
                     <Tooltip
                       side="top"
                       align="end"

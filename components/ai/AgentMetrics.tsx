@@ -41,7 +41,7 @@ export function AgentMetrics({ card }: { card: AgentCard }) {
       <section className="mt-4" aria-label={card.title}>
         <CardLabel title={card.title} caption={card.caption} />
         {card.rows.length ? (
-          <ul className="mt-1.5 divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <ul className="mt-1.5 divide-y divide-border overflow-hidden rounded-lg border border-border bg-field">
             {card.rows.map((row, index) => (
               <li key={`${row.label}-${index}`} className="flex items-start justify-between gap-3 px-3.5 py-2.5">
                 <div className="min-w-0">
@@ -81,7 +81,7 @@ export function AgentMetrics({ card }: { card: AgentCard }) {
           left an empty cell whenever the count was odd. */}
       <dl className="mt-1.5 grid grid-cols-2 gap-1.5">
         {card.metrics.map((metric, index) => (
-          <div key={`${metric.label}-${index}`} className="min-h-24 min-w-0 rounded-lg border border-rule/60 bg-field px-3.5 py-3">
+          <div key={`${metric.label}-${index}`} className="min-h-24 min-w-0 rounded-lg border border-border bg-field px-3.5 py-3">
             <dt className="line-clamp-2 text-label uppercase leading-4 text-muted-foreground">{metric.label}</dt>
             <dd
               className={cn('mt-1 truncate font-mono text-base font-semibold tracking-figure tabular-nums', TONE[metric.tone ?? 'default'])}

@@ -168,7 +168,7 @@ export function TransferStockDrawer({
               <FieldLabel required className="mb-1.5">
                 From
               </FieldLabel>
-              <div className="flex h-9 items-center rounded-md border border-rule/60 bg-band/50 px-3 text-sm text-muted-foreground">
+              <div className="flex h-9 items-center rounded-md border border-border bg-band/50 px-3 text-sm text-muted-foreground">
                 {from?.name ?? 'This location'}
               </div>
             </div>
@@ -198,7 +198,7 @@ export function TransferStockDrawer({
               const row = rowFor(line.stockItemId);
               const error = submitted ? errors[index] : null;
               return (
-                <div key={index} className="space-y-2 border-b border-rule/45 pb-3 last:border-b-0 last:pb-0">
+                <div key={index} className="space-y-2 border-b border-border pb-3 last:border-b-0 last:pb-0">
                   <div className="grid grid-cols-[minmax(0,1fr)_2.25rem] items-end gap-2 sm:flex">
                     <div className="col-span-2 flex min-w-0 flex-1 flex-col gap-1.5">
                       <FieldLabel htmlFor={`transfer-item-${index}`} required>
@@ -337,7 +337,7 @@ export function ItemTransfersSection({
       variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
     >
       <motion.div variants={SECTION_RISE} className="flex min-h-9 flex-wrap items-center gap-2">
-        <h2 className="flex-1 text-base font-semibold tracking-title text-foreground">Transfers</h2>
+        <h2 className="flex-1 text-base font-semibold tracking-title text-heading">Transfers</h2>
         <Select
           value={status}
           onValueChange={(value) => setStatus(value as StockTransferStatus | 'all')}
@@ -363,7 +363,7 @@ export function ItemTransfersSection({
         // A day: its label, then the card of transfer rows.
         <div role="status" aria-busy="true" aria-label="Loading transfers">
           <Bone className="mb-2 h-3 w-20" />
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <div className="overflow-hidden rounded-lg border border-border bg-card">
             {Array.from({ length: 3 }, (_, index) => (
               <RowSkeleton key={index} index={index} />
             ))}
@@ -414,7 +414,7 @@ export function ItemTransfersSection({
           {days.map((day) => (
             <motion.section key={day.key} variants={SECTION_RISE} aria-label={day.label}>
               <h3 className="mb-2 text-label uppercase text-muted-foreground">{day.label}</h3>
-              <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              <ul className="overflow-hidden rounded-lg border border-border bg-card">
                 {day.items.map((t) => (
                   <TransferRow
                     key={t.id}
@@ -467,7 +467,7 @@ function TransferRow({
   ].filter(Boolean);
 
   return (
-    <li className="border-b border-rule/45 last:border-b-0">
+    <li className="border-b border-border last:border-b-0">
       <button
         type="button"
         onClick={onOpen}
@@ -591,7 +591,7 @@ function TransferDrawer({
       }
     >
       <div className="space-y-6">
-        <div className="rounded-lg border border-rule/60 bg-field p-4">
+        <div className="rounded-lg border border-border bg-field p-4">
           <div className="flex items-center gap-3 text-sm">
             <span className={cn('min-w-0 flex-1 truncate font-semibold', out ? 'text-foreground' : 'text-muted-foreground')}>
               {transfer.fromLocation?.name ?? 'From'}
@@ -601,7 +601,7 @@ function TransferDrawer({
               {transfer.toLocation?.name ?? 'To'}
             </span>
           </div>
-          <div className="mt-3 flex items-center gap-2 border-t border-rule/45 pt-3">
+          <div className="mt-3 flex items-center gap-2 border-t border-border pt-3">
             <span className={cn('rounded-sm px-1.5 py-0.5 text-micro font-semibold', meta.pill)}>{meta.label}</span>
             <span className="text-xs text-muted-foreground">
               {transfer.status === 'pending'
@@ -621,12 +621,12 @@ function TransferDrawer({
         )}
 
         <section>
-          <h3 className="mb-2 text-sm font-semibold text-foreground">
+          <h3 className="mb-2 text-sm font-semibold text-heading">
             Items <span className="font-normal text-muted-foreground">· {transfer.lines.length}</span>
           </h3>
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <ul className="overflow-hidden rounded-lg border border-border bg-field">
             {transfer.lines.map((line) => (
-              <li key={line.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+              <li key={line.id} className="flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary" aria-hidden="true">
                   <Package size={16} />
                 </span>
@@ -641,8 +641,8 @@ function TransferDrawer({
 
         {transfer.notes && (
           <section>
-            <h3 className="mb-2 text-sm font-semibold text-foreground">Note</h3>
-            <p className="rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-sm leading-relaxed text-foreground">
+            <h3 className="mb-2 text-sm font-semibold text-heading">Note</h3>
+            <p className="rounded-lg border border-border bg-field px-3.5 py-3 text-sm leading-relaxed text-foreground">
               {transfer.notes}
             </p>
           </section>

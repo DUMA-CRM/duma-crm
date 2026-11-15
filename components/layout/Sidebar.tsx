@@ -3,13 +3,11 @@
 import { useQueries } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
-import { LogOut, X } from '@/components/icons';
+import { X } from '@/components/icons';
 import { Logo } from '@/components/shared/Logo';
-import { Tooltip } from '@/components/shared/Tooltip';
 
 import { adminNavItems } from '@/lib/constants/admin-nav';
 import { analyticsNavItems, filterNavByCapability, footerNavItems, mainNavItems } from '@/lib/constants/nav';
-import { useAuth } from '@/lib/hooks/useAuth';
 import { useWorkspaceContext } from '@/lib/hooks/useWorkspaceContext';
 import { getOrders } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -19,7 +17,6 @@ import { useLoginIntroStore } from '@/stores/loginIntroStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { ContextSwitcher } from './ContextSwitcher';
 import { LocationPicker } from './LocationPicker';
 import { SidebarNavItem } from './SidebarNavItem';
 
@@ -30,7 +27,6 @@ export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
   const [mobileViewport, setMobileViewport] = useState(false);
   // True until the sign-in intro's mark has finished flying into the brand slot.
   const introPending = useLoginIntroStore((s) => s.pending);
-  const { logout } = useAuth();
   const { locationId, tenantId } = useWorkspaceStore();
 
   useEffect(() => {
@@ -185,10 +181,6 @@ export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
           </button>
         </div>
 
-        {/* ── Context: DUMA Admin or a workspace ───────────── */}
-        <div className="shrink-0 border-b border-sidebar-border py-2">
-          <ContextSwitcher />
-        </div>
 
         {/* ── Navigation ───────────────────────────────────── */}
         <nav aria-label="Main menu" className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto py-3">
@@ -224,29 +216,6 @@ export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
             <SidebarNavItem key={item.href} {...item} mobileMenu={mobileOpen} />
           ))}
 
-          {/* Sign out */}
-          {collapsed && !mobileOpen ? (
-            <Tooltip label="Sign out" className="mx-auto">
-              <button
-                onClick={logout}
-                aria-label="Sign out"
-                className="w-9 h-9 flex items-center justify-center rounded-md text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors duration-150"
-              >
-                <LogOut aria-hidden="true" className="shrink-0" size={18} />
-              </button>
-            </Tooltip>
-          ) : (
-            <button
-              onClick={logout}
-              className={cn(
-                'w-[calc(100%-24px)] mx-3 flex items-center gap-2.5 px-3 rounded-md text-sm font-medium text-sidebar-foreground/65 hover:bg-sidebar-accent hover:text-sidebar-foreground transition-colors duration-150',
-                mobileOpen ? 'py-3' : 'py-2.25',
-              )}
-            >
-              <LogOut aria-hidden="true" className="shrink-0" size={18} />
-              <span className="flex-1 truncate text-left">Sign out</span>
-            </button>
-          )}
         </div>
       </aside>
     </>

@@ -29,7 +29,7 @@ export function SettingsChoice<T extends string>({ label, value, onChange, optio
                 'flex min-h-11 cursor-pointer items-center justify-between gap-1 rounded-md border bg-field px-2 text-sm font-medium text-foreground transition-[border-color,background-color,box-shadow] has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring in-disabled:cursor-default',
                 active
                   ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
-                  : 'border-rule/70 hover:border-rule hover:bg-band/45',
+                  : 'border-border hover:border-rule hover:bg-band/45',
               )}
             >
               <input type="radio" name={name} value={option} checked={active} onChange={() => onChange(option)} className="sr-only" />
@@ -41,7 +41,7 @@ export function SettingsChoice<T extends string>({ label, value, onChange, optio
                 aria-hidden="true"
                 className={cn(
                   'flex size-5 shrink-0 items-center justify-center rounded-full border transition-colors',
-                  active ? 'border-primary bg-primary text-primary-foreground' : 'border-rule/70 text-muted-foreground',
+                  active ? 'border-primary bg-primary text-primary-foreground' : 'border-border text-muted-foreground',
                 )}
               >
                 {active && <Check size={12} strokeWidth={3} />}

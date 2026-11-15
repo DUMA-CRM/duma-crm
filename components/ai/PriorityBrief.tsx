@@ -18,7 +18,7 @@ export function PriorityBrief({ brief }: { brief: PriorityBriefData }) {
       <div className="mb-2 flex items-end justify-between gap-3 px-0.5">
         <div>
           <p className="text-label font-semibold tracking-label text-muted-foreground uppercase">Today’s priorities</p>
-          <h3 id="duma-priorities-title" className="mt-0.5 text-base font-semibold tracking-title text-foreground">
+          <h3 id="duma-priorities-title" className="mt-0.5 text-base font-semibold tracking-title text-heading">
             {brief.items.length} things need attention
           </h3>
         </div>
@@ -29,7 +29,7 @@ export function PriorityBrief({ brief }: { brief: PriorityBriefData }) {
           return (
             <li
               key={`${item.rank}-${item.title}`}
-              className={cn('rounded-lg border border-rule/60 border-l-2 bg-field px-3.5 py-3', style.border)}
+              className={cn('rounded-lg border border-border border-l-2 bg-field px-3.5 py-3', style.border)}
             >
               <div className="flex items-start gap-3">
                 <span

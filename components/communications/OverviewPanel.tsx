@@ -176,7 +176,7 @@ export function OverviewPanel({
 
       {loading ? (
         <div
-          className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5"
+          className="flex items-center gap-3 rounded-lg border border-border bg-field px-4 py-3.5"
           role="status"
           aria-busy="true"
           aria-label="Checking what needs attention"
@@ -283,7 +283,7 @@ function ActivitySection({
   return (
     <section aria-label={title}>
       <div className="mb-2 flex items-center justify-between gap-3 px-1">
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <h2 className="text-sm font-semibold text-heading">{title}</h2>
         <button
           type="button"
           onClick={onAction}
@@ -296,7 +296,7 @@ function ActivitySection({
       {loading ? (
         <ListSkeleton rows={6} label={`Loading ${title.toLowerCase()}`} />
       ) : (
-        <ul className="space-y-2 [&>li]:rounded-lg [&>li]:border [&>li]:border-rule/60 [&>li]:bg-field [&>li:last-child]:border-b">
+        <ul className="space-y-2 [&>li]:rounded-lg [&>li]:border [&>li]:border-border [&>li]:bg-field [&>li:last-child]:border-b">
           {children}
         </ul>
       )}

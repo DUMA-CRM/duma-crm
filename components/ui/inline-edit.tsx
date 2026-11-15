@@ -24,7 +24,7 @@ const TRIGGER =
 
 const EDITOR =
   'w-full rounded-sm border border-measured bg-control px-1.5 py-0.5 text-sm text-foreground outline-none ' +
-  'focus:outline-2 focus:outline-offset-0 focus:outline-measured';
+  'focus:outline-2 focus:outline-offset-0 focus:outline-ring/30';
 
 const AFFORDANCE = 'shrink-0 text-muted-foreground opacity-45 transition-opacity group-hover/inline:opacity-100';
 

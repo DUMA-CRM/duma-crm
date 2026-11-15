@@ -91,7 +91,7 @@ const ALIGN_OPTIONS = [
 ];
 
 const TEXTAREA_CLASS =
-  'w-full rounded-md border border-rule/60 bg-background p-3 font-mono text-xs outline-none focus:border-primary disabled:opacity-60';
+  'w-full rounded-md border border-border bg-background p-3 font-mono text-xs outline-none focus:border-primary disabled:opacity-60';
 
 /**
  * The editor's right rail, in the Content editors' vocabulary: compact titled
@@ -269,7 +269,7 @@ export function TemplateSettingsPanel({
                   />
                 ))}
               </InfoRows>
-              <div className="border-t border-rule/40 pt-4">
+              <div className="border-t border-border pt-4">
                 <FieldRow icon={Type} title="Font" note="Safe in every inbox">
                   <Select
                     value={design.styles.fontFamily}
@@ -327,7 +327,7 @@ function ColourRow({ title, value, onChange }: { title: string; value: string; o
   return (
     <label className="flex cursor-pointer items-center justify-between gap-3 has-[:disabled]:cursor-not-allowed">
       <span className="flex min-w-0 items-center gap-3">
-        <span className="relative flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background p-1">
+        <span className="relative flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background p-1">
           <span className="size-full rounded-sm border border-black/10" style={{ backgroundColor: value }} aria-hidden="true" />
           <input
             type="color"
@@ -427,7 +427,7 @@ function BlockSettings({
         <SettingsSection title="Image">
           <div className="space-y-4">
             {block.url && (
-              <div className="overflow-hidden rounded-md border border-rule/60 bg-band/40 text-muted-foreground">
+              <div className="overflow-hidden rounded-md border border-border bg-band/40 text-muted-foreground">
                 <EmailImage url={block.url} alt="" className="mx-auto block max-h-36 w-full object-contain" />
               </div>
             )}
@@ -526,7 +526,7 @@ function BlockSettings({
                 aria-pressed={block.layout === value}
                 className={cn(
                   'flex flex-col items-center gap-1.5 rounded-md border p-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-ring',
-                  block.layout === value ? 'border-primary bg-primary/6' : 'border-rule/60 bg-background hover:border-primary/40',
+                  block.layout === value ? 'border-primary bg-primary/6' : 'border-border bg-background hover:border-primary/40',
                 )}
               >
                 <span className="flex h-6 w-full items-stretch gap-1" aria-hidden="true">
@@ -590,7 +590,7 @@ function BlockSettings({
                 const patch = (next: Partial<typeof link>) =>
                   onChange({ ...block, links: block.links.map((item, position) => (position === index ? { ...item, ...next } : item)) });
                 return (
-                  <div key={index} className="rounded-md border border-rule/55 bg-background p-3">
+                  <div key={index} className="rounded-md border border-border bg-background p-3">
                     <div className="flex items-center justify-between gap-3">
                       <div className="flex min-w-0 items-center gap-3">
                         <RowTile icon={Globe} />

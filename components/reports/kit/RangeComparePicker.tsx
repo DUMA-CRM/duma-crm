@@ -134,7 +134,7 @@ export function RangeComparePicker({
         </div>
 
         {/* The footer is as wide as the calendar: the switch on its own row, the actions beneath. */}
-        <div className="shrink-0 space-y-3 border-t border-rule/50 px-4 py-3">
+        <div className="shrink-0 space-y-3 border-t border-border px-4 py-3">
           {!noComparison && (
             <div className="flex items-center gap-2.5 text-sm text-foreground">
               <Switch

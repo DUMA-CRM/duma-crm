@@ -16,6 +16,8 @@ export interface HeldTicket {
   cart: CartItem[];
   customer: Customer | null;
   notes: string;
+  /** Eat in or takeaway, if the cashier chose one (absent on tickets held before 2026-11-12). */
+  fulfilmentType?: 'eat_in' | 'takeaway' | null;
   heldAt: string;
   heldBy: string | null;
   tenantId: string;

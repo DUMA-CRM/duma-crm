@@ -2,25 +2,11 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
-import Link from 'next/link';
 import { useState } from 'react';
 
-import {
-  ArrowDown,
-  ArrowUp,
-  EyeOff,
-  type IconComponent,
-  Layers3,
-  LayoutGrid,
-  Loader2,
-  Palette,
-  Pencil,
-  Plus,
-  Scale,
-  SlidersHorizontal,
-  Trash2,
-} from '@/components/icons';
+import { ArrowDown, ArrowUp, EyeOff, type IconComponent, LayoutGrid, Loader2, Palette, Pencil, Plus, Trash2 } from '@/components/icons';
 import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
+import { MenuDrawerFooter } from '@/components/menu/ModifierGroupDrawer';
 import { categoryTone } from '@/components/menu/shared';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
@@ -41,30 +27,25 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import {
   createMenuCategory,
-  createModifierGroup,
   deleteMenuCategory,
-  deleteModifierGroup,
   getMenuCategories,
   getMenuItems,
-  getModifierGroups,
-  getModifiers,
   reorderMenuCategories,
   updateMenuCategory,
-  updateModifierGroup,
 } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-import type { MenuCategoryRecord, ModifierGroup } from '@/types/menu';
+import type { MenuCategoryRecord } from '@/types/menu';
 
 /*
- * How the menu is organised, in one place: the sections guests and the till
- * see (menu categories), and the choices an item offers (modifier groups —
- * Size, Milk, Extras). Both are ordered lists with the same row, and both are
- * created and edited in a drawer. Creating groups used to live on the
- * Modifiers tab; it moved here so all the grouping sits together.
+ * The sections guests and the till see (menu categories): an ordered list,
+ * each shown or hidden, created and edited in a drawer. Modifier groups were
+ * managed here too until the 2026-11 menu restructure moved them to the
+ * Modifiers tab, where each group is a card holding its options — as Square
+ * and Toast manage them.
  */
 
 const COLOURS: { value: NonNullable<MenuCategoryRecord['colour']>; label: string }[] = [
@@ -84,16 +65,10 @@ export function CategoriesWorkspace() {
   const words = useCatalogWords();
   const shop = !words.tools.kitchen;
   const [categoryDrawer, setCategoryDrawer] = useState<MenuCategoryRecord | 'new' | null>(null);
-  const [groupDrawer, setGroupDrawer] = useState<ModifierGroup | 'new' | null>(null);
 
   const categories = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-categories', tenantId),
     queryFn: () => getMenuCategories(tenantId!),
-    enabled: Boolean(tenantId),
-  });
-  const groups = useQuery({
-    queryKey: moduleQueryKeys.catalog.key('modifier-groups', tenantId),
-    queryFn: () => getModifierGroups(tenantId ?? undefined),
     enabled: Boolean(tenantId),
   });
 
@@ -110,16 +85,6 @@ export function CategoriesWorkspace() {
     },
     onError: (error) => toast('error', error.message || 'The section wasn’t updated. Try again.'),
   });
-  // Groups have no bulk reorder endpoint: swapping two neighbours is two PATCHes.
-  const reorderGroups = useMutation({
-    mutationFn: async ([a, b]: [ModifierGroup, ModifierGroup]) => {
-      await updateModifierGroup(a.id, { sortOrder: b.sortOrder });
-      await updateModifierGroup(b.id, { sortOrder: a.sortOrder });
-    },
-    onSettled: () => void qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('modifier-groups') }),
-    onError: (error) => toast('error', error.message || 'The order wasn’t saved. Try again.'),
-  });
-
   // Counted here from the item and modifier lists (the same cached queries the
   // other menu tabs use): the API's itemCount / modifierCount subqueries bound
   // the outer id to the inner table and returned 0 for everything. Fixed in
@@ -129,20 +94,10 @@ export function CategoriesWorkspace() {
     queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: Boolean(tenantId),
   });
-  const modifiers = useQuery({
-    queryKey: moduleQueryKeys.catalog.key('modifiers', tenantId),
-    queryFn: () => getModifiers(tenantId ?? undefined),
-    enabled: Boolean(tenantId),
-  });
   const itemCounts = countBy(items.data, (item) => item.categoryId);
-  const modifierCounts = countBy(modifiers.data, (modifier) => modifier.groupId ?? null);
-
   const orderedCategories = (categories.data ?? []).map((category) =>
     itemCounts ? { ...category, itemCount: itemCounts.get(category.id) ?? 0 } : category,
   );
-  const orderedGroups = [...(groups.data ?? [])]
-    .map((group) => (modifierCounts ? { ...group, modifierCount: modifierCounts.get(group.id) ?? 0 } : group))
-    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   const moveCategory = (index: number, direction: -1 | 1) => {
     const ids = orderedCategories.map((c) => c.id);
     const to = index + direction;
@@ -150,19 +105,6 @@ export function CategoriesWorkspace() {
     [ids[index], ids[to]] = [ids[to], ids[index]];
     reorderCategories.mutate(ids);
   };
-  const moveGroup = (index: number, direction: -1 | 1) => {
-    const a = orderedGroups[index];
-    const b = orderedGroups[index + direction];
-    if (!a || !b) return;
-    // Equal sort orders would swap to themselves — fall back to positions.
-    if (a.sortOrder === b.sortOrder)
-      reorderGroups.mutate([
-        { ...a, sortOrder: index },
-        { ...b, sortOrder: index + direction },
-      ]);
-    else reorderGroups.mutate([a, b]);
-  };
-
   return (
     <EditorShell
       title={words.section}
@@ -183,68 +125,13 @@ export function CategoriesWorkspace() {
         <EmptyState icon={LayoutGrid} title="No workspace selected" description={`Choose a workspace to organise its ${words.items}.`} />
       ) : (
         <motion.div initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
-          <SettingsTabBody
-            aside={
-              // Modifier groups (milks, syrups) belong to a kitchen; a shop's options live on each product.
-              shop ? undefined : (
-                <ListSection
-                  id="modifier-groups"
-                  title="Modifier groups"
-                  action={
-                    canWrite && (
-                      <Button size="sm" onClick={() => setGroupDrawer('new')}>
-                        <Plus aria-hidden="true" /> New group
-                      </Button>
-                    )
-                  }
-                  loading={groups.isPending}
-                  error={groups.isError}
-                  onRetry={() => void groups.refetch()}
-                  empty={
-                    orderedGroups.length === 0
-                      ? {
-                          icon: SlidersHorizontal,
-                          title: 'No modifier groups yet',
-                          description: 'Create Size first if drinks come in sizes — recipes cost each size separately.',
-                          action: canWrite ? { label: 'New group', icon: Plus, onClick: () => setGroupDrawer('new') } : undefined,
-                        }
-                      : null
-                  }
-                >
-                  {orderedGroups.map((group, index) => (
-                    <OrderedRow
-                      key={group.id}
-                      icon={group.isSize ? Scale : SlidersHorizontal}
-                      tile={group.isSize ? 'bg-primary/8 text-primary' : 'bg-reference/8 text-reference'}
-                      title={group.name}
-                      detail={
-                        <Link href="/menu/modifiers" className="hover:underline">
-                          {group.modifierCount} {group.modifierCount === 1 ? 'modifier' : 'modifiers'}
-                        </Link>
-                      }
-                      iconLabel={group.isSize ? 'Sizes' : undefined}
-                      canWrite={canWrite}
-                      first={index === 0}
-                      last={index === orderedGroups.length - 1}
-                      busy={reorderGroups.isPending}
-                      onMove={(direction) => moveGroup(index, direction)}
-                      onEdit={() => setGroupDrawer(group)}
-                    />
-                  ))}
-                </ListSection>
-              )
-            }
-          >
+          <SettingsTabBody>
             <ListSection
               id="menu-sections"
               title={shop ? 'Categories' : 'Menu sections'}
               // The header already names the page and holds the add button.
               hideTitle
-              note={
-                shop
-                  ? 'How your products are grouped — on your website and in reports. The order here is the order shoppers see.'
-                  : 'How the menu is split for guests and at the till. The order here is the order on the POS and the QR menu.'
-              }
+              note={shop ? 'Shoppers see them in this order.' : 'The till and the QR menu show them in this order.'}
               loading={categories.isPending}
               error={categories.isError}
               onRetry={() => void categories.refetch()}
@@ -311,9 +198,6 @@ export function CategoriesWorkspace() {
           onClose={() => setCategoryDrawer(null)}
         />
       )}
-      {groupDrawer && tenantId && (
-        <GroupDrawer tenantId={tenantId} group={groupDrawer === 'new' ? undefined : groupDrawer} onClose={() => setGroupDrawer(null)} />
-      )}
     </EditorShell>
   );
 }
@@ -361,7 +245,7 @@ function ListSection({
         </h2>
       ) : (
         <div className="flex min-h-9 items-center gap-3">
-          <h2 id={`${id}-title`} className="flex-1 text-base font-semibold tracking-title text-foreground">
+          <h2 id={`${id}-title`} className="flex-1 text-base font-semibold tracking-title text-heading">
             {title}
           </h2>
           {action}
@@ -374,7 +258,7 @@ function ListSection({
       ) : empty ? (
         <EmptyState icon={empty.icon} compact title={empty.title} description={empty.description} action={empty.action} />
       ) : (
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">{children}</ul>
+        <ul className="overflow-hidden rounded-lg border border-border bg-card">{children}</ul>
       )}
       {note && <p className="px-1 text-xs leading-relaxed text-muted-foreground">{note}</p>}
     </motion.section>
@@ -415,7 +299,7 @@ function OrderedRow({
   onEdit: () => void;
 }) {
   return (
-    <li className="flex items-center gap-3 border-b border-rule/45 px-3 py-2.5 last:border-b-0">
+    <li className="flex items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0">
       {canWrite && (
         <span className="flex shrink-0 flex-col">
           <Button
@@ -469,47 +353,6 @@ function OrderedRow({
 }
 
 // ── Drawers ──────────────────────────────────────────────────────────────────
-
-function Footer({
-  form,
-  pending,
-  label,
-  onCancel,
-  onDelete,
-  deleting,
-}: {
-  form: string;
-  pending: boolean;
-  label: string;
-  onCancel: () => void;
-  onDelete?: () => void;
-  deleting?: boolean;
-}) {
-  return (
-    <div className="flex gap-2">
-      {onDelete && (
-        <Button
-          type="button"
-          variant="ghost"
-          size="lg"
-          className="text-exception hover:bg-exception/6 hover:text-exception"
-          onClick={onDelete}
-          disabled={pending || deleting}
-        >
-          {deleting ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Trash2 aria-hidden="true" />}
-          Delete
-        </Button>
-      )}
-      <Button variant="outline" size="lg" className="flex-1" onClick={onCancel} disabled={pending}>
-        Cancel
-      </Button>
-      <Button type="submit" form={form} size="lg" className="flex-1" disabled={pending}>
-        {pending && <Loader2 className="animate-spin" aria-hidden="true" />}
-        {label}
-      </Button>
-    </div>
-  );
-}
 
 function CategoryDrawer({
   tenantId,
@@ -604,7 +447,7 @@ function CategoryDrawer({
             </Button>
           </div>
         ) : (
-          <Footer
+          <MenuDrawerFooter
             form="category-form"
             pending={save.isPending}
             label={category ? 'Save changes' : 'Add section'}
@@ -695,7 +538,7 @@ function CategoryDrawer({
               error={submitted ? (urlError ?? undefined) : undefined}
             />
           </FormSection>
-          <div className="rounded-lg border border-rule/60 bg-field px-4 py-3.5">
+          <div className="rounded-lg border border-border bg-field px-4 py-3.5">
             <SettingRows>
               <SettingRow
                 icon={LayoutGrid}
@@ -708,99 +551,6 @@ function CategoryDrawer({
           </div>
         </form>
       )}
-    </Drawer>
-  );
-}
-
-function GroupDrawer({ tenantId, group, onClose }: { tenantId: string; group?: ModifierGroup; onClose: () => void }) {
-  const qc = useQueryClient();
-  const [name, setName] = useState(group?.name ?? '');
-  const [isSize, setIsSize] = useState(group?.isSize ?? false);
-  const [submitted, setSubmitted] = useState(false);
-  const nameError = name.trim().length < 1 ? 'A name is needed.' : name.trim().length > 50 ? 'Keep it under 50 characters.' : null;
-  const invalidate = () => {
-    void qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('modifier-groups') });
-    void qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('modifiers') });
-  };
-
-  const save = useMutation({
-    mutationFn: () =>
-      group ? updateModifierGroup(group.id, { name: name.trim(), isSize }) : createModifierGroup({ tenantId, name: name.trim(), isSize }),
-    onSuccess: () => {
-      invalidate();
-      toast('success', group ? 'Group updated.' : `${name.trim()} group added.`);
-      onClose();
-    },
-    onError: (error) => toast('error', error.message || 'The group wasn’t saved. Try again.'),
-  });
-  const remove = useMutation({
-    mutationFn: () => deleteModifierGroup(group!.id),
-    onSuccess: () => {
-      invalidate();
-      toast('success', `${group!.name} deleted.`);
-      onClose();
-    },
-    onError: (error) => toast('error', error.message || 'The group wasn’t deleted. Try again.'),
-  });
-  const inUse = (group?.modifierCount ?? 0) > 0;
-
-  return (
-    <Drawer
-      icon={Layers3}
-      title={group ? 'Edit group' : 'New modifier group'}
-      guidance="A set of choices, like Size or Milk. Add the choices themselves on the Modifiers tab."
-      onClose={onClose}
-      footer={
-        <Footer
-          form="group-form"
-          pending={save.isPending}
-          label={group ? 'Save changes' : 'Add group'}
-          onCancel={onClose}
-          onDelete={group && !inUse ? () => remove.mutate() : undefined}
-          deleting={remove.isPending}
-        />
-      }
-    >
-      <form
-        id="group-form"
-        noValidate
-        className="space-y-5"
-        onSubmit={(event) => {
-          event.preventDefault();
-          setSubmitted(true);
-          if (!nameError) save.mutate();
-        }}
-      >
-        <section aria-label="Group" className="space-y-3">
-          <Input
-            required
-            label="Name"
-            value={name}
-            onChange={(event) => setName(event.target.value)}
-            maxLength={50}
-            autoFocus={!group}
-            placeholder="e.g. Milk"
-            error={submitted ? (nameError ?? undefined) : undefined}
-          />
-        </section>
-        <div className="rounded-lg border border-rule/60 bg-field px-4 py-3.5">
-          <SettingRows>
-            <SettingRow
-              icon={Scale}
-              title="These are sizes"
-              description="Recipes get a column per size, so a large can use more milk than a small."
-            >
-              <Switch label="These are sizes" checked={isSize} onChange={setIsSize} />
-            </SettingRow>
-          </SettingRows>
-        </div>
-        {group && inUse && (
-          <p className="px-1 text-xs text-muted-foreground">
-            {group.modifierCount} {group.modifierCount === 1 ? 'modifier is' : 'modifiers are'} in this group, so it can’t be deleted. Move
-            or delete them on the Modifiers tab first.
-          </p>
-        )}
-      </form>
     </Drawer>
   );
 }

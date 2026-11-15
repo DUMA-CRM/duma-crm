@@ -29,7 +29,7 @@ export function RowTile({ icon: Icon, tone = 'default' }: { icon: IconComponent;
             ? 'border-momentum/35 bg-momentum/8 text-momentum'
             : tone === 'danger'
               ? 'border-exception/35 bg-exception/6 text-exception'
-              : 'border-rule/55 bg-background text-muted-foreground',
+              : 'border-border bg-background text-muted-foreground',
       )}
     >
       <Icon size={16} aria-hidden="true" />
@@ -161,7 +161,7 @@ export function ActionRows({ children, danger }: { children: React.ReactNode; da
   return (
     <div className="-mx-2 flex flex-col gap-0.5">
       {children}
-      {danger && <div className="mx-2 mt-2 border-t border-rule/50 pt-2 [&>button]:-mx-2 [&>button]:w-[calc(100%+1rem)]">{danger}</div>}
+      {danger && <div className="mx-2 mt-2 border-t border-border pt-2 [&>button]:-mx-2 [&>button]:w-[calc(100%+1rem)]">{danger}</div>}
     </div>
   );
 }

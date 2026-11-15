@@ -73,7 +73,7 @@ export interface StatDelta {
 const DELTA_TONE: Record<StatTone, { chip: string; text: string }> = {
   positive: { chip: 'border-momentum/60 bg-momentum/6 text-momentum', text: 'text-momentum' },
   negative: { chip: 'border-exception/60 bg-exception/6 text-exception', text: 'text-exception' },
-  neutral: { chip: 'border-rule text-muted-foreground', text: 'text-muted-foreground' },
+  neutral: { chip: 'border-border text-muted-foreground', text: 'text-muted-foreground' },
 };
 
 function resolveDelta({ value, trend, tone, lowerIsBetter }: StatDelta) {
@@ -281,7 +281,7 @@ export interface StatCardProps {
   valueClassName?: string;
 }
 
-const CARD_BASE = 'group relative flex flex-col rounded-sm border border-rule bg-card text-left';
+const CARD_BASE = 'group relative flex flex-col rounded-lg border border-border bg-card text-left shadow-sm';
 
 // ── Component ─────────────────────────────────────────────────────
 export function StatCard({
@@ -467,7 +467,7 @@ export function StatCard({
   if (visual?.type === 'ring') {
     visualNode = (
       <div className="flex shrink-0 flex-col items-end gap-1.5">
-        <span className="flex items-center gap-2 border border-rule py-1 pr-3 pl-1">
+        <span className="flex items-center gap-2 rounded-md border border-border py-1 pr-3 pl-1">
           <StatRing pct={visual.pct} accent={accent} size={26} />
           <span className="text-sm font-semibold tabular-nums font-mono text-foreground">
             {visual.display ?? `${Math.round(visual.pct)}`}

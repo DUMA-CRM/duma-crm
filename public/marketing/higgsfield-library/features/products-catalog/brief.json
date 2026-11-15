@@ -1,0 +1,13 @@
+{
+  "path": "/features/products-catalog",
+  "name": "Products & menu",
+  "summary": "Everything you sell, with prices, options, recipes and margin.",
+  "description": "Everything you sell, with prices, options, recipes and margin.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/products-catalog",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A caf\u00e9 owner arranges a seasonal sandwich, coffee and cake, checks ingredients and weighs a portion on kitchen scales."
+}

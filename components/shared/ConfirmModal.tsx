@@ -45,21 +45,21 @@ export function ConfirmModal({
               autoComplete="off"
               autoCapitalize="none"
               spellCheck={false}
-              className="mt-1.5 h-10 w-full rounded-sm border border-input bg-control px-3 text-sm text-foreground outline-none focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-measured"
+              className="mt-1.5 h-9 w-full rounded-md border border-input bg-control px-3 text-sm text-foreground outline-none focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-ring/30"
             />
           </label>
         )}
         <div className="flex gap-2">
           <button
             onClick={onClose}
-            className="flex-1 h-10 border border-rule rounded-sm text-sm font-medium text-muted-foreground hover:bg-band transition-colors"
+            className="flex-1 h-9 rounded-md border border-edge bg-field text-sm font-semibold text-foreground hover:bg-band transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             Cancel
           </button>
           <button
             onClick={onConfirm}
             disabled={isPending || !matched}
-            className="flex-1 h-10 bg-destructive hover:bg-destructive/90 text-on-fill text-sm font-semibold rounded-sm transition-colors disabled:opacity-60"
+            className="flex-1 h-9 rounded-md bg-destructive hover:bg-destructive/90 text-on-fill text-sm font-semibold transition-colors disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
           >
             {isPending ? pendingLabel : confirmLabel}
           </button>

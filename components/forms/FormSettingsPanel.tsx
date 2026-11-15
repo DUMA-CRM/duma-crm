@@ -56,7 +56,7 @@ type Row =
 const ACCENTS = ['#2b2a28', '#b84e2d', '#2b7355', '#2563eb', '#7c3aed', '#be185d', '#0e7490', '#a16207'];
 
 const textarea =
-  'w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-measured disabled:opacity-60';
+  'w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30 disabled:opacity-60';
 
 /**
  * A form's settings in the Booking rules layout: when it takes responses, what
@@ -174,7 +174,7 @@ export function FormSettingsPanel({
         <>
           <SettingsSection title="After they submit" description="What respondents see, in your colours.">
             <div
-              className="rounded-lg border border-rule/50 bg-background px-5 py-6 text-center"
+              className="rounded-lg border border-border bg-background px-5 py-6 text-center"
               style={{ '--form-accent': definition.accentColor || 'var(--primary)' } as React.CSSProperties}
             >
               <span className="mx-auto flex size-11 items-center justify-center rounded-full bg-(--form-accent) text-white">
@@ -402,7 +402,7 @@ export function FormSettingsPanel({
                 onClick={() => setDefinition({ accentColor: null })}
                 className={cn(
                   'h-8 rounded-md border px-2.5 text-xs font-medium',
-                  !definition.accentColor ? 'border-foreground' : 'border-rule/70 hover:bg-band/50',
+                  !definition.accentColor ? 'border-foreground' : 'border-border hover:bg-band/50',
                 )}
               >
                 Default
@@ -421,7 +421,7 @@ export function FormSettingsPanel({
                   )}
                 />
               ))}
-              <label className="relative flex h-8 items-center gap-1.5 rounded-md border border-rule/70 px-2.5 text-xs font-medium hover:bg-band/50">
+              <label className="relative flex h-8 items-center gap-1.5 rounded-md border border-border px-2.5 text-xs font-medium hover:bg-band/50">
                 Custom
                 <input
                   type="color"
@@ -452,7 +452,7 @@ export function FormSettingsPanel({
 
 function Swatch({ colour }: { colour: string | null | undefined }) {
   return (
-    <span aria-hidden="true" className="size-5 rounded-full border border-rule/60" style={{ background: colour || 'var(--primary)' }} />
+    <span aria-hidden="true" className="size-5 rounded-full border border-border" style={{ background: colour || 'var(--primary)' }} />
   );
 }
 

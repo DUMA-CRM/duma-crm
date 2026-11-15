@@ -124,7 +124,7 @@ export function NoteLinkPicker({ editor, currentNoteId }: { editor: Editor; curr
       role="listbox"
       aria-label="Link a note"
       style={{ top: open.top, left: open.left }}
-      className="fixed z-100 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-rule/70 bg-card p-1 text-foreground shadow-lg"
+      className="fixed z-100 w-72 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-1 text-foreground shadow-lg"
       // Keep the editor focused: a click picks, it doesn't blur.
       onMouseDown={(event) => event.preventDefault()}
     >

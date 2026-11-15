@@ -54,7 +54,7 @@ export function PaymentDueCard({
           <Clock size={15} />
         </span>
         <div className="min-w-0 flex-1">
-          <h3 id="payment-due" className="text-sm font-semibold text-foreground">
+          <h3 id="payment-due" className="text-sm font-semibold text-heading">
             Waiting for payment
           </h3>
           <p className="text-xs text-muted-foreground">
@@ -72,7 +72,7 @@ export function PaymentDueCard({
       </div>
 
       {choosing && (
-        <div className="mt-3 space-y-3 border-t border-rule/60 pt-3">
+        <div className="mt-3 space-y-3 border-t border-border pt-3">
           <div role="group" aria-label="How it was paid">
             <ChoiceCards
               columns={2}

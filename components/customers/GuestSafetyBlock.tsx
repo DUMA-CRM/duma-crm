@@ -84,11 +84,11 @@ export function GuestSafetyBlock({ customer }: { customer: Customer }) {
 
       {/* ── Tier 2: pinned alerts ─────────────────────────────────────── */}
       {ordered.length > 0 && (
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+        <ul className="overflow-hidden rounded-lg border border-border bg-field">
           {ordered.map((alert, index) => {
             const severity = SEVERITY[alert.severity];
             return (
-              <li key={`${alert.label}-${index}`} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+              <li key={`${alert.label}-${index}`} className="flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
                 {/* The tile's colour is the severity; its word is the tile's name. */}
                 <span
                   className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', severity.tile)}
@@ -138,7 +138,7 @@ export function GuestSafetyBlock({ customer }: { customer: Customer }) {
 /** A `Fact` tile whose value wraps rather than truncates — a dietary list cut short is a list misread. */
 function Preference({ icon: Icon, label, children }: { icon: IconComponent; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-start gap-3 rounded-lg border border-rule/50 bg-field px-3.5 py-3">
+    <div className="flex items-start gap-3 rounded-lg border border-border bg-field px-3.5 py-3">
       <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
         <Icon size={17} aria-hidden="true" />
       </span>

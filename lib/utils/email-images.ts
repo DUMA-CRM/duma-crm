@@ -1,4 +1,4 @@
-import { CSP_IMAGE_HOSTS, viaApiProxy } from './image-src.ts';
+import { CSP_IMAGE_HOSTS, isAllowedImageHost, viaApiProxy } from './image-src.ts';
 
 // An email's images live in two places at once: in the recipient's inbox, which
 // needs an absolute public address, and in this app's editor, whose CSP only
@@ -32,7 +32,7 @@ export function previewImageSrc(
   if (src.startsWith('/') && !src.startsWith('//')) return src;
   try {
     const parsed = new URL(src);
-    return parsed.protocol === 'https:' && allowedHosts.includes(parsed.host) ? src : null;
+    return parsed.protocol === 'https:' && isAllowedImageHost(parsed.host, allowedHosts) ? src : null;
   } catch {
     return null;
   }

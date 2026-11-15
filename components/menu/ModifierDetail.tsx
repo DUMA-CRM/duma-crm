@@ -21,6 +21,7 @@ import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { createModifier, deleteModifier, getModifierGroups, getModifiers, updateModifier } from '@/lib/modules/catalog/client';
 import { getModifierRecipe, setModifierRecipe } from '@/lib/modules/inventory/client';
@@ -265,7 +266,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
                 />
               </div>
               <div className="flex flex-col gap-1.5">
-                <span className="text-label uppercase text-muted-foreground">Group</span>
+                <FieldLabel as="span">Group</FieldLabel>
                 {groups.length ? (
                   <ChoiceCards
                     columns={groups.length >= 4 ? 4 : groups.length === 3 ? 3 : 2}
@@ -279,8 +280,8 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
                 ) : (
                   <p className="rounded-md bg-measured/10 px-3 py-2 text-xs text-measured">
                     No groups yet.{' '}
-                    <Link href="/menu/categories" className="font-semibold underline">
-                      Create one on Categories
+                    <Link href="/menu/modifiers" className="font-semibold underline">
+                      Create one on Modifiers
                     </Link>{' '}
                     first — Size, Milk or Extras.
                   </p>

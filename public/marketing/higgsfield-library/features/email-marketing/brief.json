@@ -1,0 +1,13 @@
+{
+  "path": "/features/email-marketing",
+  "name": "Messages",
+  "summary": "Email your customers and your team.",
+  "description": "Email your customers and your team.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/email-marketing",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A caf\u00e9 owner photographs a new pastry with a phone to prepare a customer newsletter, laptop in background facing away."
+}

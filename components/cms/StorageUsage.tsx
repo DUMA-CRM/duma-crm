@@ -75,7 +75,7 @@ export function ContentStorageUsage() {
     <span
       role="status"
       aria-label="Loading storage usage"
-      className="h-9 w-24 animate-pulse rounded-md border border-rule/60 bg-band motion-reduce:animate-none"
+      className="h-9 w-24 animate-pulse rounded-md border border-border bg-band motion-reduce:animate-none"
     />
   );
 }
@@ -108,7 +108,7 @@ export function StorageUsage({ target, canManage }: { target: UploadTarget; canM
       <PopoverTrigger
         aria-label={`Storage: ${summary}`}
         className={cn(
-          'group flex h-9 items-center gap-2.5 rounded-md border border-rule/60 bg-card px-3 text-xs transition-colors',
+          'group flex h-9 items-center gap-2.5 rounded-md border border-border bg-card px-3 text-xs transition-colors',
           'hover:border-rule hover:bg-band/40 data-[state=open]:border-rule data-[state=open]:bg-band/50',
           meter.state === 'full' && 'border-exception/50',
         )}
@@ -160,7 +160,7 @@ export function StorageUsage({ target, canManage }: { target: UploadTarget; canM
           {meter.segments.length > 0 && <StorageMeter byKind={target.byKind} quotaBytes={target.quotaBytes} showHeadline={false} />}
         </div>
 
-        <div className="border-t border-rule/50 px-4 py-3 text-xs">
+        <div className="border-t border-border px-4 py-3 text-xs">
           {canManage ? (
             <Link
               href={storagePath}

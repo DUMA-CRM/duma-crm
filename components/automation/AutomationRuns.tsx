@@ -49,7 +49,7 @@ export function AutomationRuns({ tenantId, onOpenWorkflow }: { tenantId: string;
     >
       <SettingsTabBody narrowAside aside={<RunSummary query={query} now={now} />}>
         <div className="space-y-3">
-          <h2 className="text-base font-semibold tracking-title text-foreground">Recent runs</h2>
+          <h2 className="text-base font-semibold tracking-title text-heading">Recent runs</h2>
           <SettingsSection>
             {query.isPending ? (
               <div className="space-y-2">

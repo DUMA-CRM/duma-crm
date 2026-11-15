@@ -252,7 +252,7 @@ function QuestionScreen({ step, eyebrow, headingRef, context, review }: Question
           <span className="ml-2 tabular-nums text-muted-foreground/70">{eyebrow.position} of {eyebrow.total}</span>
         </p>
       )}
-      <h1 ref={headingRef} tabIndex={-1} className="mt-3 text-2xl font-semibold leading-tight tracking-headline text-foreground outline-none sm:text-3xl">
+      <h1 ref={headingRef} tabIndex={-1} className="mt-3 text-2xl font-semibold leading-tight tracking-headline text-heading outline-none sm:text-3xl">
         {step === 'review' ? 'Check your details, then create your workspace.' : question?.title}
       </h1>
       {question?.hint && <p className="mt-2 max-w-[56ch] text-sm leading-6 text-muted-foreground">{question.hint}</p>}

@@ -153,7 +153,7 @@ export function CmsOverviewPanel({
         }
       >
         <section aria-labelledby="cms-recent-heading" className="min-w-0">
-          <h2 id="cms-recent-heading" className="mb-4 px-3.5 text-base font-semibold tracking-title text-foreground">
+          <h2 id="cms-recent-heading" className="mb-4 px-3.5 text-base font-semibold tracking-title text-heading">
             Recently edited
           </h2>
           {loading ? (

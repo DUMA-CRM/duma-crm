@@ -1,18 +1,37 @@
 'use client';
 
 import { useQueries } from '@tanstack/react-query';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useEffect, useMemo, useState, useSyncExternalStore } from 'react';
 
-import { AlertTriangle, CheckCircle2, ChevronDown, ChevronRight, Clock, Info } from '@/components/icons';
+import {
+  AlertTriangle,
+  Banknote,
+  CalendarClock,
+  CalendarDays,
+  CheckCircle2,
+  ChevronRight,
+  CircleHelp,
+  Clock,
+  FileText,
+  Info,
+  ShieldCheck,
+  UserMinus,
+  UserPlus,
+  UsersRound,
+} from '@/components/icons';
+import type { IconComponent } from '@/components/icons';
 import { usePayrollSettings } from '@/components/payroll/usePayroll';
-import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
+import { Fact } from '@/components/settings/controls';
 import { Avatar } from '@/components/shared/Avatar';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Bone } from '@/components/shared/Skeleton';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
-import { Badge } from '@/components/ui/badge';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
 
 import { getStaff } from '@/lib/modules/identity/client';
 import { getPayrollRuns } from '@/lib/modules/payroll/client';
@@ -23,16 +42,30 @@ import { getScheduledShifts, getVariance } from '@/lib/modules/workforce/client'
 import { getActiveShifts } from '@/lib/modules/workforce/client';
 import { findCoverGaps } from '@/lib/utils/attendance';
 import { cn } from '@/lib/utils/cn';
-import { type StaffAttentionSeverity, buildStaffAttention, noShows, teamRecordState, unpublishedShifts } from '@/lib/utils/staff-overview';
+import {
+  LEAVE_STALE_DAYS,
+  type StaffAttentionSeverity,
+  TICKET_STALE_DAYS,
+  awaitingIssue,
+  buildStaffAttention,
+  daysBetween,
+  linesAwaitingDeductions,
+  noShows,
+  oldestAgeDays,
+  openTickets,
+  pendingLeave,
+  teamRecordState,
+  unpublishedShifts,
+} from '@/lib/utils/staff-overview';
 import { type RosterRow, type RosterStatus, buildRoster } from '@/lib/utils/today-roster';
 import { workspaceDateKey, workspaceFormatter } from '@/lib/utils/workspace-time';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /** Consequence as colour: blocking is red, attention amber, information the calm green. */
-const SEVERITY_TILE: Record<StaffAttentionSeverity, string> = {
-  blocking: 'bg-exception/8 text-exception',
-  attention: 'bg-measured/10 text-measured',
-  info: 'bg-primary/8 text-primary',
+const SEVERITY_TONE: Record<StaffAttentionSeverity, NeedsAttentionTone> = {
+  blocking: 'exception',
+  attention: 'measured',
+  info: 'info',
 };
 const SEVERITY_ICON: Record<StaffAttentionSeverity, typeof AlertTriangle> = {
   blocking: AlertTriangle,
@@ -43,6 +76,11 @@ const SEVERITY_ICON: Record<StaffAttentionSeverity, typeof AlertTriangle> = {
 /** The day an instant falls on at the business — not in UTC, not on this device. */
 const isoDate = (date: Date) => workspaceDateKey(date);
 
+const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
+
+/** The surface every list on this page sits on — the same as `ListRowGroup`. */
+const CARD = 'overflow-hidden rounded-lg border border-border bg-card shadow-sm';
+
 export interface StaffOverviewAccess {
   team: boolean;
   rota: boolean;
@@ -52,20 +90,18 @@ export interface StaffOverviewAccess {
 }
 
 /**
- * The staff workspace's front page, top to bottom: what needs a manager, who
- * is working right now, where the team stands, and how it splits by department.
- * The queue counts that used to have their own cards (leave, helpdesk,
- * payslips) already surface as "Needs you" items, so they aren't repeated.
+ * The staff workspace's front page, top to bottom: four figures for today
+ * (leave to decide, cover, hours to correct, payroll), the list of what needs
+ * a manager, who is working right now, then the team and the state of its
+ * records side by side.
  *
  * Every query is gated on the capability that also gates its tab, so the panel
  * a store manager sees is assembled from what they can actually reach. A
- * section they cannot hold is absent, never empty — an empty "0 awaiting a
- * decision" would read as good news about a queue they cannot see.
+ * figure or section they cannot hold is absent, never empty — an empty
+ * "0 awaiting a decision" would read as good news about a queue they cannot see.
  */
 export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
   const { tenantId } = useWorkspaceStore();
-  const reduceMotion = useReducedMotion();
-  const [needsOpen, setNeedsOpen] = useState(false);
 
   // Cover gaps compare the rota against the clock, so the clock must not run
   // during SSR or the first client render — the same guard the dashboard uses.
@@ -168,12 +204,6 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
     [mounted, now, records, coverGaps, draftsQ.data, varianceQ.data, leaveQ.data, ticketsQ.data, payrollQ.data],
   );
 
-  const worst: StaffAttentionSeverity = items.some((item) => item.severity === 'blocking')
-    ? 'blocking'
-    : items.some((item) => item.severity === 'attention')
-      ? 'attention'
-      : 'info';
-
   const roster = useMemo(() => {
     if (!access.rota || !rotaQ.data || !activeQ.data || !mounted) return undefined;
     return buildRoster({
@@ -197,157 +227,278 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
 
   const activeTeam = summaryQ.data?.activeHeadcount ?? staffQ.data?.filter((member) => member.isActive).length ?? 0;
   const summary = summaryQ.data;
-  const documents = summary ? summary.expiredDocuments + summary.documentsExpiringIn60Days + summary.documentsWithoutFiles : null;
   const departments = [...(summary?.departments ?? [])].sort((a, b) => b.headcount - a.headcount);
 
+  // ── The four figures ───────────────────────────────────────────────────────
+  // Picked in order of what a manager acts on first, from the ones this person
+  // can reach; the first four are shown. Each reads its own query, so one dead
+  // endpoint dashes one tile rather than the row.
+  const figures: Figure[] = [];
+  if (access.leave) {
+    const waiting = leaveQ.data ? pendingLeave(leaveQ.data) : [];
+    const oldest = oldestAgeDays(waiting, now);
+    figures.push({
+      key: 'leave',
+      icon: CalendarDays,
+      label: 'Leave to decide',
+      value: waiting.length,
+      hint: waiting.length ? (oldest > 0 ? `Oldest waited ${plural(oldest, 'day')}` : 'Raised today') : undefined,
+      tone: oldest >= LEAVE_STALE_DAYS ? 'danger' : waiting.length ? 'warning' : 'default',
+      href: '/staff/requests',
+      error: leaveQ.isError,
+    });
+  }
+  if (access.rota) {
+    figures.push({
+      key: 'cover',
+      icon: CalendarClock,
+      label: 'Uncovered now',
+      value: coverGaps ?? 0,
+      tone: coverGaps ? 'danger' : 'default',
+      href: '/staff/rota',
+      error: rotaQ.isError || activeQ.isError,
+    });
+    const missed = varianceQ.data ? noShows(varianceQ.data).length : 0;
+    figures.push({
+      key: 'hours',
+      icon: Clock,
+      label: 'Hours to correct',
+      value: missed,
+      hint: 'No-shows in the last 7 days',
+      tone: missed ? 'warning' : 'default',
+      href: '/staff/rota',
+      error: varianceQ.isError,
+    });
+  }
+  if (access.payroll) {
+    const runs = payrollQ.data ?? [];
+    const unissued = awaitingIssue(runs);
+    const lines = unissued.reduce((total, run) => total + run.lines.length, 0);
+    const missing = linesAwaitingDeductions(runs);
+    const lastIssued = runs
+      .map((run) => run.issuedAt)
+      .filter((at): at is string => !!at)
+      .sort()
+      .at(-1);
+    figures.push({
+      key: 'payroll',
+      icon: Banknote,
+      label: 'Payslips to issue',
+      value: lines,
+      hint: missing
+        ? `${missing} waiting on tax and NI`
+        : lines
+          ? 'Ready to issue'
+          : lastIssued
+            ? `Last issued ${SHORT_DATE().format(new Date(lastIssued))}`
+            : undefined,
+      tone: missing ? 'danger' : lines ? 'warning' : 'default',
+      href: '/staff/payroll',
+      error: payrollQ.isError,
+    });
+  }
+  if (access.helpdesk) {
+    const open = ticketsQ.data ? openTickets(ticketsQ.data) : [];
+    const stale = open.filter((ticket) => daysBetween(ticket.createdAt, now) >= TICKET_STALE_DAYS).length;
+    figures.push({
+      key: 'helpdesk',
+      icon: CircleHelp,
+      label: 'Open requests',
+      value: open.length,
+      hint: stale ? `${stale} open over a week` : undefined,
+      tone: stale ? 'warning' : 'default',
+      href: '/staff/helpdesk',
+      error: ticketsQ.isError,
+    });
+  }
+  if (access.team) {
+    figures.push({
+      key: 'team',
+      icon: UsersRound,
+      label: 'Active team',
+      value: activeTeam,
+      tone: 'default',
+      href: '/staff/team',
+      error: summaryQ.isError && staffQ.isError,
+    });
+  }
+  const shownFigures = figures.slice(0, 4);
+
+  const teamLoading = !mounted || summaryQ.isPending || staffQ.isPending;
+  const teamError = summaryQ.isError || staffQ.isError;
+  const recordsLoading = !mounted || summaryQ.isPending || staffQ.isPending || employeesQ.isPending;
+  const recordsError = summaryQ.isError || staffQ.isError || employeesQ.isError;
+
   return (
-    <motion.div className="space-y-7" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
-      {(loading || error || items.length > 0) && (
-        <motion.section variants={SECTION_RISE} aria-label="Needs you">
-          {loading ? (
-            // The folded "needs you" card is one line until opened, so is its placeholder.
-            <TilesSkeleton count={1} label="Checking the team" tileClassName="border-rule/60 bg-field px-4 py-3.5" />
-          ) : error ? (
+    <motion.div
+      className="flex flex-col gap-5"
+      initial="hidden"
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
+    >
+      {shownFigures.length > 0 &&
+        // While loading, the tiles are skeletons: a "0 uncovered" before the
+        // data arrives would be a claim, not a wait.
+        (loading ? (
+          <FactsSkeleton
+            count={shownFigures.length}
+            surface="card"
+            label="Loading today’s figures"
+            className={cn('grid-cols-1 gap-2', FIGURE_GRID[shownFigures.length])}
+          />
+        ) : (
+          <motion.dl variants={SECTION_RISE} className={cn('grid gap-2', FIGURE_GRID[shownFigures.length])}>
+            {shownFigures.map((figure) => (
+              <Fact
+                key={figure.key}
+                surface="card"
+                icon={figure.icon}
+                label={figure.label}
+                value={figure.error ? '—' : figure.value}
+                hint={figure.error ? 'Couldn’t be loaded' : figure.hint}
+                tone={figure.error ? 'default' : figure.tone}
+                href={figure.href}
+              />
+            ))}
+          </motion.dl>
+        ))}
+
+      <RecordGroup id="staff-needs" title="Needs you">
+        {loading ? (
+          <ListSkeleton rows={3} label="Checking the team" />
+        ) : error ? (
+          <div className={CARD}>
             <ErrorState
               title="The team checks couldn’t run"
               description="Some of this page’s data didn’t load, so nothing here is a complete picture."
               onRetry={retry}
             />
-          ) : (
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-              {/* Folded by default: one line that says how much and what, opened on demand. */}
-              <button
-                type="button"
-                aria-expanded={needsOpen}
-                onClick={() => setNeedsOpen((open) => !open)}
-                className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-              >
-                <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE[worst])}>
-                  <AlertTriangle size={18} aria-hidden="true" />
-                </span>
-                <span className="min-w-0 flex-1">
-                  <span className="block text-sm font-semibold text-foreground">
-                    {items.length} {items.length === 1 ? 'thing needs' : 'things need'} you
-                  </span>
-                  <span className="mt-0.5 block truncate text-xs text-muted-foreground">{items.map((item) => item.title).join(' · ')}</span>
-                </span>
-                <span className="shrink-0 text-xs font-semibold text-muted-foreground">{needsOpen ? 'Hide' : 'Show'}</span>
-                <ChevronDown
-                  size={15}
-                  aria-hidden="true"
-                  className={cn('shrink-0 text-muted-foreground transition-transform duration-200', needsOpen && 'rotate-180')}
-                />
-              </button>
-              <AnimatePresence initial={false}>
-                {needsOpen && (
-                  <motion.div
-                    initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-                    animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
-                    exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-                    transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-                    className="overflow-hidden border-t border-rule/50"
-                  >
-                    <div className="p-2">
-                      <ul className="space-y-2">
-                        {items.map((item) => {
-                          const Icon = SEVERITY_ICON[item.severity];
-                          return (
-                            <li key={item.id}>
-                              <Link
-                                href={item.href}
-                                className={cn(
-                                  'group flex items-center gap-3 rounded-lg border bg-background/60 px-3.5 py-3 transition-colors hover:bg-band/40',
-                                  'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                                  item.severity === 'blocking' ? 'border-exception/35' : 'border-rule/60',
-                                )}
-                              >
-                                <span
-                                  className={cn(
-                                    'flex size-10 shrink-0 items-center justify-center rounded-md',
-                                    SEVERITY_TILE[item.severity],
-                                  )}
-                                >
-                                  <Icon size={18} aria-hidden="true" />
-                                </span>
-                                <span className="min-w-0 flex-1">
-                                  <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                                  <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{item.detail}</span>
-                                </span>
-                                <span className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-foreground sm:flex">
-                                  {item.actionLabel}
-                                  <ChevronRight
-                                    size={14}
-                                    className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                                    aria-hidden="true"
-                                  />
-                                </span>
-                              </Link>
-                            </li>
-                          );
-                        })}
-                      </ul>
-                    </div>
-                  </motion.div>
-                )}
-              </AnimatePresence>
-            </div>
-          )}
-        </motion.section>
-      )}
+          </div>
+        ) : items.length === 0 ? (
+          <div className={CARD}>
+            <EmptyState
+              compact
+              kind="done"
+              icon={CheckCircle2}
+              title="Nothing needs you"
+              description="Leave to decide, uncovered shifts, payroll and records to finish appear here."
+            />
+          </div>
+        ) : (
+          <NeedsAttention
+            label="Needs you"
+            items={items.map((item) => ({
+              key: item.id,
+              tone: SEVERITY_TONE[item.severity],
+              icon: SEVERITY_ICON[item.severity],
+              title: item.title,
+              detail: item.detail,
+              fix: { label: item.actionLabel, href: item.href },
+            }))}
+          />
+        )}
+      </RecordGroup>
 
       {access.rota && (
-        <motion.section variants={SECTION_RISE} aria-labelledby="staff-today">
-          <SectionHeading id="staff-today" action={{ label: 'Open rota', href: '/staff/rota' }}>
-            Today
-          </SectionHeading>
-          {rotaQ.isPending || activeQ.isPending || !roster ? (
+        <RecordGroup id="staff-today" title="Today" actions={<OpenLink href="/staff/rota">Open rota</OpenLink>}>
+          {!mounted || rotaQ.isPending || activeQ.isPending ? (
             <RosterSkeleton />
           ) : rotaQ.isError || activeQ.isError ? (
-            <ErrorState title="Today’s rota couldn’t be loaded" onRetry={() => void Promise.all([rotaQ.refetch(), activeQ.refetch()])} />
+            <div className={CARD}>
+              <ErrorState title="Today’s rota couldn’t be loaded" onRetry={() => void Promise.all([rotaQ.refetch(), activeQ.refetch()])} />
+            </div>
+          ) : roster ? (
+            <TodayRoster roster={roster} />
           ) : (
-            <TodayRoster roster={roster} now={now} />
+            <RosterSkeleton />
           )}
-        </motion.section>
+        </RecordGroup>
       )}
 
       {access.team && (
-        <motion.section variants={SECTION_RISE} aria-labelledby="staff-team">
-          <SectionHeading id="staff-team" action={{ label: 'Open team', href: '/staff/team' }}>
-            Team
-          </SectionHeading>
-          {summaryQ.isError ? (
-            <ErrorState title="Team figures couldn’t be loaded" onRetry={() => void summaryQ.refetch()} />
-          ) : summaryQ.isPending || staffQ.isPending ? (
-            <TeamCardSkeleton />
-          ) : (
-            <TeamCard
-              members={(staffQ.data ?? []).filter((member) => member.isActive)}
-              headcount={activeTeam}
-              summary={summary}
-              records={records}
-              documents={documents}
-              departments={departments}
-            />
-          )}
-        </motion.section>
+        <div className="grid items-start gap-5 xl:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-5">
+            {teamLoading ? (
+              <TeamSkeleton />
+            ) : teamError ? (
+              <SettingsSection title="Team">
+                <ErrorState
+                  title="Team figures couldn’t be loaded"
+                  onRetry={() => void Promise.all([summaryQ.refetch(), staffQ.refetch()])}
+                />
+              </SettingsSection>
+            ) : (
+              <TeamSection
+                members={(staffQ.data ?? []).filter((member) => member.isActive)}
+                headcount={activeTeam}
+                summary={summary}
+                departments={departments}
+              />
+            )}
+          </div>
+          <div className="flex min-w-0 flex-col gap-5">
+            <RecordGroup id="staff-records" title="Records">
+              {recordsLoading ? (
+                <ListSkeleton rows={2} trailing={false} label="Checking records" />
+              ) : recordsError ? (
+                <div className={CARD}>
+                  <ErrorState
+                    title="Records couldn’t be checked"
+                    onRetry={() => void Promise.all([summaryQ.refetch(), staffQ.refetch(), employeesQ.refetch()])}
+                  />
+                </div>
+              ) : (
+                <RecordChecks records={records} summary={summary} />
+              )}
+            </RecordGroup>
+          </div>
+        </div>
       )}
     </motion.div>
   );
 }
 
-const DAY = () => workspaceFormatter({ weekday: 'long', day: 'numeric', month: 'long' });
+interface Figure {
+  key: string;
+  icon: IconComponent;
+  label: string;
+  value: number;
+  hint?: string;
+  tone: 'default' | 'warning' | 'danger';
+  href: string;
+  error: boolean;
+}
 
-/** `TodayRoster` without its words: the day and legend, then a row per person with their bar. */
+/** Static class names per tile count, so a row of three never leaves a hole. */
+const FIGURE_GRID: Record<number, string> = {
+  1: 'lg:grid-cols-1',
+  2: 'sm:grid-cols-2 lg:grid-cols-2',
+  3: 'sm:grid-cols-3 lg:grid-cols-3',
+  4: 'sm:grid-cols-2 lg:grid-cols-2 xl:grid-cols-4',
+};
+
+const SHORT_DATE = () => workspaceFormatter({ day: 'numeric', month: 'short' });
+
+/** The way into a section's full view, in a `RecordGroup`'s header. */
+function OpenLink({ href, children }: { href: string; children: React.ReactNode }) {
+  return (
+    <Link
+      href={href}
+      className="flex items-center gap-1 rounded-sm text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+    >
+      {children}
+      <ChevronRight size={13} aria-hidden="true" />
+    </Link>
+  );
+}
+
+// ── Today ────────────────────────────────────────────────────────────────────
+
+/** `TodayRoster` without its words: the legend, then a row per person with their bar. */
 function RosterSkeleton() {
   return (
-    <div
-      role="status"
-      aria-busy="true"
-      aria-label="Loading today’s rota"
-      className="overflow-hidden rounded-lg border border-rule/60 bg-field"
-    >
-      <div className="flex items-center justify-between gap-3 border-b border-rule/50 px-5 py-3.5" aria-hidden="true">
-        <Bone className="h-3.5 w-40" />
+    <div role="status" aria-busy="true" aria-label="Loading today’s rota" className={CARD}>
+      <div className="flex items-center gap-3 px-5 pt-4" aria-hidden="true">
         <Bone className="h-3 w-48" />
       </div>
       <ul className="space-y-1 px-5 pt-3 pb-4" aria-hidden="true">
@@ -372,37 +523,6 @@ function RosterSkeleton() {
   );
 }
 
-/** `TeamCard` without its words: the faces and headcount, the department bar, the record checks. */
-function TeamCardSkeleton() {
-  return (
-    <div role="status" aria-busy="true" aria-label="Loading the team" className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-4 px-5 py-5" aria-hidden="true">
-        <span className="flex -space-x-2">
-          {[0, 1, 2, 3].map((index) => (
-            <Bone key={index} className="size-10 border-2 border-field" />
-          ))}
-        </span>
-        <span className="min-w-0 flex-1 space-y-2">
-          <Bone className="h-6 w-28" />
-          <Bone className="h-3.5 w-56 max-w-full" />
-        </span>
-      </div>
-      <div className="border-t border-rule/50 px-5 py-4" aria-hidden="true">
-        <Bone className="h-2.5 w-full rounded-full" />
-        <Bone className="mt-2.5 h-3 w-64 max-w-full" />
-      </div>
-      <div className="border-t border-rule/50" aria-hidden="true">
-        {[0, 1, 2].map((index) => (
-          <div key={index} className="flex items-center gap-3 border-b border-rule/45 px-5 py-3 last:border-b-0">
-            <Bone className="size-8 shrink-0" />
-            <Bone className={index % 2 ? 'h-3.5 w-48' : 'h-3.5 w-36'} />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 const STATUS_STYLE: Record<RosterStatus, { bar: string; dot: string; text: string; legend: string }> = {
   on: { bar: 'bg-primary', dot: 'bg-primary', text: 'text-primary', legend: 'On shift' },
   unplanned: { bar: 'bg-measured', dot: 'bg-measured', text: 'text-measured', legend: 'Not on the rota' },
@@ -415,77 +535,81 @@ const LEGEND_ORDER: RosterStatus[] = ['on', 'late', 'later', 'done', 'unplanned'
 /**
  * Today's rota as a timeline: a bar per shift across the day, a line at "now",
  * and each row saying where its person is up to — so "who's in, who's late,
- * who's next" is one glance instead of a number and a list.
+ * who's next" is one glance instead of a number and a list. The section title
+ * already says "Today", so the card opens on the counts, not the date.
  */
-function TodayRoster({ roster, now }: { roster: ReturnType<typeof buildRoster>; now: Date }) {
+function TodayRoster({ roster }: { roster: ReturnType<typeof buildRoster> }) {
   const reduceMotion = useReducedMotion();
   const { rows, window, counts } = roster;
   const span = window.endHour - window.startHour;
 
+  if (rows.length === 0) {
+    return (
+      <div className={CARD}>
+        <EmptyState
+          compact
+          icon={CalendarDays}
+          title="Nobody is on today’s rota"
+          description="Shifts planned for today appear here as the day runs."
+        />
+      </div>
+    );
+  }
+
   return (
-    <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-      <header className="flex flex-wrap items-center justify-between gap-3 border-b border-rule/50 px-5 py-3.5">
-        <p className="text-sm font-semibold text-foreground">{DAY().format(now)}</p>
-        <ul className="flex flex-wrap items-center gap-x-4 gap-y-1">
-          {LEGEND_ORDER.filter((status) => counts[status] > 0).map((status) => (
-            <li key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-              <span className={cn('size-2 rounded-full', STATUS_STYLE[status].dot)} aria-hidden="true" />
-              <span className="font-semibold text-foreground">{counts[status]}</span> {STATUS_STYLE[status].legend.toLowerCase()}
-            </li>
+    <div className={CARD}>
+      <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pt-4">
+        {LEGEND_ORDER.filter((status) => counts[status] > 0).map((status) => (
+          <li key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+            <span className={cn('size-2 rounded-full', STATUS_STYLE[status].dot)} aria-hidden="true" />
+            <span className="font-semibold text-foreground">{counts[status]}</span> {STATUS_STYLE[status].legend.toLowerCase()}
+          </li>
+        ))}
+      </ul>
+
+      <div className="px-5 pt-3 pb-4">
+        {/* Axis: the person column and status column are fixed, the track takes the rest. */}
+        <div className="grid grid-cols-[11rem_minmax(0,1fr)_8.5rem] items-end gap-4 pb-1.5 max-md:grid-cols-[8rem_minmax(0,1fr)]">
+          <span />
+          <div className="relative h-4">
+            {window.ticks
+              .filter((hour) => window.now === null || Math.abs(((hour - window.startHour) / span) * 100 - window.now) > 5)
+              .map((hour) => (
+                <span
+                  key={hour}
+                  className="absolute -translate-x-1/2 font-sans text-xs text-muted-foreground"
+                  style={{ left: `${((hour - window.startHour) / span) * 100}%` }}
+                >
+                  {String(hour % 24).padStart(2, '0')}:00
+                </span>
+              ))}
+            {window.now !== null && (
+              <span
+                className="absolute -translate-x-1/2 rounded-sm bg-exception px-1.5 font-sans text-xs font-semibold text-on-fill"
+                style={{ left: `${window.now}%` }}
+              >
+                Now
+              </span>
+            )}
+          </div>
+          <span className="max-md:hidden" />
+        </div>
+
+        <ul className="space-y-1">
+          {rows.map((row, index) => (
+            <RosterLine
+              key={row.key}
+              row={row}
+              nowAt={window.now}
+              ticks={window.ticks}
+              start={window.startHour}
+              span={span}
+              index={index}
+              reduceMotion={!!reduceMotion}
+            />
           ))}
         </ul>
-      </header>
-
-      {rows.length === 0 ? (
-        <div className="px-5 py-8 text-center">
-          <p className="text-sm font-semibold text-foreground">Nobody is on today’s rota</p>
-          <p className="mt-1 text-xs text-muted-foreground">Plan shifts on the rota and they’ll appear here as the day runs.</p>
-        </div>
-      ) : (
-        <div className="px-5 pt-3 pb-4">
-          {/* Axis: the person column and status column are fixed, the track takes the rest. */}
-          <div className="grid grid-cols-[11rem_minmax(0,1fr)_8.5rem] items-end gap-4 pb-1.5 max-md:grid-cols-[8rem_minmax(0,1fr)]">
-            <span />
-            <div className="relative h-4">
-              {window.ticks
-                .filter((hour) => window.now === null || Math.abs(((hour - window.startHour) / span) * 100 - window.now) > 5)
-                .map((hour) => (
-                  <span
-                    key={hour}
-                    className="absolute -translate-x-1/2 font-sans text-xs text-muted-foreground"
-                    style={{ left: `${((hour - window.startHour) / span) * 100}%` }}
-                  >
-                    {String(hour % 24).padStart(2, '0')}:00
-                  </span>
-                ))}
-              {window.now !== null && (
-                <span
-                  className="absolute -translate-x-1/2 rounded-sm bg-exception px-1.5 font-sans text-xs font-semibold text-on-fill"
-                  style={{ left: `${window.now}%` }}
-                >
-                  Now
-                </span>
-              )}
-            </div>
-            <span className="max-md:hidden" />
-          </div>
-
-          <ul className="space-y-1">
-            {rows.map((row, index) => (
-              <RosterLine
-                key={row.key}
-                row={row}
-                nowAt={window.now}
-                ticks={window.ticks}
-                start={window.startHour}
-                span={span}
-                index={index}
-                reduceMotion={!!reduceMotion}
-              />
-            ))}
-          </ul>
-        </div>
-      )}
+      </div>
     </div>
   );
 }
@@ -545,6 +669,8 @@ function RosterLine({
   );
 }
 
+// ── Team ─────────────────────────────────────────────────────────────────────
+
 const ROLE_NAMES: Record<string, [string, string]> = {
   franchise_owner: ['owner', 'owners'],
   store_manager: ['store manager', 'store managers'],
@@ -557,23 +683,42 @@ const ROLE_NAMES: Record<string, [string, string]> = {
 
 const DEPARTMENT_SHADES = ['bg-primary', 'bg-primary/70', 'bg-primary/45', 'bg-primary/25', 'bg-measured/60', 'bg-reference/50'];
 
+/** `TeamSection` without its words: faces and headcount over four fact tiles. */
+function TeamSkeleton() {
+  return (
+    <SettingsSection title="Team">
+      <div role="status" aria-busy="true" aria-label="Loading the team" className="space-y-4">
+        <div className="flex items-center gap-4" aria-hidden="true">
+          <span className="flex -space-x-2">
+            {[0, 1, 2, 3].map((index) => (
+              <Bone key={index} className="size-10 border-2 border-card" />
+            ))}
+          </span>
+          <span className="min-w-0 flex-1 space-y-2">
+            <Bone className="h-7 w-32" />
+            <Bone className="h-3.5 w-56 max-w-full" />
+          </span>
+        </div>
+        <FactsSkeleton count={4} surface="panel" className="grid-cols-1 sm:grid-cols-2 lg:grid-cols-2" />
+      </div>
+    </SettingsSection>
+  );
+}
+
 /**
- * The team in one card: who they are (faces and the role mix), how it splits
- * across departments, and whether the records behind them are in order.
+ * The team at a glance, in the identity-block shape: faces, the headcount and
+ * the role mix, four fact tiles for the last 30 days, then the split by
+ * department.
  */
-function TeamCard({
+function TeamSection({
   members,
   headcount,
   summary,
-  records,
-  documents,
   departments,
 }: {
   members: { userId: string; name?: string | null; email?: string | null; role: string }[];
   headcount: number;
   summary: PeopleSummary | undefined;
-  records: ReturnType<typeof teamRecordState> | undefined;
-  documents: number | null;
   departments: { department: string; headcount: number }[];
 }) {
   const reduceMotion = useReducedMotion();
@@ -585,183 +730,111 @@ function TeamCard({
       const [one, many] = ROLE_NAMES[role] ?? [role.replaceAll('_', ' '), `${role.replaceAll('_', ' ')}s`];
       return `${count} ${count === 1 ? one : many}`;
     });
-  const faces = members.slice(0, 7);
+  const faces = members.slice(0, 6);
   const departmentTotal = departments.reduce((sum, item) => sum + item.headcount, 0) || 1;
 
-  const checks: {
-    key: string;
-    ok: boolean;
-    tone: 'ok' | 'warning' | 'danger' | 'info';
-    title: string;
-    detail: string;
-    href: string;
-    action: string;
-  }[] = [
-    {
-      key: 'records',
-      ok: !!records && records.averageProgress >= 100,
-      tone: records && records.unpayable.length > 0 ? 'danger' : records && records.averageProgress < 100 ? 'warning' : 'ok',
-      title: records
-        ? records.unpayable.length > 0
-          ? `${records.unpayable.length} ${records.unpayable.length === 1 ? 'person' : 'people'} can’t be paid yet`
-          : records.averageProgress < 100
-            ? `Records ${records.averageProgress}% complete`
-            : 'Every record is complete'
-        : 'Records',
-      detail: records
-        ? `Records are ${records.averageProgress}% complete on average — right to work, contract and pay details.`
-        : 'Checking…',
-      href: '/staff/team',
-      action: 'Review',
-    },
-    {
-      key: 'documents',
-      ok: documents === 0,
-      tone: summary && summary.expiredDocuments > 0 ? 'danger' : documents ? 'warning' : 'ok',
-      title: documents ? `${documents} ${documents === 1 ? 'document' : 'documents'} to review` : 'Documents are up to date',
-      detail: summary
-        ? `${summary.expiredDocuments} expired · ${summary.documentsExpiringIn60Days} expiring in 60 days · ${summary.documentsWithoutFiles} missing a file`
-        : '',
-      href: '/staff/team',
-      action: 'Review',
-    },
-    {
-      key: 'absence',
-      ok: true,
-      tone: 'info',
-      title: summary
-        ? `${summary.absenceDaysLast30Days} ${summary.absenceDaysLast30Days === 1 ? 'day' : 'days'} of absence in 30 days`
-        : 'Absence',
-      detail: summary ? `${summary.contractedWeeklyHours} hours contracted a week across the team` : '',
-      href: '/staff/requests',
-      action: 'Open',
-    },
-  ];
-
   return (
-    <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-      <div className="flex flex-wrap items-center gap-x-6 gap-y-4 px-5 py-5">
-        <div className="flex -space-x-2" aria-hidden="true">
-          {faces.map((member) => (
-            <span key={member.userId} className="rounded-md border-2 border-field" title={member.name ?? member.email ?? undefined}>
-              <Avatar name={member.name || member.email} email={member.email} size="md" />
-            </span>
-          ))}
-          {members.length > faces.length && (
-            <span className="flex size-10 items-center justify-center rounded-md border-2 border-field bg-band text-xs font-semibold text-muted-foreground">
-              +{members.length - faces.length}
-            </span>
+    <SettingsSection title="Team" actions={<OpenLink href="/staff/team">Open team</OpenLink>}>
+      <div className="space-y-4">
+        <div className="flex min-w-0 items-center gap-4">
+          {faces.length > 0 && (
+            <div className="flex shrink-0 -space-x-2" aria-hidden="true">
+              {faces.map((member) => (
+                <span key={member.userId} className="rounded-md border-2 border-card" title={member.name ?? member.email ?? undefined}>
+                  <Avatar name={member.name || member.email} email={member.email} size="md" />
+                </span>
+              ))}
+              {members.length > faces.length && (
+                <span className="flex size-10 items-center justify-center rounded-md border-2 border-card bg-band text-xs font-semibold text-muted-foreground">
+                  +{members.length - faces.length}
+                </span>
+              )}
+            </div>
           )}
+          <div className="min-w-0 flex-1">
+            <p className="text-2xl font-semibold tracking-headline text-heading">{plural(headcount, 'person', 'people')}</p>
+            <p className="mt-0.5 truncate text-sm text-muted-foreground">{roles.join(' · ') || 'No roles yet'}</p>
+          </div>
         </div>
-        <div className="min-w-0 flex-1">
-          <p className="text-xl font-semibold tracking-headline text-foreground">
-            {headcount} {headcount === 1 ? 'person' : 'people'}
-          </p>
-          <p className="mt-0.5 truncate text-sm text-muted-foreground">{roles.join(' · ') || 'No roles yet'}</p>
-        </div>
+
         {summary && (
-          <div className="flex items-center gap-2 text-xs">
-            <span className="rounded-md bg-primary/8 px-2 py-1 font-semibold text-primary">+{summary.startersLast30Days} joined</span>
-            <span className="rounded-md bg-band px-2 py-1 font-semibold text-muted-foreground">−{summary.leaversLast30Days} left</span>
-            <span className="text-muted-foreground">in 30 days</span>
+          <dl className="grid gap-3 sm:grid-cols-2">
+            <Fact icon={UserPlus} label="Joined in 30 days" value={summary.startersLast30Days} />
+            <Fact icon={UserMinus} label="Left in 30 days" value={summary.leaversLast30Days} />
+            <Fact icon={CalendarDays} label="Absence in 30 days" value={plural(summary.absenceDaysLast30Days, 'day')} />
+            <Fact icon={Clock} label="Contracted hours" value={`${summary.contractedWeeklyHours}h a week`} />
+          </dl>
+        )}
+
+        {departments.length > 0 && (
+          <div>
+            <div className="flex h-2.5 overflow-hidden rounded-full bg-band" role="img" aria-label="Team by department">
+              {departments.map((item, index) => (
+                <motion.span
+                  key={item.department}
+                  className={cn('h-full first:rounded-l-full last:rounded-r-full', DEPARTMENT_SHADES[index % DEPARTMENT_SHADES.length])}
+                  initial={reduceMotion ? false : { width: 0 }}
+                  animate={{ width: `${(item.headcount / departmentTotal) * 100}%` }}
+                  transition={{ duration: 0.6, delay: reduceMotion ? 0 : index * 0.05, ease: [0.16, 1, 0.3, 1] }}
+                />
+              ))}
+            </div>
+            <ul className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1.5">
+              {departments.map((item, index) => (
+                <li key={item.department} className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                  <span className={cn('size-2 rounded-full', DEPARTMENT_SHADES[index % DEPARTMENT_SHADES.length])} aria-hidden="true" />
+                  <span className="font-medium text-foreground">{item.department || 'No department'}</span> {item.headcount}
+                </li>
+              ))}
+            </ul>
           </div>
         )}
       </div>
-
-      {departments.length > 0 && (
-        <div className="border-t border-rule/50 px-5 py-4">
-          <div className="flex h-2.5 overflow-hidden rounded-full bg-band" role="img" aria-label="Team by department">
-            {departments.map((item, index) => (
-              <motion.span
-                key={item.department}
-                className={cn('h-full first:rounded-l-full last:rounded-r-full', DEPARTMENT_SHADES[index % DEPARTMENT_SHADES.length])}
-                initial={reduceMotion ? false : { width: 0 }}
-                animate={{ width: `${(item.headcount / departmentTotal) * 100}%` }}
-                transition={{ duration: 0.6, delay: reduceMotion ? 0 : index * 0.05, ease: [0.16, 1, 0.3, 1] }}
-              />
-            ))}
-          </div>
-          <ul className="mt-2.5 flex flex-wrap gap-x-5 gap-y-1.5">
-            {departments.map((item, index) => (
-              <li key={item.department} className="flex items-center gap-1.5 text-xs text-muted-foreground">
-                <span className={cn('size-2 rounded-full', DEPARTMENT_SHADES[index % DEPARTMENT_SHADES.length])} aria-hidden="true" />
-                <span className="font-medium text-foreground">{item.department || 'No department'}</span> {item.headcount}
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      <ul className="border-t border-rule/50">
-        {checks.map((check) => (
-          <li key={check.key} className="border-b border-rule/45 last:border-b-0">
-            <Link
-              href={check.href}
-              className="group flex items-center gap-3 px-5 py-3 transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-            >
-              <span
-                className={cn(
-                  'flex size-8 shrink-0 items-center justify-center rounded-md',
-                  check.tone === 'danger'
-                    ? 'bg-exception/8 text-exception'
-                    : check.tone === 'warning'
-                      ? 'bg-measured/10 text-measured'
-                      : check.tone === 'info'
-                        ? 'bg-band text-muted-foreground'
-                        : 'bg-momentum/10 text-momentum',
-                )}
-              >
-                {check.tone === 'ok' ? (
-                  <CheckCircle2 size={16} aria-hidden="true" />
-                ) : check.tone === 'info' ? (
-                  <Clock size={16} aria-hidden="true" />
-                ) : (
-                  <AlertTriangle size={16} aria-hidden="true" />
-                )}
-              </span>
-              <span className="min-w-0 flex-1">
-                <span className="block text-sm font-semibold text-foreground">{check.title}</span>
-                {check.detail && <span className="block truncate text-xs text-muted-foreground">{check.detail}</span>}
-              </span>
-              <span className="flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground group-hover:text-foreground">
-                {check.action}
-                <ChevronRight size={13} aria-hidden="true" />
-              </span>
-            </Link>
-          </li>
-        ))}
-      </ul>
-    </div>
+    </SettingsSection>
   );
 }
 
-/** A section title in the settings style, with an optional count and a way into the full view. */
-function SectionHeading({
-  id,
-  count,
-  action,
-  children,
+/**
+ * Whether the records behind the team are in order — shown when they are, too,
+ * which "Needs you" (problems only) doesn't. Documents are only here.
+ */
+function RecordChecks({
+  records,
+  summary,
 }: {
-  id: string;
-  count?: number;
-  action?: { label: string; href: string };
-  children: React.ReactNode;
+  records: ReturnType<typeof teamRecordState> | undefined;
+  summary: PeopleSummary | undefined;
 }) {
+  const unpayable = records?.unpayable.length ?? 0;
+  const progress = records?.averageProgress ?? 100;
+  const documents = summary ? summary.expiredDocuments + summary.documentsExpiringIn60Days + summary.documentsWithoutFiles : 0;
+
   return (
-    <div className="mb-3 flex items-center gap-2">
-      <h2 id={id} className="text-base font-semibold tracking-title text-foreground">
-        {children}
-      </h2>
-      {count !== undefined && count > 0 && <Badge variant="warning">{count}</Badge>}
-      {action && (
-        <Link
-          href={action.href}
-          className="ml-auto flex items-center gap-1 text-xs font-semibold text-muted-foreground transition-colors hover:text-foreground"
-        >
-          {action.label}
-          <ChevronRight size={13} aria-hidden="true" />
-        </Link>
-      )}
-    </div>
+    <ListRowGroup>
+      <ListRow
+        href="/staff/team"
+        icon={unpayable ? AlertTriangle : progress < 100 ? ShieldCheck : CheckCircle2}
+        tone={unpayable ? 'exception' : progress < 100 ? 'warning' : 'success'}
+        title={
+          unpayable
+            ? `${plural(unpayable, 'person', 'people')} can’t be paid yet`
+            : progress < 100
+              ? `Records ${progress}% complete`
+              : 'Every record is complete'
+        }
+        meta={unpayable ? `Records ${progress}% complete on average` : undefined}
+      />
+      <ListRow
+        href="/staff/team"
+        icon={documents ? FileText : CheckCircle2}
+        tone={summary && summary.expiredDocuments > 0 ? 'exception' : documents ? 'warning' : 'success'}
+        title={documents ? `${plural(documents, 'document')} to review` : 'Documents are up to date'}
+        meta={
+          summary && documents
+            ? `${summary.expiredDocuments} expired · ${summary.documentsExpiringIn60Days} expiring in 60 days · ${summary.documentsWithoutFiles} missing a file`
+            : undefined
+        }
+      />
+    </ListRowGroup>
   );
 }

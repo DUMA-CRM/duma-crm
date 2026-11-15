@@ -40,7 +40,7 @@ export function PayslipStatement({
     <div className="rounded-md border border-rule bg-card shadow-sm overflow-hidden">
       <div className="flex flex-wrap items-center justify-between gap-x-4 gap-y-2 border-b border-rule px-4 py-3 md:px-5">
         <div>
-          <h3 className="text-sm font-semibold text-foreground">
+          <h3 className="text-sm font-semibold text-heading">
             {formatDate(payslip.payPeriodStart)} – {formatDate(payslip.payPeriodEnd)}
           </h3>
           <p className="mt-0.5 text-sm text-muted-foreground">

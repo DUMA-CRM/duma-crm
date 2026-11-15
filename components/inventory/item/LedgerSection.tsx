@@ -104,7 +104,7 @@ export function LedgerSection({ stockItemId, locationId, unit }: { stockItemId: 
           // A day: its label, then the card of movements.
           <div role="status" aria-busy="true" aria-label="Loading the ledger">
             <Bone className="mb-2 h-3 w-24" />
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+            <div className="overflow-hidden rounded-lg border border-border bg-card">
               {Array.from({ length: 4 }, (_, index) => (
                 <RowSkeleton key={index} index={index} />
               ))}
@@ -146,7 +146,7 @@ export function LedgerSection({ stockItemId, locationId, unit }: { stockItemId: 
                   );
                 })()}
               </h3>
-              <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              <ul className="overflow-hidden rounded-lg border border-border bg-card">
                 {day.items.map((movement) => (
                   <LedgerRow key={movement.id} movement={movement} fallbackUnit={unit} />
                 ))}
@@ -186,7 +186,7 @@ export function LedgerRow({
   ].filter(Boolean);
 
   return (
-    <li className="flex items-start gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+    <li className="flex items-start gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
       <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', meta.tile)} aria-hidden="true">
         <meta.icon size={16} />
       </span>

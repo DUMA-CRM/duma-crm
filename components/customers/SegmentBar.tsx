@@ -8,6 +8,7 @@ import { Modal } from '@/components/customers/CustomerDialogs';
 import { Check, Tags, Trash2, X } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { hasActiveFilters } from '@/lib/modules/customers/client';
 import { createSegment, deleteSegment } from '@/lib/modules/customers/client';
@@ -87,7 +88,7 @@ export function SegmentBar({ filters, appliedSegmentId, segments, onApply, canWr
             align="start"
             sideOffset={8}
             collisionPadding={16}
-            className="z-90 w-[calc(100vw-2rem)] max-w-xs rounded-lg border border-rule/60 bg-field p-2 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
+            className="z-90 w-[calc(100vw-2rem)] max-w-xs rounded-lg border border-border bg-field p-2 shadow-xl outline-none data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=open]:fade-in-0 data-[state=closed]:fade-out-0 data-[state=open]:zoom-in-95 data-[state=closed]:zoom-out-95"
           >
             <p className="px-2 pb-1.5 pt-1 text-micro font-semibold uppercase tracking-micro text-muted-foreground">Saved segments</p>
 
@@ -132,7 +133,7 @@ export function SegmentBar({ filters, appliedSegmentId, segments, onApply, canWr
             )}
 
             {(canWrite || applied) && (
-              <div className="mt-1 flex items-center gap-1 border-t border-rule/60 pt-1.5">
+              <div className="mt-1 flex items-center gap-1 border-t border-border pt-1.5">
                 {canWrite && (
                   <button
                     type="button"
@@ -190,9 +191,7 @@ export function SegmentBar({ filters, appliedSegmentId, segments, onApply, canWr
             className="space-y-4"
           >
             <div>
-              <label htmlFor="segment-name" className="text-sm font-semibold text-foreground">
-                Name
-              </label>
+              <FieldLabel htmlFor="segment-name">Name</FieldLabel>
               <Input
                 id="segment-name"
                 value={name}

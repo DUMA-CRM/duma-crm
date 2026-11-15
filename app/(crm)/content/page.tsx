@@ -39,7 +39,7 @@ const CONTENT_TABS: SectionTab<ContentTab>[] = [
 ];
 
 /** The API docs and keys moved to Settings → Developers with every other public API; old links still land. */
-const MOVED_TABS: Record<string, string> = { docs: '/settings/developers/docs', developers: '/settings/developers' };
+const MOVED_TABS: Record<string, string> = { docs: '/developers', developers: '/settings/developers' };
 
 export default function ContentPage() {
   // useSearchParams needs a Suspense boundary above it.

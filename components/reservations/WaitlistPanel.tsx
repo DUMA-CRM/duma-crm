@@ -112,7 +112,7 @@ export function WaitlistPanel({
     const waited = minutesBetween(entry.createdAt, now);
     const tone = waitTone(waited, entry.quotedWaitMinutes);
     return (
-      <li key={entry.id} className="flex items-center gap-3 rounded-lg border border-rule/50 bg-control px-3 py-2.5">
+      <li key={entry.id} className="flex items-center gap-3 rounded-lg border border-border bg-control px-3 py-2.5">
         <span
           className={cn(
             'w-12 shrink-0 text-sm font-semibold tabular-nums text-foreground',
@@ -247,7 +247,7 @@ export function WaitlistPanel({
           ) : (
             <ul className="space-y-2">
               {removed.map((entry) => (
-                <li key={entry.id} className="flex items-center gap-3 rounded-lg border border-rule/50 bg-control px-3 py-2.5 opacity-70">
+                <li key={entry.id} className="flex items-center gap-3 rounded-lg border border-border bg-control px-3 py-2.5 opacity-70">
                   <span className="w-12 shrink-0 text-sm font-semibold tabular-nums text-foreground">
                     {minutesBetween(entry.createdAt, entry.removedAt!)} min
                   </span>

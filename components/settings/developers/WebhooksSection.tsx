@@ -5,18 +5,19 @@ import { useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
 import { SecretReveal } from '@/components/cms/SecretReveal';
-import { InfoRow, PickerRow, RowMenu } from '@/components/cms/rows';
+import { InfoRow, RowMenu } from '@/components/cms/rows';
 import { cmsKeys, invalidateCms } from '@/components/cms/shared';
 import { History, Plus, RotateCcw, Send, Trash2, Webhook } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRowGroup } from '@/components/shared/ListRow';
 import { Modal } from '@/components/shared/Modal';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { Bone, LoadingState } from '@/components/shared/Skeleton';
+import { ListSkeleton, LoadingState } from '@/components/shared/Skeleton';
 import { ActionButton } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -39,7 +40,7 @@ import { toast } from '@/lib/toast';
 import { webhookHealth } from '@/lib/utils/developers';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { DONE_BEAT_MS, Facts } from './rows';
+import { DONE_BEAT_MS, DetailRow, Facts } from './rows';
 
 const EVENT_LABELS: Record<CmsWebhookEvent, string> = {
   'entry.published': 'Entry published',
@@ -48,7 +49,7 @@ const EVENT_LABELS: Record<CmsWebhookEvent, string> = {
   'asset.changed': 'Media changed',
 };
 
-/** Signed POSTs to a website when its content changes — Content events today. */
+/** Signed POSTs to a website when its content changes — Content events today. The list is the section: a `RecordGroup`, no card around it. */
 export function WebhooksSection() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
@@ -97,51 +98,55 @@ export function WebhooksSection() {
   const failing = hooks.filter((hook) => webhookHealth(hook.isActive, hook.lastDelivery).tone === 'danger').length;
 
   return (
-    <SettingsSection
+    <RecordGroup
+      id="webhooks"
       title="Webhooks"
-      description="Tell your website when content changes, so it rebuilds or clears its cache without a redeploy."
+      footnote="Each request is signed, so your site can check it came from DUMA. Failed deliveries retry up to 8 times."
       actions={
-        <>
+        <div className="flex items-center gap-2">
           {failing > 0 && <Badge variant="warning">{failing} failing</Badge>}
-          <Button variant="outline" className="h-9" onClick={() => setCreating(true)}>
+          <Button variant="outline" size="sm" onClick={() => setCreating(true)}>
             <Plus aria-hidden="true" /> New webhook
           </Button>
-        </>
+        </div>
       }
     >
       {query.isPending ? (
-        <div className="space-y-3" role="status" aria-label="Loading webhooks">
-          <Bone className="h-8 w-full rounded-md" />
-        </div>
+        <ListSkeleton rows={1} label="Loading webhooks" />
       ) : query.isError ? (
-        <ErrorState title="Couldn’t load your webhooks" onRetry={() => void query.refetch()} />
+        <div className="rounded-lg border border-border bg-card shadow-sm">
+          <ErrorState title="Couldn’t load your webhooks" onRetry={() => void query.refetch()} />
+        </div>
       ) : hooks.length === 0 ? (
-        <EmptyState
-          compact
-          icon={Webhook}
-          title="No webhooks yet"
-          description="Add your site’s deploy hook and it rebuilds whenever you publish."
-          action={{ label: 'New webhook', onClick: () => setCreating(true), icon: Plus }}
-        />
+        <div className="rounded-lg border border-border bg-card shadow-sm">
+          <EmptyState
+            compact
+            icon={Webhook}
+            title="No webhooks yet"
+            description="Add your site’s deploy hook and it rebuilds whenever you publish."
+            action={{ label: 'New webhook', onClick: () => setCreating(true), icon: Plus }}
+          />
+        </div>
       ) : (
-        <div className="space-y-3">
+        <ListRowGroup>
           {hooks.map((hook) => {
             const health = webhookHealth(hook.isActive, hook.lastDelivery);
             const busy = (mutation: { isPending: boolean; variables?: CmsWebhook }) =>
               mutation.isPending && mutation.variables?.id === hook.id;
             return (
-              <PickerRow
+              <DetailRow
                 key={hook.id}
                 icon={Webhook}
-                tone={health.tone}
+                tone={health.tone === 'danger' ? 'exception' : (health.tone ?? 'primary')}
                 title={hook.name}
-                description={hook.url.replace(/^https:\/\//, '')}
+                meta={hook.url.replace(/^https:\/\//, '')}
                 value={health.label}
-                muted={health.muted}
+                valueTone={health.tone === 'danger' ? 'exception' : health.tone}
+                quiet={health.muted}
                 open={openRow === hook.id}
                 onToggle={() => setOpenRow((current) => (current === hook.id ? null : hook.id))}
-                trailing={
-                  <>
+                control={
+                  <span className="flex items-center gap-1">
                     <Switch
                       checked={hook.isActive}
                       label={`${hook.name} on`}
@@ -158,7 +163,7 @@ export function WebhooksSection() {
                         { icon: Trash2, label: 'Delete', onClick: () => setDeleting(hook), danger: true },
                       ]}
                     />
-                  </>
+                  </span>
                 }
               >
                 <Facts
@@ -173,15 +178,11 @@ export function WebhooksSection() {
                     hook.lastDelivery && ['Last sent', <RelativeTime key="t" iso={hook.lastDelivery.at} />],
                   ]}
                 />
-              </PickerRow>
+              </DetailRow>
             );
           })}
-        </div>
+        </ListRowGroup>
       )}
-
-      <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-        Each request is signed, so your site can check it came from DUMA. Failed deliveries retry up to 8 times.
-      </p>
 
       {creating && (
         <CreateWebhookDialog
@@ -215,7 +216,7 @@ export function WebhooksSection() {
         />
       )}
       {openId && <DeliveriesDrawer webhookId={openId} onClose={() => setOpenId(null)} />}
-    </SettingsSection>
+    </RecordGroup>
   );
 }
 
@@ -295,7 +296,7 @@ function CreateWebhookDialog({
           }}
         />
         <section className="space-y-3">
-          <h3 className="text-sm font-semibold text-foreground">Send when</h3>
+          <h3 className="text-sm font-semibold text-heading">Send when</h3>
           {CMS_WEBHOOK_EVENTS.map((event) => (
             <InfoRow key={event} icon={Webhook} title={EVENT_LABELS[event]}>
               <Switch
@@ -342,7 +343,7 @@ function DeliveriesDrawer({ webhookId, onClose }: { webhookId: string; onClose: 
       ) : (
         <ul className="space-y-2">
           {query.data.map((delivery) => (
-            <li key={delivery.id} className="rounded-lg border border-rule/50 bg-field px-3.5 py-2.5 text-sm">
+            <li key={delivery.id} className="rounded-lg border border-border bg-field px-3.5 py-2.5 text-sm">
               <div className="flex flex-wrap items-center justify-between gap-2">
                 <span className="min-w-0 break-all font-mono text-xs">{delivery.eventType}</span>
                 <Badge variant={delivery.status === 'succeeded' ? 'success' : delivery.status === 'failed' ? 'destructive' : 'muted'}>

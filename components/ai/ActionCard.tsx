@@ -193,7 +193,7 @@ export function ActionCard({
       initial={reduceMotion ? { opacity: 0 } : { opacity: 0, y: 8 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-      className="mt-4 overflow-hidden rounded-lg border border-rule/70 bg-field shadow-sm"
+      className="mt-4 overflow-hidden rounded-lg border border-border bg-field shadow-sm"
       aria-label={`${action.title} awaiting approval`}
     >
       <header className="flex items-start justify-between gap-4 px-4 py-4">
@@ -210,7 +210,7 @@ export function ActionCard({
             <p className={cn('text-label font-semibold uppercase tracking-label', critical ? 'text-exception' : 'text-primary')}>
               {critical ? 'Permanent change' : 'Approval required'}
             </p>
-            <h3 className="mt-1 line-clamp-2 text-base font-semibold tracking-title text-foreground">{action.title}</h3>
+            <h3 className="mt-1 line-clamp-2 text-base font-semibold tracking-title text-heading">{action.title}</h3>
             <p className="mt-1 text-sm leading-relaxed text-muted-foreground">{action.summary}</p>
           </div>
         </div>
@@ -237,14 +237,14 @@ export function ActionCard({
       </header>
 
       {visibleFields.length > 0 && (
-        <section className="border-t border-rule/40" aria-labelledby="request-details-heading">
+        <section className="border-t border-border" aria-labelledby="request-details-heading">
           <div className="flex items-baseline justify-between gap-3 px-4 pb-1 pt-3.5">
             <h4 id="request-details-heading" className="text-label font-semibold uppercase tracking-label text-muted-foreground">
               Request details
             </h4>
             <span className="text-label text-muted-foreground">Select a value to edit</span>
           </div>
-          <dl className="divide-y divide-rule/40 px-4 pb-1">
+          <dl className="divide-y divide-border px-4 pb-1">
             {visibleFields.map((field) => (
               <div key={field.key} className={cn('gap-3 py-3', field.type === 'textarea' ? 'grid' : 'flex items-start justify-between')}>
                 <dt className="min-w-0 pt-0.5 text-sm font-medium text-foreground">
@@ -261,7 +261,7 @@ export function ActionCard({
       )}
 
       {group && (
-        <section className="border-t border-rule/40 px-4 py-3.5" aria-labelledby="request-lines-heading">
+        <section className="border-t border-border px-4 py-3.5" aria-labelledby="request-lines-heading">
           <div className="flex items-baseline justify-between gap-3">
             <h4 id="request-lines-heading" className="text-label font-semibold uppercase tracking-label text-muted-foreground">
               {group.label}
@@ -275,7 +275,7 @@ export function ActionCard({
               {group.emptyLabel}
             </p>
           ) : (
-            <ul className="mt-2 divide-y divide-rule/40 overflow-hidden rounded-md border border-rule/50 bg-background/55">
+            <ul className="mt-2 divide-y divide-border overflow-hidden rounded-md border border-border bg-background/55">
               {draft.lines.map((line) => (
                 <li key={line.id} className="flex items-center gap-2.5 px-3 py-2.5">
                   <span className="min-w-0 flex-1">
@@ -335,7 +335,7 @@ export function ActionCard({
         </section>
       )}
 
-      <footer className="border-t border-rule/40 bg-background/45 px-4 py-3.5">
+      <footer className="border-t border-border bg-background/45 px-4 py-3.5">
         {/* The header already carries the tile and what this does — the footer adds only the note. */}
         <p className="text-xs leading-5 text-muted-foreground">{action.note}</p>
         {blocked && (
@@ -347,7 +347,7 @@ export function ActionCard({
             <span>{tooFewLines ? `Add at least ${group?.minLines} item to continue.` : `${missing?.label} still needs a value.`}</span>
           </div>
         )}
-        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-rule/40 pt-3.5">
+        <div className="mt-3.5 flex flex-wrap items-center justify-between gap-3 border-t border-border pt-3.5">
           <span className="max-w-44 text-label leading-4 text-muted-foreground">
             {pristine ? 'Nothing changes until you confirm.' : 'Your edits will be used when you confirm.'}
           </span>

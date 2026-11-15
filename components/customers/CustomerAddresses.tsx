@@ -86,7 +86,7 @@ export function CustomerAddresses({ customer, canEdit }: { customer: Customer; c
     // No card around it: the heading sits on the page and the tinted list is the container.
     <motion.section variants={SECTION_RISE} aria-labelledby="customer-addresses-title" className="space-y-3">
       <header className="flex items-center gap-2 px-1">
-        <h2 id="customer-addresses-title" className="text-base font-semibold tracking-title text-foreground">
+        <h2 id="customer-addresses-title" className="text-base font-semibold tracking-title text-heading">
           Delivery addresses
         </h2>
         {rows.length > 0 && (
@@ -133,7 +133,7 @@ export function CustomerAddresses({ customer, canEdit }: { customer: Customer; c
                       'flex size-10 shrink-0 items-center justify-center rounded-md border',
                       row.isDefault
                         ? 'border-momentum/35 bg-momentum/8 text-momentum'
-                        : 'border-rule/55 bg-background text-muted-foreground',
+                        : 'border-border bg-background text-muted-foreground',
                     )}
                     aria-hidden="true"
                   >

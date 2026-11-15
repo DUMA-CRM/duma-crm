@@ -1,15 +1,16 @@
 'use client';
 
-import Link from 'next/link';
 import { useState } from 'react';
 
-import { BrandTile, InfoRow, InfoRows, RowMenu, type RowMenuItem, RowTile, RowWarning } from '@/components/cms/rows';
-import { ChevronRight, type IconComponent, Loader2, Trash2 } from '@/components/icons';
+import { BrandTile, RowMenu, type RowMenuItem, RowWarning } from '@/components/cms/rows';
+import { Activity, type IconComponent, Loader2, Trash2 } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { ChangeRow } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
@@ -55,28 +56,104 @@ const DOT: Record<ConnectorStatus['tone'], string> = {
   muted: 'bg-muted-foreground/60',
 };
 
-/** Health at a glance: the status colour, pulsing while there's something live to report. */
-function PulseDot({ status }: { status: ConnectorStatus }) {
+const FACT_TONE = { warning: 'text-measured', danger: 'text-exception' } as const;
+
+/**
+ * The manage page's body as a bento of two stacked columns, no rail: the
+ * connector's own settings | its health, what uses it and anything else it
+ * adds. With no settings of its own, Health sits beside the rest.
+ */
+function ManageBody({
+  health,
+  status,
+  usedBy,
+  aside,
+  children,
+}: {
+  health?: React.ComponentProps<typeof ConnectorManagePage>['health'];
+  status?: ConnectorStatus;
+  usedBy: UsedByItem[];
+  aside?: React.ReactNode;
+  children?: React.ReactNode;
+}) {
+  const healthSection = health && (
+    <SettingsSection
+      title="Health"
+      actions={
+        health.test && (
+          <Button variant="outline" size="sm" disabled={health.test.pending || health.test.disabled} onClick={health.test.onTest}>
+            {health.test.pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <health.test.icon aria-hidden="true" />}
+            {health.test.label}
+          </Button>
+        )
+      }
+      footnote={health.test?.note}
+    >
+      <div>
+        {status && <ChangeRow icon={Activity} label="Status" value={<StatusValue status={status} />} />}
+        {health.facts.map((fact) => (
+          <ChangeRow
+            key={fact.title}
+            icon={fact.icon}
+            label={fact.title}
+            value={<span className={cn('truncate', fact.tone && FACT_TONE[fact.tone])}>{fact.value}</span>}
+          />
+        ))}
+      </div>
+      {health.problem && <RowWarning className="mt-4">{health.problem}</RowWarning>}
+      {health.extra && <div className="mt-4">{health.extra}</div>}
+    </SettingsSection>
+  );
+  const usedBySection = usedBy.length > 0 && (
+    <RecordGroup id="connector-used-by" title="Used by">
+      <ListRowGroup>
+        {usedBy.map((item) => (
+          <ListRow
+            key={item.label}
+            href={item.href}
+            icon={item.icon}
+            title={item.label}
+            trailing={item.count !== undefined && <span className="text-sm tabular-nums text-muted-foreground">{item.count}</span>}
+          />
+        ))}
+      </ListRowGroup>
+    </RecordGroup>
+  );
+  const hasOwn = Boolean(children) && children !== false;
+  return (
+    <div className="grid items-start gap-5 xl:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-5">{hasOwn ? children : healthSection}</div>
+      <div className="flex min-w-0 flex-col gap-5">
+        {hasOwn && healthSection}
+        {usedBySection}
+        {aside}
+      </div>
+    </div>
+  );
+}
+
+/** The status in words, after a dot in its colour — pulsing while there's something live to report. */
+function StatusValue({ status }: { status: ConnectorStatus }) {
   const live = status.tone !== 'muted';
   return (
-    <span className="relative flex size-2.5" title={status.text}>
-      {live && (
-        <span
-          className={cn('absolute inline-flex size-full rounded-full opacity-60 motion-safe:animate-ping', DOT[status.tone])}
-          aria-hidden="true"
-        />
-      )}
-      <span className={cn('relative inline-flex size-2.5 rounded-full', DOT[status.tone])} aria-hidden="true" />
-      <span className="sr-only">{status.text}</span>
-    </span>
+    <>
+      <span className="relative flex size-2.5 shrink-0" aria-hidden="true">
+        {live && (
+          <span className={cn('absolute inline-flex size-full rounded-full opacity-60 motion-safe:animate-ping', DOT[status.tone])} />
+        )}
+        <span className={cn('relative inline-flex size-2.5 rounded-full', DOT[status.tone])} />
+      </span>
+      <span className="truncate">{status.text}</span>
+    </>
   );
 }
 
 /**
  * Every connection's manage page has the same shape, so they read as one
- * product: who or what it's connected to and whether it works, then its health
- * and what depends on it beside that connector's own settings. Rare actions —
- * set up again, disconnect — sit behind ⋯, and disconnecting says what stops.
+ * product, in the Settings → Account layout: that connector's own settings |
+ * its health (status and facts as read-only `ChangeRow`s) and what depends on
+ * it (a `RecordGroup`). Rare actions — set up again, disconnect — sit behind ⋯,
+ * and disconnecting says what stops.
  */
 export function ConnectorManagePage({
   definition,
@@ -112,7 +189,7 @@ export function ConnectorManagePage({
     extra?: React.ReactNode;
   };
   usedBy?: UsedByItem[];
-  /** More for the sidebar, after Health and Used by — what the connection may do, say. */
+  /** More after Health and Used by — what the connection may do, say. */
   aside?: React.ReactNode;
   actions?: RowMenuItem[];
   disconnect?: ConnectorDisconnect;
@@ -151,71 +228,9 @@ export function ConnectorManagePage({
           ) : notSetUp ? (
             notSetUp
           ) : (
-            <SettingsTabBody
-              narrowAside
-              aside={
-                <>
-                  {health && (
-                    <SettingsSection title="Health" alignActionsToTitle actions={status ? <PulseDot status={status} /> : undefined}>
-                      <InfoRows>
-                        {health.facts.map((fact) => (
-                          <InfoRow key={fact.title} icon={fact.icon} title={fact.title} tone={fact.tone}>
-                            <span className="truncate text-sm text-muted-foreground">{fact.value}</span>
-                          </InfoRow>
-                        ))}
-                      </InfoRows>
-                      {health.problem && <RowWarning className="mt-4">{health.problem}</RowWarning>}
-                      {health.extra && <div className="mt-4">{health.extra}</div>}
-                      {health.test && (
-                        <div className="mt-4 space-y-2">
-                          <Button
-                            variant="outline"
-                            className="h-9 w-full gap-1.5"
-                            disabled={health.test.pending || health.test.disabled}
-                            onClick={health.test.onTest}
-                          >
-                            {health.test.pending ? (
-                              <Loader2 size={15} className="animate-spin" aria-hidden="true" />
-                            ) : (
-                              <health.test.icon size={15} aria-hidden="true" />
-                            )}
-                            {health.test.label}
-                          </Button>
-                          {health.test.note && <p className="text-xs text-muted-foreground">{health.test.note}</p>}
-                        </div>
-                      )}
-                    </SettingsSection>
-                  )}
-                  {usedBy.length > 0 && (
-                    <SettingsSection title="Used by">
-                      <div className="-mx-2 flex flex-col gap-0.5">
-                        {usedBy.map((item) => (
-                          <Link
-                            key={item.label}
-                            href={item.href}
-                            className="group flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
-                          >
-                            <RowTile icon={item.icon} />
-                            <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{item.label}</span>
-                            {item.count !== undefined && (
-                              <span className="shrink-0 text-sm tabular-nums text-muted-foreground">{item.count}</span>
-                            )}
-                            <ChevronRight
-                              size={14}
-                              className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                              aria-hidden="true"
-                            />
-                          </Link>
-                        ))}
-                      </div>
-                    </SettingsSection>
-                  )}
-                  {aside}
-                </>
-              }
-            >
+            <ManageBody health={health} status={status} usedBy={usedBy} aside={aside}>
               {children}
-            </SettingsTabBody>
+            </ManageBody>
           )}
         </div>
       )}

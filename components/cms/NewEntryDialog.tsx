@@ -111,7 +111,7 @@ export function NewEntryDialog({
                 onClick={() => setTypeId(type.id)}
                 className={cn(
                   'rounded-lg border p-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                  typeId === type.id ? 'border-primary bg-primary/6' : 'border-rule/60 hover:bg-band/50',
+                  typeId === type.id ? 'border-primary bg-primary/6' : 'border-border hover:bg-band/50',
                 )}
               >
                 <span className="block text-sm font-semibold text-foreground">{type.name}</span>

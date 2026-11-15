@@ -976,7 +976,7 @@ function TopicCard({ topic }: { topic: GuideTopic }) {
         </span>
         <div className="min-w-0">
           <div className="flex flex-wrap items-center gap-2">
-            <h3 className="text-base font-semibold text-foreground">{topic.title}</h3>
+            <h3 className="text-base font-semibold text-heading">{topic.title}</h3>
             {topic.access && (
               <span className="rounded-full bg-muted px-2 py-0.5 text-micro font-semibold uppercase tracking-micro text-muted-foreground">
                 {topic.access}
@@ -1035,7 +1035,7 @@ function OpenRequests() {
     <section className="rounded-sm border border-rule bg-card shadow-sm">
       <div className="flex items-center justify-between gap-3 border-b border-rule px-5 py-3.5">
         <div>
-          <h2 className="font-semibold text-foreground">Your open requests</h2>
+          <h2 className="font-semibold text-heading">Your open requests</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">Already with the team — pick one up where you left off.</p>
         </div>
         <Link href="/my-hr?tab=requests" className="shrink-0 text-xs font-semibold text-primary hover:underline">
@@ -1176,7 +1176,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
         {normalisedQuery ? (
           <section aria-label="Help centre search results">
             <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground">Search results</p>
-            <h2 className="mt-1 text-xl font-semibold text-foreground" aria-live="polite" aria-atomic="true">
+            <h2 className="mt-1 text-xl font-semibold text-heading" aria-live="polite" aria-atomic="true">
               {resultCount
                 ? `${resultCount} result${resultCount === 1 ? '' : 's'} for “${query.trim()}”`
                 : `No results for “${query.trim()}”`}
@@ -1232,7 +1232,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                 <section>
                   <div className="flex items-center gap-2">
                     <Sparkles size={17} className="text-primary" aria-hidden="true" />
-                    <h2 className="text-xl font-semibold text-foreground">A good place to begin</h2>
+                    <h2 className="text-xl font-semibold text-heading">A good place to begin</h2>
                   </div>
                   <p className="mt-2 max-w-[70ch] text-base leading-7 text-muted-foreground">
                     DUMA keeps work organised by workspace, location, and the permissions your role holds. Start every task by checking the
@@ -1265,7 +1265,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                   <div className="flex flex-col gap-5 md:flex-row md:items-center md:justify-between">
                     <div>
                       <p className="text-micro font-semibold uppercase tracking-micro text-primary">Recommended next step</p>
-                      <h2 className="mt-1 text-lg font-semibold text-foreground">
+                      <h2 className="mt-1 text-lg font-semibold text-heading">
                         {isOwner
                           ? 'Set up and review your locations'
                           : isManager
@@ -1293,7 +1293,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                 <section>
                   <div className="flex flex-wrap items-end justify-between gap-3">
                     <div>
-                      <h2 className="text-xl font-semibold text-foreground">Start with a walkthrough</h2>
+                      <h2 className="text-xl font-semibold text-heading">Start with a walkthrough</h2>
                       <p className="mt-1 text-sm text-muted-foreground">
                         The workflows that cause the most confusion, explained end to end.
                       </p>
@@ -1318,7 +1318,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                   <div className="rounded-sm border border-rule bg-card shadow-sm p-5">
                     <div className="flex items-center gap-2">
                       <WifiOff size={17} className="text-warning" aria-hidden="true" />
-                      <h2 className="font-semibold text-foreground">If something goes wrong</h2>
+                      <h2 className="font-semibold text-heading">If something goes wrong</h2>
                     </div>
                     <ol className="mt-4 space-y-2.5 text-sm leading-5 text-muted-foreground">
                       <li>1. Confirm the device is online and the correct location is selected.</li>
@@ -1330,7 +1330,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                   <div className="rounded-sm border border-primary/20 bg-band p-5">
                     <div className="flex items-center gap-2">
                       <Headphones size={17} className="text-primary" aria-hidden="true" />
-                      <h2 className="font-semibold text-foreground">Support checklist</h2>
+                      <h2 className="font-semibold text-heading">Support checklist</h2>
                     </div>
                     <p className="mt-3 text-sm leading-6 text-muted-foreground">
                       Tell us who you are, your location, what you were doing, what happened, and when. Never send a password or full
@@ -1441,7 +1441,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                     <div className="rounded-sm border border-rule bg-card shadow-sm p-5">
                       <div className="flex items-center gap-2">
                         <ShieldCheck size={17} className="text-primary" aria-hidden="true" />
-                        <h3 className="font-semibold text-foreground">Two things decide what you see</h3>
+                        <h3 className="font-semibold text-heading">Two things decide what you see</h3>
                       </div>
                       <p className="mt-3 text-sm leading-6 text-muted-foreground">
                         Your <span className="font-semibold text-foreground">effective permissions</span> decide which areas exist for you.
@@ -1458,7 +1458,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                     <div className="rounded-sm border border-primary/20 bg-band p-5">
                       <div className="flex items-center gap-2">
                         <KeyRound size={17} className="text-primary" aria-hidden="true" />
-                        <h3 className="font-semibold text-foreground">Need more access?</h3>
+                        <h3 className="font-semibold text-heading">Need more access?</h3>
                       </div>
                       <p className="mt-3 text-sm leading-6 text-muted-foreground">
                         Ask a manager or owner to change your role or add a location — it is not something you can grant yourself. Pay and
@@ -1491,7 +1491,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                 <div className="mt-6 rounded-sm border border-warning/25 bg-warning/5 p-5">
                   <div className="flex items-center gap-2">
                     <ShieldCheck size={17} className="text-warning" aria-hidden="true" />
-                    <h3 className="font-semibold text-foreground">Before you re-enter anything</h3>
+                    <h3 className="font-semibold text-heading">Before you re-enter anything</h3>
                   </div>
                   <p className="mt-2 text-sm leading-6 text-muted-foreground">
                     Check whether the action was already recorded. Re-entering an order, a delivery or a points adjustment is far harder to
@@ -1537,7 +1537,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                 </div>
                 <div className="mt-6 rounded-sm border border-primary/20 bg-band p-5 md:flex md:items-center md:justify-between md:gap-5">
                   <div>
-                    <h3 className="font-semibold text-foreground">Didn’t find your answer?</h3>
+                    <h3 className="font-semibold text-heading">Didn’t find your answer?</h3>
                     <p className="mt-1 text-sm leading-6 text-muted-foreground">
                       Send the support team the details. The email button opens a ready-made checklist so the right context is easy to
                       include.
@@ -1574,7 +1574,7 @@ function GuideSection({
   return (
     <section>
       <p className="text-micro font-semibold uppercase tracking-micro text-primary">{eyebrow}</p>
-      <h2 className="mt-1 text-2xl font-semibold text-foreground">{title}</h2>
+      <h2 className="mt-1 text-2xl font-semibold text-heading">{title}</h2>
       <p className="mb-6 mt-2 max-w-[70ch] text-base leading-7 text-muted-foreground">{description}</p>
       {children}
     </section>
@@ -1600,7 +1600,7 @@ function OverviewCard({
       <span className="flex size-9 items-center justify-center rounded-sm bg-band text-primary">
         <Icon size={17} aria-hidden="true" />
       </span>
-      <h3 className="mt-4 font-semibold text-foreground">{title}</h3>
+      <h3 className="mt-4 font-semibold text-heading">{title}</h3>
       <p className="mt-1.5 text-sm leading-6 text-muted-foreground">{description}</p>
     </article>
   );
@@ -1621,7 +1621,7 @@ function ArticleCard({ article }: { article: SupportArticle }) {
           {article.category}
         </span>
       </div>
-      <h3 className="mt-4 text-sm font-semibold text-foreground">{article.title}</h3>
+      <h3 className="mt-4 text-sm font-semibold text-heading">{article.title}</h3>
       <p className="mt-1 flex-1 text-xs leading-relaxed text-muted-foreground">{article.summary}</p>
       <span className="mt-4 flex items-center gap-2 text-xs text-muted-foreground">
         <Clock3 size={13} aria-hidden="true" />
@@ -1644,7 +1644,7 @@ function PlaybookCard({ playbook }: { playbook: Playbook }) {
           <Icon size={18} aria-hidden="true" />
         </span>
         <div className="min-w-0">
-          <h3 className="font-semibold text-foreground">{playbook.symptom}</h3>
+          <h3 className="font-semibold text-heading">{playbook.symptom}</h3>
           <p className="mt-1 text-sm leading-6 text-muted-foreground">{playbook.cause}</p>
         </div>
       </div>

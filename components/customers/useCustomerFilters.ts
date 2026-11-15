@@ -21,8 +21,7 @@ import type { Allergen, CustomerFilters, CustomerSort, DietaryPreference, SortDi
 const TIERS = ['vip', 'gold', 'silver', 'bronze'] as const;
 
 const isTier = (value: string | null): value is Tier => !!value && (TIERS as readonly string[]).includes(value);
-const isSort = (value: string | null): value is CustomerSort =>
-  !!value && (CUSTOMER_SORTS as readonly string[]).includes(value);
+const isSort = (value: string | null): value is CustomerSort => !!value && (CUSTOMER_SORTS as readonly string[]).includes(value);
 
 /** Positive integer, or undefined. Rejects junk rather than sending NaN. */
 const intParam = (raw: string | null, { min = 1, max = Number.MAX_SAFE_INTEGER } = {}): number | undefined => {
@@ -77,7 +76,9 @@ export function readFilters(params: URLSearchParams): CustomerFilters {
     ...(intParam(params.get('maxTotalVisits'), { min: 0 }) !== undefined
       ? { maxTotalVisits: intParam(params.get('maxTotalVisits'), { min: 0 })! }
       : {}),
-    ...(listParam<Allergen>(params.get('allergies'), FSA_ALLERGENS) ? { allergies: listParam<Allergen>(params.get('allergies'), FSA_ALLERGENS)! } : {}),
+    ...(listParam<Allergen>(params.get('allergies'), FSA_ALLERGENS)
+      ? { allergies: listParam<Allergen>(params.get('allergies'), FSA_ALLERGENS)! }
+      : {}),
     ...(listParam<DietaryPreference>(params.get('dietary'), DIETARY_PREFERENCES)
       ? { dietary: listParam<DietaryPreference>(params.get('dietary'), DIETARY_PREFERENCES)! }
       : {}),
@@ -194,6 +195,18 @@ export function useCustomerFilters() {
     });
   }, [commit]);
 
+  /** Show a quick view: its filters, the current search and sort kept, any applied segment dropped. */
+  const applyView = useCallback(
+    (viewFilters: CustomerFilters) => {
+      commit((params) => {
+        writeFilters(params, { ...viewFilters, search: filters.search, sort: filters.sort, direction: filters.direction });
+        params.delete('page');
+        params.delete('segment');
+      });
+    },
+    [commit, filters.search, filters.sort, filters.direction],
+  );
+
   /** Toggle a sort column: same column flips direction, new column starts sensibly. */
   const toggleSort = useCallback(
     (sort: CustomerSort) => {
@@ -208,5 +221,5 @@ export function useCustomerFilters() {
     [setFilters],
   );
 
-  return { filters, page, appliedSegmentId, setFilters, setPage, clearFilters, applySegment, toggleSort };
+  return { filters, page, appliedSegmentId, setFilters, setPage, clearFilters, applySegment, applyView, toggleSort };
 }

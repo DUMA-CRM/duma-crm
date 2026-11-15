@@ -168,7 +168,7 @@ export function FormRenderer({
         >
           <CheckCircle2 size={28} aria-hidden="true" />
         </motion.div>
-        <h2 className="mt-4 text-2xl font-semibold tracking-title text-foreground">{done.successTitle}</h2>
+        <h2 className="mt-4 text-2xl font-semibold tracking-title text-heading">{done.successTitle}</h2>
         <p className="mx-auto mt-2 max-w-md whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{done.successMessage}</p>
         {done.redirectUrl && !preview && <p className="mt-4 text-xs text-muted-foreground">Taking you onwards…</p>}
         {done.redirectUrl && preview && <p className="mt-4 text-xs text-muted-foreground">Live, this goes on to {done.redirectUrl}</p>}
@@ -194,7 +194,7 @@ export function FormRenderer({
     <div ref={top} style={style} className="scroll-mt-6">
       {!hideHeader && (
         <header className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-title text-foreground">{form.name}</h1>
+          <h1 className="text-2xl font-semibold tracking-title text-heading">{form.name}</h1>
           {form.description && (
             <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{form.description}</p>
           )}
@@ -330,7 +330,7 @@ function FieldControl({
   if (field.type === 'heading') {
     return (
       <div className="pt-2">
-        <h2 className="text-lg font-semibold tracking-title text-foreground">{field.label}</h2>
+        <h2 className="text-lg font-semibold tracking-title text-heading">{field.label}</h2>
         {field.description && <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{field.description}</p>}
       </div>
     );

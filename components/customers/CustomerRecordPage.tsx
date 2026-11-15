@@ -8,10 +8,10 @@ import { useCallback, useMemo, useState } from 'react';
 import { CustomerAddresses } from '@/components/customers/CustomerAddresses';
 import { CustomerBookings } from '@/components/customers/CustomerBookings';
 import { CustomerFormDrawer } from '@/components/customers/CustomerForm';
-import { CustomerLoyaltyCards } from '@/components/customers/CustomerLoyaltyCards';
+import { CustomerLoyaltyCards, GrantRewardModal } from '@/components/customers/CustomerLoyaltyCards';
 import { CustomerReferralCard } from '@/components/customers/CustomerReferralCard';
 import { CustomerTimeline } from '@/components/customers/CustomerTimeline';
-import { CustomerWorkbench, type WorkbenchAction } from '@/components/customers/CustomerWorkbench';
+import { type ConsentState, CustomerWorkbench, useConsent } from '@/components/customers/CustomerWorkbench';
 import { GuestSafetyBlock } from '@/components/customers/GuestSafetyBlock';
 import { LoyaltyProgress } from '@/components/customers/LoyaltyProgress';
 import { MarketingPreferencesPanel } from '@/components/customers/MarketingPreferencesPanel';
@@ -22,11 +22,18 @@ import { SendEmailModal } from '@/components/email/SendEmailModal';
 import {
   Activity,
   AlertTriangle,
+  ChevronRight,
   Clock,
+  Coins,
   Combine,
+  Gift,
+  type IconComponent,
+  Mail,
+  Pencil,
   Receipt,
   Repeat,
   RotateCcw,
+  Send,
   ShieldCheck,
   ShoppingBag,
   UserCircle2,
@@ -34,10 +41,11 @@ import {
 } from '@/components/icons';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
+import { Avatar } from '@/components/shared/Avatar';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { InitialsAvatar } from '@/components/shared/InitialsAvatar';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Bone, LoadingState } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
@@ -46,6 +54,7 @@ import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
 import { ApiError } from '@/lib/api/client';
+import type { CustomerLoyaltyProgram } from '@/lib/api/loyalty.service';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { TIER_CONFIG } from '@/lib/constants/customers';
 import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
@@ -56,6 +65,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { customerDisplayName } from '@/lib/utils/customer-card';
+import { type Favourite, favouriteItems } from '@/lib/utils/customer-insights';
 import { formatDate } from '@/lib/utils/date';
 import { startOrderHref } from '@/lib/utils/start-order';
 import { type VisitSummary, summariseVisits } from '@/lib/utils/visit-pattern';
@@ -81,17 +91,16 @@ const monthYear = (iso: string) => formatInstant(iso, { month: 'long', year: 'nu
 /**
  * A single customer.
  *
- * Laid out as a settings tab is — the same body, panels, fact tiles and rows —
- * so a guest's record, a staff member's record and your own Profile read as one
- * product. The main column answers "what do I know about this guest"; the
- * narrow one beside it answers "what can I do about it", and it is the same
- * column on every tab, so a note can be written while reading the timeline
- * that prompted it.
+ * Laid out the way Square's and Shopify's customer pages are: what staff do
+ * (start an order, email, edit) in the header; a wide column with the figures
+ * that say what this guest is worth — one strip, then their loyalty, visits,
+ * bookings and addresses; and a narrow column that is the same on every tab —
+ * contact, notes, the card the till scans — so a note can be written while
+ * reading the activity that prompted it.
  *
- * The Guest tab, which the page opens on, leads with who this is and four
- * facts, then what must be known before serving them. A compact marker rides
- * in the masthead so an allergy does not vanish while someone is reading the
- * timeline.
+ * What must be known before serving them opens the Overview, above
+ * everything; a compact marker rides in the masthead on the other tabs so an
+ * allergy does not vanish while someone is reading the activity.
  */
 export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const router = useRouter();
@@ -101,7 +110,9 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const qc = useQueryClient();
   const capabilities = useAuthStore((state) => state.capabilities);
   const money = useWorkspaceMoney();
-  const [modal, setModal] = useState<WorkbenchAction | 'unmerge' | null>(null);
+  const [modal, setModal] = useState<'email' | 'points' | 'edit' | 'unmerge' | null>(null);
+  const [granting, setGranting] = useState<CustomerLoyaltyProgram | null>(null);
+  const [privacyOpen, setPrivacyOpen] = useState<'marketing' | 'requests' | null>(null);
 
   // The open tab lives in the URL: a colleague can be sent straight to the
   // compliance history, and the back button steps out of it the way it should.
@@ -120,7 +131,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const requested = searchParams.get('tab');
   const asked: Section = SECTION_VALUES.includes(requested as Section) ? (requested as Section) : 'guest';
   // A link to a tab the workspace no longer has lands on Guest.
-  const section: Section = asked === 'compliance' && !hasComplianceTab ? 'guest' : asked;
+  // Privacy lives in the rail now, not a tab: an old ?tab=compliance link lands on the Overview.
+  const section: Section = asked === 'compliance' ? 'guest' : asked;
 
   const setSection = useCallback(
     (next: Section) => {
@@ -140,11 +152,12 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
     refetch,
   } = useQuery({ queryKey: moduleQueryKeys.customers.key('customer', customerId), queryFn: () => getCustomer(customerId) });
 
-  // Only the Guest tab needs order rows: the visit heatmap and its rhythm.
+  // Their orders feed the visit heatmap and the rail's
+  // "Usually orders" — the rail is on every tab, so this is read on every tab.
   const visitsQuery = useQuery({
     queryKey: moduleQueryKeys.customers.key('customer-visits', customerId),
     queryFn: () => getOrders({ customerId, limit: 200 }),
-    enabled: section === 'guest' && orderingOn,
+    enabled: orderingOn,
   });
 
   // The ledger is read here purely to surface a drift warning: if the cached
@@ -200,6 +213,8 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   // Pinned per mount, like `now` below, so the grid and its facts agree.
   const [today] = useState(localToday);
   const visitSummary = useMemo(() => summariseVisits(visits, today, VISIT_MONTHS), [visits, today]);
+  const orders = useMemo(() => visitsQuery.data?.data ?? [], [visitsQuery.data]);
+  const favourites = useMemo(() => favouriteItems(orders), [orders]);
 
   // From the customer's own running totals, not from the fetched page of orders:
   // deriving it from a `limit: 200` fetch gave a heavy regular the average of
@@ -211,6 +226,12 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const canMerge = hasCapability(capabilities, 'customers:merge');
   // Loyalty is on when the workspace runs at least one programme; with none, points and rewards don't apply.
   const loyaltyOn = (loyaltyWallet?.programmes.length ?? 0) > 0;
+  // Issued automatically each birthday; this is the by-hand route, for a
+  // birthday the guest mentions at the till, or one that fell before they joined.
+  const birthdayProgrammes = (loyaltyWallet?.programmes ?? []).filter(
+    (programme) => programme.earnRule.trigger === 'birthday' && (programme.earnRule.benefitMode ?? 'rewards') !== 'points',
+  );
+  const consent = useConsent(customer, commsOn);
 
   function handleSaved() {
     void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customerId) });
@@ -229,30 +250,16 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const hasCriticalAlert = customer?.alerts?.some((alert) => alert.severity === 'critical') ?? false;
 
   const sections: SectionTab<Section>[] = [
-    { value: 'guest', label: 'Guest', icon: UserCircle2 },
-    { value: 'timeline', label: 'Timeline', icon: Activity },
+    { value: 'guest', label: 'Overview', icon: UserCircle2 },
+    { value: 'timeline', label: 'Activity', icon: Activity },
   ];
-  // Marketing consent and privacy requests, whichever of their modules the workspace runs.
-  if (hasComplianceTab)
-    sections.push({
-      value: 'compliance',
-      label: complianceOn ? 'Compliance' : 'Marketing',
-      icon: ShieldCheck,
-      count: openPrivacy.length,
-      countTone: overduePrivacy ? 'danger' : 'default',
-      countLabel: `${openPrivacy.length} open privacy request${openPrivacy.length === 1 ? '' : 's'}${overduePrivacy ? ', one or more overdue' : ''}`,
-    });
 
   return (
     <EditorShell
       eyebrow="Customer"
       title={name}
       onClose={() => router.push('/customers')}
-      leading={
-        customer ? (
-          <InitialsAvatar firstName={customer.firstName} lastName={customer.lastName} email={customer.email} className="size-9" />
-        ) : undefined
-      }
+      leading={customer ? <Avatar name={`${customer.firstName} ${customer.lastName}`} email={customer.email} /> : undefined}
       meta={
         customer && tier ? (
           <>
@@ -271,22 +278,52 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
         ) : undefined
       }
       actions={
-        startOrder ? (
-          <Button
-            size="sm"
-            className="hidden gap-1.5 md:inline-flex"
-            onClick={() => router.push(startOrder)}
-            aria-label={posOn ? 'Start an order at the Till' : 'Start an order for this customer'}
-          >
-            <ShoppingBag size={15} aria-hidden="true" />
-            <span className="hidden md:inline">Start an order</span>
-          </Button>
+        customer && !erased ? (
+          <div className="flex items-center gap-1.5 md:gap-2">
+            {commsOn && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5"
+                onClick={() => setModal('email')}
+                disabled={!customer.email || consent === 'suppressed'}
+                title={
+                  !customer.email
+                    ? 'Add an email address first'
+                    : consent === 'suppressed'
+                      ? 'This address is suppressed and can’t be emailed'
+                      : undefined
+                }
+                aria-label="Send email"
+              >
+                <Send size={15} aria-hidden="true" />
+                <span className="hidden md:inline">Send email</span>
+              </Button>
+            )}
+            {canEdit && (
+              <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setModal('edit')} aria-label="Edit details">
+                <Pencil size={15} aria-hidden="true" />
+                <span className="hidden md:inline">Edit</span>
+              </Button>
+            )}
+            {startOrder && (
+              <Button
+                size="sm"
+                className="hidden gap-1.5 md:inline-flex"
+                onClick={() => router.push(startOrder)}
+                aria-label={posOn ? 'Start an order at the Till' : 'Start an order for this customer'}
+              >
+                <ShoppingBag size={15} aria-hidden="true" />
+                Start an order
+              </Button>
+            )}
+          </div>
         ) : undefined
       }
       subheader={
         customer ? (
           <>
-            <div className="flex items-center gap-2 border-b border-rule/60 bg-background px-3 py-2 md:hidden">
+            <div className="flex items-center gap-2 border-b border-border bg-field px-3 py-2 md:hidden">
               <Select
                 value={section}
                 onValueChange={(value) => setSection(value as Section)}
@@ -311,7 +348,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
       {isLoading ? (
         <LoadingState label="Loading the customer" className="flex-1" />
       ) : isError || !customer ? (
-        <div className="mx-auto max-w-md rounded-lg border border-rule/60 bg-field">
+        <div className="mx-auto max-w-md rounded-lg border border-border bg-field">
           {isError ? (
             <ErrorState
               title="This customer couldn’t be loaded"
@@ -321,7 +358,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
           ) : (
             <ErrorState icon={UserCircle2} title="Customer not found" description="It may have been removed, or the link is out of date." />
           )}
-          <div className="flex justify-center border-t border-rule/45 px-5 py-3">
+          <div className="flex justify-center border-t border-border px-5 py-3">
             <Button variant="outline" size="sm" onClick={() => router.push('/customers')}>
               Back to customers
             </Button>
@@ -381,7 +418,50 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
             <div className="flex min-w-0 flex-col gap-5 lg:col-start-1 lg:row-start-1">
               {section === 'guest' ? (
                 <>
-                  <GlanceFacts customer={customer} avgTicket={avgTicket} summary={visitSummary} money={money} />
+                  <ValueStrip customer={customer} avgTicket={avgTicket} summary={visitSummary} money={money} />
+
+                  {loyaltyOn && (
+                    <SettingsSection
+                      title="Loyalty"
+                      actions={
+                        canAdjustPoints && !erased ? (
+                          <div className="flex flex-wrap justify-end gap-2">
+                            {birthdayProgrammes.map((programme) => (
+                              <Button key={programme.id} variant="ghost" size="sm" onClick={() => setGranting(programme)}>
+                                <Gift data-icon="inline-start" />
+                                {birthdayProgrammes.length > 1 ? programme.name : 'Birthday reward'}
+                              </Button>
+                            ))}
+                            <Button variant="outline" size="sm" onClick={() => setModal('points')}>
+                              <Coins data-icon="inline-start" />
+                              Adjust points
+                            </Button>
+                          </div>
+                        ) : undefined
+                      }
+                    >
+                      <div className="space-y-5">
+                        {/* The projection and the ledger disagreeing is a data-integrity
+                            problem, not a cosmetic one, so it is stated rather than hidden. */}
+                        {ledger && !ledger.reconciles && (
+                          <RecordNotice icon={AlertTriangle} tone="warning" title="The points balance doesn’t match the ledger">
+                            The balance shows {ledger.pointsBalance.toLocaleString()}; the loyalty ledger adds up to{' '}
+                            {ledger.ledgerTotal.toLocaleString()}. Points were changed outside the ledger, or the opening backfill has not
+                            been run.
+                          </RecordNotice>
+                        )}
+                        <LoyaltyProgress customer={customer} />
+                        <CustomerLoyaltyCards
+                          customerId={customer.id}
+                          customerName={`${customer.firstName} ${customer.lastName}`.trim()}
+                          programmes={loyaltyWallet?.programmes ?? []}
+                          canAdjust={canAdjustPoints && !erased}
+                          canOrder={!erased}
+                          framed={false}
+                        />
+                      </div>
+                    </SettingsSection>
+                  )}
 
                   {orderingOn && !visitsForbidden && (
                     <SettingsSection
@@ -428,50 +508,24 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
 
                   {!erased && <CustomerAddresses customer={customer} canEdit={canEdit} />}
                 </>
-              ) : section === 'timeline' ? (
-                <CustomerTimeline customerId={customer.id} />
               ) : (
-                // Two blocks headed on the page, as the staff record lays them
-                // out: more air between them than between panels.
-                <div className="space-y-8">
-                  {commsOn && <MarketingPreferencesPanel customerId={customer.id} email={customer.email} />}
-                  {complianceOn && <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} />}
-                </div>
+                <CustomerTimeline customerId={customer.id} />
               )}
             </div>
             <CustomerWorkbench
               customer={customer}
-              loyaltyProgrammes={loyaltyWallet?.programmes ?? []}
               canEdit={canEdit}
-              showConsent={section !== 'compliance' && commsOn}
-              canEmail={commsOn}
-              canAdjustPoints={canAdjustPoints && loyaltyOn}
-              loyalty={
-                loyaltyOn ? (
-                  <>
-                    {/* The projection and the ledger disagreeing is a data-integrity
-                        problem, not a cosmetic one, so it is stated rather than hidden. */}
-                    {ledger && !ledger.reconciles && (
-                      <RecordNotice icon={AlertTriangle} tone="warning" title="The points balance doesn’t match the ledger">
-                        The balance shows {ledger.pointsBalance.toLocaleString()}; the loyalty ledger adds up to{' '}
-                        {ledger.ledgerTotal.toLocaleString()}. Points were changed outside the ledger, or the opening backfill has not been
-                        run.
-                      </RecordNotice>
-                    )}
-
-                    <SettingsSection title="Points">
-                      <LoyaltyProgress customer={customer} />
-                    </SettingsSection>
-
-                    <CustomerLoyaltyCards
-                      customerId={customer.id}
-                      customerName={`${customer.firstName} ${customer.lastName}`.trim()}
-                      programmes={loyaltyWallet?.programmes ?? []}
-                      canAdjust={canAdjustPoints && !erased}
-                      canOrder={!erased}
-                      stacked
-                    />
-                  </>
+              // Consent is the Privacy section's first row now — said once.
+              showConsent={false}
+              insights={favourites.length > 0 ? <UsuallyOrders favourites={favourites} /> : undefined}
+              privacy={
+                hasComplianceTab ? (
+                  <PrivacySection
+                    consent={commsOn ? consent : null}
+                    openRequests={complianceOn ? openPrivacy.length : null}
+                    overdue={overduePrivacy}
+                    onOpen={setPrivacyOpen}
+                  />
                 ) : undefined
               }
               referral={
@@ -483,7 +537,6 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                   />
                 ) : undefined
               }
-              onAction={setModal}
               className="lg:col-start-2 lg:row-start-1"
             />
           </div>
@@ -506,6 +559,26 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
         />
       )}
 
+      {privacyOpen === 'marketing' && customer && (
+        <Drawer icon={Mail} title="Marketing consent" onClose={() => setPrivacyOpen(null)}>
+          <MarketingPreferencesPanel customerId={customer.id} email={customer.email} />
+        </Drawer>
+      )}
+      {privacyOpen === 'requests' && customer && (
+        <Drawer icon={ShieldCheck} title="Privacy requests" onClose={() => setPrivacyOpen(null)}>
+          <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} chrome="drawer" />
+        </Drawer>
+      )}
+
+      {granting && customer && (
+        <GrantRewardModal
+          customerId={customer.id}
+          customerName={`${customer.firstName} ${customer.lastName}`.trim()}
+          programme={granting}
+          onClose={() => setGranting(null)}
+        />
+      )}
+
       {modal === 'unmerge' && customer && (
         <ConfirmModal
           title="Separate these records?"
@@ -524,12 +597,11 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
 // ── At a glance ──────────────────────────────────────────────────────────────
 
 /**
- * Four facts, straight on the page — the header already says who this is, and
- * the Contact panel how to reach them, so nothing here repeats either. Lifetime
- * figures come from the customer's own running totals; the rhythm comes from
- * the visit pattern below.
+ * What this guest is worth, as the Orders page shows its day: four `Fact`
+ * tiles straight on the page. Lifetime figures come from the customer's own
+ * running totals; the rhythm from their visits.
  */
-function GlanceFacts({
+function ValueStrip({
   customer,
   avgTicket,
   summary,
@@ -541,18 +613,18 @@ function GlanceFacts({
   money: (amount: string | number | null | undefined) => string;
 }) {
   return (
-    <motion.dl variants={SECTION_RISE} className="grid grid-cols-2 gap-3 2xl:grid-cols-4 [&_dd+dd]:hidden sm:[&_dd+dd]:block">
-      <Fact surface="card" icon={Wallet} label="Lifetime spend" value={money(customer.totalSpent)} />
+    <motion.dl variants={SECTION_RISE} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+      <Fact surface="page" icon={Wallet} label="Lifetime spend" value={money(customer.totalSpent)} />
       <Fact
-        surface="card"
+        surface="page"
         icon={Repeat}
         label="Visits"
         value={customer.totalVisits.toLocaleString()}
-        hint={customer.lastVisitAt ? `Last visit ${fmtDate(customer.lastVisitAt)}` : 'No visits yet'}
+        hint={customer.lastVisitAt ? `Last ${fmtDate(customer.lastVisitAt)}` : 'No visits yet'}
       />
-      <Fact surface="card" icon={Receipt} label="Average order" value={customer.totalVisits > 0 ? money(avgTicket) : '—'} />
+      <Fact surface="page" icon={Receipt} label="Average order" value={customer.totalVisits > 0 ? money(avgTicket) : '—'} />
       <Fact
-        surface="card"
+        surface="page"
         icon={Clock}
         label="Comes back"
         value={summary.averageGapDays === null ? '—' : summary.averageGapDays <= 1 ? 'Daily' : `Every ${summary.averageGapDays} days`}
@@ -565,6 +637,129 @@ function GlanceFacts({
         }
       />
     </motion.dl>
+  );
+}
+
+// ── Orders ───────────────────────────────────────────────────────────────────
+
+/** What they usually have — what to offer, or to start making, when they walk in. */
+function UsuallyOrders({ favourites }: { favourites: Favourite[] }) {
+  return (
+    <SettingsSection title="Usually orders">
+      <ul className="space-y-2">
+        {favourites.map((favourite) => (
+          <li key={favourite.name} className="flex items-baseline justify-between gap-3 text-sm">
+            <span className="min-w-0 truncate font-semibold text-foreground">{favourite.name}</span>
+            <span className="shrink-0 text-xs tabular-nums text-muted-foreground">
+              ×{favourite.quantity.toLocaleString()} · {favourite.orders} {favourite.orders === 1 ? 'order' : 'orders'}
+            </span>
+          </li>
+        ))}
+      </ul>
+    </SettingsSection>
+  );
+}
+
+// ── Privacy ──────────────────────────────────────────────────────────────────
+
+const CONSENT_WORD: Record<ConsentState, string> = {
+  opted_in: 'Opted in',
+  opted_out: 'Opted out',
+  suppressed: 'Suppressed',
+  none: 'No email',
+};
+
+/**
+ * Marketing consent and privacy requests as two rows at the foot of the rail —
+ * they were a tab of their own. Each opens its full panel in a drawer, where
+ * every change is still recorded with a source and a reason.
+ */
+function PrivacySection({
+  consent,
+  openRequests,
+  overdue,
+  onOpen,
+}: {
+  /** Null without Communications. */
+  consent: ConsentState | null;
+  /** Null without Compliance. */
+  openRequests: number | null;
+  overdue: boolean;
+  onOpen: (panel: 'marketing' | 'requests') => void;
+}) {
+  // Contact's rows: a tinted tile, the value in bold, what it is beneath.
+  return (
+    <SettingsSection title="Privacy" bodyClassName="px-2 pt-2 pb-2">
+      <ul>
+        {consent && (
+          <PrivacyRow
+            icon={Mail}
+            tile={
+              consent === 'opted_in'
+                ? 'bg-momentum/8 text-momentum'
+                : consent === 'suppressed'
+                  ? 'bg-exception/8 text-exception'
+                  : 'bg-band text-muted-foreground'
+            }
+            value={CONSENT_WORD[consent]}
+            label="Marketing consent"
+            onClick={() => onOpen('marketing')}
+          />
+        )}
+        {openRequests !== null && (
+          <PrivacyRow
+            icon={ShieldCheck}
+            tile={
+              overdue
+                ? 'bg-exception/8 text-exception'
+                : openRequests > 0
+                  ? 'bg-measured/10 text-measured'
+                  : 'bg-band text-muted-foreground'
+            }
+            value={openRequests > 0 ? `${openRequests} open${overdue ? ' · overdue' : ''}` : 'None open'}
+            label="Privacy requests"
+            onClick={() => onOpen('requests')}
+          />
+        )}
+      </ul>
+    </SettingsSection>
+  );
+}
+
+function PrivacyRow({
+  icon: Icon,
+  tile,
+  value,
+  label,
+  onClick,
+}: {
+  icon: IconComponent;
+  tile: string;
+  value: string;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <li>
+      <button
+        type="button"
+        onClick={onClick}
+        className="group flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-left transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
+      >
+        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', tile)}>
+          <Icon size={16} aria-hidden="true" />
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-sm font-semibold text-foreground">{value}</span>
+          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{label}</span>
+        </span>
+        <ChevronRight
+          size={14}
+          className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
+          aria-hidden="true"
+        />
+      </button>
+    </li>
   );
 }
 
@@ -595,7 +790,7 @@ function RecordNotice({
       role={tone === 'warning' ? 'alert' : undefined}
       className={cn(
         'flex flex-wrap items-center gap-3 rounded-lg border bg-field px-4 py-3',
-        tone === 'warning' ? 'border-measured/35' : 'border-rule/60',
+        tone === 'warning' ? 'border-measured/35' : 'border-border',
       )}
     >
       <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', NOTICE_TILE[tone])}>

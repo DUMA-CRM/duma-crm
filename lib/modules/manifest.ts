@@ -88,7 +88,7 @@ export const CRM_MODULE_CAPABILITIES = {
     'forecast:read',
   ],
   purchasing: ['suppliers:read', 'suppliers:write', 'suppliers:delete', 'purchasing:read', 'purchasing:write'],
-  workforce: ['scheduling:read', 'scheduling:write', 'shifts:read', 'shifts:write'],
+  workforce: ['scheduling:read', 'scheduling:write', 'scheduling:publish', 'shifts:read', 'shifts:write'],
   people: [
     'hr.people:read',
     'hr.people:write',
@@ -114,7 +114,7 @@ export const CRM_MODULE_CAPABILITIES = {
   compliance: ['privacy:read', 'privacy:write', 'privacy:export'],
   audit: ['audit:read'],
   analytics: ['analytics:read'],
-  agent: ['/settings/assistant', '/settings/advanced'],
+  agent: [],
   support: ['helpdesk:manage'],
   cms: ['cms:read', 'cms:write', 'cms:publish', 'cms.schema:write', 'cms.keys:write'],
   // Managing promo codes; applying one at the till is orders:create.
@@ -203,7 +203,6 @@ const pages: Record<ModuleId, readonly string[]> = {
     '/settings/trading',
     '/settings/workspaces',
     '/settings/developers',
-    '/settings/developers/docs',
   ],
   customers: ['/customers', '/customers/[id]', '/customers/duplicates', '/customers/loyalty'],
   catalog: [
@@ -231,7 +230,7 @@ const pages: Record<ModuleId, readonly string[]> = {
   compliance: ['/compliance'],
   audit: ['/audit-log'],
   analytics: ['/reports', '/reports/[report]', '/reports/staff/[userId]'],
-  agent: ['/settings/assistant', '/settings/advanced'],
+  agent: [],
   support: ['/staff/helpdesk', '/support', '/support/[slug]'],
   cms: ['/content'],
   promotions: ['/promotions'],
@@ -298,7 +297,7 @@ const navigation: Record<ModuleId, readonly string[]> = {
   compliance: ['/compliance'],
   audit: ['/audit-log'],
   analytics: ['/dashboard', '/reports'],
-  agent: ['/settings/assistant', '/settings/advanced'],
+  agent: [],
   support: ['/support'],
   cms: ['/content'],
   promotions: ['/promotions'],

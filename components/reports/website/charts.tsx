@@ -477,7 +477,7 @@ export function MultiTrendChart({
 
       {active !== null && width > 0 && (
         <div
-          className="pointer-events-none absolute top-0 z-10 w-max min-w-52 rounded-lg border border-rule/60 bg-card/95 px-3 py-2.5 shadow-lg backdrop-blur-sm"
+          className="pointer-events-none absolute top-0 z-10 w-max min-w-52 rounded-lg border border-border bg-card/95 px-3 py-2.5 shadow-lg backdrop-blur-sm"
           style={{ left: x(active), transform: `translateX(${x(active) > width / 2 ? 'calc(-100% - 14px)' : '14px'})` }}
         >
           <p className="text-xs font-semibold text-foreground">{days[active]!.label}</p>
@@ -701,7 +701,7 @@ export function StackedColumnChart({
 
         {active !== null && width > 0 && (
           <div
-            className="pointer-events-none absolute top-0 z-10 w-max min-w-44 rounded-lg border border-rule/60 bg-card/95 px-3 py-2.5 shadow-lg backdrop-blur-sm"
+            className="pointer-events-none absolute top-0 z-10 w-max min-w-44 rounded-lg border border-border bg-card/95 px-3 py-2.5 shadow-lg backdrop-blur-sm"
             style={{ left: x(active), transform: `translateX(${x(active) > width / 2 ? 'calc(-100% - 14px)' : '14px'})` }}
           >
             <p className="text-xs font-semibold text-foreground">{buckets[active]!.label}</p>
@@ -718,7 +718,7 @@ export function StackedColumnChart({
                   </div>
                 ))}
             </dl>
-            <div className="mt-1.5 flex justify-between gap-5 border-t border-rule/50 pt-1.5 text-xs">
+            <div className="mt-1.5 flex justify-between gap-5 border-t border-border pt-1.5 text-xs">
               <span className="text-muted-foreground">Total</span>
               <span className="font-semibold tabular-nums text-foreground">{format(totals[active] ?? 0)}</span>
             </div>

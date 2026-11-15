@@ -1,0 +1,13 @@
+{
+  "path": "/features/orders",
+  "name": "Orders",
+  "summary": "Every order from every channel in one list, through to fulfilment.",
+  "description": "Every order from every channel in one list, through to fulfilment.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/orders",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A caf\u00e9 collection counter with neatly lined paper takeaway bags, a staff member checks and hands one to a customer."
+}

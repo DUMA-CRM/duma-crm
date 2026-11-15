@@ -34,7 +34,7 @@ export function InternalBlogSetup() {
   if (types.isError) return <ErrorState title="Couldn’t check blog setup" onRetry={() => void types.refetch()} />;
   if (!types.data || types.data.some((type) => type.key === BLOG_TYPE_KEY)) return null;
   return (
-    <div className="space-y-3 rounded-lg border border-rule/60 p-4">
+    <div className="space-y-3 rounded-lg border border-border p-4">
       <p className="text-sm text-muted-foreground">Set up the DUMA blog model. Published posts appear on the DUMA website.</p>
       <Button disabled={setup.isPending} onClick={() => setup.mutate()}>
         {setup.isPending ? 'Setting up…' : 'Set up blog'}

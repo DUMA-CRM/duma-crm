@@ -36,7 +36,7 @@ export function NoteBacklinks({ noteId, onOpen }: { noteId: string; onOpen: (id:
               <button
                 type="button"
                 onClick={() => onOpen(note.id)}
-                className="flex w-full items-start gap-2.5 rounded-lg border border-rule/50 px-3 py-2.5 text-left transition-colors duration-150 hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
+                className="flex w-full items-start gap-2.5 rounded-lg border border-border px-3 py-2.5 text-left transition-colors duration-150 hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
               >
                 {note.pinned ? (
                   <Pin size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />

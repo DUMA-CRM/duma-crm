@@ -1,0 +1,2670 @@
+[
+  {
+    "index": 0,
+    "page": "/",
+    "name": "Home",
+    "type": "video",
+    "file": "pages/home/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Home. Product context:  Scene: An independent café owner opening the shutters, setting fresh coffee on an oak counter and welcoming the first customer. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "completed",
+    "job_id": "d21a2d5e-4bc2-4a5e-b3bf-a735ff5bd650",
+    "attempts": 1,
+    "model": "seedance_2_0",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_222906_d21a2d5e-4bc2-4a5e-b3bf-a735ff5bd650.mp4",
+    "saved": true
+  },
+  {
+    "index": 1,
+    "page": "/",
+    "name": "Home",
+    "type": "image",
+    "file": "pages/home/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Home. Product context:  Scene: An independent café owner opening the shutters, setting fresh coffee on an oak counter and welcoming the first customer. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "error": "gpt_image_2_6 backend request failed (429): rate_limit_reached",
+    "attempts": 2,
+    "last_attempt": 1794436254577,
+    "job_id": "c3bb1bf4-094a-4657-9bf0-6e896f8aa512",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_223054_c3bb1bf4-094a-4657-9bf0-6e896f8aa512.png",
+    "saved": true
+  },
+  {
+    "index": 2,
+    "page": "/",
+    "name": "Home",
+    "type": "image",
+    "file": "pages/home/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Home. Product context:  Scene: An independent café owner opening the shutters, setting fresh coffee on an oak counter and welcoming the first customer. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "error": "gpt_image_2_6 backend request failed (429): rate_limit_reached",
+    "attempts": 2,
+    "last_attempt": 1794436355817,
+    "job_id": "392f7b22-3bb3-4934-9085-1a2dead90a3b",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_223235_392f7b22-3bb3-4934-9085-1a2dead90a3b.png",
+    "saved": true
+  },
+  {
+    "index": 3,
+    "page": "/features",
+    "name": "All features",
+    "type": "video",
+    "file": "pages/features/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for All features. Product context:  Scene: A calm café at work: coffee counter in foreground, pastry preparation and organised ingredient shelving behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794436353463,
+    "job_id": "66f59ce2-69fd-495e-9cee-7173424f0b8c",
+    "model": "seedance_2_0",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_223233_66f59ce2-69fd-495e-9cee-7173424f0b8c.mp4",
+    "saved": true
+  },
+  {
+    "index": 4,
+    "page": "/features",
+    "name": "All features",
+    "type": "image",
+    "file": "pages/features/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for All features. Product context:  Scene: A calm café at work: coffee counter in foreground, pastry preparation and organised ingredient shelving behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "error": "gpt_image_2_6 backend request failed (429): rate_limit_reached",
+    "attempts": 2,
+    "last_attempt": 1794436482478,
+    "job_id": "224dde70-41f7-4f6d-9c18-52ccc5f582f0",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_223442_224dde70-41f7-4f6d-9c18-52ccc5f582f0.png",
+    "saved": true
+  },
+  {
+    "index": 5,
+    "page": "/features",
+    "name": "All features",
+    "type": "image",
+    "file": "pages/features/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for All features. Product context:  Scene: A calm café at work: coffee counter in foreground, pastry preparation and organised ingredient shelving behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "job_id": "e7b58810-a330-4b39-9647-2eeae4b3c892",
+    "attempts": 1,
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_222908_e7b58810-a330-4b39-9647-2eeae4b3c892.png",
+    "saved": true
+  },
+  {
+    "index": 6,
+    "page": "/pricing",
+    "name": "Pricing",
+    "type": "video",
+    "file": "pages/pricing/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Pricing. Product context:  Scene: A small shop owner starting the day with a modest existing laptop and tablet on a simple tidy counter. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "submission_failed",
+    "error": "seedance_2_0 backend request failed (429): rate_limit_reached",
+    "attempts": 1,
+    "last_attempt": 1794436900963
+  },
+  {
+    "index": 7,
+    "page": "/pricing",
+    "name": "Pricing",
+    "type": "image",
+    "file": "pages/pricing/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Pricing. Product context:  Scene: A small shop owner starting the day with a modest existing laptop and tablet on a simple tidy counter. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794436577499,
+    "job_id": "9e0c0734-0695-4fc5-bef2-161b4f082455",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_223617_9e0c0734-0695-4fc5-bef2-161b4f082455.png",
+    "saved": true
+  },
+  {
+    "index": 8,
+    "page": "/pricing",
+    "name": "Pricing",
+    "type": "image",
+    "file": "pages/pricing/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Pricing. Product context:  Scene: A small shop owner starting the day with a modest existing laptop and tablet on a simple tidy counter. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794436674023,
+    "job_id": "9d7854b4-6cd0-4a3d-b2cd-9ededce6ac68",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_223753_9d7854b4-6cd0-4a3d-b2cd-9ededce6ac68.png",
+    "saved": true
+  },
+  {
+    "index": 9,
+    "page": "/solutions/cafes",
+    "name": "Cafés and restaurants",
+    "type": "video",
+    "file": "solutions/cafes/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Cafés and restaurants. Product context:  Scene: A barista pours a flat white, serves a croissant, and hands the coffee to a customer at a small British café. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 10,
+    "page": "/solutions/cafes",
+    "name": "Cafés and restaurants",
+    "type": "image",
+    "file": "solutions/cafes/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Cafés and restaurants. Product context:  Scene: A barista pours a flat white, serves a croissant, and hands the coffee to a customer at a small British café. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794436799252,
+    "job_id": "29393812-12c5-4de5-890e-dfe01e57c651",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_223958_29393812-12c5-4de5-890e-dfe01e57c651.png",
+    "saved": true
+  },
+  {
+    "index": 11,
+    "page": "/solutions/cafes",
+    "name": "Cafés and restaurants",
+    "type": "image",
+    "file": "solutions/cafes/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Cafés and restaurants. Product context:  Scene: A barista pours a flat white, serves a croissant, and hands the coffee to a customer at a small British café. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 12,
+    "page": "/solutions/shops",
+    "name": "Shops and online stores",
+    "type": "video",
+    "file": "solutions/shops/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Shops and online stores. Product context:  Scene: An independent clothing shop owner folds cotton shirts, checks size tags and packs an unbranded shopping bag. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 13,
+    "page": "/solutions/shops",
+    "name": "Shops and online stores",
+    "type": "image",
+    "file": "solutions/shops/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Shops and online stores. Product context:  Scene: An independent clothing shop owner folds cotton shirts, checks size tags and packs an unbranded shopping bag. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 14,
+    "page": "/solutions/shops",
+    "name": "Shops and online stores",
+    "type": "image",
+    "file": "solutions/shops/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Shops and online stores. Product context:  Scene: An independent clothing shop owner folds cotton shirts, checks size tags and packs an unbranded shopping bag. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 15,
+    "page": "/solutions/bars",
+    "name": "Bars and pubs",
+    "type": "video",
+    "file": "solutions/bars/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Bars and pubs. Product context:  Scene: A quiet British pub before opening, bartender arranging clean glasses and setting tables, amber window light. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 16,
+    "page": "/solutions/bars",
+    "name": "Bars and pubs",
+    "type": "image",
+    "file": "solutions/bars/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Bars and pubs. Product context:  Scene: A quiet British pub before opening, bartender arranging clean glasses and setting tables, amber window light. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 17,
+    "page": "/solutions/bars",
+    "name": "Bars and pubs",
+    "type": "image",
+    "file": "solutions/bars/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Bars and pubs. Product context:  Scene: A quiet British pub before opening, bartender arranging clean glasses and setting tables, amber window light. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 18,
+    "page": "/solutions/bakeries",
+    "name": "Bakeries",
+    "type": "video",
+    "file": "solutions/bakeries/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Bakeries. Product context:  Scene: A baker weighs flour on kitchen scales, shapes dough and places fresh sourdough on a wooden display. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 19,
+    "page": "/solutions/bakeries",
+    "name": "Bakeries",
+    "type": "image",
+    "file": "solutions/bakeries/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Bakeries. Product context:  Scene: A baker weighs flour on kitchen scales, shapes dough and places fresh sourdough on a wooden display. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 20,
+    "page": "/solutions/bakeries",
+    "name": "Bakeries",
+    "type": "image",
+    "file": "solutions/bakeries/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Bakeries. Product context:  Scene: A baker weighs flour on kitchen scales, shapes dough and places fresh sourdough on a wooden display. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 21,
+    "page": "/solutions/retail",
+    "name": "Retail",
+    "type": "video",
+    "file": "solutions/retail/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Retail. Product context:  Scene: A shopkeeper counts ceramic mugs on shelves and receives a small delivery of homeware in a neighbourhood shop. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 22,
+    "page": "/solutions/retail",
+    "name": "Retail",
+    "type": "image",
+    "file": "solutions/retail/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Retail. Product context:  Scene: A shopkeeper counts ceramic mugs on shelves and receives a small delivery of homeware in a neighbourhood shop. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 23,
+    "page": "/solutions/retail",
+    "name": "Retail",
+    "type": "image",
+    "file": "solutions/retail/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Retail. Product context:  Scene: A shopkeeper counts ceramic mugs on shelves and receives a small delivery of homeware in a neighbourhood shop. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 24,
+    "page": "/solutions/blogs",
+    "name": "Blogs and creators",
+    "type": "video",
+    "file": "solutions/blogs/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Blogs and creators. Product context:  Scene: An independent writer at a sunlit desk arranging photographs and a notebook beside a laptop viewed from behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 25,
+    "page": "/solutions/blogs",
+    "name": "Blogs and creators",
+    "type": "image",
+    "file": "solutions/blogs/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Blogs and creators. Product context:  Scene: An independent writer at a sunlit desk arranging photographs and a notebook beside a laptop viewed from behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 26,
+    "page": "/solutions/blogs",
+    "name": "Blogs and creators",
+    "type": "image",
+    "file": "solutions/blogs/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Blogs and creators. Product context:  Scene: An independent writer at a sunlit desk arranging photographs and a notebook beside a laptop viewed from behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 27,
+    "page": "/solutions/any-business",
+    "name": "Any business",
+    "type": "video",
+    "file": "solutions/any-business/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Any business. Product context:  Scene: Two small-business colleagues plan their work at a bright studio table with notebooks and a laptop seen from the back. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 28,
+    "page": "/solutions/any-business",
+    "name": "Any business",
+    "type": "image",
+    "file": "solutions/any-business/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Any business. Product context:  Scene: Two small-business colleagues plan their work at a bright studio table with notebooks and a laptop seen from the back. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 29,
+    "page": "/solutions/any-business",
+    "name": "Any business",
+    "type": "image",
+    "file": "solutions/any-business/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Any business. Product context:  Scene: Two small-business colleagues plan their work at a bright studio table with notebooks and a laptop seen from the back. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 30,
+    "page": "/compare/duma-vs-square",
+    "name": "DUMA vs Square",
+    "type": "video",
+    "file": "compare/duma-vs-square/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for DUMA vs Square. Product context:  Scene: A café staff member takes an order at a tablet till seen from the back, then hands over a cup of coffee. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 31,
+    "page": "/compare/duma-vs-square",
+    "name": "DUMA vs Square",
+    "type": "image",
+    "file": "compare/duma-vs-square/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs Square. Product context:  Scene: A café staff member takes an order at a tablet till seen from the back, then hands over a cup of coffee. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 32,
+    "page": "/compare/duma-vs-square",
+    "name": "DUMA vs Square",
+    "type": "image",
+    "file": "compare/duma-vs-square/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs Square. Product context:  Scene: A café staff member takes an order at a tablet till seen from the back, then hands over a cup of coffee. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 33,
+    "page": "/compare/duma-vs-shopify",
+    "name": "DUMA vs Shopify",
+    "type": "video",
+    "file": "compare/duma-vs-shopify/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for DUMA vs Shopify. Product context:  Scene: An independent clothing shop owner folds cotton shirts, checks size tags and packs an unbranded shopping bag. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 34,
+    "page": "/compare/duma-vs-shopify",
+    "name": "DUMA vs Shopify",
+    "type": "image",
+    "file": "compare/duma-vs-shopify/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs Shopify. Product context:  Scene: An independent clothing shop owner folds cotton shirts, checks size tags and packs an unbranded shopping bag. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 35,
+    "page": "/compare/duma-vs-shopify",
+    "name": "DUMA vs Shopify",
+    "type": "image",
+    "file": "compare/duma-vs-shopify/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs Shopify. Product context:  Scene: An independent clothing shop owner folds cotton shirts, checks size tags and packs an unbranded shopping bag. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 36,
+    "page": "/compare/duma-vs-lightspeed",
+    "name": "DUMA vs Lightspeed",
+    "type": "video",
+    "file": "compare/duma-vs-lightspeed/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for DUMA vs Lightspeed. Product context:  Scene: A barista pours a flat white, serves a croissant, and hands the coffee to a customer at a small British café. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 37,
+    "page": "/compare/duma-vs-lightspeed",
+    "name": "DUMA vs Lightspeed",
+    "type": "image",
+    "file": "compare/duma-vs-lightspeed/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs Lightspeed. Product context:  Scene: A barista pours a flat white, serves a croissant, and hands the coffee to a customer at a small British café. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 38,
+    "page": "/compare/duma-vs-lightspeed",
+    "name": "DUMA vs Lightspeed",
+    "type": "image",
+    "file": "compare/duma-vs-lightspeed/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs Lightspeed. Product context:  Scene: A barista pours a flat white, serves a croissant, and hands the coffee to a customer at a small British café. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 39,
+    "page": "/compare/duma-vs-sevenrooms",
+    "name": "DUMA vs SevenRooms",
+    "type": "video",
+    "file": "compare/duma-vs-sevenrooms/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for DUMA vs SevenRooms. Product context:  Scene: Restaurant host adjusts a neatly set table for two and welcomes arriving guests in a small neighbourhood restaurant. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 40,
+    "page": "/compare/duma-vs-sevenrooms",
+    "name": "DUMA vs SevenRooms",
+    "type": "image",
+    "file": "compare/duma-vs-sevenrooms/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs SevenRooms. Product context:  Scene: Restaurant host adjusts a neatly set table for two and welcomes arriving guests in a small neighbourhood restaurant. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 41,
+    "page": "/compare/duma-vs-sevenrooms",
+    "name": "DUMA vs SevenRooms",
+    "type": "image",
+    "file": "compare/duma-vs-sevenrooms/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs SevenRooms. Product context:  Scene: Restaurant host adjusts a neatly set table for two and welcomes arriving guests in a small neighbourhood restaurant. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 42,
+    "page": "/compare/duma-vs-sunday",
+    "name": "DUMA vs Sunday",
+    "type": "video",
+    "file": "compare/duma-vs-sunday/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for DUMA vs Sunday. Product context:  Scene: A seated café guest holds a phone above a small table ordering stand, then receives their coffee. Screen faces away; stand has no legible code. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 43,
+    "page": "/compare/duma-vs-sunday",
+    "name": "DUMA vs Sunday",
+    "type": "image",
+    "file": "compare/duma-vs-sunday/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs Sunday. Product context:  Scene: A seated café guest holds a phone above a small table ordering stand, then receives their coffee. Screen faces away; stand has no legible code. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 44,
+    "page": "/compare/duma-vs-sunday",
+    "name": "DUMA vs Sunday",
+    "type": "image",
+    "file": "compare/duma-vs-sunday/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs Sunday. Product context:  Scene: A seated café guest holds a phone above a small table ordering stand, then receives their coffee. Screen faces away; stand has no legible code. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 45,
+    "page": "/compare/duma-vs-zavo",
+    "name": "DUMA vs Zavo",
+    "type": "video",
+    "file": "compare/duma-vs-zavo/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for DUMA vs Zavo. Product context:  Scene: Close-up of a customer holding a plain bank card near an unbranded card terminal at a shop counter; no visible numbers. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 46,
+    "page": "/compare/duma-vs-zavo",
+    "name": "DUMA vs Zavo",
+    "type": "image",
+    "file": "compare/duma-vs-zavo/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs Zavo. Product context:  Scene: Close-up of a customer holding a plain bank card near an unbranded card terminal at a shop counter; no visible numbers. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 47,
+    "page": "/compare/duma-vs-zavo",
+    "name": "DUMA vs Zavo",
+    "type": "image",
+    "file": "compare/duma-vs-zavo/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for DUMA vs Zavo. Product context:  Scene: Close-up of a customer holding a plain bank card near an unbranded card terminal at a shop counter; no visible numbers. Focus only on the small business; do not show competitor products or make comparative claims. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 48,
+    "page": "/tools",
+    "name": "All tools",
+    "type": "video",
+    "file": "pages/tools/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for All tools. Product context:  Scene: A café planning table with kitchen scales, a calculator, blank scheduling cards and fresh ingredients. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 49,
+    "page": "/tools",
+    "name": "All tools",
+    "type": "image",
+    "file": "pages/tools/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for All tools. Product context:  Scene: A café planning table with kitchen scales, a calculator, blank scheduling cards and fresh ingredients. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 50,
+    "page": "/tools",
+    "name": "All tools",
+    "type": "image",
+    "file": "pages/tools/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for All tools. Product context:  Scene: A café planning table with kitchen scales, a calculator, blank scheduling cards and fresh ingredients. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 51,
+    "page": "/tools/margin-calculator",
+    "name": "Menu margin calculator",
+    "type": "video",
+    "file": "tools/margin-calculator/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Menu margin calculator. Product context:  Scene: A chef weighs ingredients for one sandwich beside a simple calculator, food cost planning on a clean counter. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 52,
+    "page": "/tools/margin-calculator",
+    "name": "Menu margin calculator",
+    "type": "image",
+    "file": "tools/margin-calculator/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Menu margin calculator. Product context:  Scene: A chef weighs ingredients for one sandwich beside a simple calculator, food cost planning on a clean counter. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 53,
+    "page": "/tools/margin-calculator",
+    "name": "Menu margin calculator",
+    "type": "image",
+    "file": "tools/margin-calculator/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Menu margin calculator. Product context:  Scene: A chef weighs ingredients for one sandwich beside a simple calculator, food cost planning on a clean counter. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 54,
+    "page": "/tools/cash-up-calculator",
+    "name": "Cash-up calculator",
+    "type": "video",
+    "file": "tools/cash-up-calculator/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Cash-up calculator. Product context:  Scene: A café manager counts generic coins into a coin tray at closing beside an unbranded calculator. No legible currency or totals. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 55,
+    "page": "/tools/cash-up-calculator",
+    "name": "Cash-up calculator",
+    "type": "image",
+    "file": "tools/cash-up-calculator/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Cash-up calculator. Product context:  Scene: A café manager counts generic coins into a coin tray at closing beside an unbranded calculator. No legible currency or totals. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 56,
+    "page": "/tools/cash-up-calculator",
+    "name": "Cash-up calculator",
+    "type": "image",
+    "file": "tools/cash-up-calculator/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Cash-up calculator. Product context:  Scene: A café manager counts generic coins into a coin tray at closing beside an unbranded calculator. No legible currency or totals. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 57,
+    "page": "/tools/rota-builder",
+    "name": "Staff rota builder",
+    "type": "video",
+    "file": "tools/rota-builder/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Staff rota builder. Product context:  Scene: A café manager arranges blank weekly planning cards on a desk as two colleagues discuss availability. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 58,
+    "page": "/tools/rota-builder",
+    "name": "Staff rota builder",
+    "type": "image",
+    "file": "tools/rota-builder/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Staff rota builder. Product context:  Scene: A café manager arranges blank weekly planning cards on a desk as two colleagues discuss availability. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 59,
+    "page": "/tools/rota-builder",
+    "name": "Staff rota builder",
+    "type": "image",
+    "file": "tools/rota-builder/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Staff rota builder. Product context:  Scene: A café manager arranges blank weekly planning cards on a desk as two colleagues discuss availability. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 60,
+    "page": "/developers",
+    "name": "Public API",
+    "type": "video",
+    "file": "pages/developers/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Public API. Product context:  Scene: A developer works at a calm desk with a laptop and small notebook, screens facing away, subtle green desk accessories. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 61,
+    "page": "/developers",
+    "name": "Public API",
+    "type": "image",
+    "file": "pages/developers/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Public API. Product context:  Scene: A developer works at a calm desk with a laptop and small notebook, screens facing away, subtle green desk accessories. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 62,
+    "page": "/developers",
+    "name": "Public API",
+    "type": "image",
+    "file": "pages/developers/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Public API. Product context:  Scene: A developer works at a calm desk with a laptop and small notebook, screens facing away, subtle green desk accessories. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 63,
+    "page": "/developers/mcp",
+    "name": "MCP",
+    "type": "video",
+    "file": "developers/mcp/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for MCP. Product context:  Scene: A developer and café owner discuss connecting business tools over a laptop, screen angled away, natural collaborative scene. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 64,
+    "page": "/developers/mcp",
+    "name": "MCP",
+    "type": "image",
+    "file": "developers/mcp/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for MCP. Product context:  Scene: A developer and café owner discuss connecting business tools over a laptop, screen angled away, natural collaborative scene. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 65,
+    "page": "/developers/mcp",
+    "name": "MCP",
+    "type": "image",
+    "file": "developers/mcp/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for MCP. Product context:  Scene: A developer and café owner discuss connecting business tools over a laptop, screen angled away, natural collaborative scene. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 66,
+    "page": "/developers/webhooks",
+    "name": "Webhooks",
+    "type": "video",
+    "file": "developers/webhooks/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Webhooks. Product context:  Scene: A small shop owner packs an order while a developer works nearby on a laptop, screens hidden, connected work represented physically. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 67,
+    "page": "/developers/webhooks",
+    "name": "Webhooks",
+    "type": "image",
+    "file": "developers/webhooks/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Webhooks. Product context:  Scene: A small shop owner packs an order while a developer works nearby on a laptop, screens hidden, connected work represented physically. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 68,
+    "page": "/developers/webhooks",
+    "name": "Webhooks",
+    "type": "image",
+    "file": "developers/webhooks/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Webhooks. Product context:  Scene: A small shop owner packs an order while a developer works nearby on a laptop, screens hidden, connected work represented physically. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 69,
+    "page": "/blog",
+    "name": "Blog",
+    "type": "video",
+    "file": "pages/blog/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Blog. Product context:  Scene: A quiet café reading corner with a business notebook, book and coffee in soft daylight. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 70,
+    "page": "/blog",
+    "name": "Blog",
+    "type": "image",
+    "file": "pages/blog/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Blog. Product context:  Scene: A quiet café reading corner with a business notebook, book and coffee in soft daylight. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 71,
+    "page": "/blog",
+    "name": "Blog",
+    "type": "image",
+    "file": "pages/blog/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Blog. Product context:  Scene: A quiet café reading corner with a business notebook, book and coffee in soft daylight. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 72,
+    "page": "/glossary",
+    "name": "Terms & definitions",
+    "type": "video",
+    "file": "pages/glossary/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Terms & definitions. Product context:  Scene: A carefully arranged open notebook, pencil and plain reference books on an oak café table, no legible writing. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 73,
+    "page": "/glossary",
+    "name": "Terms & definitions",
+    "type": "image",
+    "file": "pages/glossary/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Terms & definitions. Product context:  Scene: A carefully arranged open notebook, pencil and plain reference books on an oak café table, no legible writing. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 74,
+    "page": "/glossary",
+    "name": "Terms & definitions",
+    "type": "image",
+    "file": "pages/glossary/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Terms & definitions. Product context:  Scene: A carefully arranged open notebook, pencil and plain reference books on an oak café table, no legible writing. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 75,
+    "page": "/about",
+    "name": "About",
+    "type": "video",
+    "file": "pages/about/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for About. Product context:  Scene: A thoughtful independent software maker works at a modest desk overlooking a British street, hands only, not a portrait of the real founder. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 76,
+    "page": "/about",
+    "name": "About",
+    "type": "image",
+    "file": "pages/about/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for About. Product context:  Scene: A thoughtful independent software maker works at a modest desk overlooking a British street, hands only, not a portrait of the real founder. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 77,
+    "page": "/about",
+    "name": "About",
+    "type": "image",
+    "file": "pages/about/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for About. Product context:  Scene: A thoughtful independent software maker works at a modest desk overlooking a British street, hands only, not a portrait of the real founder. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 78,
+    "page": "/features/pos",
+    "name": "Point of sale",
+    "type": "video",
+    "file": "features/pos/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Point of sale. Product context: Take orders and payments at a counter or till, and keep selling offline. Scene: A café staff member takes an order at a tablet till seen from the back, then hands over a cup of coffee. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794437386321,
+    "job_id": "c257c6a2-eed4-43c4-a30a-4e5c5847a07b",
+    "model": "seedance_2_0",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_224946_c257c6a2-eed4-43c4-a30a-4e5c5847a07b.mp4",
+    "saved": true
+  },
+  {
+    "index": 79,
+    "page": "/features/pos",
+    "name": "Point of sale",
+    "type": "image",
+    "file": "features/pos/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Point of sale. Product context: Take orders and payments at a counter or till, and keep selling offline. Scene: A café staff member takes an order at a tablet till seen from the back, then hands over a cup of coffee. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794436938547,
+    "job_id": "81db268c-b512-4f48-99f9-83c4cf8ffb6b",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_224218_81db268c-b512-4f48-99f9-83c4cf8ffb6b.png",
+    "saved": true
+  },
+  {
+    "index": 80,
+    "page": "/features/pos",
+    "name": "Point of sale",
+    "type": "image",
+    "file": "features/pos/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Point of sale. Product context: Take orders and payments at a counter or till, and keep selling offline. Scene: A café staff member takes an order at a tablet till seen from the back, then hands over a cup of coffee. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794437065668,
+    "job_id": "762d3e07-5065-483f-abcc-ea1aea66da19",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_224425_762d3e07-5065-483f-abcc-ea1aea66da19.png",
+    "saved": true
+  },
+  {
+    "index": 81,
+    "page": "/features/orders",
+    "name": "Orders",
+    "type": "video",
+    "file": "features/orders/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Orders. Product context: Every order from every channel in one list, through to fulfilment. Scene: A café collection counter with neatly lined paper takeaway bags, a staff member checks and hands one to a customer. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794437674020,
+    "job_id": "fc6f960e-edc0-4334-9801-b4dc4f865202",
+    "model": "seedance_2_0",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_225433_fc6f960e-edc0-4334-9801-b4dc4f865202.mp4",
+    "saved": true
+  },
+  {
+    "index": 82,
+    "page": "/features/orders",
+    "name": "Orders",
+    "type": "image",
+    "file": "features/orders/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Orders. Product context: Every order from every channel in one list, through to fulfilment. Scene: A café collection counter with neatly lined paper takeaway bags, a staff member checks and hands one to a customer. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794437191897,
+    "job_id": "31d12b78-61cd-472a-aa41-d264cd9d6305",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_224631_31d12b78-61cd-472a-aa41-d264cd9d6305.png",
+    "saved": true
+  },
+  {
+    "index": 83,
+    "page": "/features/orders",
+    "name": "Orders",
+    "type": "image",
+    "file": "features/orders/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Orders. Product context: Every order from every channel in one list, through to fulfilment. Scene: A café collection counter with neatly lined paper takeaway bags, a staff member checks and hands one to a customer. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794437287441,
+    "job_id": "ad72b2bf-8a81-4d79-8d41-3e1cd2c131c8",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_224807_ad72b2bf-8a81-4d79-8d41-3e1cd2c131c8.png",
+    "saved": true
+  },
+  {
+    "index": 84,
+    "page": "/features/qr-ordering",
+    "name": "QR ordering",
+    "type": "video",
+    "file": "features/qr-ordering/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for QR ordering. Product context: Customers scan, order and pay from their own phone. Scene: A seated café guest holds a phone above a small table ordering stand, then receives their coffee. Screen faces away; stand has no legible code. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 85,
+    "page": "/features/qr-ordering",
+    "name": "QR ordering",
+    "type": "image",
+    "file": "features/qr-ordering/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for QR ordering. Product context: Customers scan, order and pay from their own phone. Scene: A seated café guest holds a phone above a small table ordering stand, then receives their coffee. Screen faces away; stand has no legible code. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794437387935,
+    "job_id": "8de2f98a-7036-4fbb-be91-473a27ba454b",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_224947_8de2f98a-7036-4fbb-be91-473a27ba454b.png",
+    "saved": true
+  },
+  {
+    "index": 86,
+    "page": "/features/qr-ordering",
+    "name": "QR ordering",
+    "type": "image",
+    "file": "features/qr-ordering/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for QR ordering. Product context: Customers scan, order and pay from their own phone. Scene: A seated café guest holds a phone above a small table ordering stand, then receives their coffee. Screen faces away; stand has no legible code. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794437513987,
+    "job_id": "62ec538d-9679-4d94-9e91-cd5e80fafd8c",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_225153_62ec538d-9679-4d94-9e91-cd5e80fafd8c.png",
+    "saved": true
+  },
+  {
+    "index": 87,
+    "page": "/features/kitchen-display",
+    "name": "Kitchen display",
+    "type": "video",
+    "file": "features/kitchen-display/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Kitchen display. Product context: A live screen for the kitchen or packing bench: new, preparing, ready. Scene: A cook at a clean café kitchen pass plates a toasted sandwich and moves it to the ready area, a kitchen tablet viewed edge-on. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 88,
+    "page": "/features/kitchen-display",
+    "name": "Kitchen display",
+    "type": "image",
+    "file": "features/kitchen-display/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Kitchen display. Product context: A live screen for the kitchen or packing bench: new, preparing, ready. Scene: A cook at a clean café kitchen pass plates a toasted sandwich and moves it to the ready area, a kitchen tablet viewed edge-on. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "completed",
+    "attempts": 1,
+    "last_attempt": 1794437638511,
+    "job_id": "fd3d30cf-427f-4f10-8e00-451c04474a0b",
+    "model": "gpt_image_2_6",
+    "result_url": "https://d8j0ntlcm91z4.cloudfront.net/user_3LymdbDqymwRi3astRuLjFmuE0m/hf_20261111_225358_fd3d30cf-427f-4f10-8e00-451c04474a0b.png",
+    "saved": true
+  },
+  {
+    "index": 89,
+    "page": "/features/kitchen-display",
+    "name": "Kitchen display",
+    "type": "image",
+    "file": "features/kitchen-display/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Kitchen display. Product context: A live screen for the kitchen or packing bench: new, preparing, ready. Scene: A cook at a clean café kitchen pass plates a toasted sandwich and moves it to the ready area, a kitchen tablet viewed edge-on. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "submission_failed",
+    "error": "nano_banana_2_1 backend request failed (429): rate_limit_reached",
+    "attempts": 1,
+    "last_attempt": 1794437738973
+  },
+  {
+    "index": 90,
+    "page": "/features/payments",
+    "name": "Payments",
+    "type": "video",
+    "file": "features/payments/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Payments. Product context: Card, cash and invoice, reconciled every day. Scene: Close-up of a customer holding a plain bank card near an unbranded card terminal at a shop counter; no visible numbers. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 91,
+    "page": "/features/payments",
+    "name": "Payments",
+    "type": "image",
+    "file": "features/payments/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Payments. Product context: Card, cash and invoice, reconciled every day. Scene: Close-up of a customer holding a plain bank card near an unbranded card terminal at a shop counter; no visible numbers. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "submission_failed",
+    "error": "seedream_v5_pro backend request failed (429): rate_limit_reached",
+    "attempts": 1,
+    "last_attempt": 1794437740609
+  },
+  {
+    "index": 92,
+    "page": "/features/payments",
+    "name": "Payments",
+    "type": "image",
+    "file": "features/payments/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Payments. Product context: Card, cash and invoice, reconciled every day. Scene: Close-up of a customer holding a plain bank card near an unbranded card terminal at a shop counter; no visible numbers. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 93,
+    "page": "/features/reservations",
+    "name": "Reservations",
+    "type": "video",
+    "file": "features/reservations/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Reservations. Product context: Bookings, a floor plan of your tables and a walk-in waitlist. Scene: Restaurant host adjusts a neatly set table for two and welcomes arriving guests in a small neighbourhood restaurant. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 94,
+    "page": "/features/reservations",
+    "name": "Reservations",
+    "type": "image",
+    "file": "features/reservations/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Reservations. Product context: Bookings, a floor plan of your tables and a walk-in waitlist. Scene: Restaurant host adjusts a neatly set table for two and welcomes arriving guests in a small neighbourhood restaurant. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 95,
+    "page": "/features/reservations",
+    "name": "Reservations",
+    "type": "image",
+    "file": "features/reservations/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Reservations. Product context: Bookings, a floor plan of your tables and a walk-in waitlist. Scene: Restaurant host adjusts a neatly set table for two and welcomes arriving guests in a small neighbourhood restaurant. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 96,
+    "page": "/features/products-catalog",
+    "name": "Products & menu",
+    "type": "video",
+    "file": "features/products-catalog/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Products & menu. Product context: Everything you sell, with prices, options, recipes and margin. Scene: A café owner arranges a seasonal sandwich, coffee and cake, checks ingredients and weighs a portion on kitchen scales. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 97,
+    "page": "/features/products-catalog",
+    "name": "Products & menu",
+    "type": "image",
+    "file": "features/products-catalog/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Products & menu. Product context: Everything you sell, with prices, options, recipes and margin. Scene: A café owner arranges a seasonal sandwich, coffee and cake, checks ingredients and weighs a portion on kitchen scales. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 98,
+    "page": "/features/products-catalog",
+    "name": "Products & menu",
+    "type": "image",
+    "file": "features/products-catalog/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Products & menu. Product context: Everything you sell, with prices, options, recipes and margin. Scene: A café owner arranges a seasonal sandwich, coffee and cake, checks ingredients and weighs a portion on kitchen scales. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 99,
+    "page": "/features/inventory",
+    "name": "Stock",
+    "type": "video",
+    "file": "features/inventory/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Stock. Product context: Know what is on hand before you run out, updated by every sale. Scene: An apron-wearing café manager counts milk cartons and coffee bags on organised stockroom shelves. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 100,
+    "page": "/features/inventory",
+    "name": "Stock",
+    "type": "image",
+    "file": "features/inventory/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Stock. Product context: Know what is on hand before you run out, updated by every sale. Scene: An apron-wearing café manager counts milk cartons and coffee bags on organised stockroom shelves. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 101,
+    "page": "/features/inventory",
+    "name": "Stock",
+    "type": "image",
+    "file": "features/inventory/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Stock. Product context: Know what is on hand before you run out, updated by every sale. Scene: An apron-wearing café manager counts milk cartons and coffee bags on organised stockroom shelves. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 102,
+    "page": "/features/purchasing",
+    "name": "Purchasing",
+    "type": "video",
+    "file": "features/purchasing/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Purchasing. Product context: Order from suppliers and check deliveries in against them. Scene: A supplier delivery arrives at the café back door, manager counts boxes against a clipboard with illegible markings. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 103,
+    "page": "/features/purchasing",
+    "name": "Purchasing",
+    "type": "image",
+    "file": "features/purchasing/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Purchasing. Product context: Order from suppliers and check deliveries in against them. Scene: A supplier delivery arrives at the café back door, manager counts boxes against a clipboard with illegible markings. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 104,
+    "page": "/features/purchasing",
+    "name": "Purchasing",
+    "type": "image",
+    "file": "features/purchasing/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Purchasing. Product context: Order from suppliers and check deliveries in against them. Scene: A supplier delivery arrives at the café back door, manager counts boxes against a clipboard with illegible markings. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 105,
+    "page": "/features/notes",
+    "name": "Notes",
+    "type": "video",
+    "file": "features/notes/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Notes. Product context: Recipes, checklists and how-tos, shared by folder and searchable. Scene: An experienced baker shows a colleague a recipe notebook while laying out measured ingredients on a workbench. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 106,
+    "page": "/features/notes",
+    "name": "Notes",
+    "type": "image",
+    "file": "features/notes/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Notes. Product context: Recipes, checklists and how-tos, shared by folder and searchable. Scene: An experienced baker shows a colleague a recipe notebook while laying out measured ingredients on a workbench. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 107,
+    "page": "/features/notes",
+    "name": "Notes",
+    "type": "image",
+    "file": "features/notes/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Notes. Product context: Recipes, checklists and how-tos, shared by folder and searchable. Scene: An experienced baker shows a colleague a recipe notebook while laying out measured ingredients on a workbench. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 108,
+    "page": "/features/staff-scheduling",
+    "name": "Rotas & time",
+    "type": "video",
+    "file": "features/staff-scheduling/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Rotas & time. Product context: Shifts, clock-ins and leave your team sees on their phone. Scene: Three café colleagues discuss the week before a shift, one holds a phone with screen facing away, aprons on hooks behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 109,
+    "page": "/features/staff-scheduling",
+    "name": "Rotas & time",
+    "type": "image",
+    "file": "features/staff-scheduling/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Rotas & time. Product context: Shifts, clock-ins and leave your team sees on their phone. Scene: Three café colleagues discuss the week before a shift, one holds a phone with screen facing away, aprons on hooks behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 110,
+    "page": "/features/staff-scheduling",
+    "name": "Rotas & time",
+    "type": "image",
+    "file": "features/staff-scheduling/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Rotas & time. Product context: Shifts, clock-ins and leave your team sees on their phone. Scene: Three café colleagues discuss the week before a shift, one holds a phone with screen facing away, aprons on hooks behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 111,
+    "page": "/features/people-hr",
+    "name": "People & HR",
+    "type": "video",
+    "file": "features/people-hr/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for People & HR. Product context: Employee records, documents and HR details in one place. Scene: A welcoming first day for a new café employee, manager hands over a neatly folded green apron at a back-office table. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 112,
+    "page": "/features/people-hr",
+    "name": "People & HR",
+    "type": "image",
+    "file": "features/people-hr/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for People & HR. Product context: Employee records, documents and HR details in one place. Scene: A welcoming first day for a new café employee, manager hands over a neatly folded green apron at a back-office table. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 113,
+    "page": "/features/people-hr",
+    "name": "People & HR",
+    "type": "image",
+    "file": "features/people-hr/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for People & HR. Product context: Employee records, documents and HR details in one place. Scene: A welcoming first day for a new café employee, manager hands over a neatly folded green apron at a back-office table. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 114,
+    "page": "/features/payroll",
+    "name": "Payroll",
+    "type": "video",
+    "file": "features/payroll/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Payroll. Product context: Prepare pay runs and issue payslips. Scene: A business owner prepares pay paperwork with a calculator and laptop viewed from behind in a tidy back office. No visible financial data. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 115,
+    "page": "/features/payroll",
+    "name": "Payroll",
+    "type": "image",
+    "file": "features/payroll/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Payroll. Product context: Prepare pay runs and issue payslips. Scene: A business owner prepares pay paperwork with a calculator and laptop viewed from behind in a tidy back office. No visible financial data. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 116,
+    "page": "/features/payroll",
+    "name": "Payroll",
+    "type": "image",
+    "file": "features/payroll/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Payroll. Product context: Prepare pay runs and issue payslips. Scene: A business owner prepares pay paperwork with a calculator and laptop viewed from behind in a tidy back office. No visible financial data. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 117,
+    "page": "/features/help-centre",
+    "name": "Help centre",
+    "type": "video",
+    "file": "features/help-centre/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Help centre. Product context: Guides and a helpdesk for your staff. Scene: An experienced shop manager patiently shows a new colleague how to use a tablet, screen facing away. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 118,
+    "page": "/features/help-centre",
+    "name": "Help centre",
+    "type": "image",
+    "file": "features/help-centre/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Help centre. Product context: Guides and a helpdesk for your staff. Scene: An experienced shop manager patiently shows a new colleague how to use a tablet, screen facing away. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 119,
+    "page": "/features/help-centre",
+    "name": "Help centre",
+    "type": "image",
+    "file": "features/help-centre/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Help centre. Product context: Guides and a helpdesk for your staff. Scene: An experienced shop manager patiently shows a new colleague how to use a tablet, screen facing away. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 120,
+    "page": "/features/customers-loyalty",
+    "name": "Customers & loyalty",
+    "type": "video",
+    "file": "features/customers-loyalty/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Customers & loyalty. Product context: Recognise your regulars and reward them for coming back. Scene: A barista recognises a returning customer and warmly hands over their usual flat white. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 121,
+    "page": "/features/customers-loyalty",
+    "name": "Customers & loyalty",
+    "type": "image",
+    "file": "features/customers-loyalty/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Customers & loyalty. Product context: Recognise your regulars and reward them for coming back. Scene: A barista recognises a returning customer and warmly hands over their usual flat white. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 122,
+    "page": "/features/customers-loyalty",
+    "name": "Customers & loyalty",
+    "type": "image",
+    "file": "features/customers-loyalty/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Customers & loyalty. Product context: Recognise your regulars and reward them for coming back. Scene: A barista recognises a returning customer and warmly hands over their usual flat white. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 123,
+    "page": "/features/email-marketing",
+    "name": "Messages",
+    "type": "video",
+    "file": "features/email-marketing/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Messages. Product context: Email your customers and your team. Scene: A café owner photographs a new pastry with a phone to prepare a customer newsletter, laptop in background facing away. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 124,
+    "page": "/features/email-marketing",
+    "name": "Messages",
+    "type": "image",
+    "file": "features/email-marketing/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Messages. Product context: Email your customers and your team. Scene: A café owner photographs a new pastry with a phone to prepare a customer newsletter, laptop in background facing away. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 125,
+    "page": "/features/email-marketing",
+    "name": "Messages",
+    "type": "image",
+    "file": "features/email-marketing/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Messages. Product context: Email your customers and your team. Scene: A café owner photographs a new pastry with a phone to prepare a customer newsletter, laptop in background facing away. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 126,
+    "page": "/features/automation",
+    "name": "Automation",
+    "type": "video",
+    "file": "features/automation/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Automation. Product context: Build workflows that run on their own, and follow every run. Scene: A calm shop packing station where an owner seals a completed order and moves smoothly to the next package. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 127,
+    "page": "/features/automation",
+    "name": "Automation",
+    "type": "image",
+    "file": "features/automation/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Automation. Product context: Build workflows that run on their own, and follow every run. Scene: A calm shop packing station where an owner seals a completed order and moves smoothly to the next package. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 128,
+    "page": "/features/automation",
+    "name": "Automation",
+    "type": "image",
+    "file": "features/automation/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Automation. Product context: Build workflows that run on their own, and follow every run. Scene: A calm shop packing station where an owner seals a completed order and moves smoothly to the next package. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 129,
+    "page": "/features/promotions",
+    "name": "Promotions",
+    "type": "video",
+    "file": "features/promotions/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Promotions. Product context: Promo codes with limits and dates, honoured at the till. Scene: Two takeaway coffees and a pastry neatly grouped on a counter while a customer chooses a bundle, no price labels. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 130,
+    "page": "/features/promotions",
+    "name": "Promotions",
+    "type": "image",
+    "file": "features/promotions/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Promotions. Product context: Promo codes with limits and dates, honoured at the till. Scene: Two takeaway coffees and a pastry neatly grouped on a counter while a customer chooses a bundle, no price labels. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 131,
+    "page": "/features/promotions",
+    "name": "Promotions",
+    "type": "image",
+    "file": "features/promotions/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Promotions. Product context: Promo codes with limits and dates, honoured at the till. Scene: Two takeaway coffees and a pastry neatly grouped on a counter while a customer chooses a bundle, no price labels. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 132,
+    "page": "/features/referrals",
+    "name": "Refer a friend",
+    "type": "video",
+    "file": "features/referrals/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Refer a friend. Product context: Every customer gets a code; a friend’s first order earns a reward. Scene: Two friends enter a neighbourhood café together and share a relaxed coffee at a window table. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 133,
+    "page": "/features/referrals",
+    "name": "Refer a friend",
+    "type": "image",
+    "file": "features/referrals/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Refer a friend. Product context: Every customer gets a code; a friend’s first order earns a reward. Scene: Two friends enter a neighbourhood café together and share a relaxed coffee at a window table. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 134,
+    "page": "/features/referrals",
+    "name": "Refer a friend",
+    "type": "image",
+    "file": "features/referrals/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Refer a friend. Product context: Every customer gets a code; a friend’s first order earns a reward. Scene: Two friends enter a neighbourhood café together and share a relaxed coffee at a window table. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 135,
+    "page": "/features/forms",
+    "name": "Forms",
+    "type": "video",
+    "file": "features/forms/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Forms. Product context: Enquiry, feedback and sign-up forms whose responses become customers. Scene: A customer fills out feedback on a phone at a café table with screen facing away, notebook and coffee nearby. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 136,
+    "page": "/features/forms",
+    "name": "Forms",
+    "type": "image",
+    "file": "features/forms/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Forms. Product context: Enquiry, feedback and sign-up forms whose responses become customers. Scene: A customer fills out feedback on a phone at a café table with screen facing away, notebook and coffee nearby. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 137,
+    "page": "/features/forms",
+    "name": "Forms",
+    "type": "image",
+    "file": "features/forms/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Forms. Product context: Enquiry, feedback and sign-up forms whose responses become customers. Scene: A customer fills out feedback on a phone at a café table with screen facing away, notebook and coffee nearby. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 138,
+    "page": "/features/content-management",
+    "name": "Content (CMS)",
+    "type": "video",
+    "file": "features/content-management/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Content (CMS). Product context: Write your website and app content, and publish it over an API. Scene: A content creator selects photographs and drafts an article at a daylight desk with a camera and laptop seen from behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 139,
+    "page": "/features/content-management",
+    "name": "Content (CMS)",
+    "type": "image",
+    "file": "features/content-management/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Content (CMS). Product context: Write your website and app content, and publish it over an API. Scene: A content creator selects photographs and drafts an article at a daylight desk with a camera and laptop seen from behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 140,
+    "page": "/features/content-management",
+    "name": "Content (CMS)",
+    "type": "image",
+    "file": "features/content-management/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Content (CMS). Product context: Write your website and app content, and publish it over an API. Scene: A content creator selects photographs and drafts an article at a daylight desk with a camera and laptop seen from behind. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 141,
+    "page": "/features/reports",
+    "name": "Analytics",
+    "type": "video",
+    "file": "features/reports/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Analytics. Product context: Sales, margin and labour trends for one location or all of them. Scene: A café owner reviews the business after closing at a tidy table with a calculator and a laptop seen from behind, thoughtful rather than celebratory. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 142,
+    "page": "/features/reports",
+    "name": "Analytics",
+    "type": "image",
+    "file": "features/reports/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Analytics. Product context: Sales, margin and labour trends for one location or all of them. Scene: A café owner reviews the business after closing at a tidy table with a calculator and a laptop seen from behind, thoughtful rather than celebratory. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 143,
+    "page": "/features/reports",
+    "name": "Analytics",
+    "type": "image",
+    "file": "features/reports/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Analytics. Product context: Sales, margin and labour trends for one location or all of them. Scene: A café owner reviews the business after closing at a tidy table with a calculator and a laptop seen from behind, thoughtful rather than celebratory. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 144,
+    "page": "/features/ask-duma",
+    "name": "Ask DUMA",
+    "type": "video",
+    "file": "features/ask-duma/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Ask DUMA. Product context: An assistant that knows your operation and answers from your data. Scene: A small-business owner pauses thoughtfully, types a question into a laptop seen from behind and returns confidently to their shop floor. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 145,
+    "page": "/features/ask-duma",
+    "name": "Ask DUMA",
+    "type": "image",
+    "file": "features/ask-duma/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Ask DUMA. Product context: An assistant that knows your operation and answers from your data. Scene: A small-business owner pauses thoughtfully, types a question into a laptop seen from behind and returns confidently to their shop floor. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 146,
+    "page": "/features/ask-duma",
+    "name": "Ask DUMA",
+    "type": "image",
+    "file": "features/ask-duma/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Ask DUMA. Product context: An assistant that knows your operation and answers from your data. Scene: A small-business owner pauses thoughtfully, types a question into a laptop seen from behind and returns confidently to their shop floor. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 147,
+    "page": "/features/compliance",
+    "name": "Compliance",
+    "type": "video",
+    "file": "features/compliance/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Compliance. Product context: Handle privacy and personal-data requests properly. Scene: A shop manager carefully sorts plain customer-request folders into a secure cabinet. No personal data or certification symbols. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 148,
+    "page": "/features/compliance",
+    "name": "Compliance",
+    "type": "image",
+    "file": "features/compliance/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Compliance. Product context: Handle privacy and personal-data requests properly. Scene: A shop manager carefully sorts plain customer-request folders into a secure cabinet. No personal data or certification symbols. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 149,
+    "page": "/features/compliance",
+    "name": "Compliance",
+    "type": "image",
+    "file": "features/compliance/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Compliance. Product context: Handle privacy and personal-data requests properly. Scene: A shop manager carefully sorts plain customer-request folders into a secure cabinet. No personal data or certification symbols. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 150,
+    "page": "/features/audit-log",
+    "name": "Audit log",
+    "type": "video",
+    "file": "features/audit-log/promo.mp4",
+    "params": {
+      "model": "seedance_2_0",
+      "prompt": "DUMA marketing asset for Audit log. Product context: Review important activity and changes across the workspace. Scene: A café manager carefully checks a closing checklist beside a tablet viewed from behind, methodical review of the day. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. A cinematic 8-second sequence, slow deliberate camera movement, natural action, preserve the full scene until the last frame. No title card; exact brand typography will be added separately. Gentle original instrumental sound and ambient work sounds, no speech.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "duration": 8,
+      "resolution": "720p",
+      "mode": "std",
+      "generate_audio": true
+    },
+    "status": "planned"
+  },
+  {
+    "index": 151,
+    "page": "/features/audit-log",
+    "name": "Audit log",
+    "type": "image",
+    "file": "features/audit-log/hero.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Audit log. Product context: Review important activity and changes across the workspace. Scene: A café manager carefully checks a closing checklist beside a tablet viewed from behind, methodical review of the day. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Wide hero photograph, composed with generous negative space on the left for separately added page copy, subject on right.",
+      "aspect_ratio": "16:9",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  },
+  {
+    "index": 152,
+    "page": "/features/audit-log",
+    "name": "Audit log",
+    "type": "image",
+    "file": "features/audit-log/detail.png",
+    "params": {
+      "model": "gpt_image_2_6",
+      "prompt": "DUMA marketing asset for Audit log. Product context: Review important activity and changes across the workspace. Scene: A café manager carefully checks a closing checklist beside a tablet viewed from behind, methodical review of the day. Premium authentic British small-business editorial photography, calm capable mood, natural daylight, off-white #faf9f6, forest green #1f6146 accents, warm oak, believable working environment. No text, no logos, no watermark, no invented interface, no readable screen, no testimonials, no metrics. Not a real customer or founder portrayal. Distinct close-up editorial detail photograph of the same work context. Focus on hands and relevant physical objects, tactile texture, shallow depth of field. No collage.",
+      "aspect_ratio": "3:4",
+      "use_unlim": true,
+      "resolution": "2k",
+      "quality": "medium"
+    },
+    "status": "planned"
+  }
+]

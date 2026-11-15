@@ -12,6 +12,7 @@ import { Modal } from '@/components/shared/Modal';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { type PlatformWorkspace, setWorkspaceClassification } from '@/lib/api/platform.service';
 import type { WorkspaceClassification } from '@/lib/api/workspace.service';
@@ -114,7 +115,7 @@ function WorkspaceClassificationForm({ tenant, onClose }: { tenant: Tenant; onCl
             key={value}
             className={cn(
               'flex cursor-pointer gap-3 rounded-md border px-3 py-3 transition-[border-color,background-color] duration-150 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring',
-              classification === value ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-rule/70 bg-card hover:border-rule hover:bg-band/45',
+              classification === value ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-border bg-card hover:border-rule hover:bg-band/45',
             )}
           >
             <input
@@ -200,7 +201,7 @@ function WorkspaceLifecycleForm({ tenant, onClose }: { tenant: Tenant; onClose: 
                 'transition-[border-color,background-color,box-shadow] duration-150 has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring',
                 status === value
                   ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]'
-                  : 'border-rule/70 bg-card hover:border-rule hover:bg-band/45',
+                  : 'border-border bg-card hover:border-rule hover:bg-band/45',
               )}
             >
               <input
@@ -222,7 +223,7 @@ function WorkspaceLifecycleForm({ tenant, onClose }: { tenant: Tenant; onClose: 
       </div>
 
       <label className="block">
-        <span className="text-sm font-semibold text-foreground">Reason for the change</span>
+        <FieldLabel as="span">Reason for the change</FieldLabel>
         <textarea
           rows={3}
           maxLength={500}
@@ -342,9 +343,9 @@ export function WorkspaceList({ directory }: { directory?: ReadonlyMap<string, P
               // Same row as a location, so a workspace and a site read alike.
               <div
                 key={tenant.id}
-                className="flex w-full items-center gap-3 rounded-lg border border-rule/70 bg-background/60 px-3.5 py-3 text-left transition-[border-color,background-color] duration-150 hover:border-rule hover:bg-band/45"
+                className="flex w-full items-center gap-3 rounded-lg border border-border bg-background/60 px-3.5 py-3 text-left transition-[border-color,background-color] duration-150 hover:border-rule hover:bg-band/45"
               >
-                <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+                <span className="flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
                   <Building2 size={17} aria-hidden="true" />
                 </span>
                 <div className="min-w-0 flex-1">

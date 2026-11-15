@@ -73,7 +73,7 @@ export function ModifierRecipeDrawer({
       }
     >
       <div className="space-y-5">
-        <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
+        <div className="flex items-center gap-3 rounded-lg border border-border bg-field px-4 py-3.5">
           <span
             className={cn(
               'flex size-10 shrink-0 items-center justify-center rounded-lg',

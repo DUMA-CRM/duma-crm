@@ -46,7 +46,7 @@ export function RecipeTotals({
     <SettingsSection title={title}>
       <div className="space-y-3">
         {summary.map((s) => (
-          <div key={s.col.id} className="rounded-lg border border-rule/60 bg-card px-3.5 py-3">
+          <div key={s.col.id} className="rounded-lg border border-border bg-card px-3.5 py-3">
             {/* Only worth a size heading when there is more than one size. */}
             {summary.length > 1 && <p className="mb-2 text-label uppercase text-muted-foreground">{s.col.label}</p>}
             <dl className="space-y-1.5 text-sm tabular-nums">

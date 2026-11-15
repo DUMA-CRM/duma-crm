@@ -159,7 +159,7 @@ export function TemplateCanvas({
   };
 
   return (
-    <div className="rounded-lg border border-rule/60 p-4" style={{ backgroundColor: design.styles.backgroundColor }}>
+    <div className="rounded-lg border border-border p-4" style={{ backgroundColor: design.styles.backgroundColor }}>
       <div
         ref={sheetRef}
         className="mx-auto max-w-155 rounded-md p-6 md:p-8"

@@ -9,6 +9,7 @@ import { IconTag } from '@/components/shared/IconTag';
 import { Modal } from '@/components/shared/Modal';
 import type { Tone } from '@/components/shared/tone';
 import { Button } from '@/components/ui/button';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { getEmailTemplates, sendEmail } from '@/lib/modules/communications/client';
@@ -175,9 +176,7 @@ export function SendEmailModal({ customerId, orderId, recipientName, recipientEm
         {activeTemplates.length ? (
           <>
             <div className="space-y-1.5">
-              <label htmlFor="email-template" className="text-micro font-semibold uppercase tracking-micro text-muted-foreground">
-                Template
-              </label>
+              <FieldLabel htmlFor="email-template">Template</FieldLabel>
               <Select
                 id="email-template"
                 value={effectiveTemplateId}

@@ -409,7 +409,7 @@ function PeriodDrawer({
               role="status"
               aria-busy="true"
               aria-label="Loading sales by hour"
-              className="rounded-lg border border-rule/60 bg-field px-3 pt-3 pb-2"
+              className="rounded-lg border border-border bg-field px-3 pt-3 pb-2"
             >
               <div className="flex h-52 items-end gap-1" aria-hidden="true">
                 {HOUR_BARS.map((height, index) => (
@@ -423,7 +423,7 @@ function PeriodDrawer({
           ) : span.length === 0 ? (
             <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">No trade this day.</p>
           ) : (
-            <div className="rounded-lg border border-rule/60 bg-field px-3 pt-3 pb-2">
+            <div className="rounded-lg border border-border bg-field px-3 pt-3 pb-2">
               <ColumnChart
                 columns={span.map((entry) => ({
                   label: String(entry.hour).padStart(2, '0'),
@@ -439,11 +439,11 @@ function PeriodDrawer({
         </DrawerSection>
       ) : (
         <DrawerSection title="Day by day" aside={days.length ? `Best ${dayLabel(days[bestDay].date)}` : undefined}>
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <ul className="overflow-hidden rounded-lg border border-border bg-field">
             {days.map((entry, index) => {
               const top = Math.max(1, ...days.map((day) => day.net));
               return (
-                <li key={entry.date} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-2 last:border-b-0">
+                <li key={entry.date} className="flex items-center gap-3 border-b border-border px-3.5 py-2 last:border-b-0">
                   <span
                     className={cn('w-24 shrink-0 text-sm', index === bestDay ? 'font-semibold text-foreground' : 'text-muted-foreground')}
                   >
@@ -476,11 +476,11 @@ function PeriodDrawer({
         ) : !items.data?.length ? (
           <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">Nothing sold.</p>
         ) : (
-          <ol className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <ol className="overflow-hidden rounded-lg border border-border bg-field">
             {[...items.data]
               .sort((a, b) => num(b.totalRevenue) - num(a.totalRevenue))
               .map((item, index) => (
-                <li key={item.menuItemId} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+                <li key={item.menuItemId} className="flex items-center gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
                   <span className="w-4 shrink-0 text-xs tabular-nums text-muted-foreground">{index + 1}</span>
                   <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{item.name}</span>
                   <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{count(num(item.totalQuantity))} sold</span>

@@ -384,7 +384,7 @@ export function StorageConnectWizard({ onClose, onDone }: { onClose: () => void;
               hint="If the bucket holds other files too."
             />
           </div>
-          <div className="flex items-center justify-between gap-4 rounded-lg border border-rule/50 bg-field px-3 py-2.5">
+          <div className="flex items-center justify-between gap-4 rounded-lg border border-border bg-field px-3 py-2.5">
             <span className="text-sm font-semibold text-foreground">Send new uploads here</span>
             <Switch label="Send new uploads here" checked={form.activate} onChange={(value) => set({ activate: value })} />
           </div>

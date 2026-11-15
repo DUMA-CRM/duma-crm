@@ -172,15 +172,15 @@ export function NewModifierDrawer({
           ) : (
             <p className="rounded-md bg-measured/10 px-3 py-2 text-xs text-measured">
               No groups yet.{' '}
-              <Link href="/menu/categories" className="font-semibold underline">
-                Create one on Categories
+              <Link href="/menu/modifiers" className="font-semibold underline">
+                Create one on Modifiers
               </Link>{' '}
               first — Size, Milk or Extras.
             </p>
           )}
         </FormSection>
 
-        <div className="rounded-lg border border-rule/60 bg-field px-4 py-3.5">
+        <div className="rounded-lg border border-border bg-field px-4 py-3.5">
           <SettingRows>
             <SettingRow
               icon={Scale}

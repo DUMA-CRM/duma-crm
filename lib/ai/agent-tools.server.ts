@@ -1,5 +1,6 @@
 import 'server-only';
 
+import type { RotaPlanner, ShiftRequest } from '@/lib/api/rota.service';
 import { auditChangeSet, auditSubject } from '@/lib/audit/change';
 import { auditActor, auditPhrase, auditRole, auditSeverity, resourceLabel, severityLabel } from '@/lib/audit/narrative';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
@@ -44,6 +45,8 @@ import type { QrOrderingConfig } from '@/lib/modules/qr-ordering/client';
 import type { ScheduledShift, VarianceRow } from '@/lib/modules/workforce/client';
 import type { Shift } from '@/lib/modules/workforce/client';
 import { attendanceTotals, groupAttendanceByWeek, leaveBalance, mergeAbsenceDays, myHrActions } from '@/lib/utils/my-hr';
+import { summariseWeek } from '@/lib/utils/rota-autofill';
+import { rulesFor } from '@/lib/utils/rota-rules';
 import type { Customer, CustomerSegment, CustomersResponse } from '@/types/customers';
 
 import {
@@ -93,6 +96,13 @@ function schema(properties: JsonObject): JsonObject {
 
 const nullableString = (description: string) => ({ type: ['string', 'null'], description });
 const DATE = 'Inclusive YYYY-MM-DD calendar date.';
+
+/** The Monday of the week holding a YYYY-MM-DD date — rota weeks start on Monday. */
+function mondayOfIso(date: string) {
+  const day = new Date(`${date}T00:00:00Z`);
+  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7));
+  return day.toISOString().slice(0, 10);
+}
 
 /** "partially_received" → "Partially received", for card titles and empty states. */
 const sentence = (value: string) => value.replaceAll('_', ' ').replace(/^./, (character) => character.toUpperCase());
@@ -1820,7 +1830,7 @@ const listCustomerSegments: ToolDefinition = {
 const getSchedule: ToolDefinition = {
   name: 'get_schedule',
   description:
-    'Read the rota for a date range plus who is clocked in right now. Defaults to today. Returns draft and published shifts with the person’s name, their local start and end times, and how long anyone on shift has been clocked in.',
+    'Read the rota for a date range plus who is clocked in right now. Defaults to today. Returns draft and published shifts with the person’s name, their local start and end times, and how long anyone on shift has been clocked in. For one location it also returns the week holding `from`: each person’s paid hours against their contract, working-time warnings (breaks, rest, weekly and under-18 limits, leave, unavailability), labour cost and labour % against the target when pay is visible, open shifts, and pending swap, pick-up and give-up requests.',
   capability: 'scheduling:read',
   step: 'Reading the rota',
   parameters: schema({
@@ -1841,11 +1851,34 @@ const getSchedule: ToolDefinition = {
     const query = new URLSearchParams({ from: zonedIso(from, '00:00', timeZone), to: zonedIso(addDays(to, 1), '00:00', timeZone) });
     if (locationId) query.set('locationId', locationId);
 
-    const [shifts, active, names] = await Promise.all([
+    // The planner bundle carries the week's staff, contracts, rates, leave,
+    // availability, sales and targets in one call. Optional: an API without it,
+    // or no single location, still answers with the plain rota.
+    const weekStart = mondayOfIso(from);
+    const [shifts, active, names, planner, requests] = await Promise.all([
       runtime.get<ScheduledShift[]>(`/scheduled-shifts?${query}`),
       runtime.get<Shift[]>('/shifts/active').catch(() => [] as Shift[]),
       runtime.staffNames(),
+      locationId
+        ? runtime.get<RotaPlanner>(`/rota/planner?${new URLSearchParams({ locationId, weekStart })}`).catch(() => null)
+        : Promise.resolve(null),
+      locationId
+        ? runtime
+            .get<ShiftRequest[]>(`/rota/requests?${new URLSearchParams({ locationId, status: 'pending' })}`)
+            .catch(() => [] as ShiftRequest[])
+        : Promise.resolve([] as ShiftRequest[]),
     ]);
+    const week = planner
+      ? summariseWeek({
+          timeZone: planner.location.timeZone || timeZone,
+          staff: planner.staff,
+          shifts: planner.shifts,
+          leave: planner.leave,
+          rules: rulesFor(planner.targets.rules),
+          sales: planner.sales,
+          targets: planner.targets,
+        })
+      : null;
 
     // Some endpoints embed the account, some return only a user id; the staff
     // directory closes the gap so nobody is reported as a raw id.
@@ -1875,6 +1908,22 @@ const getSchedule: ToolDefinition = {
           status: shift.status,
         })),
         clockedInNow,
+        week: week && {
+          weekStart,
+          people: week.people,
+          totals: week.totals,
+          payVisible: week.totals.labourCost !== null,
+          openShifts: week.openShifts,
+          pendingRequests: requests.slice(0, 20).map((request) => ({
+            id: request.id,
+            kind: request.kind,
+            status: request.status,
+            requester: request.requester.name,
+            target: request.targetUser?.name ?? null,
+            shift: `${formatDateTime(request.shift.startsAt, timeZone)} → ${formatDateTime(request.shift.endsAt, timeZone)}`,
+          })),
+          pendingRequestCount: planner?.pendingRequests ?? requests.length,
+        },
         note:
           shifts.length === 0 ? 'No shifts are on the rota for this range. Anyone clocked in is working an unrostered shift.' : undefined,
       },

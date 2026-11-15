@@ -54,7 +54,7 @@ export function SettingsSection({
   icon?: IconComponent;
 }) {
   const heading = title && (
-    <h2 className="flex min-w-0 items-center gap-2 text-base font-semibold tracking-title text-foreground">
+    <h2 className="flex min-w-0 items-center gap-2 text-base font-semibold tracking-title text-heading">
       {Icon && <Icon size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />}
       <span className="truncate">{title}</span>
     </h2>
@@ -63,7 +63,7 @@ export function SettingsSection({
     <motion.section
       id={id}
       variants={SECTION_RISE}
-      className={cn('rounded-lg border border-rule/60 bg-field', id && 'scroll-mt-6', className)}
+      className={cn('rounded-lg border border-border bg-card shadow-sm', id && 'scroll-mt-6', className)}
     >
       {alignActionsToTitle && title ? (
         <header className="px-5 pt-5">
@@ -91,7 +91,7 @@ export function SettingsSection({
 
       <div className={cn('px-5 pb-5', title || description || actions ? 'pt-4' : 'pt-5', bodyClassName)}>{children}</div>
 
-      {footnote && <p className="border-t border-rule/40 px-5 py-3 text-xs leading-relaxed text-muted-foreground">{footnote}</p>}
+      {footnote && <p className="border-t border-border px-5 py-3 text-xs leading-relaxed text-muted-foreground">{footnote}</p>}
     </motion.section>
   );
 }

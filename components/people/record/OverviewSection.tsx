@@ -1,28 +1,30 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
 import { PrivacyRequestsPanel } from '@/components/customers/PrivacyRequestsPanel';
 import {
   AlertTriangle,
+  Building2,
   CalendarCheck,
   CalendarClock,
   CalendarDays,
   CheckCircle2,
-  ChevronDown,
-  ChevronRight,
   Clock,
   Info as InfoIcon,
+  Mail,
   Timer,
 } from '@/components/icons';
 import { usePayrollSettings } from '@/components/payroll/usePayroll';
 import { fmtDate, fmtHours } from '@/components/people/shared';
-import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Fact } from '@/components/settings/controls';
+import { Avatar } from '@/components/shared/Avatar';
 import { MiniBar } from '@/components/shared/MiniBar';
+import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
 import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 
@@ -43,7 +45,7 @@ import { leaveBalance } from '@/lib/utils/my-hr';
 import { formatMoney } from '@/lib/utils/payroll-totals';
 import { workspaceDateKey, workspaceFormatter } from '@/lib/utils/workspace-time';
 
-import { AccessCard, EmploymentPanel, PersonalPanel } from './OverviewPanels';
+import { AccessCard, EmploymentPanel, PayPanel, PersonalPanel } from './OverviewPanels';
 import { EmployeeRequestsCard } from './RequestsCard';
 import { type Employee, monthRange } from './shared';
 
@@ -55,6 +57,11 @@ const SEVERITY_TILE: Record<RecordAttentionSeverity, string> = {
   blocking: 'bg-exception/8 text-exception',
   attention: 'bg-measured/10 text-measured',
   info: 'bg-primary/8 text-primary',
+};
+const SEVERITY_TONE: Record<RecordAttentionSeverity, NeedsAttentionTone> = {
+  blocking: 'exception',
+  attention: 'measured',
+  info: 'info',
 };
 const SEVERITY_ICON: Record<RecordAttentionSeverity, typeof AlertTriangle> = {
   blocking: AlertTriangle,
@@ -78,18 +85,20 @@ export interface OverviewAccess {
 }
 
 /**
- * The record's front page, top to bottom: what needs someone, four facts that
- * say where this person stands, then the reference — employment, personal,
- * access and what they have asked HR.
+ * The record's front page, laid out as Settings → Account: what needs someone
+ * across the top, then two equal columns — who they are (the identity card
+ * over four facts, then employment and pay) beside how to reach them, what
+ * their login can do and what they have asked for.
  *
- * Nothing is said twice. The start date lives in the service tile, pay in the
- * employment panel, open requests in the requests panel; the tiles that used
- * to repeat them ("Monthly salary", "Open requests") are gone. There is one
- * edit for the employment record — the page header's — and Access keeps its
- * own because it writes a different record (the login, not the employment).
+ * Nothing is said twice. The header keeps the name only as the way back; the
+ * job title and department are the identity line, the start date the service
+ * tile, pay the Pay card, open requests the Requests card. There is one edit
+ * for the employment record — the page header's — and Access keeps its own
+ * because it writes a different record (the login, not the employment).
  */
 export function OverviewSection({
   userId,
+  name,
   member,
   employee,
   locations,
@@ -98,6 +107,7 @@ export function OverviewSection({
   onOpenSection,
 }: {
   userId: string;
+  name: string;
   member: StaffProfile | null;
   employee: Employee | null;
   locations: { id: string; name: string }[];
@@ -120,6 +130,8 @@ export function OverviewSection({
     [ticketsQuery.data, userId],
   );
 
+  const role = employee ? [employee.jobTitle, employee.department].filter(Boolean).join(' · ') : '';
+
   return (
     <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
       {member && (
@@ -139,13 +151,49 @@ export function OverviewSection({
         />
       )}
 
-      {/* Laid out as a settings tab is — the same body, panels and read-outs —
-          so a person's record and their own Profile read as one product: who
-          they are in the main column, what the login can do and what they have
-          asked for beside it. */}
-      <SettingsTabBody
-        aside={
-          <>
+      <div className="grid items-start gap-5 lg:grid-cols-2">
+        <div className="min-w-0">
+          <SettingsTabBody>
+            <SettingsSection>
+              <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
+                <Avatar name={name} email={member?.email} size="xl" />
+                <div className="min-w-0">
+                  <p className="truncate text-2xl font-semibold tracking-headline text-foreground">{name}</p>
+                  {/* With no employment record there is no Personal card, so the sign-in email is the line. */}
+                  {(role || (!employee && member?.email)) && (
+                    <p className="mt-1.5 flex items-center justify-center gap-2 text-sm text-muted-foreground sm:justify-start">
+                      {role ? (
+                        <Building2 size={15} className="shrink-0" aria-hidden="true" />
+                      ) : (
+                        <Mail size={15} className="shrink-0" aria-hidden="true" />
+                      )}
+                      <span className="truncate">{role || member?.email}</span>
+                    </p>
+                  )}
+                </div>
+              </div>
+              {employee && (
+                <GlanceFacts userId={userId} employee={employee} access={access} currency={currency} onOpenSection={onOpenSection} />
+              )}
+            </SettingsSection>
+
+            {employee ? (
+              <>
+                <EmploymentPanel userId={userId} employee={employee} />
+                {access.money && <PayPanel employee={employee} currency={currency} country={payroll?.payrollCountry ?? null} />}
+              </>
+            ) : (
+              <SettingsSection title="Account only">
+                <p className="text-sm leading-relaxed text-muted-foreground">
+                  This login has no linked employment record. Don’t schedule or pay this person until onboarding is complete.
+                </p>
+              </SettingsSection>
+            )}
+          </SettingsTabBody>
+        </div>
+
+        <div className="min-w-0">
+          <SettingsTabBody>
             {employee && <PersonalPanel employee={employee} email={member?.email} onEdit={access.money ? onEdit : undefined} />}
             {member && (
               <AccessCard member={member} locations={locations} canEdit={access.staffAccess} canManageRoles={access.staffAccess} />
@@ -158,41 +206,11 @@ export function OverviewSection({
                 onRetry={() => void ticketsQuery.refetch()}
               />
             )}
+            {/* A shared panel that draws its own heading over its list — a titled list, so no card around it. */}
             {employee && access.privacy && <PrivacyRequestsPanel employeeUserId={userId} tenantId={employee.tenantId} />}
-          </>
-        }
-      >
-        {/* The page header is the one identity block — name, picture and job
-            title are not repeated here; sign-in state lives on the Access panel. */}
-        {employee && (
-          <SettingsSection>
-            <GlanceFacts userId={userId} employee={employee} access={access} currency={currency} onOpenSection={onOpenSection} />
-          </SettingsSection>
-        )}
-
-        {employee ? (
-          <EmploymentPanel
-            userId={userId}
-            employee={employee}
-            canSeePay={access.money}
-            currency={currency}
-            country={payroll?.payrollCountry ?? null}
-          />
-        ) : (
-          <SettingsSection title="Account only">
-            <p className="text-sm leading-relaxed text-muted-foreground">
-              This login has no linked employment record. Don’t schedule or pay this person until onboarding is complete.
-            </p>
-            {/* With no employment record there is no Personal panel, so this is
-                the one place their sign-in email shows. */}
-            {member?.email && (
-              <p className="mt-2 text-sm text-foreground">
-                Signs in as <span className="font-semibold">{member.email}</span>
-              </p>
-            )}
-          </SettingsSection>
-        )}
-      </SettingsTabBody>
+          </SettingsTabBody>
+        </div>
+      </div>
     </motion.div>
   );
 }
@@ -221,9 +239,7 @@ function RecordAttention({
   canReadDocuments: boolean;
   onAction: (target: RecordAttentionItem['target']) => void;
 }) {
-  const reduceMotion = useReducedMotion();
   const [asOf] = useState(() => new Date());
-  const [open, setOpen] = useState(false);
 
   // Right-to-work and contract are derived from documents, so without the
   // capability those two would report "missing" when the truth is that they
@@ -239,18 +255,13 @@ function RecordAttention({
   );
   const items = buildRecordAttention({ now: asOf, checks, tickets });
   const done = checks.filter((check) => check.complete);
-  const worst: RecordAttentionSeverity = items.some((item) => item.severity === 'blocking')
-    ? 'blocking'
-    : items.some((item) => item.severity === 'attention')
-      ? 'attention'
-      : 'info';
 
   if (canReadDocuments && documentsQuery.isPending)
-    return <TilesSkeleton count={1} label="Checking the record" tileClassName="border-rule/60 bg-field px-4 py-3.5" />;
+    return <TilesSkeleton count={1} label="Checking the record" tileClassName="border-border bg-card px-4 py-3" />;
 
   if (canReadDocuments && documentsQuery.isError)
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3" role="alert">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-field px-4 py-3" role="alert">
         <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE.blocking)}>
           <AlertTriangle size={18} aria-hidden="true" />
         </span>
@@ -269,93 +280,34 @@ function RecordAttention({
   if (items.length === 0) return null;
 
   return (
-    <motion.section variants={SECTION_RISE} aria-label="Needs you" className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-      <button
-        type="button"
-        aria-expanded={open}
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-      >
-        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE[worst])}>
-          <AlertTriangle size={18} aria-hidden="true" />
+    // The shared strips, like every other "needs you"; the checks already done and the scope note follow quietly.
+    <div className="space-y-2">
+      <NeedsAttention
+        label="Needs you"
+        items={items.map((item) => ({
+          key: item.id,
+          tone: SEVERITY_TONE[item.severity],
+          icon: SEVERITY_ICON[item.severity],
+          title: item.title,
+          detail: item.detail,
+          fix: { label: item.actionLabel, run: () => onAction(item.target) },
+        }))}
+      />
+      <p className="flex flex-wrap items-center gap-x-3 gap-y-1 px-1 text-xs text-muted-foreground">
+        <span>
+          {done.length} of {checks.length} checks done
         </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-foreground">
-            {items.length} {items.length === 1 ? 'thing needs' : 'things need'} you
-            <span className="ml-2 font-normal text-muted-foreground">
-              · {done.length} of {checks.length} checks done
-            </span>
+        {done.map((check) => (
+          <span key={check.id} className="inline-flex items-center gap-1">
+            <CheckCircle2 size={13} className="text-momentum" aria-hidden="true" />
+            {check.label}
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">{items.map((item) => item.title).join(' · ')}</span>
-        </span>
-        <span className="shrink-0 text-xs font-semibold text-muted-foreground">{open ? 'Hide' : 'Show'}</span>
-        <ChevronDown
-          size={15}
-          aria-hidden="true"
-          className={cn('shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')}
-        />
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
-            exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden border-t border-rule/50"
-          >
-            <ul className="space-y-2 p-2">
-              {items.map((item) => {
-                const Icon = SEVERITY_ICON[item.severity];
-                return (
-                  <li key={item.id}>
-                    <button
-                      type="button"
-                      onClick={() => onAction(item.target)}
-                      className={cn(
-                        'group flex w-full items-center gap-3 rounded-lg border bg-background/60 px-3.5 py-3 text-left transition-colors hover:bg-band/40',
-                        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                        item.severity === 'blocking' ? 'border-exception/35' : 'border-rule/60',
-                      )}
-                    >
-                      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', SEVERITY_TILE[item.severity])}>
-                        <Icon size={18} aria-hidden="true" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                        <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{item.detail}</span>
-                      </span>
-                      <span className="hidden shrink-0 items-center gap-1 text-xs font-semibold text-foreground sm:flex">
-                        {item.actionLabel}
-                        <ChevronRight
-                          size={14}
-                          className="text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                          aria-hidden="true"
-                        />
-                      </span>
-                    </button>
-                  </li>
-                );
-              })}
-            </ul>
-            {done.length > 0 && (
-              <p className="flex flex-wrap items-center gap-x-3 gap-y-1 border-t border-rule/45 px-4 py-2.5 text-xs text-muted-foreground">
-                <span className="font-semibold text-foreground">Done</span>
-                {done.map((check) => (
-                  <span key={check.id} className="inline-flex items-center gap-1">
-                    <CheckCircle2 size={13} className="text-momentum" aria-hidden="true" />
-                    {check.label}
-                  </span>
-                ))}
-              </p>
-            )}
-            <p className="border-t border-rule/45 px-4 py-2.5 text-xs leading-relaxed text-muted-foreground">
-              Operational checks only — tax registration, pension enrolment and starter paperwork are still done in payroll.
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </motion.section>
+        ))}
+      </p>
+      <p className="px-1 text-xs leading-relaxed text-muted-foreground">
+        Operational checks only — tax registration, pension enrolment and starter paperwork are still done in payroll.
+      </p>
+    </div>
   );
 }
 
@@ -413,7 +365,7 @@ function GlanceFacts({
   const hourlyValue = access.money && employee.payType === 'hourly' && employee.hourlyRate ? rawHours * Number(employee.hourlyRate) : null;
 
   return (
-    <dl className="grid gap-3 sm:grid-cols-2">
+    <dl className="mt-6 grid gap-3 sm:grid-cols-2">
       <Fact
         icon={CalendarDays}
         label="Holiday left"

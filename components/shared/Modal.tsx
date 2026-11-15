@@ -99,7 +99,7 @@ export function Modal({ title, description, onClose, footer, illustration, actio
 
   return createPortal(
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
-      <div className="absolute inset-0 bg-black/40 backdrop-blur-sm" onClick={onClose} />
+      <div className="absolute inset-0 bg-black/30" onClick={onClose} />
       <div
         ref={panelRef}
         role="dialog"
@@ -107,7 +107,7 @@ export function Modal({ title, description, onClose, footer, illustration, actio
         aria-label={title}
         tabIndex={-1}
         className={cn(
-          'relative flex max-h-[90vh] w-full flex-col rounded-sm border border-rule bg-card shadow-xl outline-none',
+          'relative flex max-h-[90vh] w-full flex-col rounded-xl border border-border bg-card shadow-xl outline-none',
           'duration-150 animate-in fade-in-0 zoom-in-95',
           SIZES[size],
           className,
@@ -122,13 +122,13 @@ export function Modal({ title, description, onClose, footer, illustration, actio
               </Button>
             </div>
             {illustration}
-            <h2 className="mt-3 text-base font-semibold text-foreground">{title}</h2>
+            <h2 className="mt-3 text-base font-semibold text-heading">{title}</h2>
             {description && <p className="mt-1 max-w-[40ch] text-sm leading-6 text-muted-foreground">{description}</p>}
           </div>
         ) : (
-          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-rule px-6 pb-4 pt-5">
+          <div className="flex shrink-0 items-start justify-between gap-3 border-b border-border px-6 pb-4 pt-5">
             <div className="min-w-0">
-              <h2 className="text-base font-semibold text-foreground">{title}</h2>
+              <h2 className="text-base font-semibold text-heading">{title}</h2>
               {description && <p className="mt-0.5 text-sm text-muted-foreground">{description}</p>}
             </div>
             {/* -mt-1.5: the 36px button centred on the 24px title line, not hanging below it. */}
@@ -143,7 +143,7 @@ export function Modal({ title, description, onClose, footer, illustration, actio
 
         <div className="min-h-0 flex-1 overflow-y-auto px-6 py-5">{children}</div>
 
-        {footer && <div className="shrink-0 border-t border-rule bg-band/65 px-6 py-4">{footer}</div>}
+        {footer && <div className="shrink-0 border-t border-border bg-card px-6 py-4">{footer}</div>}
       </div>
     </div>,
     document.body,

@@ -1,0 +1,13 @@
+{
+  "path": "/features/help-centre",
+  "name": "Help centre",
+  "summary": "Guides and a helpdesk for your staff.",
+  "description": "Guides and a helpdesk for your staff.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/help-centre",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "An experienced shop manager patiently shows a new colleague how to use a tablet, screen facing away."
+}

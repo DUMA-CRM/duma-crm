@@ -42,6 +42,21 @@ export const getMenuItems = async (tenantId?: string) => {
 
 export const createMenuItem = (data: MenuItemPayload) => apiFetch<MenuItem>('/menu-items', { method: 'POST', body: JSON.stringify(data) });
 
+/**
+ * A menu photo, stored in the workspace's media storage (folder "Menu", the
+ * free allowance) and served from the menu's own route — no Website content
+ * needed. Save the returned `url` as the item's `imageUrl`.
+ */
+export const uploadMenuImage = (file: File, meta: { title?: string; altText?: string }, tenantId?: string) => {
+  const body = new FormData();
+  body.set('file', file);
+  for (const [key, value] of Object.entries(meta)) if (value) body.set(key, value);
+  return apiFetch<{ id: string; url: string; sizeBytes: number }>(
+    `/menu-items/images${tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : ''}`,
+    { method: 'POST', body, timeoutMs: 120_000 },
+  );
+};
+
 export const updateMenuItem = (id: string, data: Partial<Omit<MenuItemPayload, 'tenantId'>>) =>
   apiFetch<MenuItem>(`/menu-items/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 

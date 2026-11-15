@@ -6,6 +6,7 @@ import { Modal } from '@/components/customers/CustomerDialogs';
 import { AlertTriangle, ArrowRight, type IconComponent, Minus, Plus } from '@/components/icons';
 import { ModalActions } from '@/components/shared/FormParts';
 import { Input } from '@/components/ui/input';
+import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 
 import { type AdjustDirection, planAdjustment } from '@/lib/utils/balance-adjust';
 import { cn } from '@/lib/utils/cn';
@@ -113,7 +114,7 @@ export function BalanceAdjustModal({
                     ? option.value === 'add'
                       ? 'border-primary bg-primary/5 text-foreground'
                       : 'border-exception/60 bg-exception/5 text-foreground'
-                    : 'border-rule/60 bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
+                    : 'border-border bg-background/60 text-muted-foreground hover:bg-band/40 hover:text-foreground',
                 )}
               >
                 <span
@@ -132,7 +133,7 @@ export function BalanceAdjustModal({
 
         {/* ── How many ────────────────────────────────────────────────── */}
         <div>
-          <p className="text-label uppercase text-muted-foreground" id="adjust-amount-label">
+          <p className={FIELD_LABEL_CLASS} id="adjust-amount-label">
             How many {unit.plural}
           </p>
           <div className="mt-2 flex items-stretch overflow-hidden rounded-lg border border-input bg-control focus-within:border-ring">
@@ -145,7 +146,7 @@ export function BalanceAdjustModal({
             >
               <Minus size={18} aria-hidden="true" />
             </button>
-            <label className="flex flex-1 items-baseline justify-center gap-1.5 border-x border-rule/60 py-2">
+            <label className="flex flex-1 items-baseline justify-center gap-1.5 border-x border-border py-2">
               <input
                 type="number"
                 inputMode="numeric"
@@ -183,7 +184,7 @@ export function BalanceAdjustModal({
         </div>
 
         {/* ── What it will be ─────────────────────────────────────────── */}
-        <div className="rounded-lg border border-rule/60 bg-field p-4">
+        <div className="rounded-lg border border-border bg-field p-4">
           <div className="flex items-center gap-4">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
               <Icon size={18} aria-hidden="true" />
@@ -220,10 +221,10 @@ export function BalanceAdjustModal({
             )}
           </div>
           {preview && !plan.belowZero && plan.delta !== 0 && (
-            <div className="mt-4 border-t border-rule/45 pt-4">{preview(plan.after, plan.delta)}</div>
+            <div className="mt-4 border-t border-border pt-4">{preview(plan.after, plan.delta)}</div>
           )}
           {plan.belowZero && (
-            <p role="alert" className="mt-3 flex items-start gap-2 border-t border-rule/45 pt-3 text-sm text-exception">
+            <p role="alert" className="mt-3 flex items-start gap-2 border-t border-border pt-3 text-sm text-exception">
               <AlertTriangle size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
               Only {label(balance)} to remove — the balance can’t go below zero.
             </p>
@@ -265,7 +266,7 @@ function Chip({ on, onClick, children }: { on: boolean; onClick: () => void; chi
         'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
         on
           ? 'border-primary bg-primary/5 text-primary'
-          : 'border-rule/60 bg-background/60 text-muted-foreground hover:border-rule hover:bg-band/45 hover:text-foreground',
+          : 'border-border bg-background/60 text-muted-foreground hover:border-rule hover:bg-band/45 hover:text-foreground',
       )}
     >
       {children}

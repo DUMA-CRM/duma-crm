@@ -4,11 +4,12 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 
 import { Ban, Banknote, CalendarDays, Check, Clock, History, Sun } from '@/components/icons';
-import { RecordBlock, RecordList, RecordListRow } from '@/components/people/record/shared';
-import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { RecordList, RecordListRow } from '@/components/people/record/shared';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { IconTag } from '@/components/shared/IconTag';
 import { MiniBar } from '@/components/shared/MiniBar';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Button } from '@/components/ui/button';
 
 import { type LeaveEntitlement, type LeaveRequest, cancelLeaveRequest } from '@/lib/modules/people/client';
@@ -96,7 +97,7 @@ export function TimeOffPanel({ requests, entitlements }: { requests: LeaveReques
   return (
     <motion.div initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
       <SettingsTabBody narrowAside aside={<Balances entitlements={entitlements} />}>
-        <RecordBlock id="time-off-upcoming" title="Upcoming">
+        <RecordGroup id="time-off-upcoming" title="Upcoming">
           <RecordList>
             {upcoming.length > 0 ? (
               upcoming.map((request) => row(request, false))
@@ -104,12 +105,12 @@ export function TimeOffPanel({ requests, entitlements }: { requests: LeaveReques
               <RecordListRow icon={CalendarDays} tone="muted" label="Book time away with Request time off" placeholder="Nothing booked" />
             )}
           </RecordList>
-        </RecordBlock>
+        </RecordGroup>
 
         {history.length > 0 && (
-          <RecordBlock id="time-off-history" title="History" note="Kept for your record. Ask HR if anything here looks wrong.">
+          <RecordGroup id="time-off-history" title="History" footnote="Kept for your record. Ask HR if anything here looks wrong.">
             <RecordList>{history.map((request) => row(request, true))}</RecordList>
-          </RecordBlock>
+          </RecordGroup>
         )}
       </SettingsTabBody>
     </motion.div>
@@ -118,28 +119,23 @@ export function TimeOffPanel({ requests, entitlements }: { requests: LeaveReques
 
 /** Each allowance with how much is left — the figure you check before you ask. */
 function Balances({ entitlements }: { entitlements: LeaveEntitlement[] }) {
-  // No panel around it: the balances are cards already, and a second border
-  // would only box them in. The year rides on the heading's row.
+  // One row per allowance inside the card; the year rides on the title's row.
   return (
-    <motion.section variants={SECTION_RISE} aria-labelledby="time-off-balances-title" className="scroll-mt-6">
-      <div className="mb-3 flex min-h-8 items-center gap-3">
-        <h2 id="time-off-balances-title" className="flex-1 text-base font-semibold tracking-title text-foreground">
-          Balances
-        </h2>
-        {entitlements[0] && <span className="text-xs tabular-nums text-muted-foreground">Leave year {entitlements[0].year}</span>}
-      </div>
+    <SettingsSection
+      id="time-off-balances"
+      title="Balances"
+      actions={entitlements[0] && <span className="text-xs tabular-nums text-muted-foreground">Leave year {entitlements[0].year}</span>}
+    >
       {entitlements.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">
-          No allowance has been set for you yet. Ask HR to add one.
-        </p>
+        <p className="text-sm text-muted-foreground">No allowance has been set for you yet. Ask HR to add one.</p>
       ) : (
-        <ul className="space-y-2.5">
+        <ul className="divide-y divide-border">
           {entitlements.map((item) => {
             const total = Number(item.totalDays);
             const used = Number(item.usedDays);
             const remaining = Math.round((total - used) * 100) / 100;
             return (
-              <li key={item.id} className="rounded-lg border border-rule/60 bg-card px-3.5 py-3">
+              <li key={item.id} className="py-3 first:pt-0 last:pb-0">
                 <div className="flex items-baseline justify-between gap-3">
                   <p className="min-w-0 truncate text-sm font-semibold text-foreground">
                     {item.leaveType.name}
@@ -164,6 +160,6 @@ function Balances({ entitlements }: { entitlements: LeaveEntitlement[] }) {
           })}
         </ul>
       )}
-    </motion.section>
+    </SettingsSection>
   );
 }

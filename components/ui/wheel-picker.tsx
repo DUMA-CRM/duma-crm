@@ -17,7 +17,7 @@ function WheelPickerWrapper({ className, ...props }: React.ComponentProps<typeof
   return (
     <WheelPickerPrimitive.WheelPickerWrapper
       className={cn(
-        'w-56 rounded-lg border border-rule/70 bg-control px-1 shadow-xs',
+        'w-56 rounded-lg border border-border bg-control px-1 shadow-xs',
         '*:data-rwp:first:*:data-rwp-highlight-wrapper:rounded-s-md',
         '*:data-rwp:last:*:data-rwp-highlight-wrapper:rounded-e-md',
         className,

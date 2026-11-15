@@ -1,18 +1,17 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
-import { InfoRow, InfoRows, RowTile } from '@/components/cms/rows';
-import { AlertTriangle, ChevronRight, Code, MapPin, Plug } from '@/components/icons';
+import { RowWarning } from '@/components/cms/rows';
+import { Plug } from '@/components/icons';
 import { useSettingsTenantId } from '@/components/settings/SettingsScope';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Bone } from '@/components/shared/Skeleton';
+import { ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
 import { hasAnyCapability } from '@/lib/auth/capabilities';
@@ -44,11 +43,12 @@ import { CONNECTORS, type ConnectorId, type ConnectorState } from './registry';
 import { relativeTime } from './shared';
 
 /**
- * The Connectors tab: every integration on one screen with its live status, the
- * account it is using, and one thing to do — as rows grouped by what needs you
- * (attention, connected, not set up), with an at-a-glance summary in the side panel. Statuses come from the same endpoints the
- * connectors themselves use, so a card never claims something is working when
- * the last check says otherwise.
+ * The Connectors tab, in the Settings → Account layout: every integration as a
+ * `ConnectorRow` with its live status, the account it uses and one thing to do,
+ * in `RecordGroup` lists by what needs you (attention, set up, not set up),
+ * laid out as two stacked columns. Statuses come from the same
+ * endpoints the connectors themselves use, so a row never claims something is
+ * working when the last check says otherwise.
  */
 export function ConnectorsGrid() {
   const router = useRouter();
@@ -60,8 +60,6 @@ export function ConnectorsGrid() {
   const listPath = '/settings/connectors';
   const capabilities = useAuthStore((state) => state.capabilities);
   const workspace = useCurrentWorkspace();
-  // The same rule as the Developers tab.
-  const canUseApi = hasAnyCapability(capabilities, 'settings:write', 'cms.keys:write');
 
   const modules = useQuery({
     queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId),
@@ -360,7 +358,17 @@ export function ConnectorsGrid() {
     });
 
   // Which rows exist depends on the modules, so only that waits for the whole page.
-  if (modules.isPending) return <Bone className="h-96 w-full rounded-lg" />;
+  if (modules.isPending)
+    return (
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+        {[3, 4].map((rows) => (
+          <div key={rows} className="flex flex-col gap-2">
+            <Bone className="mx-1 my-1.5 h-5 w-28" />
+            <ListSkeleton rows={rows} label="Loading your connections" />
+          </div>
+        ))}
+      </div>
+    );
   if (modules.isError) return <ErrorState title="Couldn’t load your connections" onRetry={() => void modules.refetch()} />;
 
   // Each status check belongs to its row: a slow one shows a placeholder line, a failed one says so on that row alone.
@@ -391,95 +399,65 @@ export function ConnectorsGrid() {
     return check?.loading ? { ...card, loading: true } : card;
   });
 
-  // Most urgent first: broken, then working, then not set up — each its own section.
+  // Most urgent first: broken, then working, then not set up — each its own list.
   const live = rows.filter((card) => card.definition.available);
-  const soon = rows.filter((card) => !card.definition.available);
   const attention = live.filter((card) => card.state === 'attention');
   const connected = live.filter((card) => card.state === 'connected' || card.state === 'paused');
   const notSetUp = live.filter((card) => card.state === 'disconnected');
   const activeBucket = storage?.connections.find((connection) => connection.isActive);
-  const list = (group: typeof live) => (
-    <div className="-mx-2 flex flex-col gap-0.5">
-      {group.map((card) => (
-        <ConnectorRow key={card.definition.id} {...card} />
-      ))}
-    </div>
-  );
+  const storageFull = storageVisible && storage && !activeBucket && storage.builtIn.usedBytes >= storage.builtIn.quotaBytes * 0.8;
+  const canManageModules = hasAnyCapability(capabilities, 'settings:write');
+  const anySetUp = attention.length + connected.length > 0;
 
-  return (
-    <SettingsTabBody
-      narrowAside
-      aside={
-        <SettingsSection title="At a glance">
-          <InfoRows>
-            {paymentsVisible && (
-              <>
-                <InfoRow icon={MapPin} title="Location">
-                  <span className="truncate text-sm font-semibold text-foreground">{workspace.location?.name ?? 'None chosen'}</span>
-                </InfoRow>
-              </>
-            )}
-          </InfoRows>
-          {paymentsVisible && (
-            <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-              Card readers belong to one location — switch location to see another’s. Till hardware belongs to this browser and location.
-              Other shared connections are workspace-wide.
-            </p>
-          )}
-          {storageVisible && storage && !activeBucket && storage.builtIn.usedBytes >= storage.builtIn.quotaBytes * 0.8 && (
-            <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
-              <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
-              <span>The free media storage is nearly full — connect your own bucket under Media storage.</span>
-            </p>
-          )}
-          {hasAnyCapability(capabilities, 'settings:write') && (
-            <Link href="/settings/modules" className="mt-4 block text-sm font-medium text-primary hover:underline">
-              Manage modules and available connections
-            </Link>
-          )}
-          {canUseApi && (
-            <div className="-mx-2 mt-4 flex flex-col gap-0.5">
-              <Link
-                href="/settings/developers"
-                className="group flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-band/50"
-              >
-                <RowTile icon={Code} />
-                <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-foreground">Build your own</span>
-                  <span className="block truncate text-xs text-muted-foreground">API keys, webhooks and MCP</span>
-                </span>
-                <ChevronRight
-                  size={14}
-                  className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                  aria-hidden="true"
-                />
-              </Link>
-            </div>
-          )}
-        </SettingsSection>
-      }
-    >
-      {live.length === 0 ? (
+  // The location rule sits once, under the first list holding a location-bound row.
+  const boundTo = (cards: typeof live) =>
+    cards.some((card) => card.definition.id === 'card-payments' || card.definition.id === 'till-hardware');
+  const noteUnder = paymentsVisible ? [attention, connected, notSetUp].find(boundTo) : undefined;
+  const locationNote = (
+    <>
+      Card readers and till hardware shown for{' '}
+      <span className="font-medium text-foreground">{workspace.location?.name ?? 'no location'}</span> — switch location to see another’s.
+      Till hardware is also kept per browser.
+    </>
+  );
+  const group = (id: string, title: string, cards: typeof live, actions?: React.ReactNode) =>
+    cards.length > 0 && (
+      <RecordGroup id={`connectors-${id}`} title={title} actions={actions} footnote={cards === noteUnder ? locationNote : undefined}>
+        <ListRowGroup>
+          {cards.map((card) => (
+            <ConnectorRow key={card.definition.id} {...card} />
+          ))}
+        </ListRowGroup>
+      </RecordGroup>
+    );
+
+  if (live.length === 0)
+    return (
+      <div className="flex flex-col gap-5">
         <EmptyState
           icon={Plug}
           title="No connections available"
           description="Connections appear when their module is on and your role can manage them."
-          action={
-            hasAnyCapability(capabilities, 'settings:write') ? { label: 'Open module settings', href: '/settings/modules' } : undefined
-          }
+          action={canManageModules ? { label: 'Open module settings', href: '/settings/modules' } : undefined}
         />
-      ) : (
-        <>
-          {attention.length > 0 && (
-            <SettingsSection title="Needs attention" actions={<Badge variant="destructive">{attention.length}</Badge>}>
-              {list(attention)}
-            </SettingsSection>
-          )}
-          {connected.length > 0 && <SettingsSection title="Set up">{list(connected)}</SettingsSection>}
-          {notSetUp.length > 0 && <SettingsSection title="Not set up">{list(notSetUp)}</SettingsSection>}
-          {soon.length > 0 && <SettingsSection title="Coming soon">{list(soon)}</SettingsSection>}
-        </>
-      )}
-    </SettingsTabBody>
+      </div>
+    );
+
+  // A bento of two stacked columns: what needs you and what works | what's left to set up.
+  return (
+    <div className="flex flex-col gap-5">
+      {storageFull && <RowWarning>The free media storage is nearly full — connect your own bucket under Media storage.</RowWarning>}
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-5">
+          {group('attention', 'Needs attention', attention, <Badge variant="destructive">{attention.length}</Badge>)}
+          {group('set-up', 'Set up', connected)}
+          {/* Nothing set up yet: the to-do list takes the first column rather than leaving it empty. */}
+          {!anySetUp && group('not-set-up', 'Not set up', notSetUp)}
+        </div>
+        <div className="flex min-w-0 flex-col gap-5">
+          {anySetUp && group('not-set-up', 'Not set up', notSetUp)}
+        </div>
+      </div>
+    </div>
   );
 }

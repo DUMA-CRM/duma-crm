@@ -1,10 +1,12 @@
 'use client';
 
-import { CalendarClock, CheckCircle2, Clock, Coffee, FileText, MapPin, Moon, Sun } from '@/components/icons';
+import { CheckCircle2, Clock, Coffee, FileText, MapPin, Moon, Sun } from '@/components/icons';
 import type { ShiftDetail } from '@/components/scheduling/ShiftDetailDrawer';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
+import { ContextMenu, ContextMenuContent, ContextMenuTrigger } from '@/components/ui/context-menu';
 
 import type { LeaveRequest } from '@/lib/modules/people/client';
 import type { ScheduledShift, Shift } from '@/lib/modules/workforce/client';
@@ -28,6 +30,9 @@ const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 const fmtTime = (value: Date | string) => formatInstant(value, { hour: '2-digit', minute: '2-digit' });
 const fmtWindow = (mins: number) => `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
+/** A day of the week: a row split by hairlines on a phone, a column on a desk. */
+const DAY_CELL =
+  'flex gap-3 border-b border-border p-2.5 last:border-b-0 lg:min-h-52 lg:flex-col lg:gap-2 lg:border-r lg:border-b-0 lg:last:border-r-0';
 
 export interface BreakRule {
   thresholdMins?: number | null;
@@ -36,7 +41,7 @@ export interface BreakRule {
 
 /**
  * Your week as a calendar: a column per day on a desk, a row per day on a
- * phone, and a card per shift that says everything about it — when, where, as
+ * phone, and a block per shift that says everything about it — when, where, as
  * what, when the break falls, any note from your manager, and how it went.
  *
  * It replaced an hour-axis timeline (2026-10-03). That chart answered "where in
@@ -60,6 +65,7 @@ export function WeekSchedule({
   loading,
   error,
   onRetry,
+  menuFor,
 }: {
   title: string;
   days: Date[];
@@ -80,138 +86,133 @@ export function WeekSchedule({
   loading: boolean;
   error: unknown;
   onRetry: () => void;
+  /** Right-click (or long-press) items for a shift — swap, give up — or null for none. */
+  menuFor?: (shift: ScheduledShift) => React.ReactNode | null;
 }) {
-  const empty = byDay.every((shifts) => shifts.length === 0) && workedByDay.every((worked) => worked.length === 0);
-
   return (
-    <SettingsSection
+    // The title on the page and the week as the only card: day columns split by
+    // hairlines, shifts as tinted blocks inside them — not a card per day
+    // holding a card per shift.
+    <RecordGroup
+      id="my-rota-week"
       title={title}
       footnote={leaveError ? 'Your leave couldn’t be loaded, so days off you’ve booked may not show here.' : undefined}
     >
       {error ? (
-        <ErrorState
-          className="py-10"
-          title="Your rota couldn’t be loaded"
-          description={error instanceof Error ? error.message : 'Check your connection and try again.'}
-          onRetry={onRetry}
-        />
+        <ListRowGroup>
+          <li>
+            <ErrorState
+              className="py-10"
+              title="Your rota couldn’t be loaded"
+              description={error instanceof Error ? error.message : 'Check your connection and try again.'}
+              onRetry={onRetry}
+            />
+          </li>
+        </ListRowGroup>
       ) : loading ? (
-        <div role="status" className="grid gap-2 lg:grid-cols-7" aria-busy="true" aria-label="Loading your rota">
-          {/* Each day's own card — the date, then a shift-sized block — so the week doesn't jump. */}
-          {days.map((day) => (
-            <div
-              key={day.toISOString()}
-              className="flex gap-3 rounded-lg border border-rule/50 bg-background/60 p-2.5 lg:min-h-52 lg:flex-col lg:gap-2"
-              aria-hidden="true"
-            >
-              <span className="flex w-14 shrink-0 flex-col gap-1 lg:w-auto lg:flex-row lg:items-center lg:gap-2 lg:px-0.5">
-                <Bone className="h-2.5 w-8" />
-                <Bone className="h-4 w-6" />
-              </span>
-              <Bone className="h-14 min-w-0 flex-1 lg:flex-none" />
-            </div>
-          ))}
+        <div role="status" aria-busy="true" aria-label="Loading your rota">
+          <ListRowGroup className="grid lg:grid-cols-7">
+            {/* Each day's cell — the date, then a shift-sized block — so the week doesn't jump. */}
+            {days.map((day) => (
+              <li key={day.toISOString()} className={DAY_CELL} aria-hidden="true">
+                <span className="flex w-14 shrink-0 flex-col gap-1 lg:w-auto lg:flex-row lg:items-center lg:gap-2 lg:px-0.5">
+                  <Bone className="h-2.5 w-8" />
+                  <Bone className="h-4 w-6" />
+                </span>
+                <Bone className="h-14 min-w-0 flex-1 lg:flex-none" />
+              </li>
+            ))}
+          </ListRowGroup>
         </div>
       ) : (
-        <>
-          {empty && (
-            <div className="mb-3 flex items-center gap-3 rounded-lg border border-dashed border-rule/60 px-4 py-3">
-              <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground">
-                <CalendarClock size={16} aria-hidden="true" />
-              </span>
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-foreground">No published shifts this week</span>
-                <span className="mt-0.5 block text-xs text-muted-foreground">
-                  They appear here as soon as your manager publishes the rota.
-                </span>
-              </span>
-            </div>
-          )}
-          <ol className="grid gap-2 lg:grid-cols-7">
-            {days.map((day, index) => {
-              const planned = [...byDay[index]].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
-              // Each clock-in lands once: on the shift whose hours it shares, or
-              // in a run of unplanned work with the clock-ins next to it.
-              const { byShift, unplanned } = assignWorked(planned, workedByDay[index], now);
-              const dayMins = planned.reduce((sum, shift) => sum + plannedMinutes(shift), 0);
-              const isToday = sameDay(day, today);
-              const past = day < today && !isToday;
-              const windows = openWindowsByDay[index];
-              const dayLeave = leaveOnDay(leave, day);
-              const off = planned.length === 0 && unplanned.length === 0 && dayLeave.length === 0;
+        <ListRowGroup className="grid lg:grid-cols-7">
+          {days.map((day, index) => {
+            const planned = [...byDay[index]].sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+            // Each clock-in lands once: on the shift whose hours it shares, or
+            // in a run of unplanned work with the clock-ins next to it.
+            const { byShift, unplanned } = assignWorked(planned, workedByDay[index], now);
+            const dayMins = planned.reduce((sum, shift) => sum + plannedMinutes(shift), 0);
+            const isToday = sameDay(day, today);
+            const past = day < today && !isToday;
+            const windows = openWindowsByDay[index];
+            const dayLeave = leaveOnDay(leave, day);
+            const off = planned.length === 0 && unplanned.length === 0 && dayLeave.length === 0;
 
-              return (
-                <li
-                  key={day.toISOString()}
-                  aria-current={isToday ? 'date' : undefined}
-                  className={cn(
-                    'flex gap-3 rounded-lg border p-2.5 lg:min-h-52 lg:flex-col lg:gap-2',
-                    isToday ? 'border-primary/45 bg-primary/4' : 'border-rule/50 bg-background/60',
-                  )}
-                >
-                  {/* ── The day ──────────────────────────────────────────── */}
-                  <header className="flex w-14 shrink-0 flex-col items-start lg:w-auto lg:flex-row lg:items-center lg:justify-between lg:px-0.5">
-                    <div className="flex flex-col items-start lg:flex-row lg:items-center lg:gap-2">
-                      <span className={cn('text-micro font-semibold uppercase', isToday ? 'text-primary' : 'text-muted-foreground')}>
-                        {DAY_LABELS[index]}
-                      </span>
-                      <span
-                        className={cn(
-                          'flex size-8 items-center justify-center rounded-full text-base font-semibold tabular-nums',
-                          isToday ? 'bg-primary text-primary-foreground' : past ? 'text-muted-foreground' : 'text-foreground',
-                        )}
-                      >
-                        {day.getDate()}
-                      </span>
-                    </div>
-                    {dayMins > 0 && <span className="text-xs tabular-nums text-muted-foreground">{formatDuration(dayMins)}</span>}
-                  </header>
+            return (
+              <li key={day.toISOString()} aria-current={isToday ? 'date' : undefined} className={cn(DAY_CELL, isToday && 'bg-primary/4')}>
+                {/* ── The day ──────────────────────────────────────────── */}
+                <header className="flex w-14 shrink-0 flex-col items-start lg:w-auto lg:flex-row lg:items-center lg:justify-between lg:px-0.5">
+                  <div className="flex flex-col items-start lg:flex-row lg:items-center lg:gap-2">
+                    <span className={cn('text-micro font-semibold uppercase', isToday ? 'text-primary' : 'text-muted-foreground')}>
+                      {DAY_LABELS[index]}
+                    </span>
+                    <span
+                      className={cn(
+                        'flex size-8 items-center justify-center rounded-md text-base font-semibold tabular-nums',
+                        isToday ? 'bg-primary text-primary-foreground' : past ? 'text-muted-foreground' : 'text-foreground',
+                      )}
+                    >
+                      {day.getDate()}
+                    </span>
+                  </div>
+                  {dayMins > 0 && <span className="text-xs tabular-nums text-muted-foreground">{formatDuration(dayMins)}</span>}
+                </header>
 
-                  {/* ── Its shifts ───────────────────────────────────────── */}
-                  {off ? (
-                    // A day off fills the column it would have held shifts in,
-                    // so the week reads as a row of equal days, not a gap.
-                    <p className="flex min-h-10 min-w-0 flex-1 items-center gap-2 rounded-md border border-dashed border-rule/50 px-3 text-xs font-medium text-muted-foreground lg:flex-col lg:justify-center lg:gap-1.5 lg:px-2">
-                      <Moon size={14} className="shrink-0 text-muted-foreground/60" aria-hidden="true" />
-                      {isToday ? 'Day off' : 'Off'}
-                    </p>
-                  ) : (
-                    <div className="grid min-w-0 flex-1 content-start gap-2 sm:grid-cols-2 lg:grid-cols-1">
-                      {dayLeave.map((request) => (
-                        <LeaveCard key={request.id} request={request} />
-                      ))}
-                      {planned.map((shift) => {
-                        const worked = byShift.get(shift.id) ?? [];
-                        return (
-                          <ShiftCard
-                            key={shift.id}
-                            shift={shift}
-                            worked={worked}
-                            now={now}
-                            breakRule={breakRule}
-                            change={changes.get(shift.id)}
-                            onOpen={() => onOpen({ kind: 'shift', shift, worked })}
-                          />
-                        );
-                      })}
-                      {unplanned.map((run) => (
-                        <UnplannedCard key={run[0].id} run={run} now={now} onOpen={() => onOpen({ kind: 'unplanned', run })} />
-                      ))}
-                    </div>
-                  )}
+                {/* ── Its shifts ───────────────────────────────────────── */}
+                {off ? (
+                  // A day off fills the column it would have held shifts in,
+                  // so the week reads as a row of equal days, not a gap.
+                  <p className="flex min-h-10 min-w-0 flex-1 items-center gap-2 px-1 text-xs font-medium text-muted-foreground lg:flex-col lg:justify-center lg:gap-1.5">
+                    <Moon size={14} className="shrink-0 text-muted-foreground/60" aria-hidden="true" />
+                    {isToday ? 'Day off' : 'Off'}
+                  </p>
+                ) : (
+                  <div className="grid min-w-0 flex-1 content-start gap-1.5 sm:grid-cols-2 lg:grid-cols-1">
+                    {dayLeave.map((request) => (
+                      <LeaveCard key={request.id} request={request} />
+                    ))}
+                    {planned.map((shift) => {
+                      const worked = byShift.get(shift.id) ?? [];
+                      const card = (
+                        <ShiftCard
+                          key={shift.id}
+                          shift={shift}
+                          worked={worked}
+                          now={now}
+                          breakRule={breakRule}
+                          change={changes.get(shift.id)}
+                          onOpen={() => onOpen({ kind: 'shift', shift, worked })}
+                        />
+                      );
+                      const menu = menuFor?.(shift);
+                      return menu ? (
+                        <ContextMenu key={shift.id}>
+                          <ContextMenuTrigger asChild>
+                            <div className="min-w-0">{card}</div>
+                          </ContextMenuTrigger>
+                          <ContextMenuContent>{menu}</ContextMenuContent>
+                        </ContextMenu>
+                      ) : (
+                        card
+                      );
+                    })}
+                    {unplanned.map((run) => (
+                      <UnplannedCard key={run[0].id} run={run} now={now} onOpen={() => onOpen({ kind: 'unplanned', run })} />
+                    ))}
+                  </div>
+                )}
 
-                  {windows.length > 0 && (
-                    <p className="hidden truncate px-0.5 text-micro text-muted-foreground lg:block" title="Location opening hours">
-                      Open {windows.map((window) => `${fmtWindow(window.open)}–${fmtWindow(window.close)}`).join(', ')}
-                    </p>
-                  )}
-                </li>
-              );
-            })}
-          </ol>
-        </>
+                {windows.length > 0 && (
+                  <p className="hidden truncate px-0.5 text-micro text-muted-foreground lg:block" title="Location opening hours">
+                    Open {windows.map((window) => `${fmtWindow(window.open)}–${fmtWindow(window.close)}`).join(', ')}
+                  </p>
+                )}
+              </li>
+            );
+          })}
+        </ListRowGroup>
       )}
-    </SettingsSection>
+    </RecordGroup>
   );
 }
 
@@ -244,9 +245,13 @@ function ShiftCard({
       onClick={onOpen}
       aria-label={`${fmtTime(shift.startsAt)} to ${fmtTime(shift.endsAt)}, ${shift.location?.name ?? 'location not listed'} — open details`}
       className={cn(
-        'relative block w-full min-w-0 overflow-hidden rounded-md border bg-card px-3 py-2.5 text-left shadow-sm transition-[border-color,box-shadow]',
-        'hover:border-primary/60 hover:shadow-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-        state === 'now' ? 'border-primary/70 ring-2 ring-primary/15' : state === 'done' ? 'border-rule/50' : 'border-primary/35',
+        'relative block w-full min-w-0 overflow-hidden rounded-md px-3 py-2.5 text-left transition-colors',
+        'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+        state === 'now'
+          ? 'bg-primary/10 ring-1 ring-inset ring-primary/45 hover:bg-primary/14'
+          : state === 'done'
+            ? 'bg-band/50 hover:bg-band'
+            : 'bg-primary/6 hover:bg-primary/10',
       )}
     >
       {change && (
@@ -345,8 +350,9 @@ function LeaveCard({ request }: { request: LeaveRequest }) {
   return (
     <div
       className={cn(
-        'min-w-0 rounded-md border px-3 py-2.5',
-        approved ? 'border-reference/35 bg-reference/8' : 'border-dashed border-reference/45 bg-transparent',
+        'min-w-0 rounded-md px-3 py-2.5',
+        // Pending keeps the dashed edge: on this calendar dashed means "not settled".
+        approved ? 'bg-reference/8' : 'border border-dashed border-reference/45',
       )}
     >
       <p className="flex items-center gap-1.5 text-xs font-semibold text-reference">

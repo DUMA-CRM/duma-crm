@@ -87,7 +87,7 @@ function Select({
           // field sitting side by side read as one control family.
           'inline-flex h-9 min-w-0 items-center gap-2 rounded-sm border border-input bg-control px-3 text-base text-foreground outline-none sm:text-sm',
           'transition-[border-color,outline-color,background-color] duration-100 hover:bg-band',
-          'focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured',
+          'focus:border-ring focus:outline-2 focus:outline-offset-0 focus:outline-ring/30',
           'aria-invalid:border-exception aria-invalid:text-exception',
           'disabled:cursor-not-allowed disabled:opacity-50',
           className,
@@ -108,7 +108,7 @@ function Select({
           className={cn(
             'z-[100] min-w-[var(--radix-select-trigger-width)] max-h-[min(20rem,var(--radix-select-content-available-height))] overflow-hidden',
             // A callout off the plot: hairline box, real drop because it floats.
-            'rounded-sm border border-rule bg-surface shadow-lg',
+            'rounded-lg border border-border bg-surface shadow-lg',
             'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
             'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
             contentClassName,

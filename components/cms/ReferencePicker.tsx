@@ -101,7 +101,7 @@ export function ReferencePicker({
             title={q ? 'Nothing matches' : `No ${locale} entries to link`}
           />
         ) : (
-          <ul className="divide-y divide-rule/50 rounded-lg border border-rule/60">
+          <ul className="divide-y divide-border rounded-lg border border-border">
             {rows.map((row) => (
               <li key={row.id}>
                 <button

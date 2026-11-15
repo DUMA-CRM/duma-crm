@@ -85,7 +85,7 @@ export function EmployeeAttendanceCard({ userId, canReadRota }: { userId: string
       }
     >
       {isError ? (
-        <div className="rounded-lg border border-rule/60 bg-card">
+        <div className="rounded-lg border border-border bg-card">
           <ErrorState
             title="Attendance couldn’t be loaded"
             description="No day was read, so this is not a month with nothing in it."

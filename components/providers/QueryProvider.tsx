@@ -35,7 +35,7 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       new QueryClient({
         // Failed background reads used to be completely silent — pages rendered
         // empty states indistinguishable from "no data". Surface every query
-        // failure as one toast (identical messages share one sileo id, so they dedupe).
+        // failure as one toast (identical messages share one toast id, so they dedupe).
         queryCache: new QueryCache({
           onError: (error, query) => {
             if (query.meta?.silentError) return;

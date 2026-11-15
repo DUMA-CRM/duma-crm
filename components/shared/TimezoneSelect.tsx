@@ -179,7 +179,7 @@ export function TimezoneSelect({ value, onChange, id, required, placeholder = 'S
           // The shared field (components/ui/input.tsx), with room for the globe and the offset.
           'h-9 w-full rounded-md border border-input bg-control pl-9 pr-24 text-base text-foreground shadow-sm sm:text-sm',
           'placeholder:text-muted-foreground outline-none transition-[border-color,outline-color,box-shadow] duration-150',
-          'focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured',
+          'focus:border-ring focus:outline-2 focus:outline-offset-0 focus:outline-ring/30',
           inputClassName,
           'pl-9 pr-24',
         )}
@@ -201,7 +201,7 @@ export function TimezoneSelect({ value, onChange, id, required, placeholder = 'S
             id={listboxId}
             role="listbox"
             style={{ position: 'fixed', top: coords.top, left: coords.left, width: coords.width }}
-            className="z-[60] max-h-72 overflow-y-auto overscroll-contain rounded-md border border-rule bg-surface p-1 shadow-lg"
+            className="z-[60] max-h-72 overflow-y-auto overscroll-contain rounded-lg border border-border bg-surface p-1 shadow-lg"
           >
             {filtered.length === 0 ? (
               <li className="px-3 py-6 text-center text-sm text-muted-foreground">No timezone matches “{query.replaceAll('_', ' ')}”.</li>

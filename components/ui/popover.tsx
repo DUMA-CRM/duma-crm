@@ -36,7 +36,7 @@ function PopoverContent({
         sideOffset={sideOffset}
         collisionPadding={collisionPadding}
         className={cn(
-          'z-100 max-w-[calc(100vw-2rem)] rounded-lg border border-rule/70 bg-card p-3 text-foreground shadow-lg outline-none',
+          'z-100 max-w-[calc(100vw-2rem)] rounded-lg border border-border bg-card p-3 text-foreground shadow-lg outline-none',
           'data-[state=open]:animate-in data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:fade-in-0',
           'data-[state=closed]:zoom-out-95 data-[state=open]:zoom-in-95',
           className,

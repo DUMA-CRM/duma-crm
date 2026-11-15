@@ -55,7 +55,7 @@ import {
 import { FIELD_ICONS } from './field-icons';
 
 const textarea =
-  'w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-measured disabled:opacity-60';
+  'w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30 disabled:opacity-60';
 
 type Row = 'description' | 'placeholder' | 'limits' | 'key' | 'default';
 
@@ -590,7 +590,7 @@ function LogicSection({
                 const update = (patch: Partial<FormCondition>) =>
                   setConditions(conditions.map((entry, at) => (at === conditionIndex ? { ...entry, ...patch } : entry)));
                 return (
-                  <li key={conditionIndex} className="space-y-1.5 rounded-md border border-rule/50 bg-background p-2.5">
+                  <li key={conditionIndex} className="space-y-1.5 rounded-md border border-border bg-background p-2.5">
                     <div className="flex items-center gap-1.5">
                       <Select
                         value={condition.fieldId}
@@ -750,7 +750,7 @@ function FormOverview({
             ].map(([keys, what]) => (
               <li key={keys} className="flex items-center justify-between gap-3">
                 <span>{what}</span>
-                <kbd className="rounded border border-rule/60 bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground">
+                <kbd className="rounded border border-border bg-background px-1.5 py-0.5 font-mono text-[11px] text-foreground">
                   {keys}
                 </kbd>
               </li>

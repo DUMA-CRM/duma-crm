@@ -139,7 +139,7 @@ export function MediaLibrary({
 
           <div>
             <div className="mb-3 flex items-center justify-between gap-3">
-              <h3 className="text-sm font-semibold text-foreground">Your media</h3>
+              <h3 className="text-sm font-semibold text-heading">Your media</h3>
               <div role="group" aria-label="Show" className="flex gap-1">
                 {KINDS.map((k) => (
                   <button
@@ -151,7 +151,7 @@ export function MediaLibrary({
                       'h-8 rounded-full border px-3 text-xs font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring',
                       kind === k.value
                         ? 'border-primary bg-primary/5 text-foreground shadow-[inset_0_0_0_1px_var(--primary)]'
-                        : 'border-rule/70 bg-field text-muted-foreground hover:bg-band/45 hover:text-foreground',
+                        : 'border-border bg-field text-muted-foreground hover:bg-band/45 hover:text-foreground',
                     )}
                   >
                     {k.label}
@@ -194,7 +194,7 @@ export function MediaLibrary({
                       }}
                       className={cn(
                         'group min-w-0 rounded-lg border bg-field p-1.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                        picked ? 'border-primary shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-rule/60 hover:border-primary/60',
+                        picked ? 'border-primary shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-border hover:border-primary/60',
                       )}
                     >
                       <span className="relative block aspect-square overflow-hidden rounded-md bg-band/50">

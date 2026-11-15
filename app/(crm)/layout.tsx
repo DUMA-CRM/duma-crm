@@ -47,7 +47,7 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
 
   return (
     <WorkspaceSeedProvider seed={seed?.workspace ? { accountId: session.user.id, data: seed } : null}>
-      <div className="flex h-dvh overflow-hidden bg-background">
+      <div className="relative flex h-dvh overflow-hidden bg-background">
         <a
           href="#main-content"
           className="fixed left-3 top-3 z-50 -translate-y-20 rounded-md bg-primary px-4 py-2 text-sm font-semibold text-primary-foreground shadow-md transition-transform focus:translate-y-0"

@@ -7,6 +7,7 @@ import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
+import { FIELD_LABEL_CLASS, FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { formatBytes } from '@/lib/utils/cms';
@@ -29,8 +30,6 @@ type Result =
   | { status: 'working'; progress: number }
   | { status: 'done'; video: EncodedVideo }
   | { status: 'failed'; message: string };
-
-const LABEL = 'text-label uppercase text-muted-foreground';
 
 /**
  * Compress videos before they are stored — the video twin of
@@ -231,7 +230,7 @@ export function VideoOptionsDialog({
               <Progress result={singleResult} />
             </>
           ) : (
-            <ul className="max-h-[min(56vh,32rem)] divide-y divide-rule/50 overflow-auto rounded-lg border border-rule/60">
+            <ul className="max-h-[min(56vh,32rem)] divide-y divide-border overflow-auto rounded-lg border border-border">
               {videos.map((file) => {
                 const result = results.get(file);
                 return (
@@ -287,7 +286,7 @@ export function VideoOptionsDialog({
         {/* ── Settings ── */}
         <div className="flex flex-col gap-6">
           <fieldset className="space-y-2">
-            <legend className={LABEL}>Quality</legend>
+            <legend className={FIELD_LABEL_CLASS}>Quality</legend>
             <div className="grid gap-1.5">
               {VIDEO_QUALITIES.map((quality) => (
                 <Tooltip side="left" key={quality.value} label={quality.hint} className="flex">
@@ -299,7 +298,7 @@ export function VideoOptionsDialog({
                       'w-full rounded-md border px-3 py-2 text-left transition-colors',
                       options.quality === quality.value
                         ? 'border-primary bg-primary/6'
-                        : 'border-rule/60 hover:border-rule hover:bg-band/40',
+                        : 'border-border hover:border-rule hover:bg-band/40',
                     )}
                   >
                     <span className="block text-sm font-semibold text-foreground">{quality.label}</span>
@@ -311,7 +310,7 @@ export function VideoOptionsDialog({
           </fieldset>
 
           <div className="space-y-1.5">
-            <p className={LABEL}>Maximum size</p>
+            <FieldLabel as="span">Maximum size</FieldLabel>
             <Select
               ariaLabel="Maximum size"
               className="w-full"
@@ -342,7 +341,7 @@ export function VideoOptionsDialog({
             />
           </div>
 
-          <div className="mt-auto rounded-lg border border-rule/60 p-4">
+          <div className="mt-auto rounded-lg border border-border p-4">
             <dl className="grid grid-cols-[auto_1fr] items-baseline gap-x-4 gap-y-2 text-sm">
               <dt className="text-muted-foreground">Original</dt>
               <dd className="text-right tabular-nums text-muted-foreground">
@@ -372,7 +371,7 @@ export function VideoOptionsDialog({
             {!busy && after !== before && (
               <p
                 className={cn(
-                  'mt-3 border-t border-rule/50 pt-3 text-right text-xl font-semibold tabular-nums',
+                  'mt-3 border-t border-border pt-3 text-right text-xl font-semibold tabular-nums',
                   after < before ? 'text-momentum' : 'text-measured',
                 )}
               >

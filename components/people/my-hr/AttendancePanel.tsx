@@ -44,7 +44,7 @@ export function AttendancePanel({ onCorrection }: { onCorrection: (date: string)
     <motion.div className="space-y-6" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
       <motion.section variants={SECTION_RISE} aria-label={`Attendance for ${monthName}`} className="space-y-3">
         <div className="flex flex-wrap items-center gap-3">
-          <h2 className="flex-1 text-base font-semibold tracking-title text-foreground" aria-live="polite">
+          <h2 className="flex-1 text-base font-semibold tracking-title text-heading" aria-live="polite">
             {monthName}
           </h2>
           <div className="flex items-center gap-1.5">
@@ -63,7 +63,7 @@ export function AttendancePanel({ onCorrection }: { onCorrection: (date: string)
         </div>
 
         {month.isError ? (
-          <div className="rounded-lg border border-rule/60 bg-card">
+          <div className="rounded-lg border border-border bg-card">
             <ErrorState title="Your attendance couldn’t be loaded" onRetry={month.refetch} />
           </div>
         ) : (
@@ -122,7 +122,7 @@ function Absence() {
       {absences.isPending ? (
         <ListSkeleton rows={2} label="Loading your absence record" />
       ) : absences.isError ? (
-        <div className="rounded-lg border border-rule/60 bg-card">
+        <div className="rounded-lg border border-border bg-card">
           <ErrorState title="Your absence record couldn’t be loaded" onRetry={() => void absences.refetch()} />
         </div>
       ) : (

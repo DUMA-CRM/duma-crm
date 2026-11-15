@@ -21,14 +21,16 @@ import { type Choice, ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
 
 import { type OrderDetail, type RefundReason, createRefund, getRefundOptions } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { type RefundSelection, refundAmount, refundLines, selectEverything } from '@/lib/utils/orders-list';
+import { type RefundSelection, parseRefundAmount, refundAmount, refundLines, selectEverything } from '@/lib/utils/orders-list';
 
 import { invalidateOrder } from './StatusMenu';
 
@@ -54,12 +56,23 @@ export function useRefundDraft(order: OrderDetail, refundable: number, active: b
   const [restock, setRestock] = useState<Set<string>>(new Set());
   const [reason, setReason] = useState<RefundReason | null>(null);
   const [notes, setNotes] = useState('');
-  const amount = refundAmount(items, chosen);
+  // Items, or a sum not tied to any — goodwill, a pricing slip, a sale that was never itemised.
+  const [mode, setMode] = useState<'items' | 'amount'>('items');
+  const [typed, setTyped] = useState('');
+  const custom = parseRefundAmount(typed, refundable);
+  // After an amount refund the items are worth more than is left; they refund
+  // only what is left — the API caps it the same way (capLineCents).
+  const itemsWorth = refundAmount(items, chosen);
+  const capped = mode === 'items' && itemsWorth > refundable + 0.001;
+  const amount = mode === 'amount' ? (custom.ok ? custom.value : 0) : Math.min(itemsWorth, refundable);
   const lines = refundLines(items, chosen, restock);
-  const isEverything = items.length > 0 && Math.abs(amount - refundAmount(items, everything)) < 0.001;
+  const isEverything = items.length > 0 && Math.abs(itemsWorth - refundAmount(items, everything)) < 0.001;
 
   const submit = useMutation({
-    mutationFn: () => createRefund(order.id, { lines, reason: reason ?? 'other', notes: notes.trim() || undefined }),
+    mutationFn: () =>
+      mode === 'amount' && custom.ok
+        ? createRefund(order.id, { amount: custom.amount, reason: reason ?? 'other', notes: notes.trim() })
+        : createRefund(order.id, { lines, reason: reason ?? 'other', notes: notes.trim() || undefined }),
     onSuccess: () => {
       invalidateOrder(qc, order.id);
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('refund-options', order.id) });
@@ -69,6 +82,8 @@ export function useRefundDraft(order: OrderDetail, refundable: number, active: b
       setRestock(new Set());
       setReason(null);
       setNotes('');
+      setTyped('');
+      setMode('items');
       onDone();
     },
     onError: (error) => toast('error', error.message || 'The refund wasn’t recorded. Check the amount and try again.'),
@@ -84,6 +99,8 @@ export function useRefundDraft(order: OrderDetail, refundable: number, active: b
     reason,
     notes,
     amount,
+    itemsWorth,
+    capped,
     lines,
     submit,
     setQuantity: (key: string, value: number, max: number) =>
@@ -107,7 +124,16 @@ export function useRefundDraft(order: OrderDetail, refundable: number, active: b
       }),
     setReason,
     setNotes,
-    canSubmit: lines.length > 0 && amount > 0 && amount <= refundable + 0.001 && reason !== null && !submit.isPending,
+    mode,
+    setMode,
+    typed,
+    setTyped,
+    customProblem: custom.ok ? null : custom.problem,
+    // An amount isn't tied to anything the record can show later, so it needs its note.
+    canSubmit:
+      reason !== null &&
+      !submit.isPending &&
+      (mode === 'amount' ? custom.ok && notes.trim().length > 0 : lines.length > 0 && amount > 0 && amount <= refundable + 0.001),
   };
 }
 
@@ -127,7 +153,7 @@ function PlainSection({ title, action, children }: { title: string; action?: Rea
   return (
     <section>
       <header className="mb-3 flex min-h-8 items-center gap-3">
-        <h3 className="min-w-0 flex-1 text-base font-semibold tracking-title text-foreground">{title}</h3>
+        <h3 className="min-w-0 flex-1 text-base font-semibold tracking-title text-heading">{title}</h3>
         {action}
       </header>
       {children}
@@ -158,7 +184,7 @@ export function RefundBody({
           </div>
           <ul className="space-y-2">
             {[0, 1, 2].map((row) => (
-              <li key={row} className="flex items-center gap-3 rounded-lg border border-rule/50 bg-background/60 px-3.5 py-3">
+              <li key={row} className="flex items-center gap-3 rounded-lg border border-border bg-card px-3.5 py-3">
                 <Bone className="size-10 shrink-0" />
                 <span className="min-w-0 flex-1 space-y-1.5">
                   <Bone className={row === 1 ? 'h-3.5 w-28' : 'h-3.5 w-40'} />
@@ -189,135 +215,172 @@ export function RefundBody({
 
   return (
     <div className="space-y-5">
-      <PlainSection
-        title="What’s being refunded"
-        action={
-          <Button variant="ghost" size="sm" onClick={draft.toggleEverything}>
-            {draft.isEverything ? 'Switch all off' : 'Switch all on'}
-          </Button>
-        }
-      >
-        <ul className="space-y-2">
-          {draft.items.map((item) => {
-            const key = `item:${item.id}`;
-            const qty = draft.chosen[key] ?? 0;
-            const selected = qty > 0;
-            const gone = item.base.remainingQuantity === 0;
-            const lineAmount = refundAmount([item], draft.chosen);
-            const hasExtras = selected && (item.modifiers.length > 0 || !!item.canRestock);
-            return (
-              <li
-                key={item.id}
-                className={cn(
-                  'overflow-hidden rounded-lg border transition-colors',
-                  gone
-                    ? 'border-dashed border-rule/60 bg-transparent'
-                    : selected
-                      ? 'border-exception/35 bg-card'
-                      : 'border-rule/50 bg-background/60',
-                )}
-              >
-                <div className="flex items-center gap-3 px-3.5 py-3">
-                  <span
-                    className={cn(
-                      'flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold transition-colors',
-                      gone ? 'bg-band text-muted-foreground' : selected ? 'bg-exception/8 text-exception' : 'bg-band text-muted-foreground',
-                    )}
-                    aria-hidden="true"
-                  >
-                    {gone ? <RotateCcw size={16} /> : `${item.base.remainingQuantity}×`}
-                  </span>
-                  <span className="min-w-0 flex-1">
+      <SegmentedControl
+        options={[
+          { value: 'items', label: 'Items' },
+          { value: 'amount', label: 'An amount' },
+        ]}
+        value={draft.mode}
+        onChange={draft.setMode}
+        ariaLabel="Refund items or an amount"
+        className="w-full [&>button]:flex-1"
+      />
+      {draft.mode === 'amount' ? (
+        <PlainSection title="How much">
+          <Input
+            value={draft.typed}
+            onChange={(event) => draft.setTyped(event.target.value)}
+            inputMode="decimal"
+            autoFocus
+            placeholder="0.00"
+            aria-label="Refund amount"
+            leftIcon={<span className="text-sm font-medium">£</span>}
+            error={draft.customProblem ?? undefined}
+            hint={
+              draft.customProblem ? undefined : `Up to ${money(refundable)} is left to refund. No item changes, nothing goes back in stock.`
+            }
+          />
+        </PlainSection>
+      ) : (
+        <PlainSection
+          title="What’s being refunded"
+          action={
+            <Button variant="ghost" size="sm" onClick={draft.toggleEverything}>
+              {draft.isEverything ? 'Switch all off' : 'Switch all on'}
+            </Button>
+          }
+        >
+          <ul className="space-y-2">
+            {draft.items.map((item) => {
+              const key = `item:${item.id}`;
+              const qty = draft.chosen[key] ?? 0;
+              const selected = qty > 0;
+              const gone = item.base.remainingQuantity === 0;
+              const lineAmount = refundAmount([item], draft.chosen);
+              const hasExtras = selected && (item.modifiers.length > 0 || !!item.canRestock);
+              return (
+                <li
+                  key={item.id}
+                  className={cn(
+                    'overflow-hidden rounded-lg border transition-colors',
+                    gone ? 'border-dashed border-edge bg-transparent' : selected ? 'border-exception/35 bg-card' : 'border-border bg-card',
+                  )}
+                >
+                  <div className="flex items-center gap-3 px-3.5 py-3">
                     <span
                       className={cn(
-                        'block truncate text-sm font-semibold',
-                        gone ? 'text-muted-foreground line-through' : 'text-foreground',
+                        'flex size-10 shrink-0 items-center justify-center rounded-md text-sm font-semibold transition-colors',
+                        gone
+                          ? 'bg-band text-muted-foreground'
+                          : selected
+                            ? 'bg-exception/8 text-exception'
+                            : 'bg-band text-muted-foreground',
                       )}
+                      aria-hidden="true"
                     >
-                      {item.name}
-                      {item.variantName && <span className="font-normal text-muted-foreground"> · {item.variantName}</span>}
+                      {gone ? <RotateCcw size={16} /> : `${item.base.remainingQuantity}×`}
                     </span>
-                    <span className="mt-0.5 block text-xs text-muted-foreground">
-                      {gone ? 'Already refunded' : `${money(item.base.remainingAmount)} refundable`}
+                    <span className="min-w-0 flex-1">
+                      <span
+                        className={cn(
+                          'block truncate text-sm font-semibold',
+                          gone ? 'text-muted-foreground line-through' : 'text-foreground',
+                        )}
+                      >
+                        {item.name}
+                        {item.variantName && <span className="font-normal text-muted-foreground"> · {item.variantName}</span>}
+                      </span>
+                      <span className="mt-0.5 block text-xs text-muted-foreground">
+                        {gone ? 'Already refunded' : `${money(Math.min(Number(item.base.remainingAmount), refundable))} refundable`}
+                      </span>
                     </span>
-                  </span>
-                  {selected && <span className="shrink-0 text-sm font-semibold text-exception">− {money(lineAmount)}</span>}
-                  <Switch label={`Refund ${item.name}`} checked={selected} disabled={gone} onChange={() => draft.toggleItem(item)} />
-                </div>
-
-                {selected && item.base.remainingQuantity > 1 && (
-                  <div className="flex items-center gap-2 border-t border-rule/45 px-3.5 py-2 text-xs text-muted-foreground">
-                    <span>Refund</span>
-                    <div className="flex h-7 items-center overflow-hidden rounded-md border border-rule/60 bg-background">
-                      <button
-                        type="button"
-                        aria-label={`One fewer ${item.name}`}
-                        disabled={qty <= 1}
-                        onClick={() => draft.setQuantity(key, qty - 1, item.base.remainingQuantity)}
-                        className="flex h-full w-7 items-center justify-center hover:bg-band disabled:opacity-40"
-                      >
-                        <Minus size={12} />
-                      </button>
-                      <span className="w-6 text-center text-sm font-semibold text-foreground">{qty}</span>
-                      <button
-                        type="button"
-                        aria-label={`One more ${item.name}`}
-                        disabled={qty >= item.base.remainingQuantity}
-                        onClick={() => draft.setQuantity(key, qty + 1, item.base.remainingQuantity)}
-                        className="flex h-full w-7 items-center justify-center hover:bg-band disabled:opacity-40"
-                      >
-                        <Plus size={12} />
-                      </button>
-                    </div>
-                    <span>of {item.base.remainingQuantity}</span>
+                    {selected && <span className="shrink-0 text-sm font-semibold text-exception">− {money(lineAmount)}</span>}
+                    <Switch label={`Refund ${item.name}`} checked={selected} disabled={gone} onChange={() => draft.toggleItem(item)} />
                   </div>
-                )}
 
-                {hasExtras && (
-                  <ul className="space-y-2 border-t border-rule/45 bg-band/20 px-3.5 py-2.5">
-                    {item.modifiers.map((modifier) => {
-                      const mKey = `modifier:${modifier.id}`;
-                      const on = (draft.chosen[mKey] ?? 0) > 0;
-                      return (
-                        <li key={modifier.id} className="flex items-center gap-3 border-l-2 border-rule/60 pl-3">
-                          <span className="min-w-0 flex-1 text-sm text-foreground">
-                            {modifier.name}
-                            <span className="text-muted-foreground"> · {money(modifier.remainingAmount)}</span>
+                  {selected && item.base.remainingQuantity > 1 && (
+                    <div className="flex items-center gap-2 border-t border-border px-3.5 py-2 text-xs text-muted-foreground">
+                      <span>Refund</span>
+                      <div className="flex h-7 items-center overflow-hidden rounded-md border border-border bg-background">
+                        <button
+                          type="button"
+                          aria-label={`One fewer ${item.name}`}
+                          disabled={qty <= 1}
+                          onClick={() => draft.setQuantity(key, qty - 1, item.base.remainingQuantity)}
+                          className="flex h-full w-7 items-center justify-center hover:bg-band disabled:opacity-40"
+                        >
+                          <Minus size={12} />
+                        </button>
+                        <span className="w-6 text-center text-sm font-semibold text-foreground">{qty}</span>
+                        <button
+                          type="button"
+                          aria-label={`One more ${item.name}`}
+                          disabled={qty >= item.base.remainingQuantity}
+                          onClick={() => draft.setQuantity(key, qty + 1, item.base.remainingQuantity)}
+                          className="flex h-full w-7 items-center justify-center hover:bg-band disabled:opacity-40"
+                        >
+                          <Plus size={12} />
+                        </button>
+                      </div>
+                      <span>of {item.base.remainingQuantity}</span>
+                    </div>
+                  )}
+
+                  {hasExtras && (
+                    <ul className="space-y-2 border-t border-border bg-band/20 px-3.5 py-2.5">
+                      {item.modifiers.map((modifier) => {
+                        const mKey = `modifier:${modifier.id}`;
+                        const on = (draft.chosen[mKey] ?? 0) > 0;
+                        return (
+                          <li key={modifier.id} className="flex items-center gap-3 border-l-2 border-border pl-3">
+                            <span className="min-w-0 flex-1 text-sm text-foreground">
+                              {modifier.name}
+                              <span className="text-muted-foreground">
+                                {' '}
+                                · {money(Math.min(Number(modifier.remainingAmount), refundable))}
+                              </span>
+                            </span>
+                            <Switch
+                              label={`Refund ${modifier.name}`}
+                              checked={on}
+                              disabled={modifier.remainingQuantity === 0}
+                              onChange={() => draft.setQuantity(mKey, on ? 0 : modifier.remainingQuantity, modifier.remainingQuantity)}
+                            />
+                          </li>
+                        );
+                      })}
+                      {item.canRestock && (
+                        <li className="flex items-center gap-3 border-l-2 border-primary/40 pl-3">
+                          <PackageCheck size={15} className="shrink-0 text-primary" aria-hidden="true" />
+                          <span className="min-w-0 flex-1">
+                            <span className="block text-sm text-foreground">Put it back in stock</span>
+                            <span className="block text-xs text-muted-foreground">It’s unopened and can be sold again</span>
                           </span>
                           <Switch
-                            label={`Refund ${modifier.name}`}
-                            checked={on}
-                            disabled={modifier.remainingQuantity === 0}
-                            onChange={() => draft.setQuantity(mKey, on ? 0 : modifier.remainingQuantity, modifier.remainingQuantity)}
+                            label={`Put ${item.name} back in stock`}
+                            checked={draft.restock.has(item.id)}
+                            onChange={() => draft.toggleRestock(item.id)}
                           />
                         </li>
-                      );
-                    })}
-                    {item.canRestock && (
-                      <li className="flex items-center gap-3 border-l-2 border-primary/40 pl-3">
-                        <PackageCheck size={15} className="shrink-0 text-primary" aria-hidden="true" />
-                        <span className="min-w-0 flex-1">
-                          <span className="block text-sm text-foreground">Put it back in stock</span>
-                          <span className="block text-xs text-muted-foreground">It’s unopened and can be sold again</span>
-                        </span>
-                        <Switch
-                          label={`Put ${item.name} back in stock`}
-                          checked={draft.restock.has(item.id)}
-                          onChange={() => draft.toggleRestock(item.id)}
-                        />
-                      </li>
-                    )}
-                  </ul>
-                )}
-              </li>
-            );
-          })}
-        </ul>
-        <p className="mt-2 px-1 text-xs text-muted-foreground">
-          {selectedCount} of {draft.items.length} {draft.items.length === 1 ? 'item' : 'items'}
-          {restockCount > 0 && ` · ${restockCount} back in stock`}
-        </p>
-      </PlainSection>
+                      )}
+                    </ul>
+                  )}
+                </li>
+              );
+            })}
+          </ul>
+          <p className="mt-2 px-1 text-xs text-muted-foreground">
+            {selectedCount} of {draft.items.length} {draft.items.length === 1 ? 'item' : 'items'}
+            {restockCount > 0 && ` · ${restockCount} back in stock`}
+          </p>
+          {/* Money already went back without items: say why the figure is less than the items. */}
+          {draft.capped && (
+            <p className="mt-2 rounded-md bg-measured/10 px-3 py-2 text-xs text-foreground">
+              {money(Number(order.totalAmount) - refundable)} has already been refunded, so the most left to refund is {money(refundable)}.
+            </p>
+          )}
+        </PlainSection>
+      )}
 
       <PlainSection title="Why">
         <ChoiceGrid<RefundReason>
@@ -331,9 +394,10 @@ export function RefundBody({
           value={draft.notes}
           onChange={(event) => draft.setNotes(event.target.value)}
           maxLength={500}
-          placeholder="A note for the record (optional)"
+          placeholder={draft.mode === 'amount' ? 'What the amount is for (needed)' : 'A note for the record (optional)'}
           aria-label="Refund note"
-          className="mt-3 h-10 w-full rounded-lg border border-input bg-background px-3 text-sm outline-none focus:border-ring"
+          aria-required={draft.mode === 'amount'}
+          className="mt-3 h-10 w-full rounded-md border border-input bg-control px-3 text-sm outline-none focus:border-ring focus:outline-2 focus:outline-ring/30"
         />
       </PlainSection>
 
@@ -373,13 +437,15 @@ export function RefundFooter({
   return (
     <div className="flex items-center gap-2">
       <p className="min-w-0 flex-1 truncate text-sm">
-        {draft.reason ? (
+        {draft.reason && (draft.mode === 'items' || draft.notes.trim()) ? (
           <>
             <span className="text-muted-foreground">Refund</span>{' '}
             <span className="font-semibold text-foreground">{money(draft.amount)}</span>
           </>
         ) : (
-          <span className="text-muted-foreground">Choose why to continue</span>
+          <span className="text-muted-foreground">
+            {draft.reason ? 'Add a note saying what the amount is for' : 'Choose why to continue'}
+          </span>
         )}
       </p>
       <Button variant="outline" onClick={onCancel} disabled={draft.submit.isPending}>

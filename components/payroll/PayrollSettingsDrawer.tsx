@@ -89,7 +89,7 @@ export function PayrollSettingsDrawer({ settings, onClose }: { settings: Payroll
                 className={
                   period === value
                     ? 'rounded-lg border border-primary bg-primary/5 px-3.5 py-3 text-left text-sm font-semibold text-foreground'
-                    : 'rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-left text-sm font-medium text-foreground hover:bg-band/40'
+                    : 'rounded-lg border border-border bg-field px-3.5 py-3 text-left text-sm font-medium text-foreground hover:bg-band/40'
                 }
               >
                 {PERIOD_LABEL[value].name}
@@ -100,7 +100,7 @@ export function PayrollSettingsDrawer({ settings, onClose }: { settings: Payroll
             ))}
           </div>
           <div className="pt-2">
-            <h4 className="text-sm font-medium text-foreground">Pay day</h4>
+            <h4 className="text-sm font-medium text-heading">Pay day</h4>
             {period === 'monthly' ? (
               <Select
                 value={String(payDay)}
@@ -128,7 +128,7 @@ export function PayrollSettingsDrawer({ settings, onClose }: { settings: Payroll
           </div>
         </FormSection>
 
-        <section className="flex items-start gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3.5">
+        <section className="flex items-start gap-3 rounded-lg border border-border bg-field px-4 py-3.5">
           <span className="min-w-0 flex-1">
             <span className="block text-sm font-semibold text-foreground">Finalise automatically on pay day</span>
             <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">

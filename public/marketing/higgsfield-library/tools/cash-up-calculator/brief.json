@@ -1,0 +1,13 @@
+{
+  "path": "/tools/cash-up-calculator",
+  "name": "Cash-up calculator",
+  "summary": "",
+  "description": "",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "tools/cash-up-calculator",
+  "local_sources": [
+    "app/(marketing)/tools/cash-up-calculator/page.tsx"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A caf\u00e9 manager counts generic coins into a coin tray at closing beside an unbranded calculator. No legible currency or totals."
+}

@@ -187,7 +187,7 @@ function CommunicationsView() {
       actions={<div className="hidden md:flex">{actionControl}</div>}
       subheader={
         <>
-          <div className="flex items-center gap-3 border-b border-rule/60 bg-background px-3 py-2 md:hidden">
+          <div className="flex items-center gap-3 border-b border-border bg-field px-3 py-2 md:hidden">
             <Select
               value={tab}
               onValueChange={(value) => navigate({ tab: value, status: null }, 'replace')}

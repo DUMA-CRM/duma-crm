@@ -21,16 +21,19 @@ interface MenuGridProps {
   onClearSearch?: () => void;
   stock?: Record<string, { level: StockLevel; ingredient: string }>;
   tileStyle?: TileStyle;
+  /** Each category's key colour, from `categoryColours`. */
+  colours?: Record<string, string>;
   /** Shown instead of the generic empty state (e.g. no favourites yet). */
   empty?: { title: string; description: string };
   currency?: string;
 }
 
-// Photo keys ~152px: four across beside the ticket on a 10–11" landscape
-// tablet, five on a 12.9", two or three on a phone. Compact keys ~136px fit
-// five. The page pads below for the floating ticket bar.
-export const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-3';
-const COMPACT_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2.5';
+// Text keys ~136px: five across beside the ticket on a 10–11" landscape
+// tablet (Toast's default grid is five wide), six on a 12.9", two or three on
+// a phone. Photo keys ~152px fit four. An 8px gap is the floor against
+// mis-taps. The page pads below for the floating ticket bar.
+export const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2';
+const COMPACT_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2';
 
 export function MenuGrid({
   items,
@@ -43,7 +46,8 @@ export function MenuGrid({
   query,
   onClearSearch,
   stock,
-  tileStyle = 'photo',
+  tileStyle = 'compact',
+  colours,
   empty,
   currency,
 }: MenuGridProps) {
@@ -96,6 +100,7 @@ export function MenuGrid({
           count={counts[item.id] ?? 0}
           stock={stock?.[item.id]}
           tileStyle={tileStyle}
+          colour={colours?.[item.category]}
           isSelected={selectedId === item.id}
           onSelect={onSelectItem}
           currency={currency}
@@ -107,19 +112,15 @@ export function MenuGrid({
 
 const NAME_W = ['w-3/4', 'w-1/2', 'w-2/3', 'w-4/5'];
 
-/** A `ProductCard` without its words — same border, photo inset, name and price. */
+/** A `ProductCard` without its words — same box, photo, name and price. */
 function ProductCardSkeleton({ index, photo }: { index: number; photo: boolean }) {
   return (
     <div
-      className={cn('flex flex-col overflow-hidden rounded-xl border border-rule/70 bg-card', photo ? 'min-h-28' : 'min-h-24')}
+      className={cn('flex flex-col overflow-hidden rounded-md border border-border bg-card', photo ? 'min-h-28' : 'min-h-20')}
       aria-hidden="true"
     >
-      {photo && (
-        <span className="block shrink-0 p-1.5 pb-0">
-          <Bone className="aspect-[16/10] w-full rounded-lg" />
-        </span>
-      )}
-      <span className={cn('flex flex-1 flex-col justify-between gap-2 px-3 pb-3', photo ? 'pt-2.5' : 'pt-3')}>
+      {photo && <Bone className="aspect-[16/10] w-full rounded-none" />}
+      <span className="flex flex-1 flex-col justify-between gap-2 py-2.5 pr-2.5 pl-3.5">
         <Bone className={cn('h-4', NAME_W[index % NAME_W.length])} />
         <Bone className="h-3.5 w-12" />
       </span>
@@ -127,28 +128,30 @@ function ProductCardSkeleton({ index, photo }: { index: number; photo: boolean }
   );
 }
 
-/** The categories-first layout: one big key per category, opening into its items. */
+/** The categories-first layout: one big key per category, in its colour, opening into its items. */
 export function CategoryGrid({
   tiles,
+  colours,
   onOpen,
 }: {
-  tiles: Array<{ id: string; name: string; count: number; image: string; accent?: boolean }>;
+  tiles: Array<{ id: string; name: string; count: number; image: string }>;
+  colours?: Record<string, string>;
   onOpen: (id: string) => void;
 }) {
   return (
-    <div className="grid grid-cols-[repeat(auto-fill,minmax(12rem,1fr))] gap-3">
+    <div className="grid grid-cols-[repeat(auto-fill,minmax(11rem,1fr))] gap-2">
       {tiles.map((tile) => (
         <button
           key={tile.id}
           type="button"
           onClick={() => onOpen(tile.id)}
-          className={cn(
-            'relative flex h-36 touch-manipulation select-none flex-col justify-end overflow-hidden rounded-xl border p-4 text-left transition-transform duration-100 active:scale-[0.97]',
-            tile.accent ? 'border-primary bg-primary text-primary-foreground' : 'border-rule/70 bg-card text-foreground',
-          )}
+          className="relative flex h-28 touch-manipulation select-none flex-col justify-end overflow-hidden rounded-md border border-border bg-card py-3 pr-3 pl-4 text-left transition-colors duration-75 active:bg-band focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
         >
-          <span className="relative text-xl font-semibold leading-tight">{tile.name}</span>
-          <span className={cn('relative mt-1 text-sm tabular-nums', tile.accent ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
+          {colours?.[tile.id] && (
+            <span aria-hidden="true" className="absolute inset-y-0 left-0 w-1" style={{ backgroundColor: colours[tile.id] }} />
+          )}
+          <span className="text-lg font-semibold leading-tight text-heading">{tile.name}</span>
+          <span className="mt-0.5 text-sm tabular-nums text-muted-foreground">
             {tile.count} item{tile.count === 1 ? '' : 's'}
           </span>
         </button>
@@ -170,10 +173,10 @@ function PanelState({
 }) {
   return (
     <div className="flex flex-col items-center justify-center px-6 py-20 text-center">
-      <span className="flex size-14 items-center justify-center rounded-2xl bg-band text-muted-foreground" aria-hidden="true">
-        <Icon size={24} />
+      <span className="flex size-12 items-center justify-center rounded-md bg-band text-muted-foreground" aria-hidden="true">
+        <Icon size={22} />
       </span>
-      <p className="mt-4 text-base font-semibold text-foreground">{title}</p>
+      <p className="mt-4 text-base font-semibold text-heading">{title}</p>
       <p className="mt-1 max-w-sm text-sm text-muted-foreground">{description}</p>
       {children}
     </div>

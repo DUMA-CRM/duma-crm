@@ -47,11 +47,11 @@ export function SeoFieldRows({
       }
     : undefined;
   return (
-    <div className="divide-y divide-rule/40 [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
+    <div className="divide-y divide-border [&>*]:py-4 [&>*:first-child]:pt-0 [&>*:last-child]:pb-0">
       {seoFieldGroups(fields).map((group) => (
         <div key={group.title} className="space-y-3">
           <div className="flex items-center justify-between gap-3">
-            <h3 className="text-sm font-semibold tracking-title text-foreground">{group.title}</h3>
+            <h3 className="text-sm font-semibold tracking-title text-heading">{group.title}</h3>
             <SectionInfo label={group.hint} />
           </div>
           <FieldRows

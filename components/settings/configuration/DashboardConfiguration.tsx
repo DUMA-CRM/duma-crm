@@ -4,19 +4,21 @@ import { useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { PersonalDashboardControls, visibleDashboardKeys } from '@/components/dashboard/PersonalDashboardControls';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { FramedRows, SectionSkeleton, TileSkeleton } from '@/components/shared/TileSkeleton';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Bone } from '@/components/shared/Skeleton';
 
 import { widgetDefinition } from '@/lib/dashboard/widget-registry';
 import { type ResolvedDashboardLayout, getResolvedDashboardLayout } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { ConfigurationHeader } from './shared';
+import { ConfigurationBodySkeleton, PreviewFrame } from './shared';
 
+/**
+ * Your own dashboard: which panels show and in what order, saved to your
+ * account as you go. Laid out like Settings → Account — the view as rows, the
+ * panels as a titled list — with the live board in the rail.
+ */
 export function DashboardConfiguration() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const dashboard = useQuery({
@@ -25,53 +27,22 @@ export function DashboardConfiguration() {
     enabled: Boolean(tenantId),
   });
 
-  return (
-    <div className="space-y-5">
-      <ConfigurationHeader
-        title="Dashboard"
-        description="Choose what appears on your dashboard and put the most useful panels first."
-        storageLabel="Saved to your account"
+  if (!tenantId) return <p className="text-sm text-muted-foreground">Select a workspace to customise its dashboard.</p>;
+  if (dashboard.isLoading) return <ConfigurationBodySkeleton label="Loading dashboard settings" preview="aspect-[16/10]" />;
+  if (dashboard.isError)
+    return (
+      <ErrorState
+        title="Dashboard settings could not load"
+        description="Check your connection and try again."
+        onRetry={() => void dashboard.refetch()}
       />
-
-      {!tenantId && (
-        <SettingsSection>
-          <p className="py-10 text-center text-sm text-muted-foreground">Select a workspace to customise its dashboard.</p>
-        </SettingsSection>
-      )}
-      {tenantId && dashboard.isLoading && (
-        // The editor's shape: the panel list on the left, the preview beside it.
-        <div
-          role="status"
-          aria-busy="true"
-          aria-label="Loading dashboard settings"
-          className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_minmax(0,0.8fr)]"
-        >
-          <SectionSkeleton>
-            <TileSkeleton tile="size-10" className="rounded-md border-rule/60 bg-page px-3" />
-            <FramedRows rows={6} />
-          </SectionSkeleton>
-          <SectionSkeleton>
-            <Bone className="aspect-[16/10] w-full rounded-lg" />
-          </SectionSkeleton>
-        </div>
-      )}
-      {tenantId && dashboard.isError && (
-        <SettingsSection>
-          <ErrorState
-            title="Dashboard settings could not load"
-            description="Check your connection and try again."
-            onRetry={() => void dashboard.refetch()}
-            className="py-10"
-          />
-        </SettingsSection>
-      )}
-      {dashboard.data && (
-        <DashboardEditor
-          key={`${dashboard.data.source}:${dashboard.data.layoutId ?? 'system'}:${dashboard.data.version}`}
-          layout={dashboard.data}
-        />
-      )}
-    </div>
+    );
+  if (!dashboard.data) return null;
+  return (
+    <DashboardEditor
+      key={`${dashboard.data.source}:${dashboard.data.layoutId ?? 'system'}:${dashboard.data.version}`}
+      layout={dashboard.data}
+    />
   );
 }
 
@@ -79,7 +50,7 @@ function DashboardEditor({ layout }: { layout: ResolvedDashboardLayout }) {
   const [previewKeys, setPreviewKeys] = useState(() => visibleDashboardKeys(layout));
 
   return (
-    <SettingsTabBody stickyAside aside={<DashboardPreview panelKeys={previewKeys} />}>
+    <SettingsTabBody narrowAside stickyAside aside={<DashboardPreview panelKeys={previewKeys} />}>
       <PersonalDashboardControls layout={layout} onPreviewChange={setPreviewKeys} />
     </SettingsTabBody>
   );
@@ -89,8 +60,8 @@ function DashboardPreview({ panelKeys }: { panelKeys: string[] }) {
   const lowerPanelCount = panelKeys.filter((key) => key === 'analytics.orders-hourly' || key === 'analytics.top-items').length;
 
   return (
-    <SettingsSection title="Preview" description="Your dashboard after saving.">
-      <div aria-hidden="true" className="overflow-hidden rounded-lg border border-rule/60 bg-background">
+    <PreviewFrame>
+      <div aria-hidden="true" className="overflow-hidden rounded-lg border border-border bg-background shadow-sm">
         {panelKeys.length === 0 ? (
           <div className="flex aspect-[16/10] items-center justify-center px-6 text-center text-xs text-muted-foreground">
             Choose at least one panel to build your dashboard.
@@ -100,7 +71,7 @@ function DashboardPreview({ panelKeys }: { panelKeys: string[] }) {
             {panelKeys.map((key) => {
               if (key === 'analytics.exceptions') {
                 return (
-                  <div key={key} className="col-span-4 flex items-center gap-2 rounded-md border border-rule/55 bg-card px-2.5 py-2">
+                  <div key={key} className="col-span-4 flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2">
                     <span className="size-2.5 rounded-full border border-momentum/70" />
                     <span className="h-1.5 w-20 rounded-full bg-foreground/20" />
                     <span className="h-1.5 min-w-0 flex-1 rounded-full bg-foreground/8" />
@@ -136,9 +107,11 @@ function DashboardPreview({ panelKeys }: { panelKeys: string[] }) {
               return (
                 <div
                   key={key}
-                  className={`${key === 'workforce.my-day' ? 'col-span-4 h-20' : 'col-span-2 h-14'} flex flex-col justify-center gap-1.5 rounded-md border border-rule/55 bg-card px-2.5`}
+                  className={`${key === 'workforce.my-day' ? 'col-span-4 h-20' : 'col-span-2 h-14'} flex flex-col justify-center gap-1.5 rounded-md border border-border bg-card px-2.5`}
                 >
-                  <span className="truncate text-[0.625rem] font-semibold text-muted-foreground">{widgetDefinition(key)?.label ?? key}</span>
+                  <span className="truncate text-[0.625rem] font-semibold text-muted-foreground">
+                    {widgetDefinition(key)?.label ?? key}
+                  </span>
                   <span className="h-1.5 w-3/4 rounded-full bg-foreground/10" />
                   <span className="h-1.5 w-1/2 rounded-full bg-foreground/8" />
                 </div>
@@ -147,16 +120,13 @@ function DashboardPreview({ panelKeys }: { panelKeys: string[] }) {
           </div>
         )}
       </div>
-      <p className="mt-3 text-sm leading-relaxed text-muted-foreground">
-        The preview follows your visibility and order changes. Changes save automatically.
-      </p>
-    </SettingsSection>
+    </PreviewFrame>
   );
 }
 
 function TradingPreview() {
   return (
-    <div className="min-w-0 rounded-md border border-rule/55 bg-card p-2.5">
+    <div className="min-w-0 rounded-md border border-border bg-card p-2.5">
       <div className="flex items-start justify-between gap-2">
         <div className="space-y-1.5">
           <div className="h-1.5 w-16 rounded-full bg-foreground/20" />
@@ -184,7 +154,7 @@ function TradingPreview() {
 
 function LivePreview() {
   return (
-    <div className="rounded-md border border-rule/55 bg-band/45 p-2.5">
+    <div className="rounded-md border border-border bg-band/45 p-2.5">
       <div className="flex items-center justify-between gap-1">
         <span className="h-1.5 w-10 rounded-full bg-foreground/20" />
         <span className="h-1 w-6 rounded-full bg-foreground/10" />
@@ -197,7 +167,7 @@ function LivePreview() {
           </div>
         ))}
       </div>
-      <div className="mt-2 flex items-center gap-1.5 border-t border-rule/45 pt-2">
+      <div className="mt-2 flex items-center gap-1.5 border-t border-border pt-2">
         <span className="size-2 rounded-full bg-momentum/40" />
         <span className="h-1 w-12 rounded-full bg-foreground/12" />
       </div>
@@ -209,7 +179,7 @@ function KpiPreview() {
   return (
     <div className="grid grid-cols-4 gap-2">
       {['bg-reference/55', 'bg-muted-foreground/45', 'bg-momentum/55', 'bg-muted-foreground/45'].map((tone, index) => (
-        <div key={index} className="min-w-0 rounded-md border border-rule/55 bg-card p-2">
+        <div key={index} className="min-w-0 rounded-md border border-border bg-card p-2">
           <div className="flex min-w-0 items-center gap-1.5">
             <span className={`size-3.5 shrink-0 rounded-sm ${tone}`} />
             <span className="h-1 min-w-0 flex-1 rounded-full bg-foreground/15" />
@@ -224,7 +194,7 @@ function KpiPreview() {
 
 function LowerPanelPreview({ kind }: { kind: 'chart' | 'list' }) {
   return (
-    <div className="rounded-md border border-rule/55 bg-card p-2.5">
+    <div className="rounded-md border border-border bg-card p-2.5">
       <div className="h-1.5 w-16 rounded-full bg-foreground/20" />
       <div className="mt-1.5 h-1 w-10 rounded-full bg-foreground/10" />
       <div

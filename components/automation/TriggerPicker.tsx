@@ -111,7 +111,7 @@ export function TriggerDialog({
                   onClick={() => onChoose(option.value)}
                   className={cn(
                     'flex items-start gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                    chosen ? 'border-primary bg-primary/6' : 'border-rule/60 hover:bg-band/50',
+                    chosen ? 'border-primary bg-primary/6' : 'border-border hover:bg-band/50',
                   )}
                 >
                   <RowTile icon={triggerIcon(option.value)} tone={chosen ? 'success' : 'default'} />

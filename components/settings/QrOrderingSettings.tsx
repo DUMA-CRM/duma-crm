@@ -1,12 +1,12 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { motion } from 'motion/react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { MediaPicker } from '@/components/cms/MediaPicker';
-import { InfoRow, InfoRows, PickerRow } from '@/components/cms/rows';
+import { RowWarning } from '@/components/cms/rows';
 import {
-  AlertTriangle,
   Banknote,
   CalendarDays,
   CheckCircle2,
@@ -16,6 +16,7 @@ import {
   type IconComponent,
   ImageIcon,
   ImagePlus,
+  Link2,
   MapPin,
   Pause,
   QrCode,
@@ -29,16 +30,17 @@ import {
 } from '@/components/icons';
 import { PhoneFrame } from '@/components/settings/PhoneFrame';
 import { QrMenuList } from '@/components/settings/QrMenuList';
-import { SettingsSection as Section } from '@/components/settings/SettingsSection';
+import { SECTION_RISE, SettingsSection as Section } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { relativeTime } from '@/components/settings/connectors/shared';
-import { SaveBar, Switch } from '@/components/settings/controls';
+import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { NumberStepper } from '@/components/shared/FormParts';
 import { PublicQrCodeCard } from '@/components/shared/PublicQrCodeCard';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { SectionSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
@@ -59,8 +61,8 @@ import {
 } from '@/lib/modules/qr-ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
-import { cn } from '@/lib/utils/cn';
 import { mediaImagePath } from '@/lib/utils/image-src';
+import { QR_PREVIEW_MESSAGE, QR_PREVIEW_READY, type QrPreviewDraft } from '@/lib/utils/qr-preview';
 import { minutesLabel } from '@/lib/utils/reservations';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -93,9 +95,9 @@ interface Draft {
 /**
  * QR ordering for one location: whether guests can order, how they pay, when
  * they can collect, what the welcome page says and which items show. Edited as
- * a draft — saved, then published to guests. Laid out like the other rules
- * tabs: the rules in the main column, the guest page's status, QR code and a
- * live preview alongside.
+ * a draft — saved, then published to guests. Laid out like Settings → Trading:
+ * each rule a row whose Change opens its control, the menu as a list, the
+ * guest page's status, QR code and live preview alongside.
  */
 export function QrOrderingSettings() {
   const qc = useQueryClient();
@@ -103,6 +105,8 @@ export function QrOrderingSettings() {
   const [draftState, setDraftState] = useState<{ locationId: string; value: Draft } | null>(null);
   // One row open at a time; a tap on the open one closes it.
   const [open, setOpen] = useState<Row | null>(null);
+  // The draft as it was when the open row opened, so its Cancel can put the field back.
+  const [before, setBefore] = useState<Draft | null>(null);
   const capabilities = useAuthStore((state) => state.capabilities);
   const canEdit = hasCapability(capabilities, 'qr-ordering:write');
   const formatMoney = useFormatMoney();
@@ -110,6 +114,7 @@ export function QrOrderingSettings() {
   const { contentEnabled } = useCatalogWords();
   const mediaAvailable = contentEnabled && hasCapability(capabilities, 'cms:read');
   const [pickingCover, setPickingCover] = useState(false);
+  const [linkingCover, setLinkingCover] = useState(false);
 
   const locations = useQuery({
     queryKey: moduleQueryKeys.organization.key('locations', tenantId),
@@ -195,7 +200,7 @@ export function QrOrderingSettings() {
   if (!tenantId || !locationId) {
     return <EmptyState icon={MapPin} title="Choose a location" description="QR ordering is configured separately for each location." />;
   }
-  if (config.isPending) return <Bone className="h-96 w-full rounded-lg" />;
+  if (config.isPending) return <QrOrderingSkeleton />;
   if (config.isError) {
     return <ErrorState title="Couldn’t load QR ordering" onRetry={() => void config.refetch()} />;
   }
@@ -215,33 +220,61 @@ export function QrOrderingSettings() {
   const statusBadge = <Badge variant={live ? 'success' : draft.isEnabled ? 'warning' : 'muted'}>{status}</Badge>;
   const minimum = Number(draft.minimumOrderAmount);
 
-  const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
+  /** Cancel on an open row: that field goes back to what it was when the row opened. */
+  const restore = (row: Row, was: Draft) => {
+    if (row === 'minimum') patch({ minimumOrderAmount: was.minimumOrderAmount });
+    else if (row === 'readyIn') patch({ minimumNoticeMinutes: was.minimumNoticeMinutes });
+    else if (row === 'interval') patch({ slotIntervalMinutes: was.slotIntervalMinutes });
+    else if (row === 'perSlot') patch({ maxOrdersPerSlot: was.maxOrdersPerSlot });
+    else if (row === 'ahead') patch({ bookingHorizonDays: was.bookingHorizonDays });
+    else if (row === 'cover') content({ coverImageUrl: was.content.coverImageUrl });
+    else if (row === 'headline') content({ welcomeMessage: was.content.welcomeMessage });
+    else if (row === 'collect') content({ collectionInstructions: was.content.collectionInstructions });
+  };
+  const toggle = (row: Row) => {
+    if (open === row) {
+      if (before) restore(row, before);
+      setOpen(null);
+      return;
+    }
+    setBefore(draft);
+    setOpen(row);
+  };
+  /** An on/off rule: its state as the value, the switch at the right edge. */
   const switchRow = (
     key: 'isEnabled' | 'isPaused' | 'cardEnabled' | 'cashEnabled',
     icon: IconComponent,
-    title: string,
+    label: string,
+    on: React.ReactNode,
+    off: string,
+    switchLabel: string,
     disabled = false,
   ) => (
-    <InfoRow icon={icon} title={title}>
-      <Switch checked={draft[key]} onChange={(next) => patch({ [key]: next })} label={title} disabled={!canEdit || disabled} />
-    </InfoRow>
+    <ChangeRow
+      icon={icon}
+      label={label}
+      value={draft[key] ? on : <ValueMissing>{off}</ValueMissing>}
+      trailing={
+        <Switch checked={draft[key]} onChange={(next) => patch({ [key]: next })} label={switchLabel} disabled={!canEdit || disabled} />
+      }
+    />
   );
-  /** A number rule: its value on the row, the stepper (and why it matters) underneath. */
+  /** A number rule: its value on the row, the stepper underneath. */
   const numberRow = (
     row: Row,
     key: 'minimumNoticeMinutes' | 'slotIntervalMinutes' | 'maxOrdersPerSlot' | 'bookingHorizonDays',
     icon: IconComponent,
-    title: string,
+    label: string,
     shown: string,
-    hint: string,
     min: number,
     max: number,
     step: number,
     unit: string,
+    hint?: string,
   ) => (
-    <PickerRow icon={icon} title={title} value={shown} open={open === row} onToggle={() => toggle(row)}>
+    <ChangeRow icon={icon} label={label} value={shown} open={open === row} onToggle={() => toggle(row)}>
       <NumberStepper
-        label={title}
+        label={label}
         value={Number(draft[key])}
         min={min}
         max={max}
@@ -249,9 +282,11 @@ export function QrOrderingSettings() {
         unit={unit}
         onChange={(next) => patch({ [key]: String(next) })}
       />
-      <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
-    </PickerRow>
+      {hint && <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>}
+    </ChangeRow>
   );
+  /** A written line: what it says now, or a quiet "None". */
+  const written = (text: string) => (text.trim() ? <span className="truncate">{text.trim()}</span> : <ValueMissing>None</ValueMissing>);
   const publishButton = (
     <ActionButton
       type="button"
@@ -280,242 +315,263 @@ export function QrOrderingSettings() {
     <SettingsTabBody
       narrowAside
       stickyAside
-      aside={
-        <>
-          <Section title="Guest page" actions={statusBadge}>
-            <InfoRows>
-              <InfoRow icon={MapPin} title="Location">
-                <span className="truncate text-sm font-semibold text-foreground">{location?.name ?? 'This location'}</span>
-              </InfoRow>
-              <InfoRow icon={CheckCircle2} title="Menu published">
-                <span className={cn('text-sm', published ? 'font-semibold text-foreground' : 'text-muted-foreground/70')}>
-                  {published ?? 'Not yet'}
-                </span>
-              </InfoRow>
-              {/* Folded away until needed, so the preview below gets the room. */}
-              {publicUrl ? (
-                <PickerRow icon={QrCode} title="QR code and link" value="Show" open={open === 'qr'} onToggle={() => toggle('qr')}>
-                  <PublicQrCodeCard url={publicUrl} locationName={location?.name ?? 'this location'} purpose="guest page" actions="rows" />
-                  <p className="mt-1.5 text-xs text-muted-foreground">Print it for tables and the counter, or share the link.</p>
-                </PickerRow>
-              ) : (
-                <InfoRow icon={QrCode} title="QR code and link">
-                  <span className="text-sm text-muted-foreground/70">After you save</span>
-                </InfoRow>
+      // The rail holds only what the settings produce: the guest page as a phone shows it.
+      aside={config.data?.publicToken && <PhonePreview path={`/order/${config.data.publicToken}`} locationId={locationId!} draft={draft} />}
+    >
+      {/* Two stacked columns, not paired rows: a short card never leaves a gap beside a tall one. */}
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-5">
+          <Section title="Ordering">
+            <fieldset disabled={!canEdit} className="min-w-0">
+              {switchRow('isEnabled', QrCode, 'Orders', 'Taken', 'Off', 'Take orders')}
+              {switchRow(
+                'isPaused',
+                Pause,
+                'Pause',
+                <>
+                  Paused
+                  <ValueAside>· browsing only</ValueAside>
+                </>,
+                'Not paused',
+                'Pause new orders',
+                !draft.isEnabled,
               )}
-            </InfoRows>
-            {published && unpublished && (
-              <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">You have changes guests can’t see yet.</p>
+              {switchRow('cardEnabled', CreditCard, 'Card payments', 'Accepted', 'Off', 'Card payments')}
+              {switchRow(
+                'cashEnabled',
+                Banknote,
+                'Cash at the counter',
+                <>
+                  Accepted
+                  <ValueAside>· ASAP orders only</ValueAside>
+                </>,
+                'Off',
+                'Cash at the counter',
+              )}
+              <ChangeRow
+                icon={Coins}
+                label="Minimum order"
+                value={minimum > 0 ? formatMoney(minimum, 2) : <ValueMissing>None</ValueMissing>}
+                open={open === 'minimum'}
+                onToggle={() => toggle('minimum')}
+              >
+                <Input
+                  aria-label="Minimum order"
+                  type="number"
+                  inputMode="decimal"
+                  min="0"
+                  step="0.01"
+                  value={draft.minimumOrderAmount}
+                  onChange={(event) => patch({ minimumOrderAmount: event.target.value })}
+                  onBlur={() => patch({ minimumOrderAmount: (Math.max(0, Number(draft.minimumOrderAmount)) || 0).toFixed(2) })}
+                  hint="Leave at 0 for no minimum."
+                  autoFocus
+                />
+              </ChangeRow>
+            </fieldset>
+            {!paymentsValid && (
+              <RowWarning className="mt-4">Guests can’t check out with no way to pay — turn on card payments or cash.</RowWarning>
             )}
+          </Section>
+          <Section title="Guest page" actions={statusBadge}>
+            <div>
+              <ChangeRow icon={MapPin} label="Location" value={<span className="truncate">{location?.name ?? 'This location'}</span>} />
+              <ChangeRow
+                icon={CheckCircle2}
+                label="Published"
+                value={
+                  published ? (
+                    <>
+                      <span className="truncate">{published}</span>
+                      {unpublished && <ValueAside>· changes not live</ValueAside>}
+                    </>
+                  ) : (
+                    <ValueMissing>Not yet</ValueMissing>
+                  )
+                }
+              />
+              {/* Folded away until needed, so the preview below gets the room. */}
+              <ChangeRow
+                icon={QrCode}
+                label="QR code and link"
+                value={publicUrl ? 'Ready to print' : <ValueMissing>After you save</ValueMissing>}
+                trailing={
+                  publicUrl && (
+                    <Button
+                      variant={open === 'qr' ? 'ghost' : 'outline'}
+                      size="sm"
+                      onClick={() => toggle('qr')}
+                      aria-expanded={open === 'qr'}
+                    >
+                      {open === 'qr' ? 'Hide' : 'Show'}
+                    </Button>
+                  )
+                }
+              />
+              {publicUrl && open === 'qr' && (
+                <div className="pt-4">
+                  <PublicQrCodeCard url={publicUrl} locationName={location?.name ?? 'this location'} purpose="guest page" actions="rows" />
+                </div>
+              )}
+            </div>
             {/* While there are unsaved edits, Publish rides in the SaveBar instead. */}
             {canEdit && !dirty && <div className="mt-4 [&>button]:w-full">{publishButton}</div>}
           </Section>
-          {config.data?.publicToken && (
-            <PhonePreview
-              path={`/order/${config.data.publicToken}`}
-              version={config.data.publishedAt ?? 'unpublished'}
-              behind={dirty || !config.data.publishedAt}
-            />
-          )}
-        </>
-      }
-    >
-      <Section title="Ordering">
-        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
-          {switchRow('isEnabled', QrCode, 'Take orders')}
-          {switchRow('isPaused', Pause, 'Pause new orders', !draft.isEnabled)}
-          {switchRow('cardEnabled', CreditCard, 'Card payments')}
-          {switchRow('cashEnabled', Banknote, 'Cash at the counter')}
-          <PickerRow
-            icon={Coins}
-            title="Minimum order"
-            value={minimum > 0 ? formatMoney(minimum, 2) : 'None'}
-            muted={!(minimum > 0)}
-            open={open === 'minimum'}
-            onToggle={() => toggle('minimum')}
-          >
-            <Input
-              aria-label="Minimum order"
-              type="number"
-              inputMode="decimal"
-              min="0"
-              step="0.01"
-              value={draft.minimumOrderAmount}
-              onChange={(event) => patch({ minimumOrderAmount: event.target.value })}
-              onBlur={() => patch({ minimumOrderAmount: (Math.max(0, Number(draft.minimumOrderAmount)) || 0).toFixed(2) })}
-              autoFocus
-            />
-            <p className="mt-1.5 text-xs text-muted-foreground">Baskets under this can’t check out. Leave at 0 for no minimum.</p>
-          </PickerRow>
-        </fieldset>
-        {draft.isEnabled && draft.isPaused && (
-          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-            Paused — guests can browse, but checkout is closed.
-          </p>
-        )}
-        {!paymentsValid && <Warning>Guests can’t check out with no way to pay — turn on card payments or cash.</Warning>}
-        {draft.cashEnabled && (
-          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-            Cash is paid on collection, so it’s offered on ASAP orders only.
-          </p>
-        )}
-      </Section>
-
-      <Section title="Pickup times">
-        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
-          {numberRow(
-            'readyIn',
-            'minimumNoticeMinutes',
-            Timer,
-            'Ready in',
-            minutesLabel(Number(draft.minimumNoticeMinutes), 'Straight away'),
-            'How long you need to make an order.',
-            0,
-            1440,
-            5,
-            'min',
-          )}
-          {numberRow(
-            'interval',
-            'slotIntervalMinutes',
-            Clock,
-            'A pickup every',
-            minutesLabel(Number(draft.slotIntervalMinutes)),
-            'How far apart pickup times are.',
-            5,
-            120,
-            5,
-            'min',
-          )}
-          {numberRow(
-            'perSlot',
-            'maxOrdersPerSlot',
-            Users,
-            'Orders per pickup',
-            `${draft.maxOrdersPerSlot} ${Number(draft.maxOrdersPerSlot) === 1 ? 'order' : 'orders'}`,
-            'Once full, guests pick the next one.',
-            1,
-            100,
-            1,
-            'orders',
-          )}
-          {numberRow(
-            'ahead',
-            'bookingHorizonDays',
-            CalendarDays,
-            'Book ahead',
-            `${draft.bookingHorizonDays} ${Number(draft.bookingHorizonDays) === 1 ? 'day' : 'days'}`,
-            'How far ahead guests can order.',
-            1,
-            30,
-            1,
-            'days',
-          )}
-        </fieldset>
-      </Section>
-
-      <Section title="Welcome page">
-        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
-          <PickerRow
-            icon={ImagePlus}
-            title="Cover photo"
-            value={draft.content.coverImageUrl ? 'Added' : 'None'}
-            muted={!draft.content.coverImageUrl}
-            open={open === 'cover'}
-            onToggle={() => toggle('cover')}
-          >
-            {draft.content.coverImageUrl && (
-              <div className="relative mb-3 aspect-[3/1] overflow-hidden rounded-lg border border-rule/50 bg-band">
-                {/* The owner supplies this URL, so Next Image cannot allow-list its host. */}
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={proxiedImage(draft.content.coverImageUrl) ?? undefined} alt="" className="size-full object-cover" />
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="secondary"
-                  className="absolute right-3 top-3"
-                  onClick={() => content({ coverImageUrl: null })}
-                  aria-label="Remove cover photo"
-                >
-                  <Trash2 aria-hidden="true" />
-                </Button>
-              </div>
-            )}
-            {/* One line: paste a link, or pick from Media when Content is on. */}
-            <div className="flex items-start gap-2">
-              <div className="min-w-0 flex-1">
+        </div>
+        <div className="flex min-w-0 flex-col gap-5">
+          <Section title="Pickup times">
+            <fieldset disabled={!canEdit} className="min-w-0">
+              {numberRow(
+                'readyIn',
+                'minimumNoticeMinutes',
+                Timer,
+                'Ready in',
+                minutesLabel(Number(draft.minimumNoticeMinutes), 'Straight away'),
+                0,
+                1440,
+                5,
+                'min',
+              )}
+              {numberRow(
+                'interval',
+                'slotIntervalMinutes',
+                Clock,
+                'A pickup every',
+                minutesLabel(Number(draft.slotIntervalMinutes)),
+                5,
+                120,
+                5,
+                'min',
+              )}
+              {numberRow(
+                'perSlot',
+                'maxOrdersPerSlot',
+                Users,
+                'Orders per pickup',
+                `${draft.maxOrdersPerSlot} ${Number(draft.maxOrdersPerSlot) === 1 ? 'order' : 'orders'}`,
+                1,
+                100,
+                1,
+                'orders',
+                'Once full, guests pick the next one.',
+              )}
+              {numberRow(
+                'ahead',
+                'bookingHorizonDays',
+                CalendarDays,
+                'Book ahead',
+                `${draft.bookingHorizonDays} ${Number(draft.bookingHorizonDays) === 1 ? 'day' : 'days'}`,
+                1,
+                30,
+                1,
+                'days',
+              )}
+            </fieldset>
+          </Section>
+          <Section title="Welcome page">
+            <fieldset disabled={!canEdit} className="min-w-0">
+              <ChangeRow
+                icon={ImagePlus}
+                label="Cover photo"
+                value={draft.content.coverImageUrl ? 'Added' : <ValueMissing>None</ValueMissing>}
+                open={open === 'cover'}
+                onToggle={() => toggle('cover')}
+              >
+                {draft.content.coverImageUrl && (
+                  <div className="relative mb-3 aspect-[3/1] overflow-hidden rounded-lg border border-border bg-band">
+                    {/* The owner supplies this URL, so Next Image cannot allow-list its host. */}
+                    {/* eslint-disable-next-line @next/next/no-img-element */}
+                    <img src={proxiedImage(draft.content.coverImageUrl) ?? undefined} alt="" className="size-full object-cover" />
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="secondary"
+                      className="absolute right-3 top-3"
+                      onClick={() => content({ coverImageUrl: null })}
+                      aria-label="Remove cover photo"
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </Button>
+                  </div>
+                )}
+                {/* Media first — choose a photo already in Content, or upload one there; a link is the fallback. */}
+                {mediaAvailable && (
+                  <div className="flex flex-wrap gap-2">
+                    <Button type="button" variant="outline" onClick={() => setPickingCover(true)}>
+                      <ImageIcon aria-hidden="true" />
+                      {draft.content.coverImageUrl ? 'Replace' : 'Choose or upload'}
+                    </Button>
+                    {!linkingCover && (
+                      <Button type="button" variant="ghost" onClick={() => setLinkingCover(true)}>
+                        <Link2 aria-hidden="true" />
+                        Use a link
+                      </Button>
+                    )}
+                  </div>
+                )}
+                {(!mediaAvailable || linkingCover) && (
+                  <Input
+                    type="url"
+                    aria-label="Cover photo link"
+                    value={draft.content.coverImageUrl ?? ''}
+                    onChange={(event) => content({ coverImageUrl: event.target.value || null })}
+                    placeholder="https://…/photo.jpg"
+                    className={mediaAvailable ? 'mt-2' : undefined}
+                    autoFocus
+                  />
+                )}
+              </ChangeRow>
+              <ChangeRow
+                icon={Type}
+                label="Headline"
+                value={written(draft.content.welcomeMessage)}
+                open={open === 'headline'}
+                onToggle={() => toggle('headline')}
+              >
                 <Input
-                  type="url"
-                  aria-label="Cover photo link"
-                  value={draft.content.coverImageUrl ?? ''}
-                  onChange={(event) => content({ coverImageUrl: event.target.value || null })}
-                  placeholder={mediaAvailable ? 'Paste a link, or choose from Media' : 'https://…/photo.jpg'}
+                  aria-label="Headline"
+                  value={draft.content.welcomeMessage}
+                  maxLength={160}
+                  onChange={(event) => content({ welcomeMessage: event.target.value })}
+                  placeholder="Order ahead, skip the queue"
                   autoFocus
                 />
-              </div>
-              {mediaAvailable && (
-                <Button type="button" variant="outline" className="h-9 shrink-0" onClick={() => setPickingCover(true)}>
-                  <ImageIcon aria-hidden="true" />
-                  Media
-                </Button>
-              )}
-            </div>
-            <p className="mt-1.5 text-xs text-muted-foreground">A wide photo — your counter, a signature drink. Shown across the top.</p>
-          </PickerRow>
-          <PickerRow
-            icon={Type}
-            title="Headline"
-            value={draft.content.welcomeMessage.trim() || 'None'}
-            muted={!draft.content.welcomeMessage.trim()}
-            open={open === 'headline'}
-            onToggle={() => toggle('headline')}
-          >
-            <Input
-              aria-label="Headline"
-              value={draft.content.welcomeMessage}
-              maxLength={160}
-              onChange={(event) => content({ welcomeMessage: event.target.value })}
-              placeholder="Order ahead, skip the queue"
-              autoFocus
-            />
-            <p className="mt-1.5 flex justify-between gap-3 text-xs text-muted-foreground">
-              <span>The first thing guests read.</span>
-              <span className="tabular-nums">{draft.content.welcomeMessage.length}/160</span>
-            </p>
-          </PickerRow>
-          <PickerRow
-            icon={StickyNote}
-            title="How to collect"
-            value={draft.content.collectionInstructions.trim() || 'None'}
-            muted={!draft.content.collectionInstructions.trim()}
-            open={open === 'collect'}
-            onToggle={() => toggle('collect')}
-          >
-            <textarea
-              aria-label="How to collect"
-              rows={3}
-              maxLength={500}
-              value={draft.content.collectionInstructions}
-              onChange={(event) => content({ collectionInstructions: event.target.value })}
-              autoFocus
-              placeholder="Collect from the pickup shelf by the window."
-              className="w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-measured disabled:opacity-60"
-            />
-            <p className="mt-1.5 flex justify-between gap-3 text-xs text-muted-foreground">
-              <span>Shown under the headline and on the order confirmation.</span>
-              <span className="tabular-nums">{draft.content.collectionInstructions.length}/500</span>
-            </p>
-          </PickerRow>
-        </fieldset>
-      </Section>
+                <p className="mt-1.5 text-right text-xs tabular-nums text-muted-foreground">{draft.content.welcomeMessage.length}/160</p>
+              </ChangeRow>
+              <ChangeRow
+                icon={StickyNote}
+                label="How to collect"
+                value={written(draft.content.collectionInstructions)}
+                open={open === 'collect'}
+                onToggle={() => toggle('collect')}
+              >
+                <textarea
+                  aria-label="How to collect"
+                  rows={3}
+                  maxLength={500}
+                  value={draft.content.collectionInstructions}
+                  onChange={(event) => content({ collectionInstructions: event.target.value })}
+                  autoFocus
+                  placeholder="Collect from the pickup shelf by the window."
+                  className="w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30 disabled:opacity-60"
+                />
+                <p className="mt-1.5 flex justify-between gap-3 text-xs text-muted-foreground">
+                  <span>Also shown on the order confirmation.</span>
+                  <span className="tabular-nums">{draft.content.collectionInstructions.length}/500</span>
+                </p>
+              </ChangeRow>
+            </fieldset>
+          </Section>
+        </div>
+      </div>
 
-      <Section title="Menu">
+      <RecordGroup id="qr-menu" title="Menu">
         {items.isPending ? (
           <TilesSkeleton
             count={4}
             label="Loading menu"
             className="grid gap-2"
-            tile="size-12"
+            tile="size-10"
             trailing="h-4 w-12"
             tileClassName="p-2 pr-3.5"
           />
@@ -541,7 +597,7 @@ export function QrOrderingSettings() {
             />
           </fieldset>
         )}
-      </Section>
+      </RecordGroup>
 
       {pickingCover && (
         <MediaPicker
@@ -576,13 +632,32 @@ export function QrOrderingSettings() {
   );
 }
 
-/** Something that stops guests ordering, with what to do about it. */
-function Warning({ children }: { children: React.ReactNode }) {
+/** The sections of rows and the guest page beside them, without their words. */
+function QrOrderingSkeleton() {
+  const rows = (count: number) =>
+    Array.from({ length: count }, (_, index) => (
+      <div key={index} className="flex items-center gap-3">
+        <Bone className="size-10 shrink-0" />
+        <span className="min-w-0 flex-1 space-y-1.5">
+          <Bone className="h-2.5 w-20" />
+          <Bone className="h-3.5 w-44 max-w-full" />
+        </span>
+        <Bone className="h-8 w-20 shrink-0" />
+      </div>
+    ));
   return (
-    <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
-      <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
-      <span>{children}</span>
-    </p>
+    <div role="status" aria-label="Loading QR ordering">
+      <SettingsTabBody narrowAside aside={<Bone className="mx-auto h-[34rem] w-full max-w-xs rounded-[2rem]" />}>
+        <div className="grid items-start gap-5 xl:grid-cols-2">
+          <SectionSkeleton>{rows(5)}</SectionSkeleton>
+          <SectionSkeleton>{rows(4)}</SectionSkeleton>
+        </div>
+        <div className="grid items-start gap-5 xl:grid-cols-2">
+          <SectionSkeleton>{rows(3)}</SectionSkeleton>
+          <SectionSkeleton>{rows(3)}</SectionSkeleton>
+        </div>
+      </SettingsTabBody>
+    </div>
   );
 }
 
@@ -594,12 +669,32 @@ const FRAME_WIDTH = 340;
  * scaled into a phone frame. It shows what guests see — the published menu —
  * so it reloads whenever a publish lands, and says so while there is unpublished work.
  */
-function PhonePreview({ path, version, behind }: { path: string; version: string; behind: boolean }) {
+function PhonePreview({ path, locationId, draft }: { path: string; locationId: string; draft: QrPreviewDraft }) {
   const [reloads, setReloads] = useState(0);
+  const frame = useRef<HTMLIFrameElement>(null);
+  const latest = useRef(draft);
+  // The real guest page in the frame, with the unsaved draft laid over it as you edit.
+  const send = useCallback(() => {
+    frame.current?.contentWindow?.postMessage({ type: QR_PREVIEW_MESSAGE, draft: latest.current }, window.location.origin);
+  }, []);
+  useEffect(() => {
+    latest.current = draft;
+    send();
+  }, [draft, send]);
+  useEffect(() => {
+    const onReady = (event: MessageEvent) => {
+      if (event.origin === window.location.origin && event.source === frame.current?.contentWindow && event.data?.type === QR_PREVIEW_READY)
+        send();
+    };
+    window.addEventListener('message', onReady);
+    return () => window.removeEventListener('message', onReady);
+  }, [send]);
+
   return (
-    <div>
+    // No card around it: the phone is the thing, so it stands on its own.
+    <motion.div variants={SECTION_RISE}>
       <div className="mb-2 flex items-center justify-center gap-2">
-        <p className="text-label uppercase text-muted-foreground">Live guest page</p>
+        <p className="text-label uppercase text-muted-foreground">Preview</p>
         <Button
           type="button"
           variant="ghost"
@@ -614,8 +709,9 @@ function PhonePreview({ path, version, behind }: { path: string; version: string
       <PhoneFrame width={FRAME_WIDTH}>
         {(viewport) => (
           <iframe
-            key={`${version}-${reloads}`}
-            src={path}
+            ref={frame}
+            key={reloads}
+            src={`${path}?preview=1&location=${encodeURIComponent(locationId)}`}
             title="Guest ordering page preview"
             loading="lazy"
             className="border-0 bg-background"
@@ -623,11 +719,6 @@ function PhonePreview({ path, version, behind }: { path: string; version: string
           />
         )}
       </PhoneFrame>
-      {behind && (
-        <p className="mx-auto mt-3 max-w-[21rem] text-center text-xs text-muted-foreground">
-          This is what guests see now. Publish to show your latest changes here.
-        </p>
-      )}
-    </div>
+    </motion.div>
   );
 }

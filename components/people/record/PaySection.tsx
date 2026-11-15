@@ -163,7 +163,7 @@ function PayslipRow({
   const draft = payslip.status !== 'finalised';
 
   return (
-    <li className="border-b border-rule/45 last:border-b-0">
+    <li className="border-b border-border last:border-b-0">
       <button
         type="button"
         onClick={onToggle}
@@ -214,7 +214,7 @@ function PayslipRow({
               ) : (
                 lines.map((line) => <Line key={line.label} label={line.label} value={`− ${money(line.amount)}`} muted />)
               )}
-              <div className="border-t border-rule/45 pt-1.5">
+              <div className="border-t border-border pt-1.5">
                 <Line label="Net pay" value={money(payslip.netPay)} strong />
               </div>
               {employer.length > 0 && (

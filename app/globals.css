@@ -56,12 +56,14 @@
    tinted chips fail dark mode.
    ════════════════════════════════════════════════════════════════ */
 :root {
-  --ground: #f4f0e7;
-  --field: #fffcf7;
+  /* Every surface matches the marketing site (2026-11-10): a near-white page,
+     white cards and a neutral tray, not the old oat / cream / band. */
+  --ground: #faf9f6;
+  --field: #ffffff;
   /* Form controls sit a step brighter than the card they are on, so an empty
      input still reads as a place to type. Dark keeps field — white would glare. */
   --control: #ffffff;
-  --band: #eae4d8;
+  --band: #e9eae6;
 
   /* ── Ink: forest, deep enough to read as near-black. NOT the action
      colour — that is --primary, held lighter so a link is not body text. ── */
@@ -69,8 +71,8 @@
   --ink-2: #5c6c63;
 
   /* ── The chart grid IS the layout grid ────────────────────────── */
-  --grid-minor: #e8e1d5;
-  --grid-major: #d7cfc1;
+  --grid-minor: #eef0ee;
+  --grid-major: #e2e5e3;
   --rule: #aaa397;
   --grid-step: 8px;
   --grid-major-step: 64px;
@@ -117,8 +119,15 @@
   --accent: var(--band);
   --accent-foreground: var(--ink);
 
-  /* One rule weight for every boundary: a chart has no second border colour. */
-  --border: var(--rule);
+  /* Headings are true black, as on the marketing site; body text stays ink. */
+  --heading: #0a0a0a;
+  /* A control's edge (outline buttons): a touch firmer than a card's hairline. */
+  --edge: color-mix(in oklab, var(--ink) 16%, transparent);
+
+  /* Structural borders are the marketing hairline (translucent ink, so they
+     read the same on page, card and tray). Inputs keep --rule, which still
+     meets 1.4.11 where a control's edge has to be found. */
+  --border: color-mix(in oklab, var(--ink) 11%, transparent);
   --input: var(--rule);
   --divider: var(--grid-major);
   --surface-offset: var(--band);
@@ -165,6 +174,18 @@
   --series-3: #1baf7a;
   --series-4: #eda100;
 
+  /* Till key colours: one per menu category, in the merchant's category order,
+     drawn only as a thin bar on a key and a swatch on its tab — identity, never
+     text, so contrast is not at stake. Eight, then they repeat. */
+  --key-1: #2a78d6;
+  --key-2: #e0662f;
+  --key-3: #1a9e70;
+  --key-4: #d99500;
+  --key-5: #8a5bd6;
+  --key-6: #d14d7e;
+  --key-7: #1b93a8;
+  --key-8: #6b7280;
+
   /* The shell's material is the brand colour, so it is set in the BRAND block. */
   --sidebar: var(--brand-shell);
   --sidebar-foreground: #f8f1e5;
@@ -178,7 +199,20 @@
   --sidebar-border: var(--brand-shell-seam);
   --sidebar-ring: #f8f1e5;
 
-  --radius: 0.4375rem;
+  /* The dark brand panel: what the sidebar used to be. Guest-facing headers
+     (QR ordering, bookings, forms) and the marketing Business card and DUMA
+     column keep this material, so the light shell didn't repaint them. */
+  --panel: var(--brand-shell);
+  --panel-foreground: #f8f1e5;
+  --panel-primary: var(--brand-shell-mark, #f8f1e5);
+  --panel-primary-foreground: var(--brand-shell-ink);
+  --panel-accent: var(--brand-shell-raised);
+  --panel-accent-foreground: #fffaf2;
+  --panel-border: var(--brand-shell-seam);
+  --panel-ring: #f8f1e5;
+
+  /* Cards and panels: the marketing card's 10px. Buttons and inputs stay 7px (radius-md). */
+  --radius: 0.625rem;
 
   /* ── The mascot ───────────────────────────────────────────────
      Ask DUMA's mascot is one flat filled shape with two eyes set into it, so it
@@ -269,10 +303,31 @@
      dark around it for anyone with astigmatism, and the glare is worst in a
      dim room, which is exactly when night mode is on. The ladder keeps its
      spacing, so field still lifts off ground and band still reads as a trough. */
-  --ground: #121316;
-  --field: #18191c;
+  /* Matched to the marketing site's warm dark (2026-11-10): same lightness as
+     the graphite it replaces, so the halation limit above still holds. */
+  --ground: #121110;
+  --field: #1a1917;
   --control: var(--field);
-  --band: #1f2125;
+  --band: #232221;
+  --heading: var(--ink);
+
+  --sidebar: var(--field);
+  --sidebar-foreground: #dfe1e5;
+  --sidebar-primary: #eceef1;
+  --sidebar-primary-foreground: var(--field);
+  --sidebar-accent: #25272c;
+  --sidebar-accent-foreground: #e2e4e8;
+  --sidebar-border: var(--divider);
+  --sidebar-ring: #eceef1;
+
+  --panel: var(--field);
+  --panel-foreground: #dfe1e5;
+  --panel-primary: #eceef1;
+  --panel-primary-foreground: var(--field);
+  --panel-accent: #25272c;
+  --panel-accent-foreground: #e2e4e8;
+  --panel-border: var(--divider);
+  --panel-ring: #eceef1;
 
   /* Cool off-white rather than paper white: ~14.3 / 15.1 / 13.1:1 on field /
      ground / band — held under the 16.6:1 that caused halation. ink-2 is
@@ -303,7 +358,7 @@
      mature dark system (Material, Atlassian, Linear) expresses elevation.
      Ink is 13.2:1 on it and ink-2 6.8:1. The shadow utilities below add the
      same lift to anything that floats without being re-coloured. */
-  --popover: #1c1e21;
+  --popover: #201f1d;
 
   /* Roles pulled ~10–15% toward the surface in chroma. Full-chroma pastels
      vibrate on graphite — the eye cannot settle on them — and in the old set
@@ -335,20 +390,21 @@
      a darker value. Brand colour still appears at night in the action key and
      the mascot. Active and hover rows step up one tier. (Was the darkest
      graphite with a 16% brand tint until 2026-10.) */
-  --sidebar: var(--field);
-  --sidebar-foreground: #dfe1e5;
-  --sidebar-primary: #eceef1;
-  --sidebar-primary-foreground: var(--field);
-  --sidebar-accent: #25272c;
-  --sidebar-accent-foreground: #e2e4e8;
-  --sidebar-border: var(--divider);
-  --sidebar-ring: #eceef1;
 
   --chart-5: oklch(0.68 0.018 250);
   --series-1: #3987e5;
   --series-2: #d95926;
   --series-3: #199e70;
   --series-4: #c98500;
+
+  --key-1: #4b91e8;
+  --key-2: #e8784a;
+  --key-3: #2bb383;
+  --key-4: #e0a521;
+  --key-5: #9d74e3;
+  --key-6: #de6893;
+  --key-7: #2ba8bd;
+  --key-8: #8b929e;
 
   /* Shadows barely register on graphite, so overlays lean on a darker tint
      and on field sitting a step above ground. */
@@ -454,8 +510,46 @@
 .dark [data-brand='ocean'] {
   --brand: #b8bfcc;
   --brand-hover: #c6ccd7;
-  --brand-on: #111214;
+  /* Cream on the solid fills below, which are deep navy rather than the slate. */
+  --brand-on: #f4efe6;
   --brand-mascot: #b8bfcc;
+  /* Old-money navy for solid fills (2026-11): the slate above read as light
+     blue on a primary button. Only fills change — text, icons and tints keep
+     the slate, because a navy this deep is unreadable as text on the night
+     ground. Cream on #263553 is 11.6:1. */
+  --brand-fill: #263553;
+  --brand-fill-hover: #2f4064;
+}
+.dark[data-brand='ocean'] .bg-primary,
+.dark [data-brand='ocean'] .bg-primary,
+.dark[data-brand='ocean'] .bg-primary.border-primary,
+.dark [data-brand='ocean'] .bg-primary.border-primary {
+  background-color: var(--brand-fill);
+  border-color: var(--brand-fill);
+}
+.dark[data-brand='ocean'] .hover\:bg-primary-hover:hover,
+.dark [data-brand='ocean'] .hover\:bg-primary-hover:hover {
+  background-color: var(--brand-fill-hover);
+}
+/* The same fill wherever primary arrives on a state: hover, press, a picked date. */
+.dark[data-brand='ocean'] .hover\:bg-primary:hover,
+.dark [data-brand='ocean'] .hover\:bg-primary:hover,
+.dark[data-brand='ocean'] .group:hover .group-hover\:bg-primary,
+.dark [data-brand='ocean'] .group:hover .group-hover\:bg-primary,
+.dark[data-brand='ocean'] .active\:bg-primary:active,
+.dark [data-brand='ocean'] .active\:bg-primary:active,
+.dark[data-brand='ocean'] [data-selected-single='true'].data-\[selected-single\=true\]\:bg-primary,
+.dark [data-brand='ocean'] [data-selected-single='true'].data-\[selected-single\=true\]\:bg-primary,
+.dark[data-brand='ocean'] [data-range-start='true'].data-\[range-start\=true\]\:bg-primary,
+.dark [data-brand='ocean'] [data-range-start='true'].data-\[range-start\=true\]\:bg-primary,
+.dark[data-brand='ocean'] [data-range-end='true'].data-\[range-end\=true\]\:bg-primary,
+.dark [data-brand='ocean'] [data-range-end='true'].data-\[range-end\=true\]\:bg-primary {
+  background-color: var(--brand-fill);
+}
+/* The inverse — navy ink on a cream disc (a filled stamp) — takes the fill too. */
+.dark[data-brand='ocean'] .bg-primary-foreground.text-primary,
+.dark [data-brand='ocean'] .bg-primary-foreground.text-primary {
+  color: var(--brand-fill);
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -488,6 +582,8 @@
   --color-accent-foreground: var(--accent-foreground);
   --color-destructive: var(--destructive);
   --color-border: var(--border);
+  --color-edge: var(--edge);
+  --color-heading: var(--heading);
   --color-input: var(--input);
   --color-ring: var(--ring);
   --color-chart-1: var(--chart-1);
@@ -507,6 +603,14 @@
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-ring: var(--sidebar-ring);
+  --color-panel: var(--panel);
+  --color-panel-foreground: var(--panel-foreground);
+  --color-panel-primary: var(--panel-primary);
+  --color-panel-primary-foreground: var(--panel-primary-foreground);
+  --color-panel-accent: var(--panel-accent);
+  --color-panel-accent-foreground: var(--panel-accent-foreground);
+  --color-panel-border: var(--panel-border);
+  --color-panel-ring: var(--panel-ring);
 
   /* World roles → bg-measured, text-reference, border-momentum etc. */
   --color-measured: var(--measured);
@@ -561,8 +665,8 @@
   --radius-sm: 5px;
   --radius-md: 7px;
   --radius-lg: var(--radius);
-  --radius-xl: 8px;
-  --radius-2xl: 10px;
+  --radius-xl: 12px;
+  --radius-2xl: 14px;
 }
 
 /* ════════════════════════════════════════════════════════════════
@@ -623,6 +727,7 @@
   h4,
   h5,
   h6 {
+    color: var(--heading);
     text-wrap: balance;
     line-height: 1.15;
   }
@@ -844,7 +949,8 @@
   .shadow-xs,
   .shadow-sm,
   .hover\:shadow-sm:hover {
-    --tw-shadow: 0 2px 8px -4px color-mix(in oklab, var(--shadow-tint) 18%, transparent);
+    /* The marketing card's lift: barely there, the hairline does the work. */
+    --tw-shadow: 0 1px 2px color-mix(in oklab, var(--shadow-tint) 7%, transparent);
   }
 
   .shadow-md {

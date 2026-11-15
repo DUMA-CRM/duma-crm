@@ -11,6 +11,9 @@ import { formatDate } from '@/lib/utils/date';
 export type MyHrTab = 'overview' | 'time-off' | 'attendance' | 'documents' | 'requests';
 export const MY_HR_TABS: MyHrTab[] = ['overview', 'time-off', 'attendance', 'documents', 'requests'];
 
+/** The Overview's rows an employee can change in place — one open at a time. */
+export type EditRow = 'address' | 'emergency' | 'bank' | 'ni';
+
 export const fmt = (date: string) => formatDate(date);
 
 export const money = (value: string | number | null | undefined, currency = 'GBP') => {

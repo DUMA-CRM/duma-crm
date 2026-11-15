@@ -156,7 +156,7 @@ const COVER_LABEL = { yes: 'Covered', part: 'Partly covered', no: 'Not covered' 
 /** Tick, dash or cross in a small disc — readable on the light cards and on DUMA's dark one. */
 function CoverIcon({ mark, dark = false }: { mark: CoverMark; dark?: boolean }) {
   const disc = {
-    yes: dark ? 'bg-white/15 text-sidebar-foreground' : 'bg-success-highlight text-success',
+    yes: dark ? 'bg-white/15 text-panel-foreground' : 'bg-success-highlight text-success',
     part: 'bg-stock/15 text-stock',
     no: 'bg-[var(--mkt-line)] text-[var(--mkt-ink-3)]',
   }[mark];
@@ -185,14 +185,14 @@ export function ComparisonColumns({ title, highlight, options, icons }: { title:
               key={option.title}
               className={cn(
                 'flex flex-col rounded-[14px] px-6 py-7',
-                duma ? 'bg-sidebar text-sidebar-foreground md:-my-3 md:py-10' : 'mkt-card',
+                duma ? 'bg-panel text-panel-foreground md:-my-3 md:py-10' : 'mkt-card',
               )}
             >
               <span className={cn('grid size-11 place-items-center rounded-lg', duma ? 'bg-white/10' : 'bg-[var(--mkt-ground)] text-[var(--mkt-ink-2)]')}>
                 {duma ? <Logo size={24} className="rounded-[19.4%]" /> : Icon && <Icon className="size-5" aria-hidden="true" />}
               </span>
               <h4 className="mt-4 text-lg font-semibold">{option.title}</h4>
-              <p className={cn('mt-1.5 text-pretty text-[0.9375rem] leading-relaxed', duma ? 'text-sidebar-foreground/75' : 'text-[var(--mkt-ink-2)]')}>{option.summary}</p>
+              <p className={cn('mt-1.5 text-pretty text-[0.9375rem] leading-relaxed', duma ? 'text-panel-foreground/75' : 'text-[var(--mkt-ink-2)]')}>{option.summary}</p>
 
               <ul className={cn('mt-6 flex flex-col gap-3.5 border-t pt-6 text-[0.9375rem]', duma ? 'border-white/12' : 'border-[var(--mkt-line)]')}>
                 {option.rows.map((row) => (
@@ -200,16 +200,16 @@ export function ComparisonColumns({ title, highlight, options, icons }: { title:
                     <CoverIcon mark={row.mark} dark={duma} />
                     <span>
                       <span className={cn('block', row.mark === 'no' && !duma && 'text-[var(--mkt-ink-2)]')}>{row.job}</span>
-                      {row.note && <span className={cn('block text-[13px]', duma ? 'text-sidebar-foreground/60' : 'text-[var(--mkt-ink-3)]')}>{row.note}</span>}
+                      {row.note && <span className={cn('block text-[13px]', duma ? 'text-panel-foreground/75' : 'text-[var(--mkt-ink-3)]')}>{row.note}</span>}
                       <span className="sr-only">{COVER_LABEL[row.mark]}</span>
                     </span>
                   </li>
                 ))}
               </ul>
 
-              <p className={cn('mt-auto pt-6 text-sm', duma ? 'text-sidebar-foreground/75' : 'text-[var(--mkt-ink-2)]')}>
-                <span className={cn('block text-xs font-medium tracking-[0.06em] uppercase', duma ? 'text-sidebar-foreground/55' : 'text-[var(--mkt-ink-3)]')}>Best for</span>
-                <span className={cn('mt-1 block', duma && 'font-medium text-sidebar-foreground')}>{option.bestFor}</span>
+              <p className={cn('mt-auto pt-6 text-sm', duma ? 'text-panel-foreground/75' : 'text-[var(--mkt-ink-2)]')}>
+                <span className={cn('block text-xs font-medium tracking-[0.06em] uppercase', duma ? 'text-panel-foreground/75' : 'text-[var(--mkt-ink-3)]')}>Best for</span>
+                <span className={cn('mt-1 block', duma && 'font-medium text-panel-foreground')}>{option.bestFor}</span>
               </p>
               {duma && <SignUpButton inverted className="mt-6 w-full" />}
             </article>

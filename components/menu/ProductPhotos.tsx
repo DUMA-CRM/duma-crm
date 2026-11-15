@@ -222,7 +222,7 @@ export function ProductPhotos({ menuItemId, productName, tenantId }: { menuItemI
                   onClick={() => setOpenId(image.id)}
                   className={cn(
                     'block w-full overflow-hidden rounded-lg border bg-background text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                    main ? 'border-primary/50 ring-2 ring-primary/15' : 'border-rule/55 hover:border-rule',
+                    main ? 'border-primary/50 ring-2 ring-primary/15' : 'border-border hover:border-rule',
                   )}
                 >
                   {image.apiUrl || image.url ? (
@@ -315,7 +315,7 @@ export function ProductPhotos({ menuItemId, productName, tenantId }: { menuItemI
                 <img
                   src={open.url}
                   alt={open.altText ?? ''}
-                  className="max-h-80 w-full rounded-lg border border-rule/50 bg-band object-contain"
+                  className="max-h-80 w-full rounded-lg border border-border bg-band object-contain"
                 />
               )}
             </div>
@@ -398,10 +398,10 @@ function OnThisProduct({
 
   return (
     <section aria-labelledby="on-this-product" className="space-y-2">
-      <h3 id="on-this-product" className="text-sm font-semibold text-foreground">
+      <h3 id="on-this-product" className="text-sm font-semibold text-heading">
         On this product
       </h3>
-      <div className="space-y-3 rounded-lg border border-rule/60 bg-control p-4">
+      <div className="space-y-3 rounded-lg border border-border bg-control p-4">
         <InfoRows>
           <InfoRow icon={Star} title="Main photo">
             {index === 0 ? (
@@ -455,7 +455,7 @@ function OnThisProduct({
             </InfoRow>
           )}
         </InfoRows>
-        <div className="flex justify-end border-t border-rule/50 pt-2.5">
+        <div className="flex justify-end border-t border-border pt-2.5">
           <button
             type="button"
             disabled={remove.isPending}

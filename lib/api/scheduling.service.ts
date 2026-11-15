@@ -25,9 +25,17 @@ export interface ScheduledShift {
   role?: string;
   status: ScheduledShiftStatus;
   notes?: string;
+  positionId?: string | null;
+  /** Unpaid break inside the shift. */
+  breakMinutes?: number;
+  /** When staff were last shown this shift; null while it's a draft. */
+  publishedAt?: string | null;
+  /** When the assigned person confirmed they'd seen it; reset by every change after publishing. */
+  acknowledgedAt?: string | null;
   createdAt: string;
   staff?: ScheduledShiftStaff;
   location?: ScheduledShiftLocation;
+  position?: { id: string; name: string; color: string } | null;
 }
 
 // ── Payloads ────────────────────────────────────────────────────────────────
@@ -40,6 +48,8 @@ export interface CreateScheduledShiftPayload {
   role?: string;
   status?: ScheduledShiftStatus;
   notes?: string;
+  positionId?: string | null;
+  breakMinutes?: number;
 }
 
 export interface UpdateScheduledShiftPayload {
@@ -49,6 +59,8 @@ export interface UpdateScheduledShiftPayload {
   role?: string;
   status?: ScheduledShiftStatus;
   notes?: string;
+  positionId?: string | null;
+  breakMinutes?: number;
 }
 
 export interface ScheduledShiftFilters {
@@ -127,6 +139,8 @@ export interface PublishPayload {
   locationId: string;
   from?: string;
   to?: string;
+  /** Tell the staff on the published shifts. Defaults to true. */
+  notify?: boolean;
 }
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
@@ -190,4 +204,21 @@ export const getVariance = (filters: VarianceFilters = {}) => {
 };
 
 export const publishScheduledShifts = (data: PublishPayload) =>
-  apiFetch<{ published: number }>('/scheduled-shifts/publish', { method: 'POST', body: JSON.stringify(data) });
+  apiFetch<{ published: number; notified: number }>('/scheduled-shifts/publish', { method: 'POST', body: JSON.stringify(data) });
+
+export const createScheduledShiftsBulk = (shifts: CreateScheduledShiftPayload[]) =>
+  apiFetch<{ created: ScheduledShift[] }>('/scheduled-shifts/bulk', { method: 'POST', body: JSON.stringify({ shifts }) });
+
+/** Deletes drafts only; published shifts in `ids` come back as `skipped`. */
+export const deleteScheduledShiftsBulk = (ids: string[]) =>
+  apiFetch<{ deleted: number; skipped: number }>('/scheduled-shifts/bulk-delete', { method: 'POST', body: JSON.stringify({ ids }) });
+
+export const copyRotaWeek = (data: { locationId: string; fromWeekStart: string; toWeekStart: string; mode: 'skip_clashes' | 'replace' | 'open' }) =>
+  apiFetch<{ created: number; skipped: number; opened: number }>('/scheduled-shifts/copy', { method: 'POST', body: JSON.stringify(data) });
+
+export const acknowledgeScheduledShift = (id: string) =>
+  apiFetch<ScheduledShift>(`/scheduled-shifts/${id}/acknowledge`, { method: 'POST' });
+
+/** Published open shifts at my locations that I'm qualified for. */
+export const getMyOpenShifts = () =>
+  apiFetch<Array<ScheduledShift & { myRequestId: string | null }>>('/scheduled-shifts/open/my');

@@ -94,10 +94,10 @@ export function ModuleCard({
   children?: ReactNode;
 }) {
   return (
-    <section className="flex h-full flex-col rounded-lg border border-rule/65 bg-card p-4 sm:p-5" aria-label={title}>
+    <section className="flex h-full flex-col rounded-lg border border-border bg-card p-4 sm:p-5" aria-label={title}>
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold tracking-title text-foreground">{title}</h2>
+          <h2 className="text-base font-semibold tracking-title text-heading">{title}</h2>
           {subtitle && <p className="mt-0.5 text-xs text-muted-foreground">{subtitle}</p>}
         </div>
         <Tooltip label={hrefLabel} side="top" className="shrink-0">
@@ -146,7 +146,7 @@ export function ModuleCard({
 /** A ruled list of figures: dot, label, number — the Live panel's shape, so the board reads as one. */
 function Figures({ items }: { items: Figure[] }) {
   return (
-    <ul className="divide-y divide-rule/45">
+    <ul className="divide-y divide-border">
       {items.map((item) => {
         const row = (
           <>
@@ -859,7 +859,7 @@ export function LaunchCard({ widgetKey }: { widgetKey: string }) {
   return (
     <Link
       href={launch.href}
-      className="group flex h-full items-center gap-3 rounded-lg border border-rule/65 bg-card p-4 transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:outline-ring sm:p-5"
+      className="group flex h-full items-center gap-3 rounded-lg border border-border bg-card p-4 transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:outline-ring sm:p-5"
     >
       <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
         <Icon size={18} aria-hidden="true" />

@@ -13,6 +13,7 @@ import { ChoiceCards } from '@/components/shared/FormParts';
 import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { liftMarketingSuppression } from '@/lib/modules/communications/client';
@@ -145,14 +146,14 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
   return (
     <motion.section variants={SECTION_RISE} className="scroll-mt-6" aria-labelledby="marketing-consent-title">
       <div className="mb-3 flex min-h-8 flex-wrap items-center gap-3">
-        <h2 id="marketing-consent-title" className="flex-1 text-base font-semibold tracking-title text-foreground">
+        <h2 id="marketing-consent-title" className="flex-1 text-base font-semibold tracking-title text-heading">
           Marketing consent
         </h2>
         {actions}
       </div>
 
       {!email ? (
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+        <ul className="overflow-hidden rounded-lg border border-border bg-field">
           <Row
             icon={MailX}
             tile="bg-band text-muted-foreground"
@@ -162,11 +163,11 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
         </ul>
       ) : isPending ? (
         <div role="status" aria-busy="true" aria-label="Loading marketing consent">
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <div className="overflow-hidden rounded-lg border border-border bg-field">
             <RowSkeleton />
           </div>
           <Bone className="mt-5 mb-2 ml-1 h-4 w-16" />
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <div className="overflow-hidden rounded-lg border border-border bg-field">
             <RowSkeleton index={1} />
             <RowSkeleton index={2} />
           </div>
@@ -174,7 +175,7 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
       ) : isError ? (
         // Not the opted-out default: a preference that has not loaded is not a
         // preference, and showing one would be a consent claim.
-        <div className="rounded-lg border border-rule/60 bg-field">
+        <div className="rounded-lg border border-border bg-field">
           <ErrorState
             title="Marketing consent couldn’t be loaded"
             description="Their preference is unknown until it loads — don’t assume either way."
@@ -184,7 +185,7 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
       ) : (
         <>
           {/* ── Where they stand ───────────────────────────────────────── */}
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <ul className="overflow-hidden rounded-lg border border-border bg-field">
             <Row
               icon={StateIcon}
               tile={state.tile}
@@ -197,7 +198,7 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
               {/* The suppression's own facts, unfolded under it the way an
                   audit group lists its entries. */}
               {suppression && (
-                <dl className="border-t border-rule/45 bg-band/25 py-1 pl-15">
+                <dl className="border-t border-border bg-band/25 py-1 pl-15">
                   <Fact label="Why">{suppression.reason}</Fact>
                   <Fact label="Added by">{sourceLabel(suppression.source)}</Fact>
                   <Fact label="Since">{formatDate(suppression.createdAt)}</Fact>
@@ -230,7 +231,7 @@ export function MarketingPreferencesPanel({ customerId, email }: { customerId: s
                   Nothing recorded yet.
                 </p>
               ) : (
-                <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+                <ul className="overflow-hidden rounded-lg border border-border bg-field">
                   {history.map((event) => {
                     const meta = STATE[event.action] ?? STATE.opted_out;
                     return (
@@ -322,7 +323,7 @@ function Row({
   children?: React.ReactNode;
 }) {
   return (
-    <li className="border-b border-rule/45 last:border-b-0">
+    <li className="border-b border-border last:border-b-0">
       <div className="flex items-center gap-3 px-3.5 py-3">
         <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', tile)}>
           <Icon size={16} aria-hidden="true" />
@@ -445,7 +446,7 @@ function RecordConsentModal({
         )}
 
         <fieldset>
-          <legend className="mb-2 text-label uppercase text-muted-foreground">How it was recorded</legend>
+          <legend className={cn(FIELD_LABEL_CLASS, 'mb-2')}>How it was recorded</legend>
           <ChoiceCards value={source} onChange={setSource} options={SOURCE_OPTIONS} columns={2} />
         </fieldset>
 

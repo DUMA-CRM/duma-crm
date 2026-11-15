@@ -1,0 +1,13 @@
+{
+  "path": "/developers",
+  "name": "Public API",
+  "summary": "",
+  "description": "",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "pages/developers",
+  "local_sources": [
+    "lib/marketing/developers.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A developer works at a calm desk with a laptop and small notebook, screens facing away, subtle green desk accessories."
+}

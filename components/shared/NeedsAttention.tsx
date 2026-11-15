@@ -1,20 +1,17 @@
 'use client';
 
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { motion } from 'motion/react';
 import Link from 'next/link';
-import { useId, useState } from 'react';
+import { useState } from 'react';
 
-import { AlertTriangle, ChevronDown } from '@/components/icons';
+import { ArrowRight } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
-import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
 
 /*
- * The folded "needs you" card from Inventory → Stock and Menu → Items: one line
- * saying how many things and which, opening to a bordered row per thing, each
- * with its own fix. Lifted here so every workspace shows it the same way.
+ * What needs someone, on any workspace, shown the same way everywhere.
  */
 
 /** `info` is for something worth knowing that nothing depends on — the staff overview's third severity. */
@@ -32,122 +29,96 @@ export interface NeedsAttentionItem {
   fix?: { label: string; href?: string; run?: () => void };
 }
 
+/** The icon tile carries the urgency — a problem, a warning, or something worth knowing — as on Fact tiles. */
 const TILE: Record<NeedsAttentionTone, string> = {
-  exception: 'bg-exception/8 text-exception',
-  measured: 'bg-measured/10 text-measured',
-  info: 'bg-primary/8 text-primary',
+  exception: 'bg-exception/12 text-exception',
+  measured: 'bg-measured/14 text-measured',
+  info: 'bg-primary/10 text-primary',
 };
 
+/** Rows shown before "Show N more": enough to act on, short enough to scan. */
+const VISIBLE = 4;
+
+const fixClass =
+  'inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+
+/**
+ * A compact stack of strips, one per thing that needs someone: the icon on a
+ * tile in its urgency colour, one line saying what (title · detail), and the
+ * fix as a quiet button on the right. A hairline between strips, no heading —
+ * the strips say it.
+ */
 export function NeedsAttention({
   items,
   label = 'Needs attention',
-  summary,
-  icon: SummaryIcon = AlertTriangle,
   className,
 }: {
   items: NeedsAttentionItem[];
-  /** Accessible name of the card. */
+  /** Accessible name of the block. */
   label?: string;
-  /** The folded line; defaults to "N things need you". */
+  /** Kept for callers; the strips speak for themselves, so no heading is drawn. */
   summary?: string;
   icon?: IconComponent;
   className?: string;
 }) {
-  const reduceMotion = useReducedMotion();
-  const [open, setOpen] = useState(false);
-  const listId = useId();
+  const [showAll, setShowAll] = useState(false);
 
   // Attention is only shown when there is something to act on.
   if (items.length === 0) return null;
 
-  const worst: NeedsAttentionTone = items.some((item) => item.tone === 'exception')
-    ? 'exception'
-    : items.some((item) => item.tone === 'measured')
-      ? 'measured'
-      : 'info';
+  const shown = showAll ? items : items.slice(0, VISIBLE);
+  const hidden = items.length - VISIBLE;
+
   return (
     <motion.section
       variants={SECTION_RISE}
       aria-label={label}
-      className={cn('overflow-hidden rounded-lg border border-rule/60 bg-field', className)}
+      className={cn('overflow-hidden rounded-lg border border-border bg-card shadow-sm', className)}
     >
-      <button
-        type="button"
-        aria-expanded={open}
-        aria-controls={listId}
-        onClick={() => setOpen((current) => !current)}
-        className="flex w-full items-center gap-3 px-4 py-3 text-left transition-colors hover:bg-band/40"
-      >
-        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', TILE[worst])}>
-          <SummaryIcon size={18} aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-foreground">
-            {summary ?? `${items.length} ${items.length === 1 ? 'thing needs' : 'things need'} you`}
-          </span>
-          {/* The preview of titles is for the folded card only — open, the rows say it. */}
-          {!open && (
-            <span className="mt-0.5 block truncate text-xs text-muted-foreground">{items.map((item) => item.title).join(' · ')}</span>
-          )}
-        </span>
-        {/* The chevron is the affordance; the word stays for screen readers. */}
-        <span className="sr-only">{open ? 'Hide details' : 'Show details'}</span>
-        <ChevronDown
-          size={15}
-          aria-hidden="true"
-          className={cn('shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')}
-        />
-      </button>
-      <AnimatePresence initial={false}>
-        {open && (
-          <motion.div
-            initial={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
-            exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
-            transition={{ duration: 0.26, ease: [0.16, 1, 0.3, 1] }}
-            id={listId}
-            className="overflow-hidden border-t border-rule/50"
-          >
-            <ul className="space-y-2 p-2">
-              {items.map((item) => {
-                const Icon = item.icon;
-                return (
-                  <li
-                    key={item.key}
-                    className={cn(
-                      'flex items-center gap-3 rounded-lg border bg-background/60 px-3.5 py-3',
-                      item.tone === 'exception' ? 'border-exception/35' : 'border-rule/60',
-                    )}
-                  >
-                    {item.image ? (
-                      // eslint-disable-next-line @next/next/no-img-element
-                      <img src={item.image} alt="" className="size-10 shrink-0 rounded-md bg-band object-cover" />
-                    ) : (
-                      <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', TILE[item.tone])}>
-                        <Icon size={18} aria-hidden="true" />
-                      </span>
-                    )}
-                    <span className="min-w-0 flex-1">
-                      <span className="block text-sm font-semibold text-foreground">{item.title}</span>
-                      {item.detail && <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{item.detail}</span>}
-                    </span>
-                    {item.fix &&
-                      (item.fix.href ? (
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={item.fix.href}>{item.fix.label}</Link>
-                        </Button>
-                      ) : (
-                        <Button variant="outline" size="sm" onClick={item.fix.run}>
-                          {item.fix.label}
-                        </Button>
-                      ))}
-                  </li>
-                );
-              })}
-            </ul>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      <ul className="divide-y divide-border">
+        {shown.map((item) => {
+          const Icon = item.icon;
+          return (
+            <li key={item.key} className="flex min-h-14 items-center gap-3 py-2.5 pr-2.5 pl-3">
+              {item.image ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img src={item.image} alt="" className="size-9 shrink-0 rounded-md bg-band object-cover" />
+              ) : (
+                <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', TILE[item.tone])}>
+                  <Icon size={18} aria-hidden="true" />
+                </span>
+              )}
+              <p className="min-w-0 flex-1 line-clamp-2 text-sm sm:line-clamp-none sm:truncate" title={item.detail ? `${item.title} · ${item.detail}` : item.title}>
+                <span className="font-medium text-heading">{item.title}</span>
+                {item.detail && <span className="text-muted-foreground"> · {item.detail}</span>}
+              </p>
+              {item.fix &&
+                (item.fix.href ? (
+                  <Link href={item.fix.href} className={fixClass}>
+                    {item.fix.label}
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </Link>
+                ) : (
+                  <button type="button" onClick={item.fix.run} className={fixClass}>
+                    {item.fix.label}
+                    <ArrowRight size={14} aria-hidden="true" />
+                  </button>
+                ))}
+            </li>
+          );
+        })}
+      </ul>
+
+      {hidden > 0 && (
+        <button
+          type="button"
+          onClick={() => setShowAll((current) => !current)}
+          aria-expanded={showAll}
+          className="w-full border-t border-border px-4 py-2 text-left text-sm font-medium text-muted-foreground transition-colors hover:bg-band/40 hover:text-foreground focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+        >
+          {showAll ? 'Show less' : `Show ${hidden} more`}
+        </button>
+      )}
     </motion.section>
   );
 }

@@ -1,0 +1,13 @@
+{
+  "path": "/features/content-management",
+  "name": "Content (CMS)",
+  "summary": "Write your website and app content, and publish it over an API.",
+  "description": "Write your website and app content, and publish it over an API.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/content-management",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A content creator selects photographs and drafts an article at a daylight desk with a camera and laptop seen from behind."
+}

@@ -30,7 +30,7 @@ export function MetricTile({
 }) {
   const text = metricText(metric, format);
   return (
-    <div className={cn('rounded-lg border border-rule/60 bg-card px-4 py-3.5', className)}>
+    <div className={cn('rounded-lg border border-border bg-card px-4 py-3.5', className)}>
       <p className="flex items-center gap-1.5 text-xs font-semibold text-muted-foreground">
         {label}
         <Tooltip label={metric.definition}>

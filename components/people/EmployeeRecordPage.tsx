@@ -5,12 +5,15 @@ import { motion } from 'motion/react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { AlertTriangle, Banknote, CalendarDays, Clock, LayoutDashboard, Loader2, Pencil, TrendingUp } from '@/components/icons';
-import { Avatar } from '@/components/people/shared';
+import { Banknote, CalendarDays, Clock, LayoutDashboard, Loader2, Pencil, TrendingUp, UserRound } from '@/components/icons';
+import { AvailabilityEditor } from '@/components/scheduling/AvailabilityEditor';
+import { StaffPositions } from '@/components/scheduling/StaffPositions';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { SectionTabs } from '@/components/shared/SectionTabs';
-import { LoadingState } from '@/components/shared/Skeleton';
+import { Bone, FactSkeleton } from '@/components/shared/Skeleton';
+import { SectionSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
@@ -73,6 +76,8 @@ export function EmployeeRecordPage({
   // Granted to hr_manager on 2026-09-11 — before that, the role most likely to
   // be reading this page was the one that could not see the rota.
   const canReadRota = hasCapability(capabilities, 'scheduling:read');
+  // Availability and positions are the rota's own facts about a person.
+  const canEditRota = hasCapability(capabilities, 'scheduling:write');
   const canReadAttendance = hasCapability(capabilities, 'hr.attendance:read');
   const canReadPrivacy = hasCapability(capabilities, 'privacy:read');
   const canReadPayroll = hasCapability(capabilities, 'hr.payroll:read');
@@ -113,6 +118,7 @@ export function EmployeeRecordPage({
     data: emp,
     isLoading,
     isError,
+    refetch,
   } = useQuery({ queryKey: moduleQueryKeys.people.key('hr-employee', userId), queryFn: () => getEmployee(userId) });
   const [monthOffset, setMonthOffset] = useState(0);
   const range = monthRange(monthOffset);
@@ -127,8 +133,12 @@ export function EmployeeRecordPage({
     <EditorShell
       title={name}
       onClose={onClose}
-      leading={<Avatar name={name} email={member?.email} />}
-      meta={<>{emp?.jobTitle && member?.name && <span className="truncate text-sm text-muted-foreground">{emp.jobTitle}</span>}</>}
+      // The name only, as the way back: the face, job title and department are the Overview's identity card.
+      leading={
+        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
+          <UserRound size={17} aria-hidden="true" />
+        </span>
+      }
       actions={
         member && (
           <>
@@ -175,23 +185,36 @@ export function EmployeeRecordPage({
     >
       <div className="space-y-4">
         {isLoading ? (
-          <LoadingState label="Loading the employee record" />
-        ) : isError && !member ? (
-          <div className="rounded-lg border border-rule/60 bg-field p-8 text-center">
-            <span className="mx-auto flex size-10 items-center justify-center rounded-md bg-exception/8 text-exception">
-              <AlertTriangle size={18} aria-hidden="true" />
-            </span>
-            <h2 className="mt-3 text-sm font-semibold">Employee record unavailable</h2>
-            <p className="mt-1 text-sm text-muted-foreground">It may have been removed, or you may not have access to it.</p>
-            <Button variant="outline" className="mt-4" onClick={onClose}>
-              Back to staff
-            </Button>
+          // The Overview as it lands: the identity card over its facts, beside the first card of rows.
+          <div role="status" aria-busy="true" aria-label="Loading the employee record" className="grid items-start gap-5 lg:grid-cols-2">
+            <SectionSkeleton>
+              <div className="flex items-center gap-4">
+                <Bone className="size-24 shrink-0 rounded-md" />
+                <div className="space-y-2">
+                  <Bone className="h-6 w-40" />
+                  <Bone className="h-3.5 w-56" />
+                </div>
+              </div>
+              <div className="grid gap-3 sm:grid-cols-2">
+                {[0, 1, 2, 3].map((tile) => (
+                  <FactSkeleton key={tile} surface="panel" />
+                ))}
+              </div>
+            </SectionSkeleton>
+            <SectionSkeleton fields={4} />
           </div>
+        ) : isError && !member ? (
+          <ErrorState
+            title="Employee record unavailable"
+            description="It may have been removed, or you may not have access to it."
+            onRetry={() => void refetch()}
+          />
         ) : (
           <>
             {section === 'overview' && (
               <OverviewSection
                 userId={userId}
+                name={name}
                 member={member}
                 employee={emp ?? null}
                 locations={locations}
@@ -224,6 +247,8 @@ export function EmployeeRecordPage({
                   aside={
                     <>
                       <WorkPatternCard userId={userId} />
+                      {canReadRota && <AvailabilityEditor userId={userId} canEdit={canEditRota} />}
+                      {canReadRota && <StaffPositions userId={userId} canEdit={canEditRota} />}
                       <LeaveAllowanceCard userId={userId} employmentType={emp.employmentType} />
                       <AbsenceCard userId={userId} />
                     </>

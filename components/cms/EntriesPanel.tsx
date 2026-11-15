@@ -514,7 +514,7 @@ export function EntriesPanel({
               }}
               className={cn(
                 'block w-full overflow-hidden rounded-lg border bg-background text-left transition-[border-color,opacity] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                isSelected ? 'border-primary ring-2 ring-primary/25' : 'border-rule/55 hover:border-rule',
+                isSelected ? 'border-primary ring-2 ring-primary/25' : 'border-border hover:border-rule',
               )}
             >
               <span className="relative flex aspect-4/3 w-full flex-col items-center justify-center gap-1.5 bg-band/60 px-3 text-muted-foreground">
@@ -764,7 +764,7 @@ export function EntriesPanel({
       </ContextMenu>
 
       {/* Location stays at the foot of the browser, separate from filtering and selection. */}
-      <div className="sticky bottom-0 z-10 mt-auto flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-t border-rule/60 bg-background py-1">
+      <div className="sticky bottom-0 z-10 mt-auto flex min-h-11 shrink-0 flex-wrap items-center gap-2 border-t border-border bg-background py-1">
         {atRoot || typeId ? (
           <>
             <nav aria-label="Folder" className="flex min-w-0 flex-1 items-center gap-0.5 overflow-x-auto">

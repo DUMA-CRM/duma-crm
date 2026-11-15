@@ -463,7 +463,7 @@ export function BookingDrawer({
                 maxLength={500}
                 rows={3}
                 placeholder="Allergies, an occasion, a high chair…"
-                className="w-full rounded-md border border-input bg-control px-3 py-2 text-base sm:text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-measured disabled:opacity-60"
+                className="w-full rounded-md border border-input bg-control px-3 py-2 text-base sm:text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30 disabled:opacity-60"
               />
             </FormSection>
 
@@ -607,7 +607,7 @@ function CustomerLink({
   if (customer) {
     const allergies = customer.allergies?.length ? customer.allergies.join(', ') : null;
     return (
-      <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3">
+      <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
         <RowTile icon={UserRound} tone={allergies ? 'warning' : 'success'} />
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm font-semibold text-foreground">
@@ -637,7 +637,7 @@ function CustomerLink({
         placeholder="Search by name, phone or email"
       />
       {search.length >= 2 && (
-        <div className="mt-1.5 rounded-md border border-rule/60 bg-card p-1">
+        <div className="mt-1.5 rounded-md border border-border bg-card p-1">
           {results.isPending ? (
             <p className="px-2 py-1.5 text-xs text-muted-foreground">Searching…</p>
           ) : results.isError ? (

@@ -33,7 +33,7 @@ export function PageLayout({ eyebrow, title, headerSlot, sidebar, headerBorder =
               {eyebrow && <p className="text-xs font-semibold text-muted-foreground mb-1.5">{eyebrow}</p>}
               {/* The title only needs a bottom margin when a header slot sits under it */}
               {title && (
-                <h1 className={cn('text-2xl font-semibold tracking-headline text-foreground md:text-3xl', headerSlot && 'mb-3 md:mb-4')}>
+                <h1 className={cn('text-2xl font-semibold tracking-headline text-heading md:text-3xl', headerSlot && 'mb-3 md:mb-4')}>
                   {title}
                 </h1>
               )}
@@ -52,7 +52,7 @@ export function PageLayout({ eyebrow, title, headerSlot, sidebar, headerBorder =
       {hasHeader && (
         <div>
           {eyebrow && <p className="text-xs font-semibold text-muted-foreground mb-1.5">{eyebrow}</p>}
-          {title && <h1 className="text-2xl font-semibold tracking-headline text-foreground md:text-3xl">{title}</h1>}
+          {title && <h1 className="text-2xl font-semibold tracking-headline text-heading md:text-3xl">{title}</h1>}
           {headerSlot && <div className={cn((eyebrow || title) && 'mt-5')}>{headerSlot}</div>}
         </div>
       )}

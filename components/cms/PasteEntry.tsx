@@ -87,7 +87,7 @@ export function PasteEntryBody({ paste }: { paste: PasteEntryState }) {
       ) : plan && !plan.ok ? (
         <p className="text-sm text-measured">{plan.error}</p>
       ) : plan?.ok ? (
-        <div className="space-y-1.5 rounded-lg border border-rule/60 bg-band/30 px-3.5 py-3 text-sm">
+        <div className="space-y-1.5 rounded-lg border border-border bg-band/30 px-3.5 py-3 text-sm">
           <p className="text-foreground">
             <span className="font-semibold">{clip?.title || 'Untitled'}</span>
             <span className="text-muted-foreground">

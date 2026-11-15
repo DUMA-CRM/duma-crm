@@ -54,7 +54,7 @@ export function ScanCustomer({ onSelect, onSearchInstead }: ScanCustomerProps) {
         <div className="relative">
           <QrScanner onScan={handleScanned} paused={looking} />
           {looking && (
-            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-2xl bg-black/55 text-white" role="status">
+            <div className="absolute inset-0 flex flex-col items-center justify-center gap-2 rounded-lg bg-black/55 text-white" role="status">
               <Loader2 size={26} className="animate-spin" aria-hidden="true" />
               <p className="text-sm font-medium">Finding the customer…</p>
             </div>
@@ -70,9 +70,9 @@ export function ScanCustomer({ onSelect, onSearchInstead }: ScanCustomerProps) {
             void handleScanned(manual);
             setManual('');
           }}
-          className="rounded-2xl border border-rule/60 bg-card p-5 text-center"
+          className="rounded-lg border border-border bg-card p-5 text-center"
         >
-          <span className={cn('mx-auto flex size-16 items-center justify-center rounded-2xl bg-primary/8 text-primary', !looking && 'animate-pulse')} aria-hidden="true">
+          <span className={cn('mx-auto flex size-16 items-center justify-center rounded-lg bg-primary/8 text-primary', !looking && 'animate-pulse')} aria-hidden="true">
             {looking ? <Loader2 size={28} className="animate-spin" /> : <ScanLine size={28} />}
           </span>
           <p className="mt-4 text-lg font-semibold text-foreground" role="status">{looking ? 'Finding the customer…' : 'Ready — scan the code'}</p>
@@ -85,13 +85,13 @@ export function ScanCustomer({ onSelect, onSearchInstead }: ScanCustomerProps) {
             aria-label="Loyalty code"
             placeholder="Waiting for the scanner…"
             autoComplete="off"
-            className="mt-4 h-12 w-full rounded-lg border border-input bg-control px-3.5 text-center text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
+            className="mt-4 h-12 w-full rounded-lg border border-input bg-control px-3.5 text-center text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30"
           />
         </form>
       )}
 
       {error && !looking && (
-        <p role="alert" className="flex gap-2.5 rounded-xl border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-foreground">
+        <p role="alert" className="flex gap-2.5 rounded-md border border-exception/35 bg-destructive/6 px-4 py-3 text-sm text-foreground">
           <AlertTriangle size={17} aria-hidden="true" className="mt-0.5 shrink-0 text-destructive" />
           {error}
         </p>

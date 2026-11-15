@@ -66,6 +66,8 @@ const nextConfig: NextConfig = {
       },
       // Blog covers from DUMA's own CMS (lib/blog/posts.ts), and a local API when DUMA_CMS_API_URL points at one.
       { protocol: 'https', hostname: 'api.duma-business.com', pathname: '/v1/cms/delivery/assets/**' },
+      // Media storage (Vercel Blob), where Content asset delivery redirects — mirrors CSP_IMAGE_HOSTS.
+      { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
       { protocol: 'http', hostname: 'localhost', port: '7777', pathname: '/v1/cms/delivery/assets/**' },
     ],
   },

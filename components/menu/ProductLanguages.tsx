@@ -17,6 +17,7 @@ import { Tooltip } from '@/components/shared/Tooltip';
 import { useWorkspaceCurrency } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
@@ -100,9 +101,9 @@ function Card({
   footer?: React.ReactNode;
 }) {
   return (
-    <section aria-labelledby={id} className="overflow-hidden rounded-lg border border-rule/60 bg-control">
+    <section aria-labelledby={id} className="overflow-hidden rounded-lg border border-border bg-control">
       <header className="flex items-center gap-3 px-4 py-3.5">
-        <h2 id={id} className="text-base font-semibold tracking-title text-foreground">
+        <h2 id={id} className="text-base font-semibold tracking-title text-heading">
           {title}
         </h2>
         {count !== undefined && count > 0 && (
@@ -113,14 +114,14 @@ function Card({
         </span>
       </header>
       {children}
-      {footer && <footer className="border-t border-rule/50 px-4 py-2.5 text-xs text-muted-foreground">{footer}</footer>}
+      {footer && <footer className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground">{footer}</footer>}
     </section>
   );
 }
 
 function EmptyBody({ icon, title, children }: { icon: typeof Globe; title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-3 border-t border-rule/50 px-6 py-10 text-center">
+    <div className="flex flex-col items-center gap-3 border-t border-border px-6 py-10 text-center">
       <RowTile icon={icon} />
       <div>
         <p className="text-sm font-semibold text-foreground">{title}</p>
@@ -170,11 +171,11 @@ function LanguagesCard({
       }
     >
       {state === 'loading' ? (
-        <div className="border-t border-rule/50">
+        <div className="border-t border-border">
           <LoadingState label="Loading languages" />
         </div>
       ) : state === 'error' ? (
-        <div className="border-t border-rule/50 p-4">
+        <div className="border-t border-border p-4">
           <ErrorState title="Couldn’t load your languages" onRetry={onRetry} />
         </div>
       ) : others.length === 0 ? (
@@ -186,7 +187,7 @@ function LanguagesCard({
           and it appears here, ready to translate.
         </EmptyBody>
       ) : (
-        <div className="space-y-1 border-t border-rule/50 px-4 py-3">
+        <div className="space-y-1 border-t border-border px-4 py-3">
           {others.map((locale) => (
             <LanguageRow
               key={locale.code}
@@ -288,7 +289,7 @@ function LanguageRow({
         className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left focus-visible:outline-2 focus-visible:outline-ring"
       >
         <span
-          className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background font-mono text-xs font-semibold uppercase text-muted-foreground"
+          className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background font-mono text-xs font-semibold uppercase text-muted-foreground"
           aria-hidden="true"
         >
           {locale.code.split('-')[0]}
@@ -322,7 +323,7 @@ function LanguageRow({
             onChange={(event) => setDraft({ ...draft, name: event.target.value })}
           />
           <div className="flex flex-col gap-1.5">
-            <span className="text-label uppercase text-muted-foreground">Description</span>
+            <FieldLabel as="span">Description</FieldLabel>
             <textarea
               lang={locale.code}
               value={draft.description}
@@ -330,15 +331,15 @@ function LanguageRow({
               rows={3}
               placeholder={catalog.item.description ?? words.descriptionPlaceholder}
               aria-label={`Description in ${locale.name}`}
-              className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured sm:text-sm"
+              className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30 sm:text-sm"
             />
           </div>
 
           {catalog.options.length > 0 && (
             <div className="space-y-2">
-              <span className="text-label uppercase text-muted-foreground">Options</span>
+              <FieldLabel as="span">Options</FieldLabel>
               {catalog.options.map((option) => (
-                <div key={option.id} className="space-y-1.5 rounded-md border border-rule/50 bg-background/60 p-2.5">
+                <div key={option.id} className="space-y-1.5 rounded-md border border-border bg-background/60 p-2.5">
                   <LabelField
                     original={option.name}
                     strong
@@ -424,7 +425,7 @@ function LabelField({
         placeholder={original}
         aria-label={`${original} in ${locale.name}`}
         onChange={(event) => onChange(event.target.value)}
-        className="h-8 w-full rounded-sm border border-rule/50 bg-control px-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-measured focus:outline-none"
+        className="h-8 w-full rounded-sm border border-border bg-control px-2 text-sm text-foreground placeholder:text-muted-foreground/60 focus:border-ring focus:outline-none"
       />
     </label>
   );
@@ -519,10 +520,10 @@ function PricesCard({
           <div className="mt-3 flex justify-center">{addCurrency}</div>
         </EmptyBody>
       ) : (
-        <div className="overflow-x-auto border-t border-rule/50">
+        <div className="overflow-x-auto border-t border-border">
           <table className="w-full text-sm" style={{ minWidth: `${16 + currencies.length * 9}rem` }}>
             <thead>
-              <tr className="border-b border-rule/50 bg-band/30 text-left text-micro font-semibold uppercase tracking-micro text-muted-foreground">
+              <tr className="border-b border-border bg-band/30 text-left text-micro font-semibold uppercase tracking-micro text-muted-foreground">
                 <th className="px-4 py-2">{hasSizes ? noun.column : words.Item}</th>
                 <th className="w-28 px-2 py-2">{base}</th>
                 {currencies.map((currency) => {
@@ -551,7 +552,7 @@ function PricesCard({
                 })}
               </tr>
             </thead>
-            <tbody className="divide-y divide-rule/40">
+            <tbody className="divide-y divide-border">
               {rows.map((row) => (
                 <tr key={row.id ?? 'product'} className={cn(row.id === null && hasSizes && 'bg-band/15')}>
                   <td className={cn('px-4 py-1.5', row.id === null ? 'font-semibold text-foreground' : 'text-foreground')}>{row.name}</td>

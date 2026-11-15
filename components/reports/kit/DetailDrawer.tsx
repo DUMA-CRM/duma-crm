@@ -79,7 +79,7 @@ export function DrawerMark({ icon: Icon, tone = 'bg-primary/8 text-primary' }: {
 /** The headline figures, two to a row. */
 export function DrawerFacts({ facts }: { facts: { label: string; value: React.ReactNode; hint?: React.ReactNode }[] }) {
   return (
-    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-rule/60 bg-rule/50">
+    <dl className="grid grid-cols-2 gap-px overflow-hidden rounded-lg border border-border bg-rule/50">
       {facts.map((fact) => (
         <div key={fact.label} className="min-w-0 bg-field px-3.5 py-3">
           <dt className="text-xs text-muted-foreground">{fact.label}</dt>
@@ -97,11 +97,11 @@ export function DrawerList({ rows }: { rows: { label: string; value: React.React
   const shown = rows.filter((row) => row.value !== null && row.value !== undefined && row.value !== '');
   if (shown.length === 0) return null;
   return (
-    <dl className="overflow-hidden rounded-lg border border-rule/60 bg-field text-sm">
+    <dl className="overflow-hidden rounded-lg border border-border bg-field text-sm">
       {shown.map((row) => (
         <div
           key={row.label}
-          className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0"
+          className="flex flex-col gap-1 sm:flex-row sm:items-center sm:justify-between sm:gap-4 border-b border-border px-3.5 py-2.5 last:border-b-0"
         >
           <dt className="flex shrink-0 items-center gap-1.5 text-muted-foreground">
             {row.icon && <row.icon size={13} aria-hidden="true" />}
@@ -123,11 +123,11 @@ const LABEL_W = ['w-24', 'w-32', 'w-20', 'w-28', 'w-36'];
  */
 export function DrawerListSkeleton({ rows = 3, lines = 1, label = 'Loading' }: { rows?: number; lines?: 1 | 2; label?: string }) {
   return (
-    <div role="status" aria-busy="true" aria-label={label} className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+    <div role="status" aria-busy="true" aria-label={label} className="overflow-hidden rounded-lg border border-border bg-field">
       {Array.from({ length: rows }, (_, index) => (
         <div
           key={index}
-          className="flex items-center justify-between gap-4 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0"
+          className="flex items-center justify-between gap-4 border-b border-border px-3.5 py-2.5 last:border-b-0"
           aria-hidden="true"
         >
           <span className="min-w-0 space-y-1.5">
@@ -148,7 +148,7 @@ export function DrawerSection({ title, children, aside }: { title: string; aside
   return (
     <section>
       <div className="mb-2 flex items-baseline justify-between gap-3 px-1">
-        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        <h3 className="text-sm font-semibold text-heading">{title}</h3>
         {aside && <span className="text-xs text-muted-foreground">{aside}</span>}
       </div>
       {children}
@@ -159,7 +159,7 @@ export function DrawerSection({ title, children, aside }: { title: string; aside
 /** A note as written, kept apart so it reads as someone's words. */
 export function DrawerNote({ children }: { children: React.ReactNode }) {
   return (
-    <div className="rounded-lg border border-rule/60 bg-field px-3.5 py-3">
+    <div className="rounded-lg border border-border bg-field px-3.5 py-3">
       <p className="text-xs font-semibold text-foreground">Note</p>
       <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{children}</p>
     </div>

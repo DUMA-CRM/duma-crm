@@ -76,7 +76,7 @@ export function PanCanvas({ children, className }: { children: React.ReactNode; 
     <div
       ref={frame}
       className={cn(
-        'relative min-h-112 flex-1 touch-none overflow-hidden rounded-lg border border-rule/60 bg-card select-none',
+        'relative min-h-112 flex-1 touch-none overflow-hidden rounded-lg border border-border bg-card select-none',
         panning ? 'cursor-grabbing' : 'cursor-grab',
         className,
       )}
@@ -117,7 +117,7 @@ export function PanCanvas({ children, className }: { children: React.ReactNode; 
       {/* The view's controls, out of the way in the corner. */}
       <div
         data-no-pan
-        className="absolute bottom-3 right-3 flex cursor-auto items-center gap-0.5 rounded-lg border border-rule/70 bg-card p-1 shadow-sm"
+        className="absolute bottom-3 right-3 flex cursor-auto items-center gap-0.5 rounded-lg border border-border bg-card p-1 shadow-sm"
       >
         <Tooltip side="top" label="Zoom out">
           <button

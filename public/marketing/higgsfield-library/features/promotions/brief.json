@@ -1,0 +1,13 @@
+{
+  "path": "/features/promotions",
+  "name": "Promotions",
+  "summary": "Promo codes with limits and dates, honoured at the till.",
+  "description": "Promo codes with limits and dates, honoured at the till.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/promotions",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "Two takeaway coffees and a pastry neatly grouped on a counter while a customer chooses a bundle, no price labels."
+}

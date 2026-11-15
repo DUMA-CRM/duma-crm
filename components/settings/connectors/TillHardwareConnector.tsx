@@ -4,10 +4,10 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { InfoRow, InfoRows, SectionInfo } from '@/components/cms/rows';
-import { Banknote, CheckCircle2, ChevronRight, type IconComponent, Loader2, Monitor, Plug, Printer, Search, Zap } from '@/components/icons';
+import { Banknote, CheckCircle2, type IconComponent, Loader2, Monitor, Plug, Printer, Search, Zap } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useMounted } from '@/components/settings/configuration/shared';
-import { SaveBar, Switch } from '@/components/settings/controls';
+import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards, NumberStepper } from '@/components/shared/FormParts';
@@ -279,7 +279,7 @@ function PrinterFields({ hardware, step }: { hardware: Hardware; step?: string }
             ))}
           </div>
         )}
-        <details className="rounded-lg border border-rule/50 bg-background/60 px-4 py-3">
+        <details className="rounded-lg border border-border bg-background/60 px-4 py-3">
           <summary className="cursor-pointer text-sm font-medium text-foreground">How to find the address</summary>
           <ol className="mt-3 space-y-2 text-sm text-muted-foreground">
             {[
@@ -383,7 +383,7 @@ function DrawerFields({ hardware, step }: { hardware: Hardware; step?: string })
       />
       {draft.drawer === 'printer' && (
         <>
-          <details className="rounded-lg border border-rule/50 bg-background/60 px-4 py-3">
+          <details className="rounded-lg border border-border bg-background/60 px-4 py-3">
             <summary className="cursor-pointer text-sm font-medium text-foreground">Pin and pulse</summary>
             <p className="mt-2 text-xs text-muted-foreground">
               Match the drawer’s cable, pin and pulse timing to the printer maker’s specification before testing.
@@ -425,7 +425,7 @@ function DrawerFields({ hardware, step }: { hardware: Hardware; step?: string })
               <CheckCircle2 size={16} className="text-success" aria-hidden="true" /> Drawer tested and confirmed
             </p>
           ) : testSent ? (
-            <div className="rounded-lg border border-rule/50 bg-background/60 px-4 py-3" aria-live="polite">
+            <div className="rounded-lg border border-border bg-background/60 px-4 py-3" aria-live="polite">
               <p className="text-sm font-medium text-foreground">Did the drawer open?</p>
               <p className="mt-0.5 text-xs text-muted-foreground">Only confirm what you saw — a sent command doesn’t prove it opened.</p>
               <div className="mt-3 flex flex-wrap gap-2">
@@ -744,31 +744,26 @@ export function TillHardwareSummary() {
   const scope = tenantId && locationId ? hardwareScope(tenantId, locationId) : null;
   const saved = useTillHardwareStore((state) => (scope ? state.registers[scope] : undefined));
   if (!mounted || !enabled || !hasCapability(capabilities, 'settings:write')) return null;
+  // A row among the till's settings; the set-up itself lives under Connectors.
   return (
-    <SettingsSection title="Hardware">
-      <div className="-mx-2 flex flex-col gap-0.5">
-        <Link
-          href={`/settings/connectors?connector=till-hardware${saved ? '' : '&mode=connect'}`}
-          className="group flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
-            <Printer size={16} aria-hidden="true" />
-          </span>
-          <span className="min-w-0 flex-1">
-            <span className="block truncate text-sm font-semibold text-foreground">
-              {saved ? saved.registerName : 'Printer and cash drawer'}
-            </span>
-            <span className="block truncate text-xs text-muted-foreground">
-              {!scope ? 'Choose a location to set this till up' : saved ? tillHardwareSummary(saved) : 'Not set up on this browser'}
-            </span>
-          </span>
-          <ChevronRight
-            size={14}
-            className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-            aria-hidden="true"
-          />
-        </Link>
-      </div>
-    </SettingsSection>
+    <ChangeRow
+      icon={Printer}
+      label="Printer and cash drawer"
+      value={
+        saved ? (
+          <>
+            <span className="truncate">{saved.registerName}</span>
+            <ValueAside>· {tillHardwareSummary(saved)}</ValueAside>
+          </>
+        ) : (
+          <ValueMissing>{scope ? 'Not set up on this browser' : 'Choose a location to set this till up'}</ValueMissing>
+        )
+      }
+      trailing={
+        <Button asChild variant="outline" size="sm">
+          <Link href={`/settings/connectors?connector=till-hardware${saved ? '' : '&mode=connect'}`}>{saved ? 'Change' : 'Set up'}</Link>
+        </Button>
+      }
+    />
   );
 }

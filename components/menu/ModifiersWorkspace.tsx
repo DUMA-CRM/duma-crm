@@ -6,8 +6,9 @@ import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
-import { Plus, Scale, Search, SlidersHorizontal, X } from '@/components/icons';
+import { ArrowDown, ArrowUp, Layers3, Pencil, Plus, Scale, Search, SlidersHorizontal, X } from '@/components/icons';
 import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
+import { ModifierGroupDrawer } from '@/components/menu/ModifierGroupDrawer';
 import { NewModifierDrawer } from '@/components/menu/NewModifierDrawer';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
@@ -18,10 +19,9 @@ import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
-import { getModifierGroups, getModifiers, updateModifier } from '@/lib/modules/catalog/client';
+import { getModifierGroups, getModifiers, updateModifier, updateModifierGroup } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
@@ -29,7 +29,7 @@ import { groupModifiers } from '@/lib/utils/modifier-list';
 import { modifierLabel } from '@/lib/utils/modifiers';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-import type { Modifier } from '@/types/menu';
+import type { Modifier, ModifierGroup } from '@/types/menu';
 
 function formatAdjust(raw: string | undefined, formatMoney: (value: number, digits?: number) => string): string {
   const n = Number.parseFloat(raw ?? '0');
@@ -39,10 +39,11 @@ function formatAdjust(raw: string | undefined, formatMoney: (value: number, digi
 }
 
 /**
- * The modifiers list, laid out as the Products list is: a search and group
- * filter, then modifiers under their group in the till's order as audit rows —
- * price change, and an on/off switch for running out of oat milk mid-service
- * without opening the editor. Groups themselves are managed on Categories.
+ * Modifier groups as Square and Toast manage them: each group a card — its
+ * name, whether it's sizes, how many of its options are offered — holding its
+ * modifiers in the till's order, with the group's own edit, reorder and "Add
+ * modifier" on the card. Each modifier keeps an on/off switch for running out
+ * of oat milk mid-service without opening the editor.
  */
 export function ModifiersWorkspace() {
   const qc = useQueryClient();
@@ -51,7 +52,7 @@ export function ModifiersWorkspace() {
   const capabilities = useAuthStore((state) => state.capabilities);
   const canWrite = hasCapability(capabilities, 'menu:write');
   const [search, setSearch] = useState('');
-  const [groupFilter, setGroupFilter] = useState('all');
+  const [groupDrawer, setGroupDrawer] = useState<ModifierGroup | 'new' | null>(null);
   // `?new=1` (what /menu/modifiers/new redirects to) opens the drawer on arrival.
   const searchParams = useSearchParams();
   const [newFor, setNewFor] = useState<{ groupId?: string } | null>(() =>
@@ -68,7 +69,7 @@ export function ModifiersWorkspace() {
     queryFn: () => getModifiers(tenantId ?? undefined),
     enabled: !!tenantId,
   });
-  const { data: groups = [] } = useQuery({
+  const groupsQuery = useQuery({
     queryKey: moduleQueryKeys.catalog.key('modifier-groups', tenantId),
     queryFn: () => getModifierGroups(tenantId ?? undefined),
     enabled: Boolean(tenantId),
@@ -82,14 +83,42 @@ export function ModifiersWorkspace() {
     },
     onError: (err) => toast('error', err.message || 'Availability wasn’t updated. Try again.'),
   });
+  // Groups have no bulk reorder endpoint: swapping two neighbours is two PATCHes.
+  const reorderGroups = useMutation({
+    mutationFn: async ([a, b]: [ModifierGroup, ModifierGroup]) => {
+      await updateModifierGroup(a.id, { sortOrder: b.sortOrder });
+      await updateModifierGroup(b.id, { sortOrder: a.sortOrder });
+    },
+    onSettled: () => void qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('modifier-groups') }),
+    onError: (error) => toast('error', error.message || 'The order wasn’t saved. Try again.'),
+  });
 
   const modifiers = modifiersQuery.data ?? [];
+  // Counted from the modifier list: the API's modifierCount subquery returned 0 for everything.
+  const orderedGroups = [...(groupsQuery.data ?? [])]
+    .map((group) => ({ ...group, modifierCount: modifiers.filter((m) => m.groupId === group.id).length }))
+    .sort((a, b) => a.sortOrder - b.sortOrder || a.name.localeCompare(b.name));
   const sections = groupModifiers(
     modifiers.map((m) => ({ ...m, label: modifierLabel(m) })),
-    groups,
+    orderedGroups,
     search,
-  ).filter((section) => groupFilter === 'all' || section.id === groupFilter);
+  );
   const shownCount = sections.reduce((sum, section) => sum + section.modifiers.length, 0);
+  const moveGroup = (index: number, direction: -1 | 1) => {
+    const a = orderedGroups[index];
+    const b = orderedGroups[index + direction];
+    if (!a || !b) return;
+    // Equal sort orders would swap to themselves — fall back to positions.
+    if (a.sortOrder === b.sortOrder)
+      reorderGroups.mutate([
+        { ...a, sortOrder: index },
+        { ...b, sortOrder: index + direction },
+      ]);
+    else reorderGroups.mutate([a, b]);
+  };
+
+  const failed = modifiersQuery.isError || groupsQuery.isError;
+  const loading = modifiersQuery.isPending || groupsQuery.isPending;
 
   return (
     <EditorShell
@@ -98,32 +127,55 @@ export function ModifiersWorkspace() {
       subheader={<MenuSectionTabs />}
       actions={
         tenantId && canWrite ? (
-          <Button className="gap-1.5" onClick={() => openNew()} aria-label="New modifier">
-            <Plus size={15} aria-hidden="true" />
-            <span className="hidden md:inline">New modifier</span>
-          </Button>
+          <div className="flex items-center gap-1.5 md:gap-2">
+            <Button variant="outline" className="gap-1.5" onClick={() => setGroupDrawer('new')} aria-label="New group">
+              <Layers3 size={15} aria-hidden="true" />
+              <span className="hidden md:inline">New group</span>
+            </Button>
+            {orderedGroups.length > 0 && (
+              <Button className="gap-1.5" onClick={() => openNew()} aria-label="New modifier">
+                <Plus size={15} aria-hidden="true" />
+                <span className="hidden md:inline">New modifier</span>
+              </Button>
+            )}
+          </div>
         ) : undefined
       }
     >
       {!tenantId ? (
         <EmptyState icon={SlidersHorizontal} title="No workspace selected" description="Choose a workspace to manage its modifiers." />
-      ) : modifiersQuery.isError ? (
-        <ErrorState title="Couldn’t load modifiers" onRetry={() => void modifiersQuery.refetch()} />
-      ) : modifiersQuery.isPending ? (
-        // The search row, then a group: its label and the card of modifiers.
+      ) : failed ? (
+        <ErrorState
+          title="Couldn’t load modifiers"
+          onRetry={() => {
+            void modifiersQuery.refetch();
+            void groupsQuery.refetch();
+          }}
+        />
+      ) : loading ? (
+        // The search row, then a group card: its header and a few modifiers.
         <div role="status" aria-busy="true" aria-label="Loading modifiers" className="space-y-5">
-          <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
-            <Bone className="h-9 min-w-56 flex-1 lg:max-w-xs" />
-          </div>
-          <div>
-            <Bone className="mb-2 h-3 w-24" />
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-              {Array.from({ length: 4 }, (_, index) => (
+          <Bone className="h-9 w-full max-w-xs" aria-hidden="true" />
+          {[3, 2].map((rows) => (
+            <div key={rows} className="overflow-hidden rounded-lg border border-border bg-card" aria-hidden="true">
+              <div className="flex items-center gap-3 border-b border-border px-3.5 py-3">
+                <Bone className="size-9" />
+                <Bone className="h-3.5 w-28" />
+              </div>
+              {Array.from({ length: rows }, (_, index) => (
                 <RowSkeleton key={index} index={index} />
               ))}
             </div>
-          </div>
+          ))}
         </div>
+      ) : orderedGroups.length === 0 && modifiers.length === 0 ? (
+        <EmptyState
+          icon={Layers3}
+          className="flex-1"
+          title="No modifier groups yet"
+          description="A group is a set of choices, like Size or Milk. Start with Size if drinks come in sizes."
+          action={canWrite ? { label: 'New group', icon: Plus, onClick: () => setGroupDrawer('new') } : undefined}
+        />
       ) : (
         <motion.div
           className="flex flex-1 flex-col gap-5"
@@ -154,98 +206,135 @@ export function ModifiersWorkspace() {
                 }
               />
             </div>
-            <Select
-              value={groupFilter}
-              onValueChange={setGroupFilter}
-              options={[{ value: 'all', label: 'All groups' }, ...groups.map((g) => ({ value: g.id, label: g.name }))]}
-              ariaLabel="Group"
-              className="w-44"
-            />
-            <span className="ml-auto text-xs text-muted-foreground">
-              {shownCount !== modifiers.length && `${shownCount} of `}
-              {modifiers.length} {modifiers.length === 1 ? 'modifier' : 'modifiers'} · groups are set up on{' '}
-              <Link href="/menu/categories" className="font-semibold text-primary hover:underline">
-                Categories
-              </Link>
-            </span>
+            {/* Each card counts its own; a total only helps while searching. */}
+            {search && (
+              <span className="ml-auto text-xs text-muted-foreground tabular-nums">
+                {shownCount} of {modifiers.length} {modifiers.length === 1 ? 'modifier' : 'modifiers'}
+              </span>
+            )}
           </motion.div>
 
-          {modifiers.length === 0 ? (
-            <motion.div variants={SECTION_RISE} className="flex flex-1 flex-col">
-              <EmptyState
-                icon={SlidersHorizontal}
-                className="flex-1"
-                title="No modifiers yet"
-                description={`Sizes, milks and syrups. Build one once and attach it to as many items as you like${groups.length ? '.' : ' — create its group on Categories first.'}`}
-                action={
-                  canWrite
-                    ? {
-                        label: groups.length ? 'New modifier' : 'Create a group',
-                        icon: Plus,
-                        onClick: () => (groups.length ? openNew() : router.push('/menu/categories')),
-                      }
-                    : undefined
-                }
-              />
-            </motion.div>
-          ) : sections.every((section) => section.modifiers.length === 0) ? (
+          {sections.length === 0 ? (
             <motion.div variants={SECTION_RISE}>
               <EmptyState
                 icon={Search}
                 kind="search"
                 title="Nothing matches"
-                description="Try another search or group."
-                action={{
-                  label: 'Clear filters',
-                  onClick: () => {
-                    setSearch('');
-                    setGroupFilter('all');
-                  },
-                }}
+                description="Try another word."
+                action={{ label: 'Clear search', onClick: () => setSearch('') }}
               />
             </motion.div>
           ) : (
-            sections.map((section) => (
-              <motion.section key={section.id} variants={SECTION_RISE} aria-label={section.name}>
-                <h2 className="mb-2 flex items-center gap-2 text-label uppercase text-muted-foreground">
-                  {section.isSize && <Scale size={12} aria-hidden="true" />}
-                  {section.name}
-                  <span className="normal-case tabular-nums">
-                    {section.modifiers.filter((m) => m.isAvailable).length}/{section.modifiers.length} available
-                  </span>
-                  {/* Said once for the group rather than under every size. */}
-                  {section.isSize && <span className="normal-case">· recipes cost each size separately</span>}
-                </h2>
-                {section.modifiers.length === 0 ? (
-                  <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-xs text-muted-foreground">
-                    Nothing in {section.name} yet.{' '}
-                    {canWrite && (
-                      <button type="button" onClick={() => openNew(section.id)} className="font-semibold text-primary hover:underline">
-                        Add a modifier
-                      </button>
+            sections.map((section) => {
+              const index = orderedGroups.findIndex((group) => group.id === section.id);
+              const group = orderedGroups[index];
+              const available = section.modifiers.filter((m) => m.isAvailable).length;
+              return (
+                <motion.section
+                  key={section.id}
+                  variants={SECTION_RISE}
+                  aria-label={section.name}
+                  className="overflow-hidden rounded-lg border border-border bg-card"
+                >
+                  <div className="flex items-center gap-3 border-b border-border py-2.5 pr-2 pl-3.5">
+                    <span
+                      className={cn(
+                        'flex size-9 shrink-0 items-center justify-center rounded-md',
+                        section.isSize ? 'bg-primary/8 text-primary' : 'bg-reference/8 text-reference',
+                      )}
+                      aria-hidden="true"
+                    >
+                      {section.isSize ? <Scale size={16} /> : <Layers3 size={16} />}
+                    </span>
+                    <span className="min-w-0 flex-1">
+                      <h2 className="truncate text-sm font-semibold text-heading">{section.name}</h2>
+                      <span className="block truncate text-xs text-muted-foreground">
+                        {section.modifiers.length === 0 ? 'No modifiers yet' : `${available} of ${section.modifiers.length} available`}
+                        {section.isSize && ' · Sizes'}
+                      </span>
+                    </span>
+                    {canWrite && group && (
+                      <span className="flex shrink-0 items-center">
+                        {!search && (
+                          <>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground"
+                              disabled={index === 0 || reorderGroups.isPending}
+                              onClick={() => moveGroup(index, -1)}
+                              aria-label={`Move ${group.name} up`}
+                            >
+                              <ArrowUp size={14} />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="icon"
+                              className="size-8 text-muted-foreground"
+                              disabled={index === orderedGroups.length - 1 || reorderGroups.isPending}
+                              onClick={() => moveGroup(index, 1)}
+                              aria-label={`Move ${group.name} down`}
+                            >
+                              <ArrowDown size={14} />
+                            </Button>
+                          </>
+                        )}
+                        <Button
+                          variant="ghost"
+                          size="icon"
+                          className="size-8 text-muted-foreground"
+                          onClick={() => setGroupDrawer(group)}
+                          aria-label={`Edit ${group.name}`}
+                        >
+                          <Pencil size={14} />
+                        </Button>
+                      </span>
                     )}
-                  </p>
-                ) : (
-                  <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-                    {section.modifiers.map((modifier) => (
-                      <ModifierRow
-                        key={modifier.id}
-                        modifier={modifier}
-                        isSize={section.isSize}
-                        canWrite={canWrite}
-                        togglePending={availability.isPending && availability.variables?.id === modifier.id}
-                        onToggle={(isAvailable) => availability.mutate({ id: modifier.id, isAvailable })}
-                      />
-                    ))}
-                  </ul>
-                )}
-              </motion.section>
-            ))
+                  </div>
+                  {section.modifiers.length > 0 && (
+                    <ul>
+                      {section.modifiers.map((modifier) => (
+                        <ModifierRow
+                          key={modifier.id}
+                          modifier={modifier}
+                          isSize={section.isSize}
+                          canWrite={canWrite}
+                          togglePending={availability.isPending && availability.variables?.id === modifier.id}
+                          onToggle={(isAvailable) => availability.mutate({ id: modifier.id, isAvailable })}
+                        />
+                      ))}
+                    </ul>
+                  )}
+                  {canWrite && group && (
+                    <button
+                      type="button"
+                      onClick={() => openNew(group.id)}
+                      className={cn(
+                        'flex h-11 w-full items-center gap-2 px-3.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/6 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+                        section.modifiers.length > 0 && 'border-t border-border',
+                      )}
+                    >
+                      <Plus size={15} aria-hidden="true" />
+                      Add {section.isSize ? 'a size' : `to ${group.name}`}
+                    </button>
+                  )}
+                </motion.section>
+              );
+            })
           )}
         </motion.div>
       )}
 
-      {newFor && tenantId && <NewModifierDrawer tenantId={tenantId} groups={groups} defaultGroupId={newFor.groupId} onClose={closeNew} />}
+      {newFor && tenantId && (
+        <NewModifierDrawer tenantId={tenantId} groups={orderedGroups} defaultGroupId={newFor.groupId} onClose={closeNew} />
+      )}
+      {groupDrawer && tenantId && (
+        <ModifierGroupDrawer
+          tenantId={tenantId}
+          group={groupDrawer === 'new' ? undefined : groupDrawer}
+          onClose={() => setGroupDrawer(null)}
+        />
+      )}
     </EditorShell>
   );
 }
@@ -267,7 +356,7 @@ function ModifierRow({
   const adjust = Number.parseFloat(modifier.priceAdjust ?? '0') || 0;
 
   return (
-    <li className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40">
+    <li className="flex items-center gap-3 border-b border-border px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40">
       <Link
         href={`/menu/modifiers/${modifier.id}`}
         className="flex min-w-0 flex-1 items-center gap-3 rounded-md focus-visible:outline-2 focus-visible:outline-ring"

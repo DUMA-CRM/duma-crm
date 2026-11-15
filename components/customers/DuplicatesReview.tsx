@@ -94,7 +94,7 @@ export function DuplicatesReview() {
             <span className="flex size-12 items-center justify-center rounded-md bg-exception/8 text-exception">
               <AlertTriangle size={22} aria-hidden="true" />
             </span>
-            <h2 className="mt-4 text-base font-semibold text-foreground">Could not check for duplicates</h2>
+            <h2 className="mt-4 text-base font-semibold text-heading">Could not check for duplicates</h2>
             <Button variant="outline" className="mt-4" onClick={() => void refetch()}>
               Try again
             </Button>
@@ -102,14 +102,14 @@ export function DuplicatesReview() {
         ) : isLoading ? (
           <div className="space-y-3" role="status" aria-busy="true" aria-label="Checking for duplicates">
             {[0, 1, 2].map((row) => (
-              <div key={row} className="rounded-lg border border-rule/65 bg-card p-4" aria-hidden="true">
+              <div key={row} className="rounded-lg border border-border bg-card p-4" aria-hidden="true">
                 <div className="mb-3 flex items-center gap-2">
                   <Bone className="h-5 w-24 rounded-sm" />
                   <Bone className="h-3 w-44" />
                 </div>
                 <div className="grid gap-3 sm:grid-cols-2">
                   {[0, 1].map((side) => (
-                    <div key={side} className="flex gap-3 rounded-md border border-rule/45 bg-background p-3">
+                    <div key={side} className="flex gap-3 rounded-md border border-border bg-background p-3">
                       <Bone className="size-9 shrink-0" />
                       <div className="min-w-0 flex-1 space-y-1.5">
                         <Bone className="h-3.5 w-32" />
@@ -142,7 +142,7 @@ export function DuplicatesReview() {
               const b = sideToCustomer(row, 'b');
 
               return (
-                <li key={key} className="rounded-lg border border-rule/65 bg-card p-4">
+                <li key={key} className="rounded-lg border border-border bg-card p-4">
                   <div className="mb-3 flex flex-wrap items-center gap-2">
                     <Badge variant={row.signal === 'email' ? 'primary' : 'muted'} className="gap-1">
                       {row.signal === 'email' ? <Mail size={11} aria-hidden="true" /> : <Users size={11} aria-hidden="true" />}
@@ -156,7 +156,7 @@ export function DuplicatesReview() {
 
                   <div className="grid gap-3 sm:grid-cols-2">
                     {[a, b].map((customer) => (
-                      <div key={customer.id} className="flex gap-3 rounded-md border border-rule/45 bg-background p-3">
+                      <div key={customer.id} className="flex gap-3 rounded-md border border-border bg-background p-3">
                         <Avatar name={`${customer.firstName} ${customer.lastName}`} email={customer.email} />
                         <div className="min-w-0 flex-1">
                           {/* The field the two share is tinted, so the reason for the match is where you look. */}

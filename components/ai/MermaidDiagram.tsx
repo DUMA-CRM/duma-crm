@@ -24,7 +24,7 @@ export function MermaidDiagram({ source }: { source: string }) {
 
   if (!svg) {
     return (
-      <div className="my-3 rounded-lg border border-rule/60 bg-field px-3.5 py-3" role="status">
+      <div className="my-3 rounded-lg border border-border bg-field px-3.5 py-3" role="status">
         <p className="flex items-center gap-2 text-sm font-semibold text-foreground">
           <TriangleAlert size={14} className="text-stock" aria-hidden="true" />
           This diagram couldn’t be drawn
@@ -38,8 +38,8 @@ export function MermaidDiagram({ source }: { source: string }) {
   }
 
   return (
-    <figure className="my-3 overflow-hidden rounded-lg border border-rule/60 bg-field" aria-label="Process diagram from Ask DUMA">
-      <figcaption className="flex items-center gap-2 border-b border-rule/40 bg-band/35 px-3.5 py-2 text-label font-semibold tracking-label text-muted-foreground uppercase">
+    <figure className="my-3 overflow-hidden rounded-lg border border-border bg-field" aria-label="Process diagram from Ask DUMA">
+      <figcaption className="flex items-center gap-2 border-b border-border bg-band/35 px-3.5 py-2 text-label font-semibold tracking-label text-muted-foreground uppercase">
         <Combine size={13} className="text-reference" aria-hidden="true" />
         Process overview
       </figcaption>

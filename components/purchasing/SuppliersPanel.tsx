@@ -236,8 +236,8 @@ function SupplierDrawer({
             <CardPreview form={form} status={!supplier ? undefined : inactive ? 'inactive' : 'active'} />
 
             {inactive && (
-              <div className="flex items-start gap-3 rounded-lg border border-rule/60 bg-band/50 px-4 py-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+              <div className="flex items-start gap-3 rounded-lg border border-border bg-band/50 px-4 py-3">
+                <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
                   <Power size={16} aria-hidden="true" />
                 </span>
                 <div className="min-w-0 text-xs leading-relaxed text-muted-foreground">
@@ -304,7 +304,7 @@ function SupplierDrawer({
                     rows={4}
                     maxLength={2000}
                     placeholder={readOnly ? 'No notes' : 'e.g. Account DD-4471. Delivers Mon and Thu before 8am.'}
-                    className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured disabled:opacity-50 sm:text-sm"
+                    className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30 disabled:opacity-50 sm:text-sm"
                   />
                   {notesError && <p className="text-xs font-semibold text-destructive">{notesError}</p>}
                   {form.notes.length > 1500 && <p className="text-right text-micro text-muted-foreground">{form.notes.length} / 2000</p>}
@@ -335,9 +335,9 @@ function ReadOnlyDetails({ supplier }: { supplier: Supplier }) {
     { icon: FileText, label: 'Notes', value: supplier.notes },
   ];
   return (
-    <dl className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+    <dl className="overflow-hidden rounded-lg border border-border bg-card">
       {rows.map(({ icon: Icon, label, value, href }) => (
-        <div key={label} className="flex items-start gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+        <div key={label} className="flex items-start gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground" aria-hidden="true">
             <Icon size={16} />
           </span>
@@ -387,9 +387,9 @@ function DeactivateConsequences({ name }: { name: string }) {
     },
   ];
   return (
-    <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+    <ul className="overflow-hidden rounded-lg border border-border bg-card">
       {rows.map(({ icon: Icon, title, detail, tone }) => (
-        <li key={title} className="flex items-start gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+        <li key={title} className="flex items-start gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
           <span
             className={cn(
               'flex size-9 shrink-0 items-center justify-center rounded-md',
@@ -418,7 +418,7 @@ function CardPreview({ form, status }: { form: SupplierForm; status?: 'active' |
     <div
       className={cn(
         'relative overflow-hidden rounded-2xl border p-4',
-        muted ? 'border-rule/50 bg-band/60' : status === 'leaving' ? 'border-exception/30 bg-card' : 'border-rule/60 bg-card shadow-sm',
+        muted ? 'border-border bg-band/60' : status === 'leaving' ? 'border-exception/30 bg-card' : 'border-border bg-card shadow-sm',
       )}
       aria-label="Card preview"
     >
@@ -599,7 +599,7 @@ function SupplierCard({ supplier, index, onOpen }: { supplier: Supplier; index: 
       transition={{ delay: reduceMotion ? 0 : Math.min(index, 8) * 0.04, duration: 0.3 }}
       className={cn(
         'group relative flex aspect-[1.75] flex-col justify-between overflow-hidden rounded-2xl border p-5 transition-[border-color,box-shadow]',
-        active ? 'border-rule/60 bg-card shadow-sm hover:border-primary/40 hover:shadow-md' : 'border-rule/50 bg-band/60',
+        active ? 'border-border bg-card shadow-sm hover:border-primary/40 hover:shadow-md' : 'border-border bg-band/60',
       )}
     >
       {/* Two faint rings, like the readers' cards in Settings. */}

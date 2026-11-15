@@ -1,0 +1,13 @@
+{
+  "path": "/compare/duma-vs-sevenrooms",
+  "name": "DUMA vs SevenRooms",
+  "summary": "",
+  "description": "",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "compare/duma-vs-sevenrooms",
+  "local_sources": [
+    "lib/marketing/compare/sevenrooms.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "Restaurant host adjusts a neatly set table for two and welcomes arriving guests in a small neighbourhood restaurant. Focus only on the small business; do not show competitor products or make comparative claims."
+}

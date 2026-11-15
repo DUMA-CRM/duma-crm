@@ -10,16 +10,16 @@ import {
   CalendarDays,
   CircleHelp,
   FileText,
-  Landmark,
+  Loader2,
   Monitor,
   Sun,
-  UserRound,
 } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { AddressFields } from '@/components/people/AddressFields';
 import { Drawer } from '@/components/shared/Drawer';
 import { ChoiceCards, FormSection, ModalActions } from '@/components/shared/FormParts';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
@@ -111,84 +111,224 @@ const RELATIONSHIPS = [
 ];
 
 const textarea =
-  'w-full min-h-24 rounded-md border border-input bg-control p-3 text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured';
+  'w-full min-h-24 rounded-md border border-input bg-control p-3 text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-offset-0 focus:outline-ring/30';
 
 // ── Your details ──────────────────────────────────────────────────────────────
 
-const DETAILS_FORM_ID = 'my-hr-details-form';
-
 /**
- * Everything an employee may change about their own record, in one slide-over.
+ * What an employee may change about their own record, one form per row of the
+ * Overview — each opens under its `ChangeRow` and saves itself.
  *
- * All of it goes through `PATCH /hr/employees/me` — the endpoint that exists
- * for exactly this — so one save covers contact details, emergency contact and
- * pay details. The admin `/employees/{id}/bank` route this used to call is
+ * All of them go through `PATCH /hr/employees/me` — the endpoint that exists
+ * for exactly this. The admin `/employees/{id}/bank` route this used to call is
  * manager-scoped and simply failed for staff.
  *
  * Wrong bank or NI details mean unpaid wages or emergency-rate tax, so their
  * format is checked before submit rather than discovered at payday.
  */
-export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrEmployee; onClose: () => void; onDone: () => void }) {
+interface DetailsFormProps {
+  employee: HrEmployee;
+  /** The save landed: close the row and refetch the record. */
+  onDone: () => void;
+}
+
+function SaveButton({ pending, disabled, children = 'Save' }: { pending: boolean; disabled: boolean; children?: React.ReactNode }) {
+  return (
+    <div className="flex justify-end">
+      <Button type="submit" disabled={disabled || pending}>
+        {pending && <Loader2 className="animate-spin" aria-hidden="true" />}
+        {children}
+      </Button>
+    </div>
+  );
+}
+
+export function AddressForm({ employee, onDone }: DetailsFormProps) {
+  const initial = employee.address ?? '';
+  const [address, setAddress] = useState(initial);
+  const mutation = useMutation({
+    mutationFn: () => updateMyEmployee({ address }),
+    onSuccess: () => {
+      toast('success', 'Your details were updated.');
+      onDone();
+    },
+    onError: (e) => toast('error', (e as Error).message),
+  });
+  const dirty = address !== initial;
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (dirty) mutation.mutate();
+      }}
+    >
+      {/* The record stores one address line, so the four fields compose into
+          it and parse back out — the same component the HR-side forms use,
+          so both sides write the address the same way round. */}
+      <AddressFields value={address} onChange={setAddress} labelClassName="mb-1.5" />
+      <SaveButton pending={mutation.isPending} disabled={!dirty} />
+    </form>
+  );
+}
+
+export function EmergencyContactForm({ employee, onDone }: DetailsFormProps) {
   const [form, setForm] = useState({
-    address: employee.address ?? '',
     emergencyContactName: employee.emergencyContactName ?? '',
     emergencyContactRelation: employee.emergencyContactRelation ?? '',
     emergencyContactPhone: employee.emergencyContactPhone ?? '',
-    bankAccountName: '',
-    bankSortCode: '',
-    bankAccountNumber: '',
-    nationalInsuranceNumber: '',
   });
   const [initialForm] = useState(() => JSON.stringify(form));
   const dirty = JSON.stringify(form) !== initialForm;
+  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: e.target.value });
+  const mutation = useMutation({
+    mutationFn: () => updateMyEmployee(form),
+    onSuccess: () => {
+      toast('success', 'Your details were updated.');
+      onDone();
+    },
+    onError: (e) => toast('error', (e as Error).message),
+  });
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (dirty) mutation.mutate();
+      }}
+    >
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Input label="Name" autoFocus value={form.emergencyContactName} onChange={set('emergencyContactName')} />
+        <Labelled label="Relationship">
+          <Select
+            value={form.emergencyContactRelation}
+            onValueChange={(emergencyContactRelation) => setForm((current) => ({ ...current, emergencyContactRelation }))}
+            // Anything already on the record stays selectable, so a value HR
+            // typed by hand is never silently replaced on the next save.
+            options={[
+              ...(form.emergencyContactRelation && !RELATIONSHIPS.includes(form.emergencyContactRelation)
+                ? [{ value: form.emergencyContactRelation, label: form.emergencyContactRelation }]
+                : []),
+              ...RELATIONSHIPS.map((relationship) => ({ value: relationship, label: relationship })),
+            ]}
+            placeholder="Choose one"
+            ariaLabel="Relationship to you"
+            className="w-full"
+          />
+        </Labelled>
+      </div>
+      <Input label="Phone" type="tel" value={form.emergencyContactPhone} onChange={set('emergencyContactPhone')} />
+      <SaveButton pending={mutation.isPending} disabled={!dirty} />
+    </form>
+  );
+}
+
+export function BankDetailsForm({ onDone }: Pick<DetailsFormProps, 'onDone'>) {
+  const [form, setForm] = useState({ bankAccountName: '', bankSortCode: '', bankAccountNumber: '' });
   const [touched, setTouched] = useState<Record<string, boolean>>({});
   const blur = (key: string) => () => setTouched((t) => ({ ...t, [key]: true }));
-  const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => setForm({ ...form, [key]: e.target.value });
 
   // Bank details are all-or-nothing: a sort code without an account number
   // cannot be paid into, so a half-filled set blocks the save.
   const bankTouched = !!(form.bankAccountName || form.bankSortCode || form.bankAccountNumber);
   const bankComplete = !!form.bankAccountName.trim() && isValidSortCode(form.bankSortCode) && isValidAccountNumber(form.bankAccountNumber);
-  const niValid = !form.nationalInsuranceNumber || isValidNiNumber(form.nationalInsuranceNumber);
-
   const sortCodeError =
-    touched.bankSortCode && form.bankSortCode && !isValidSortCode(form.bankSortCode) ? 'Six digits, e.g. 04-00-04.' : '';
+    touched.bankSortCode && form.bankSortCode && !isValidSortCode(form.bankSortCode) ? 'Six digits, e.g. 04-00-04.' : undefined;
   const accountError =
-    touched.bankAccountNumber && form.bankAccountNumber && !isValidAccountNumber(form.bankAccountNumber) ? 'Eight digits.' : '';
-  const niError = touched.nationalInsuranceNumber && !niValid ? 'Two letters, six digits, then a letter A–D. e.g. AB 12 34 56 C.' : '';
+    touched.bankAccountNumber && form.bankAccountNumber && !isValidAccountNumber(form.bankAccountNumber) ? 'Eight digits.' : undefined;
 
   const mutation = useMutation({
     mutationFn: () => {
-      const ni = normaliseNiNumber(form.nationalInsuranceNumber);
       const holder = form.bankAccountName.trim();
       const sortCode = normaliseSortCode(form.bankSortCode);
       const accountNumber = normaliseAccountNumber(form.bankAccountNumber);
+      // Both spellings — see UpdateMyEmployeePayload for why.
       return updateMyEmployee({
-        address: form.address,
-        emergencyContactName: form.emergencyContactName,
-        emergencyContactRelation: form.emergencyContactRelation,
-        emergencyContactPhone: form.emergencyContactPhone,
-        // Both spellings — see UpdateMyEmployeePayload for why.
-        ...(bankTouched
-          ? {
-              bankAccountName: holder,
-              bankSortCode: sortCode,
-              bankAccountNumber: accountNumber,
-              accountHolder: holder,
-              sortCode,
-              accountNumber,
-            }
-          : {}),
-        ...(ni ? { nationalInsuranceNumber: ni, niNumber: ni } : {}),
+        bankAccountName: holder,
+        bankSortCode: sortCode,
+        bankAccountNumber: accountNumber,
+        accountHolder: holder,
+        sortCode,
+        accountNumber,
       });
+    },
+    onSuccess: () => {
+      toast('success', 'Your details were updated.');
+      onDone();
+    },
+    onError: (e) => toast('error', (e as Error).message),
+  });
+
+  return (
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (bankComplete) mutation.mutate();
+      }}
+    >
+      <Input
+        label="Account holder"
+        autoFocus
+        value={form.bankAccountName}
+        onChange={(e) => setForm({ ...form, bankAccountName: e.target.value })}
+        placeholder="Name exactly as it appears on the account"
+        autoComplete="off"
+      />
+      <div className="grid gap-3 sm:grid-cols-2">
+        <Input
+          label="Sort code"
+          value={formatSortCode(form.bankSortCode)}
+          onChange={(e) => setForm({ ...form, bankSortCode: normaliseSortCode(e.target.value) })}
+          onBlur={blur('bankSortCode')}
+          placeholder="00-00-00"
+          inputMode="numeric"
+          autoComplete="off"
+          error={sortCodeError}
+        />
+        <Input
+          label="Account number"
+          value={form.bankAccountNumber}
+          onChange={(e) => setForm({ ...form, bankAccountNumber: normaliseAccountNumber(e.target.value) })}
+          onBlur={blur('bankAccountNumber')}
+          placeholder="8 digits"
+          inputMode="numeric"
+          autoComplete="off"
+          error={accountError}
+        />
+      </div>
+      {bankTouched && !bankComplete && (
+        <p className="flex items-start gap-2 rounded-md border border-measured/30 bg-measured/6 px-3 py-2 text-xs text-foreground">
+          <AlertTriangle size={13} className="mt-px shrink-0 text-measured" aria-hidden="true" />
+          Fill in all three bank fields — a partial account can’t be paid into.
+        </p>
+      )}
+      <SaveButton pending={mutation.isPending} disabled={!bankComplete} />
+    </form>
+  );
+}
+
+export function NiNumberForm({ employee, onDone }: DetailsFormProps) {
+  const [value, setValue] = useState('');
+  const [touched, setTouched] = useState(false);
+  const niValid = !value || isValidNiNumber(value);
+  const niError = touched && !niValid ? 'Two letters, six digits, then a letter A–D. e.g. AB 12 34 56 C.' : undefined;
+
+  const mutation = useMutation({
+    mutationFn: () => {
+      const ni = normaliseNiNumber(value);
+      // Both spellings — see UpdateMyEmployeePayload for why.
+      return updateMyEmployee({ nationalInsuranceNumber: ni, niNumber: ni });
     },
     onSuccess: (updated) => {
       // The server answers 200 even for fields it ignored, so the saved record
       // is checked rather than trusted. Claiming success for a value that did
       // not land is how somebody ends up on an emergency tax code believing
       // they fixed it.
-      if (form.nationalInsuranceNumber && updated?.hasNiNumber === false) {
-        toast('error', 'Your other details were saved, but the server did not accept your National Insurance number. Please tell HR.');
+      if (updated?.hasNiNumber === false) {
+        toast('error', 'The server did not accept your National Insurance number. Please tell HR.');
       } else {
         toast('success', 'Your details were updated.');
       }
@@ -197,133 +337,27 @@ export function EditDetailsDrawer({ employee, onClose, onDone }: { employee: HrE
     onError: (e) => toast('error', (e as Error).message),
   });
 
-  const blocked = (bankTouched && !bankComplete) || !niValid;
-
   return (
-    <Drawer
-      icon={UserRound}
-      title="Edit your details"
-      onClose={onClose}
-      footer={
-        <ModalActions
-          form={DETAILS_FORM_ID}
-          submitLabel="Save changes"
-          pending={mutation.isPending}
-          pendingLabel="Saving…"
-          disabled={blocked || !dirty}
-          onCancel={onClose}
-        />
-      }
+    <form
+      className="space-y-4"
+      onSubmit={(e) => {
+        e.preventDefault();
+        if (value && niValid) mutation.mutate();
+      }}
     >
-      <form
-        id={DETAILS_FORM_ID}
-        className="space-y-6"
-        onSubmit={(e) => {
-          e.preventDefault();
-          if (dirty && !blocked) mutation.mutate();
-        }}
-      >
-        {/* The staff record's edit drawer layout: each section an icon tile,
-            its title and why, then its fields on the porcelain panel. */}
-        <FormSection framed={false} title="Home address" note="Where HR and payroll write to you.">
-          {/* The record stores one address line, so the four fields compose into
-              it and parse back out — the same component the HR-side forms use,
-              so both sides write the address the same way round. */}
-          <AddressFields
-            value={form.address}
-            onChange={(address) => setForm((current) => ({ ...current, address }))}
-            // Same label style as every other field in this drawer.
-            labelClassName="mb-1.5 block text-label uppercase text-muted-foreground"
-          />
-        </FormSection>
-
-        <FormSection framed={false} title="Emergency contact" note="Who we call if something happens to you at work.">
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Labelled label="Name">
-              <Input value={form.emergencyContactName} onChange={set('emergencyContactName')} />
-            </Labelled>
-            <Labelled label="Relationship">
-              <Select
-                value={form.emergencyContactRelation}
-                onValueChange={(emergencyContactRelation) => setForm((current) => ({ ...current, emergencyContactRelation }))}
-                // Anything already on the record stays selectable, so a value HR
-                // typed by hand is never silently replaced on the next save.
-                options={[
-                  ...(form.emergencyContactRelation && !RELATIONSHIPS.includes(form.emergencyContactRelation)
-                    ? [{ value: form.emergencyContactRelation, label: form.emergencyContactRelation }]
-                    : []),
-                  ...RELATIONSHIPS.map((relationship) => ({ value: relationship, label: relationship })),
-                ]}
-                placeholder="Choose one"
-                ariaLabel="Relationship to you"
-                className="w-full"
-              />
-            </Labelled>
-          </div>
-          <Labelled label="Phone">
-            <Input type="tel" value={form.emergencyContactPhone} onChange={set('emergencyContactPhone')} />
-          </Labelled>
-        </FormSection>
-
-        <FormSection
-          icon={Landmark}
-          title="Pay details"
-          collapsible
-          defaultOpen={(bankTouched && !bankComplete) || !niValid}
-          note="Stored details are never shown back to you. Leave these blank to keep what’s on file; fill them in only to set or replace them."
-        >
-          <Labelled label="Account holder">
-            <Input
-              value={form.bankAccountName}
-              onChange={set('bankAccountName')}
-              placeholder="Name exactly as it appears on the account"
-              autoComplete="off"
-            />
-          </Labelled>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Labelled label="Sort code" error={sortCodeError}>
-              <Input
-                value={formatSortCode(form.bankSortCode)}
-                onChange={(e) => setForm({ ...form, bankSortCode: normaliseSortCode(e.target.value) })}
-                onBlur={blur('bankSortCode')}
-                placeholder="00-00-00"
-                inputMode="numeric"
-                autoComplete="off"
-              />
-            </Labelled>
-            <Labelled label="Account number" error={accountError}>
-              <Input
-                value={form.bankAccountNumber}
-                onChange={(e) => setForm({ ...form, bankAccountNumber: normaliseAccountNumber(e.target.value) })}
-                onBlur={blur('bankAccountNumber')}
-                placeholder="8 digits"
-                inputMode="numeric"
-                autoComplete="off"
-              />
-            </Labelled>
-          </div>
-          {bankTouched && !bankComplete && (
-            <p className="flex items-start gap-2 rounded-md border border-measured/30 bg-measured/6 px-3 py-2 text-xs text-foreground">
-              <AlertTriangle size={13} className="mt-px shrink-0 text-measured" aria-hidden="true" />
-              Fill in all three bank fields — a partial account can’t be paid into.
-            </p>
-          )}
-          <Labelled
-            label="National Insurance number"
-            error={niError}
-            hint={employee.hasNiNumber ? 'One is already held. Enter a new one only to correct it.' : 'On your payslip, P60 or NI card.'}
-          >
-            <Input
-              value={formatNiNumber(form.nationalInsuranceNumber)}
-              onChange={(e) => setForm({ ...form, nationalInsuranceNumber: normaliseNiNumber(e.target.value) })}
-              onBlur={blur('nationalInsuranceNumber')}
-              placeholder="AB 12 34 56 C"
-              autoComplete="off"
-            />
-          </Labelled>
-        </FormSection>
-      </form>
-    </Drawer>
+      <Input
+        label="National Insurance number"
+        autoFocus
+        value={formatNiNumber(value)}
+        onChange={(e) => setValue(normaliseNiNumber(e.target.value))}
+        onBlur={() => setTouched(true)}
+        placeholder="AB 12 34 56 C"
+        autoComplete="off"
+        error={niError}
+        hint={employee.hasNiNumber ? 'One is already held. Enter a new one only to correct it.' : 'On your payslip, P60 or NI card.'}
+      />
+      <SaveButton pending={mutation.isPending} disabled={!value || !niValid} />
+    </form>
   );
 }
 
@@ -411,7 +445,7 @@ export function LeaveRequestDrawer({ onClose, onDone }: { onClose: () => void; o
                     className={cn(
                       'flex items-center justify-between gap-3 rounded-lg border px-3.5 py-3 text-left transition-colors',
                       'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                      on ? 'border-primary bg-primary/5' : 'border-rule/60 bg-background/60 hover:bg-band/40',
+                      on ? 'border-primary bg-primary/5' : 'border-border bg-background/60 hover:bg-band/40',
                     )}
                   >
                     <span className="min-w-0">
@@ -590,7 +624,7 @@ export function NewTicketDrawer({
                   className={cn(
                     'flex items-center gap-3 rounded-lg border px-3 py-2.5 text-left transition-colors',
                     'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                    on ? 'border-primary bg-primary/5' : 'border-rule/60 bg-background/60 hover:bg-band/40',
+                    on ? 'border-primary bg-primary/5' : 'border-border bg-background/60 hover:bg-band/40',
                   )}
                 >
                   <span

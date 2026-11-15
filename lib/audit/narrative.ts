@@ -202,7 +202,7 @@ export function dayLabel(iso: string, now: number): string {
 /**
  * The stamp for a table row: the day only when it isn't obvious from context.
  * Replaces the day-separator headers the bespoke list used, so the ledger can
- * live in the shared DataTable like every other list in the product.
+ * live in a plain table like every other list in the product.
  */
 export function stampLabel(iso: string, now: number): string {
   const date = new Date(iso);

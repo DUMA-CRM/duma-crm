@@ -4,16 +4,18 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
-import { InfoRow, InfoRows } from '@/components/cms/rows';
-import { AlertTriangle, ArrowLeft, ArrowRight, Check, LayoutGrid, Loader2, ShieldCheck, Sparkles } from '@/components/icons';
+import { RowWarning } from '@/components/cms/rows';
+import { ArrowLeft, ArrowRight, LayoutGrid, Loader2, ShieldCheck, Sparkles } from '@/components/icons';
 import { FOUNDATION_MODULES, MODULE_COPY, byModuleOrder, moduleCopy } from '@/components/onboarding/modules';
 import { type QuestionContext, questionFor } from '@/components/onboarding/questions';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { Switch } from '@/components/settings/controls';
+import { ChangeRow, Switch, ValueAside } from '@/components/settings/controls';
 import { ModuleChangeDialog } from '@/components/settings/workspaces/ModuleChangeDialog';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Bone } from '@/components/shared/Skeleton';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -127,12 +129,12 @@ export function ModulesTab() {
 }
 
 /**
- * Every tool in one list — on first, then off — so there is one place to see
+ * Every tool in two lists — on, then available — so there is one place to see
  * the workspace and one way to change it. Owners change it through the guided
- * review (the API only lets them add, via the setup rules); platform admins
- * also get a switch per tool, which previews the change before applying it.
- * Laid out like the other rules tabs: the tools as rows in the main column,
- * the setup's summary and the review alongside.
+ * review (the API only lets them add, via the setup rules); `settings:write`
+ * also gets a switch per tool, which previews the change before applying it.
+ * Laid out as Connectors: a Setup card and `RecordGroup` lists of `ListRow`s in
+ * two stacked columns.
  */
 function ModuleOverview({
   modules,
@@ -156,129 +158,94 @@ function ModuleOverview({
     onError: (error) => toast('error', error.message),
   });
 
-  if (modules.isPending) return <Bone className="h-96 w-full rounded-lg" />;
+  if (modules.isPending)
+    return (
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+        {[6, 8].map((rows) => (
+          <div key={rows} className="flex flex-col gap-2">
+            <Bone className="mx-1 my-1.5 h-5 w-28" />
+            <ListSkeleton rows={rows} label="Loading this workspace’s modules" />
+          </div>
+        ))}
+      </div>
+    );
   if (modules.isError) return <ErrorState title="Couldn’t load this workspace’s modules" onRetry={() => void modules.refetch()} />;
 
   const all = (Object.keys(MODULE_COPY) as WorkspaceModuleId[]).filter((id) => !FOUNDATION_MODULES.has(id)).sort(byModuleOrder);
   const on = all.filter((id) => enabled.has(id));
   const off = all.filter((id) => !enabled.has(id));
 
-  /** One tool: what it is, and its switch — or, for someone who can't change it, whether it's on. */
+  /** One tool: what it is, and its switch — someone who can't change it sees which list it's in. */
   const moduleRow = (id: WorkspaceModuleId) => {
     const copy = moduleCopy(id);
     const isOn = enabled.has(id);
     const busy = previewChange.isPending && previewChange.variables?.moduleId === id;
     return (
-      <li key={id}>
-        <InfoRow icon={copy.icon} title={copy.name} description={copy.detail}>
-          {canToggle ? (
-            busy ? (
+      <ListRow
+        key={id}
+        icon={copy.icon}
+        tone={isOn ? 'primary' : 'muted'}
+        title={copy.name}
+        meta={copy.detail}
+        control={
+          canToggle &&
+          (busy ? (
+            <span className="flex h-6 w-10 items-center justify-center">
               <Loader2 size={16} className="animate-spin text-muted-foreground" aria-label="Checking" />
-            ) : (
-              <Switch
-                label={`${isOn ? 'Turn off' : 'Turn on'} ${copy.name}`}
-                checked={isOn}
-                disabled={previewChange.isPending}
-                onChange={() => previewChange.mutate({ moduleId: id, status: isOn ? 'disabled' : 'enabled' })}
-              />
-            )
+            </span>
           ) : (
-            <Badge variant={isOn ? 'success' : 'muted'}>{isOn ? 'On' : 'Off'}</Badge>
-          )}
-        </InfoRow>
-      </li>
+            <Switch
+              label={`${isOn ? 'Turn off' : 'Turn on'} ${copy.name}`}
+              checked={isOn}
+              disabled={previewChange.isPending}
+              onChange={() => previewChange.mutate({ moduleId: id, status: isOn ? 'disabled' : 'enabled' })}
+            />
+          ))
+        }
+      />
     );
   };
 
-  return (
-    <SettingsTabBody
-      narrowAside
-      aside={
-        <SettingsSection title="Your setup">
-          <InfoRows>
-            <InfoRow icon={LayoutGrid} title="Tools on">
-              <span className="text-sm font-semibold text-foreground">
-                {on.length} of {all.length}
-              </span>
-            </InfoRow>
-            <InfoRow icon={ShieldCheck} tone="success" title="Sign-in, roles and settings">
-              <Badge variant="success">Always on</Badge>
-            </InfoRow>
-          </InfoRows>
-          <p className="mt-4 text-xs text-muted-foreground">
-            Answer a few questions about your business and DUMA proposes the tools it needs. A review only adds — it never switches a tool
-            off.
-          </p>
-          <Button className="mt-3 h-9 w-full" onClick={onReview} disabled={reviewing}>
+  const setup = (
+    <SettingsSection title="Setup" footnote="A review asks about your business and only adds tools — it never switches one off.">
+      <ChangeRow
+        icon={LayoutGrid}
+        label="Tools on"
+        value={
+          <>
+            {on.length} <ValueAside>of {all.length}</ValueAside>
+          </>
+        }
+        trailing={
+          <Button size="sm" onClick={onReview} disabled={reviewing}>
             {reviewing ? <Loader2 className="animate-spin" aria-hidden="true" /> : <Sparkles aria-hidden="true" />}
             Review my setup
           </Button>
-        </SettingsSection>
-      }
-    >
-      <SettingsSection title="Switched on" actions={<Badge variant="success">{on.length}</Badge>}>
-        {on.length > 0 ? (
-          <ul className="space-y-3">{on.map(moduleRow)}</ul>
-        ) : (
-          <p className="text-sm text-muted-foreground">Nothing yet — review your setup and the tools your business needs appear here.</p>
-        )}
-      </SettingsSection>
-
-      {off.length > 0 && (
-        <SettingsSection title="Available" actions={<Badge variant="muted">{off.length}</Badge>}>
-          <ul className="space-y-3">{off.map(moduleRow)}</ul>
-        </SettingsSection>
-      )}
-
-      {preview && <ModuleChangeDialog preview={preview} onClose={() => setPreview(null)} />}
-    </SettingsTabBody>
+        }
+      />
+      <ChangeRow icon={ShieldCheck} label="Always on" value="Sign-in, roles and settings" />
+    </SettingsSection>
   );
-}
+  const group = (key: string, title: string, ids: WorkspaceModuleId[]) =>
+    ids.length > 0 && (
+      <RecordGroup id={`modules-${key}`} title={title}>
+        <ListRowGroup>{ids.map(moduleRow)}</ListRowGroup>
+      </RecordGroup>
+    );
 
-function ModuleCard({
-  id,
-  index,
-  state,
-  reduceMotion,
-  children,
-}: {
-  id: WorkspaceModuleId;
-  index: number;
-  state: 'on' | 'off' | 'new';
-  reduceMotion: boolean | null;
-  children?: React.ReactNode;
-}) {
-  const copy = moduleCopy(id);
-  const Icon = copy.icon;
+  // A bento of two stacked columns: the setup and what's on | what's available.
+  // With nothing left to add, what's on takes the second column instead.
   return (
-    <motion.li
-      layout={!reduceMotion}
-      initial={reduceMotion ? false : { opacity: 0, y: 12, scale: 0.98 }}
-      animate={{ opacity: 1, y: 0, scale: 1 }}
-      transition={{ delay: reduceMotion ? 0 : Math.min(index, 12) * 0.03, type: 'spring', stiffness: 380, damping: 30 }}
-      className={cn(
-        'flex items-center gap-3 rounded-lg border px-3.5 py-3',
-        state === 'off' ? 'border-dashed border-rule/60 bg-transparent' : 'border-rule/50 bg-background/60',
-        state === 'new' && 'border-primary/40 bg-primary/5',
-      )}
-    >
-      <span
-        className={cn(
-          'flex size-10 shrink-0 items-center justify-center rounded-md',
-          state === 'off' ? 'bg-band text-muted-foreground' : 'bg-primary/8 text-primary',
-        )}
-      >
-        <Icon size={18} aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className={cn('block text-sm font-semibold', state === 'off' ? 'text-muted-foreground' : 'text-foreground')}>
-          {copy.name}
-        </span>
-        <span className="mt-0.5 block truncate text-xs text-muted-foreground">{copy.detail}</span>
-      </span>
-      {state === 'new' && <span className="annot shrink-0 text-primary">New</span>}
-      {children && <span className="flex shrink-0 items-center">{children}</span>}
-    </motion.li>
+    <div className="grid items-start gap-5 xl:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-5">
+        {setup}
+        {off.length > 0 && group('on', 'Switched on', on)}
+      </div>
+      <div className="flex min-w-0 flex-col gap-5">
+        {off.length > 0 ? group('available', 'Available', off) : group('on', 'Switched on', on)}
+      </div>
+      {preview && <ModuleChangeDialog preview={preview} onClose={() => setPreview(null)} />}
+    </div>
   );
 }
 
@@ -350,7 +317,7 @@ function SetupQuestions({
   );
 
   return (
-    <section className="rounded-lg border border-rule/60 bg-field p-5 sm:p-8">
+    <section className="rounded-lg border border-border bg-field p-5 sm:p-8">
       <div className="mb-8 flex items-center gap-4">
         <div
           className="h-1 flex-1 overflow-hidden rounded-full bg-band"
@@ -423,7 +390,7 @@ function QuestionView({ step, context }: { step: StepId; context: QuestionContex
   const question = questionFor(step, context);
   return (
     <>
-      <h3 className="text-xl font-semibold leading-tight tracking-headline text-foreground sm:text-2xl">{question?.title}</h3>
+      <h3 className="text-xl font-semibold leading-tight tracking-headline text-heading sm:text-2xl">{question?.title}</h3>
       {question?.hint && <p className="mt-2 max-w-[56ch] text-sm leading-6 text-muted-foreground">{question.hint}</p>}
       <div className="mt-6">{question?.body}</div>
     </>
@@ -445,7 +412,6 @@ function Proposal({
   onApplied: () => void;
 }) {
   const qc = useQueryClient();
-  const reduceMotion = useReducedMotion();
   const tenantId = useWorkspaceStore((state) => state.tenantId)!;
   const [added, setAdded] = useState<WorkspaceModuleId[]>([]);
   const answers = toOnboardingAnswers(draft);
@@ -478,7 +444,7 @@ function Proposal({
 
   if (proposal.isPending) {
     return (
-      <section className="rounded-lg border border-rule/60 bg-field p-8" role="status">
+      <section className="rounded-lg border border-border bg-field p-8" role="status">
         <p className="flex items-center gap-2 text-sm text-muted-foreground">
           <Loader2 className="animate-spin" aria-hidden="true" /> Matching tools to your answers…
         </p>
@@ -487,7 +453,7 @@ function Proposal({
   }
   if (proposal.isError) {
     return (
-      <section className="rounded-lg border border-rule/60 bg-field p-8">
+      <section className="rounded-lg border border-border bg-field p-8">
         <ErrorState title="We couldn’t build a proposal" description={proposal.error.message} onRetry={() => void proposal.refetch()} />
         <Button variant="ghost" className="mt-4" onClick={onBack}>
           <ArrowLeft aria-hidden="true" /> Back to the questions
@@ -509,68 +475,66 @@ function Proposal({
   const nothingToDo = fresh.length === 0 && added.length === 0;
 
   return (
-    <section className="rounded-lg border border-rule/60 bg-field p-5 sm:p-8">
-      <p className="text-label uppercase text-muted-foreground">Proposal</p>
-      <h3 className="mt-2 text-2xl font-semibold leading-tight tracking-headline text-foreground">
-        {fresh.length > 0
-          ? `${fresh.length} ${fresh.length === 1 ? 'tool' : 'tools'} to switch on`
-          : 'You already have everything this needs'}
-      </h3>
+    <div className="flex flex-col gap-5">
+      <header className="px-1">
+        <p className="text-label uppercase text-muted-foreground">Proposal</p>
+        <h3 className="mt-2 text-2xl font-semibold leading-tight tracking-headline text-heading">
+          {fresh.length > 0
+            ? `${fresh.length} ${fresh.length === 1 ? 'tool' : 'tools'} to switch on`
+            : 'You already have everything this needs'}
+        </h3>
+      </header>
 
-      {issues.length > 0 && (
-        <div role="alert" className="mt-5 flex gap-3 rounded-md border border-stock/40 bg-warning-highlight px-4 py-3 text-sm">
-          <AlertTriangle size={18} className="mt-0.5 shrink-0 text-stock" aria-hidden="true" />
-          <div>
-            {issues.map((issue) => (
-              <p key={issue}>{issue}</p>
-            ))}
-          </div>
+      {issues.map((issue) => (
+        <RowWarning key={issue}>{issue}</RowWarning>
+      ))}
+
+      {(fresh.length > 0 || optional.length > 0) && (
+        <div className={cn('grid items-start gap-5', fresh.length > 0 && optional.length > 0 && 'xl:grid-cols-2')}>
+          {fresh.length > 0 && (
+            <RecordGroup id="proposal-new" title="To switch on">
+              <ListRowGroup>
+                {fresh.map((id) => {
+                  const copy = moduleCopy(id);
+                  return <ListRow key={id} icon={copy.icon} title={copy.name} meta={copy.detail} trailing={<Badge>New</Badge>} />;
+                })}
+              </ListRowGroup>
+            </RecordGroup>
+          )}
+          {optional.length > 0 && (
+            <RecordGroup id="proposal-optional" title="Worth adding">
+              <ListRowGroup>
+                {optional.map((id) => {
+                  const copy = moduleCopy(id);
+                  const active = added.includes(id);
+                  return (
+                    <ListRow
+                      key={id}
+                      icon={copy.icon}
+                      tone={active ? 'primary' : 'muted'}
+                      title={copy.name}
+                      meta={copy.detail}
+                      control={
+                        <Switch
+                          label={`Add ${copy.name}`}
+                          checked={active}
+                          onChange={() => setAdded((list) => (active ? list.filter((entry) => entry !== id) : [...list, id]))}
+                        />
+                      }
+                    />
+                  );
+                })}
+              </ListRowGroup>
+            </RecordGroup>
+          )}
         </div>
       )}
 
-      {fresh.length > 0 && (
-        <ul className="mt-6 grid gap-2 sm:grid-cols-2">
-          {fresh.map((id, index) => (
-            <ModuleCard key={id} id={id} index={index} state="new" reduceMotion={reduceMotion} />
-          ))}
-        </ul>
-      )}
-
-      {optional.length > 0 && (
-        <fieldset className="mt-6">
-          <legend className="text-sm font-semibold text-foreground">Worth adding</legend>
-          <div className="mt-3 flex flex-wrap gap-2">
-            {optional.map((id) => {
-              const active = added.includes(id);
-              return (
-                <label
-                  key={id}
-                  className={cn(
-                    'inline-flex h-11 cursor-pointer items-center gap-2 rounded-md border px-3 text-sm font-medium transition-colors',
-                    'has-focus-visible:outline-2 has-focus-visible:outline-offset-2 has-focus-visible:outline-ring',
-                    active ? 'border-primary bg-primary text-primary-foreground' : 'border-rule/70 bg-field text-foreground hover:bg-band',
-                  )}
-                >
-                  <input
-                    type="checkbox"
-                    className="sr-only"
-                    checked={active}
-                    onChange={() => setAdded((list) => (active ? list.filter((entry) => entry !== id) : [...list, id]))}
-                  />
-                  {active && <Check size={14} aria-hidden="true" />}
-                  {moduleCopy(id).name}
-                </label>
-              );
-            })}
-          </div>
-        </fieldset>
-      )}
-
       {kept.length > 0 && (
-        <p className="mt-6 text-sm text-muted-foreground">Already on: {kept.map((id) => moduleCopy(id).name).join(', ')}.</p>
+        <p className="px-1 text-sm text-muted-foreground">Already on: {kept.map((id) => moduleCopy(id).name).join(', ')}.</p>
       )}
 
-      <div className="mt-8 flex items-center justify-between gap-4">
+      <div className="flex items-center justify-between gap-4">
         <Button type="button" variant="ghost" size="lg" className="h-11 gap-1.5 px-4 text-muted-foreground" onClick={onBack}>
           <ArrowLeft aria-hidden="true" /> Change answers
         </Button>
@@ -584,6 +548,6 @@ function Proposal({
           {nothingToDo ? 'Done' : 'Switch them on'}
         </Button>
       </div>
-    </section>
+    </div>
   );
 }

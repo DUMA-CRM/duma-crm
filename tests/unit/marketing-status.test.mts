@@ -1,7 +1,14 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { canDeletePost, destinationSummary, destinationTimeline, durationLabel } from '../../lib/utils/marketing-status.ts';
+import {
+  canDeletePost,
+  destinationSummary,
+  destinationTimeline,
+  durationLabel,
+  marketingStatusTone,
+  needsAttention,
+} from '../../lib/utils/marketing-status.ts';
 
 const NOW = Date.parse('2026-11-04T12:00:00Z');
 
@@ -103,4 +110,14 @@ test('a post can be deleted unless it’s on its way out, and past a draft only 
   assert.equal(canDeletePost([{ status: 'draft' }], false), true);
   assert.equal(canDeletePost([{ status: 'draft' }, { status: 'scheduled' }], false), false);
   assert.equal(canDeletePost([], false), true);
+});
+
+test('a post is coloured by whether anyone has to act — and anything that went wrong needs attention', () => {
+  assert.equal(marketingStatusTone('draft'), 'muted');
+  assert.equal(marketingStatusTone('uploading'), 'info');
+  assert.equal(marketingStatusTone('published'), 'success');
+  assert.equal(marketingStatusTone('partially published'), 'warning');
+  assert.equal(marketingStatusTone('needs-reconciliation'), 'exception');
+  assert.equal(needsAttention('partially published'), true);
+  assert.equal(needsAttention('scheduled'), false);
 });

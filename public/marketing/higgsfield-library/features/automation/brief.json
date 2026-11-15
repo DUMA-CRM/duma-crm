@@ -1,0 +1,13 @@
+{
+  "path": "/features/automation",
+  "name": "Automation",
+  "summary": "Build workflows that run on their own, and follow every run.",
+  "description": "Build workflows that run on their own, and follow every run.",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "features/automation",
+  "local_sources": [
+    "lib/marketing/site.ts"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A calm shop packing station where an owner seals a completed order and moves smoothly to the next package."
+}

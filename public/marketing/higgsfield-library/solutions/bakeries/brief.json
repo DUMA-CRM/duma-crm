@@ -1,0 +1,13 @@
+{
+  "path": "/solutions/bakeries",
+  "name": "Bakeries",
+  "summary": "",
+  "description": "",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "solutions/bakeries",
+  "local_sources": [
+    "app/(marketing)/solutions/bakeries/page.tsx"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A baker weighs flour on kitchen scales, shapes dough and places fresh sourdough on a wooden display."
+}

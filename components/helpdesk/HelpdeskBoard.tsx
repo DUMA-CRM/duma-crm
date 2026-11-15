@@ -192,14 +192,14 @@ export function HelpdeskBoard({
                 </div>
                 <div className="space-y-2">
                   {Array.from({ length: column < 2 ? 2 : 1 }, (_, card) => (
-                    <div key={card} className="rounded-md border border-rule/60 bg-field p-3">
+                    <div key={card} className="rounded-md border border-border bg-field p-3">
                       <Bone className="h-3.5 w-full" />
                       <Bone className="mt-1.5 h-3.5 w-3/5" />
                       <div className="mt-2.5 flex items-center gap-2">
                         <Bone className="h-5 w-16 rounded-sm" />
                         <Bone className="ml-auto h-3 w-8" />
                       </div>
-                      <div className="mt-2.5 flex items-center gap-2 border-t border-rule/40 pt-2.5">
+                      <div className="mt-2.5 flex items-center gap-2 border-t border-border pt-2.5">
                         <Bone className="size-8 shrink-0" />
                         <Bone className="h-3 w-24" />
                       </div>
@@ -212,7 +212,7 @@ export function HelpdeskBoard({
         ) : (
           <div role="status" aria-busy="true" aria-label="Loading requests">
             <Bone className="mb-2 ml-1 h-4 w-12" />
-            <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+            <div className="overflow-hidden rounded-lg border border-border bg-field">
               {Array.from({ length: 3 }, (_, index) => (
                 <RowSkeleton key={index} index={index} />
               ))}
@@ -299,7 +299,7 @@ function Board({ tickets, onOpen, onChanged }: { tickets: HelpdeskTicket[]; onOp
         >
           <header className="flex items-center gap-2 px-2 pt-1 pb-2.5">
             <span className={cn('size-2 rounded-full', COLUMN_DOT[column.key])} aria-hidden="true" />
-            <h3 className="text-sm font-semibold text-foreground">{column.title}</h3>
+            <h3 className="text-sm font-semibold text-heading">{column.title}</h3>
             <span className="rounded-sm bg-field px-1.5 text-xs font-semibold text-muted-foreground">
               {column.tickets.length + (column.key === 'done' ? hiddenDone : 0)}
             </span>
@@ -371,7 +371,7 @@ function TicketCard({
         onDragEnd={onDragEnd}
         onClick={onOpen}
         className={cn(
-          'group w-full cursor-grab rounded-md border border-rule/60 bg-field p-3 text-left shadow-xs transition-[border-color,box-shadow,opacity] hover:border-rule hover:shadow-sm active:cursor-grabbing',
+          'group w-full cursor-grab rounded-md border border-border bg-field p-3 text-left shadow-xs transition-[border-color,box-shadow,opacity] hover:border-rule hover:shadow-sm active:cursor-grabbing',
           'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
           busy && 'pointer-events-none opacity-50',
         )}
@@ -390,7 +390,7 @@ function TicketCard({
             {age.days < 1 ? 'Today' : `${age.days}d`}
           </span>
         </div>
-        <div className="mt-2.5 flex items-center gap-2 border-t border-rule/40 pt-2.5">
+        <div className="mt-2.5 flex items-center gap-2 border-t border-border pt-2.5">
           <AuthorAvatar name={requester} size="sm" />
           <span className="min-w-0 flex-1 truncate text-xs text-muted-foreground">{requester}</span>
           {busy ? <Loader2 size={13} className="animate-spin text-muted-foreground" aria-label="Moving" /> : null}
@@ -414,8 +414,8 @@ function MyRequests({ tickets, onOpen }: { tickets: HelpdeskTicket[]; onOpen: (i
         .filter((group) => group.rows.length > 0)
         .map((group) => (
           <section key={group.title}>
-            <h3 className="mb-2 px-1 text-sm font-semibold text-foreground">{group.title}</h3>
-            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+            <h3 className="mb-2 px-1 text-sm font-semibold text-heading">{group.title}</h3>
+            <ul className="overflow-hidden rounded-lg border border-border bg-field">
               {group.rows.map((ticket) => (
                 <ListRow
                   key={ticket.id}
@@ -552,7 +552,7 @@ function TicketPanel({
       ) : (
         <div className="space-y-6">
           {/* The request's fields, once. */}
-          <dl className="grid grid-cols-1 gap-x-4 gap-y-3.5 rounded-lg border border-rule/60 bg-field p-4 sm:grid-cols-2">
+          <dl className="grid grid-cols-1 gap-x-4 gap-y-3.5 rounded-lg border border-border bg-field p-4 sm:grid-cols-2">
             <Property label="Status">
               {isAgent ? (
                 <Select

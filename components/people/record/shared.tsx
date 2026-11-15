@@ -63,7 +63,7 @@ const INTERACTIVE = 'transition-colors hover:bg-band/40 focus-visible:outline-2 
 
 /** A list of `RecordListRow`s in the audit log's frame: one hairline box, rows divided inside it. */
 export function RecordList({ children }: { children: React.ReactNode }) {
-  return <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">{children}</ul>;
+  return <ul className="overflow-hidden rounded-lg border border-border bg-card">{children}</ul>;
 }
 
 /**
@@ -135,7 +135,7 @@ export function RecordListRow({
   );
   const row = cn('group/row flex items-center gap-3 px-3.5 py-3', actions && 'transition-colors hover:bg-band/25');
   return (
-    <li className="border-b border-rule/45 last:border-b-0">
+    <li className="border-b border-border last:border-b-0">
       {href ? (
         <Link href={href} className={cn(row, INTERACTIVE)}>
           {body}
@@ -182,7 +182,7 @@ export function RecordBlock({
       {(title || action) && (
         <div className="mb-3 flex min-h-8 items-center gap-3">
           {title && (
-            <h2 id={`${id}-title`} className="flex-1 text-base font-semibold tracking-title text-foreground">
+            <h2 id={`${id}-title`} className="flex-1 text-base font-semibold tracking-title text-heading">
               {title}
             </h2>
           )}

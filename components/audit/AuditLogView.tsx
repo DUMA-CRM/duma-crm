@@ -380,7 +380,7 @@ export function AuditLogView({ platform = false }: { platform?: boolean }) {
         </div>
 
         {wide && selected && (
-          <aside aria-label="Entry detail" className="flex w-110 shrink-0 flex-col border-l border-rule bg-band/45 2xl:w-125">
+          <aside aria-label="Entry detail" className="flex w-110 shrink-0 flex-col border-l border-border bg-field 2xl:w-125">
             <AuditInspector
               log={selected}
               activeActorId={actorId}

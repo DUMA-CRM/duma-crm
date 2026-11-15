@@ -68,7 +68,7 @@ export function FloorCanvas({
     <svg
       ref={svgRef}
       viewBox={`${-MARGIN} ${-MARGIN} ${CANVAS.width + MARGIN * 2} ${CANVAS.height + MARGIN * 2}`}
-      className={cn('block h-auto w-full touch-none select-none rounded-lg border border-rule/60 bg-field', className)}
+      className={cn('block h-auto w-full touch-none select-none rounded-lg border border-border bg-field', className)}
       role="group"
       aria-label={ariaLabel}
       onPointerDown={(event) => {

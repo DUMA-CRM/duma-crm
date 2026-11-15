@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
-import { CashUpButton, CashUpDrawer, CashUpNudge, useCashUpDay } from '@/components/cash-up/TillCashUp';
+import { CashUpButton, CashUpDrawer, useCashUpDay } from '@/components/cash-up/TillCashUp';
 import { AlertTriangle, Building2, Clock, CloudUpload, MapPin, Monitor, WifiOff } from '@/components/icons';
 import { PageSidebar } from '@/components/layout/PageSidebar';
 import { CartBar } from '@/components/pos/CartBar';
@@ -108,10 +108,13 @@ export default function POSPage() {
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const posEnabled = useModuleEnabled('pos');
   const promotionsOn = useModuleEnabled('promotions');
-  const [customising, setCustomising] = useState<{ item: MenuItem; groups: OptionGroupRule[] | null } | null>(null);
+  // The item being built in the ticket panel — or, with `editing`, the ticket line being changed.
+  const [customising, setCustomising] = useState<{ item: MenuItem; groups: OptionGroupRule[] | null; editing?: CartItem } | null>(null);
   const [selectedCustomer, setSelectedCustomer] = useState<Customer | null>(null);
   const [chosenRewards, setChosenRewards] = useState<AppliedLoyaltyReward[]>([]);
   const [notes, setNotes] = useState('');
+  // Eat in or takeaway — optional; a till that doesn't ask never sends one.
+  const [orderType, setOrderType] = useState<'eat_in' | 'takeaway' | null>(null);
   const [flashId, setFlashId] = useState<string | null>(null);
   const [removed, setRemoved] = useState<{ line: CartItem; index: number } | null>(null);
 
@@ -165,6 +168,7 @@ export default function POSPage() {
     setSelectedCustomer(null);
     setChosenRewards([]);
     setNotes('');
+    setOrderType(null);
     setCustomising(null);
   }
 
@@ -321,6 +325,56 @@ export default function POSPage() {
     }
   }
 
+  /** Opens a ticket line in the customiser on its own choices — the one editor for adding and changing. */
+  async function handleEditLine(cartId: string) {
+    const line = cart.find((c) => c.cartId === cartId);
+    if (!line) return;
+    const request = ++selectionRequest.current;
+    setCustomising({ item: line.item, groups: null, editing: line });
+    usePageSidebarStore.getState().setOpen(true);
+    try {
+      const [modifiers, rules] = await Promise.all([
+        qc.fetchQuery({
+          queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', line.item.id),
+          queryFn: () => getMenuItemModifiers(line.item.id),
+          staleTime: MENU_STALE_MS,
+        }),
+        qc
+          .fetchQuery({
+            queryKey: moduleQueryKeys.catalog.key('menu-item-modifier-groups', line.item.id),
+            queryFn: () => getMenuItemModifierGroups(line.item.id),
+            staleTime: MENU_STALE_MS,
+          })
+          .catch(() => []),
+      ]);
+      if (selectionRequest.current !== request) return;
+      // An item with no options still opens: quantity, note and Remove live here now.
+      const options = modifiers.filter((m) => m.isAvailable).map(toOption);
+      setCustomising({ item: line.item, groups: options.length > 0 ? buildOptionGroups(options, rules) : [], editing: line });
+    } catch {
+      if (selectionRequest.current !== request) return;
+      // Options unreachable (offline): still let the line be changed in what doesn't need them.
+      setCustomising({ item: line.item, groups: [], editing: line });
+    }
+  }
+
+  /** Writes the editor back to the same line, in place — its position on the ticket doesn't move. */
+  function handleSaveLine(selected: MenuOption[], quantity: number, note: string) {
+    const editing = customising?.editing;
+    if (!editing) return;
+    // With no groups to choose from (options offline or gone), the line keeps the
+    // options it was rung up with rather than silently losing them and their price.
+    const keepOptions = !customising?.groups || customising.groups.length === 0;
+    setCart((prev) =>
+      prev.map((c) =>
+        c.cartId === editing.cartId ? { ...c, selected: keepOptions ? c.selected : selected, quantity, note: note || undefined } : c,
+      ),
+    );
+    setFlashId(editing.cartId);
+    setCustomising(null);
+    usePageSidebarStore.getState().setOpen(false);
+  }
+
   function handleCancelItem() {
     selectionRequest.current += 1;
     setCustomising(null);
@@ -352,6 +406,7 @@ export default function POSPage() {
     setCart([]);
     setSelectedCustomer(null);
     setNotes('');
+    setOrderType(null);
     setChosenRewards([]);
     setPromoCode(null);
     setRemoved(null);
@@ -375,7 +430,16 @@ export default function POSPage() {
     const name = selectedCustomer
       ? `${selectedCustomer.firstName} ${selectedCustomer.lastName}`.trim()
       : notes.trim().slice(0, 40) || `Ticket · ${time}`;
-    useHeldTicketsStore.getState().hold({ name, cart, customer: selectedCustomer, notes, heldBy: userId ?? null, tenantId, locationId });
+    useHeldTicketsStore.getState().hold({
+      name,
+      cart,
+      customer: selectedCustomer,
+      notes,
+      fulfilmentType: orderType,
+      heldBy: userId ?? null,
+      tenantId,
+      locationId,
+    });
     resetTicket();
     toast('success', `Held as “${name}”. Pick it up from Held.`);
   }
@@ -387,6 +451,7 @@ export default function POSPage() {
     setCart(ticket.cart);
     setSelectedCustomer(ticket.customer);
     setNotes(ticket.notes);
+    setOrderType(ticket.fulfilmentType ?? null);
   }
 
   // ── Checkout ──
@@ -397,6 +462,7 @@ export default function POSPage() {
     paymentMethod: provider,
     notes: orderNotes || undefined,
     ...(promoCode ? { promoCode } : {}),
+    ...(orderType ? { fulfilmentType: orderType } : {}),
     ...(loyaltyRewards.length > 0
       ? {
           loyaltyRedemptions: loyaltyRewards.map((reward) => ({
@@ -416,7 +482,7 @@ export default function POSPage() {
   });
 
   function handleCharge() {
-    const signature = `${cartSignature(cart, selectedCustomer?.id, notes)}|${JSON.stringify(loyaltyRewards.map(({ programId, cartId, modifierId, quantity }) => ({ programId, cartId, modifierId, quantity })))}|${promoCode ?? ''}`;
+    const signature = `${cartSignature(cart, selectedCustomer?.id, notes)}|${JSON.stringify(loyaltyRewards.map(({ programId, cartId, modifierId, quantity }) => ({ programId, cartId, modifierId, quantity })))}|${promoCode ?? ''}|${orderType ?? ''}`;
     const previous = session.current;
     if (!previous || previous.signature !== signature) {
       // The basket changed since an order was created for it: that order will never be paid, so void it.
@@ -742,12 +808,11 @@ export default function POSPage() {
 
   const banners = (
     <>
-      <CashUpNudge status={cashUpDay.status} open={cashUpDay.open} onOpen={() => setCashUpOpen(true)} />
       {(!online || queuedOrders.length > 0) && (
         <div
           role="status"
           className={cn(
-            'mb-4 rounded-xl border px-4 py-3 text-sm',
+            'mb-4 rounded-md border px-4 py-3 text-sm',
             needsAttention.length > 0
               ? 'border-exception/35 bg-destructive/6'
               : online
@@ -768,7 +833,7 @@ export default function POSPage() {
                 : `Sending ${queuedOrders.length} saved ${queuedOrders.length === 1 ? 'sale' : 'sales'}…`}
           </p>
           {needsAttention.length > 0 && (
-            <ul className="mt-3 divide-y divide-rule/40 border-t border-rule/40">
+            <ul className="mt-3 divide-y divide-border border-t border-border">
               {needsAttention.map((order) => (
                 <li key={order.id} className="flex items-center justify-between gap-3 py-2">
                   <span className="flex min-w-0 items-center gap-2.5 text-muted-foreground">
@@ -793,9 +858,9 @@ export default function POSPage() {
       )}
 
       {ready && recentSyncs.length > 0 && online && queuedOrders.length === 0 && (
-        <details className="mb-4 rounded-xl border border-rule/60 bg-card px-4 py-3 text-sm text-muted-foreground">
+        <details className="mb-4 rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
           <summary className="cursor-pointer font-medium text-foreground">Recently sent from this till · {recentSyncs.length}</summary>
-          <ul className="mt-2 space-y-1 border-t border-rule/50 pt-2">
+          <ul className="mt-2 space-y-1 border-t border-border pt-2">
             {recentSyncs.map((record) => (
               <li key={record.queueId} className="flex items-center gap-2.5">
                 <StatusDot tone="success" label="Sent" />
@@ -855,12 +920,9 @@ export default function POSPage() {
                 groups={customising?.groups ?? null}
                 onAddToCart={handleAddToCart}
                 onCancelItem={handleCancelItem}
-                onQty={(cartId, delta) =>
-                  setCart((prev) => prev.map((c) => (c.cartId === cartId ? { ...c, quantity: Math.max(1, c.quantity + delta) } : c)))
-                }
-                onLineNote={(cartId, note) =>
-                  setCart((prev) => prev.map((c) => (c.cartId === cartId ? { ...c, note: note || undefined } : c)))
-                }
+                editingLine={customising?.editing ?? null}
+                onEditLine={(cartId) => void handleEditLine(cartId)}
+                onSaveLine={handleSaveLine}
                 onRemove={handleRemove}
                 removed={removed?.line ?? null}
                 onUndoRemove={handleUndoRemove}
@@ -877,6 +939,8 @@ export default function POSPage() {
                 onLoyaltyRewards={setChosenRewards}
                 notes={notes}
                 onNotesChange={setNotes}
+                orderType={orderType}
+                onOrderTypeChange={setOrderType}
                 held={held}
                 onHold={handleHold}
                 onResume={handleResume}
@@ -962,7 +1026,7 @@ function Gate({
 }) {
   return (
     <div className="flex flex-1 flex-col items-center justify-center px-6 py-12 text-center">
-      <span className="flex size-16 items-center justify-center rounded-2xl bg-band text-muted-foreground" aria-hidden="true">
+      <span className="flex size-16 items-center justify-center rounded-lg bg-band text-muted-foreground" aria-hidden="true">
         <Icon size={28} />
       </span>
       <p className="mt-5 text-xl font-semibold text-foreground">{title}</p>

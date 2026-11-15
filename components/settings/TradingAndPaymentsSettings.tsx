@@ -4,14 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { InfoRow, PickerRow } from '@/components/cms/rows';
 import { Calculator, Coins, Hash, type IconComponent, Landmark, MapPin, StickyNote, Store, Tags } from '@/components/icons';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { SaveBar, Switch } from '@/components/settings/controls';
+import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards } from '@/components/shared/FormParts';
 import { Bone } from '@/components/shared/Skeleton';
+import { SectionSkeleton } from '@/components/shared/TileSkeleton';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -54,7 +54,8 @@ const same = (a: Form, b: Form) => (Object.keys(a) as (keyof Form)[]).every((key
 
 /**
  * Trading & tax: what every receipt says, and how prices are taxed. Card readers live under Connectors.
- * Laid out like the other rules tabs: each detail a row that opens its field, the live receipt alongside.
+ * Laid out like Settings → Account: each detail a row whose Change opens its field, one draft saved through
+ * the bar, the live receipt alongside.
  */
 export function TradingAndPaymentsSettings() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -76,9 +77,7 @@ export function TradingAndPaymentsSettings() {
   const suggestions = { legalName: workspace.tenant?.name ?? '', tradingAddress: onlineOnly ? '' : (site?.address ?? '') };
 
   if (!tenantId) return <p className="text-sm text-muted-foreground">Choose a workspace first.</p>;
-  if (settings.isPending || workspace.isLoading || setup.isPending) {
-    return <Bone className="h-96 w-full rounded-lg" />;
-  }
+  if (settings.isPending || workspace.isLoading || setup.isPending) return <TradingSkeleton />;
   if (settings.isError) return <ErrorState title="Couldn’t load trading settings" onRetry={() => void settings.refetch()} />;
   // Keyed on the saved row, so a successful save re-seeds the form from what the server kept.
   return (
@@ -150,148 +149,146 @@ function TradingForm({
     onError: (error) => toast('error', error.message || 'Trading settings weren’t saved.'),
   });
 
-  const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
-  /** A short text: what it says on the row, the field (and why it matters) underneath. */
+  // One row open at a time. Cancel puts the field back as it was when the row opened; the draft is still saved through the bar.
+  const [before, setBefore] = useState<Form | null>(null);
+  const toggle = (row: Row) => {
+    if (open === row) {
+      if (before) set(row, before[row]);
+      setOpen(null);
+      return;
+    }
+    setBefore(form);
+    setOpen(row);
+  };
+  /** The row's value: what it says now, or a quiet "not set"; a prefilled one says where it came from. */
+  const shown = (row: 'legalName' | 'tradingAddress' | 'receiptFooter' | 'vatNumber', empty: string) =>
+    form[row].trim() ? (
+      <>
+        <span className="truncate">{form[row].trim()}</span>
+        {row === 'legalName' && suggested('legalName') && <ValueAside>· from your workspace</ValueAside>}
+        {row === 'tradingAddress' && suggested('tradingAddress') && <ValueAside>· from your location</ValueAside>}
+      </>
+    ) : (
+      <ValueMissing>{empty}</ValueMissing>
+    );
+  /** A short text: its value on the row, the field underneath. */
   const textRow = (
-    row: Row & ('legalName' | 'tradingAddress' | 'receiptFooter' | 'vatNumber'),
+    row: 'legalName' | 'tradingAddress' | 'receiptFooter' | 'vatNumber',
     icon: IconComponent,
-    title: string,
+    label: string,
     empty: string,
     placeholder: string,
-    hint: string,
+    hint?: string,
     maxLength?: number,
   ) => (
-    <PickerRow
-      icon={icon}
-      title={title}
-      value={form[row].trim() || empty}
-      muted={!form[row].trim()}
-      open={open === row}
-      onToggle={() => toggle(row)}
-    >
+    <ChangeRow icon={icon} label={label} value={shown(row, empty)} open={open === row} onToggle={() => toggle(row)}>
       <Input
-        aria-label={title}
+        aria-label={label}
         value={form[row]}
         onChange={(event) => set(row, event.target.value)}
         placeholder={placeholder}
         maxLength={maxLength}
+        hint={hint}
         autoFocus
       />
-      <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
-    </PickerRow>
+    </ChangeRow>
   );
 
   return (
     <SettingsTabBody narrowAside stickyAside aside={<ReceiptPreview form={form} />}>
-      <SettingsSection title="On your receipts">
-        <div className="space-y-3">
-          {textRow(
-            'legalName',
-            Store,
-            'Business name',
-            'Not set',
-            'North Street Coffee Ltd',
-            suggested('legalName') ? 'From your workspace name.' : 'Printed at the top of every receipt.',
-          )}
-          {showAddress &&
-            textRow(
-              'tradingAddress',
-              MapPin,
-              'Address',
-              'Not set',
-              '12 North Street, London',
-              suggested('tradingAddress')
-                ? 'From your location.'
-                : onlineOnly
-                  ? 'Needed on VAT invoices.'
-                  : 'Printed under your business name.',
-            )}
-          {textRow(
-            'receiptFooter',
-            StickyNote,
-            'Thank-you line',
-            'None',
-            'Thank you — see you soon',
-            'Printed at the foot of every receipt.',
-            200,
-          )}
-        </div>
-      </SettingsSection>
+      {/* Side by side on a wide screen: two short sections of equal weight, the receipt beside them. */}
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+        <SettingsSection title="Receipts">
+          <div>
+            {textRow('legalName', Store, 'Business name', 'Not set', 'North Street Coffee Ltd')}
+            {showAddress &&
+              textRow(
+                'tradingAddress',
+                MapPin,
+                'Address',
+                'Not set',
+                '12 North Street, London',
+                onlineOnly ? 'Needed on VAT invoices.' : undefined,
+              )}
+            {textRow('receiptFooter', StickyNote, 'Thank-you line', 'None', 'Thank you — see you soon', undefined, 200)}
+          </div>
+        </SettingsSection>
 
-      <SettingsSection title="Money and VAT">
-        <div className="space-y-3">
-          <PickerRow
-            icon={Coins}
-            title="Currency"
-            value={currencyLabel(form.currency)}
-            open={open === 'currency'}
-            onToggle={() => toggle('currency')}
-          >
-            {/* Straight to the list; choosing or dismissing folds the row back up. */}
-            <Select
-              value={form.currency}
-              onValueChange={(value) => set('currency', value)}
-              options={currencyOptions}
-              ariaLabel="Currency"
-              className="w-full"
-              defaultOpen
-              onOpenChange={(next) => !next && setOpen(null)}
+        <SettingsSection title="Money and VAT">
+          <div>
+            <ChangeRow
+              icon={Coins}
+              label="Currency"
+              value={<span className="truncate">{currencyLabel(form.currency)}</span>}
+              open={open === 'currency'}
+              onToggle={() => toggle('currency')}
+            >
+              {/* Straight to the list; choosing or dismissing folds the row back up. */}
+              <Select
+                value={form.currency}
+                onValueChange={(value) => set('currency', value)}
+                options={currencyOptions}
+                ariaLabel="Currency"
+                className="w-full"
+                defaultOpen
+                onOpenChange={(next) => !next && setOpen(null)}
+              />
+            </ChangeRow>
+            <ChangeRow
+              icon={Landmark}
+              label="VAT"
+              value={form.vatRegistered ? 'Registered' : <ValueMissing>Not registered</ValueMissing>}
+              trailing={<Switch checked={form.vatRegistered} onChange={(next) => set('vatRegistered', next)} label="VAT registered" />}
             />
-          </PickerRow>
-          <InfoRow icon={Landmark} title="VAT registered">
-            <Switch checked={form.vatRegistered} onChange={(next) => set('vatRegistered', next)} label="VAT registered" />
-          </InfoRow>
-          {form.vatRegistered && (
-            <>
-              {textRow('vatNumber', Hash, 'VAT number', 'Not set', 'GB123456789', 'Printed on every receipt while you’re registered.')}
-              <PickerRow
-                icon={Calculator}
-                title="VAT rate"
-                value={rateValid ? `${rate}%` : 'Check the rate'}
-                muted={!rateValid}
-                open={open === 'defaultVatRate'}
-                onToggle={() => toggle('defaultVatRate')}
-              >
-                <Input
-                  aria-label="VAT rate (%)"
-                  type="number"
-                  min={0}
-                  max={100}
-                  step={0.5}
-                  value={form.defaultVatRate}
-                  onChange={(event) => set('defaultVatRate', event.target.value)}
-                  error={rateValid ? undefined : 'Enter a rate between 0 and 100.'}
-                  autoFocus
-                />
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  Used for anything without its own rate, and taken out of your margins.
-                </p>
-              </PickerRow>
-              <PickerRow
-                icon={Tags}
-                title="Menu prices"
-                value={form.pricesIncludeTax ? 'VAT included' : 'VAT added at the till'}
-                open={open === 'pricesIncludeTax'}
-                onToggle={() => toggle('pricesIncludeTax')}
-              >
-                <ChoiceCards<'inc' | 'exc'>
-                  appearance="settings"
-                  value={form.pricesIncludeTax ? 'inc' : 'exc'}
-                  onChange={(value) => set('pricesIncludeTax', value === 'inc')}
-                  options={[
-                    { value: 'inc', label: 'VAT included', icon: Tags },
-                    { value: 'exc', label: 'VAT added at the till', icon: Calculator },
-                  ]}
-                />
-                <p className="mt-1.5 text-xs text-muted-foreground">
-                  {money(example)} on the menu — the customer pays{' '}
-                  {money(form.pricesIncludeTax ? example : example * (1 + (rateValid ? rate : 0) / 100))}.
-                </p>
-              </PickerRow>
-            </>
-          )}
-        </div>
-      </SettingsSection>
+            {form.vatRegistered && (
+              <>
+                {textRow('vatNumber', Hash, 'VAT number', 'Not set', 'GB123456789')}
+                <ChangeRow
+                  icon={Calculator}
+                  label="VAT rate"
+                  value={rateValid ? `${rate}%` : <ValueMissing>Check the rate</ValueMissing>}
+                  open={open === 'defaultVatRate'}
+                  onToggle={() => toggle('defaultVatRate')}
+                >
+                  <Input
+                    aria-label="VAT rate (%)"
+                    type="number"
+                    min={0}
+                    max={100}
+                    step={0.5}
+                    value={form.defaultVatRate}
+                    onChange={(event) => set('defaultVatRate', event.target.value)}
+                    error={rateValid ? undefined : 'Enter a rate between 0 and 100.'}
+                    hint="Used for anything without its own rate, and taken out of your margins."
+                    autoFocus
+                  />
+                </ChangeRow>
+                <ChangeRow
+                  icon={Tags}
+                  label="Menu prices"
+                  value={form.pricesIncludeTax ? 'VAT included' : 'VAT added at the till'}
+                  open={open === 'pricesIncludeTax'}
+                  onToggle={() => toggle('pricesIncludeTax')}
+                >
+                  <ChoiceCards<'inc' | 'exc'>
+                    appearance="settings"
+                    value={form.pricesIncludeTax ? 'inc' : 'exc'}
+                    onChange={(value) => set('pricesIncludeTax', value === 'inc')}
+                    options={[
+                      { value: 'inc', label: 'VAT included', icon: Tags },
+                      { value: 'exc', label: 'VAT added at the till', icon: Calculator },
+                    ]}
+                  />
+                  <p className="mt-1.5 text-xs text-muted-foreground">
+                    {money(example)} on the menu — the customer pays{' '}
+                    {money(form.pricesIncludeTax ? example : example * (1 + (rateValid ? rate : 0) / 100))}.
+                  </p>
+                </ChangeRow>
+              </>
+            )}
+          </div>
+        </SettingsSection>
+      </div>
 
       <SaveBar
         dirty={dirty}
@@ -307,6 +304,29 @@ function TradingForm({
         }}
       />
     </SettingsTabBody>
+  );
+}
+
+/** The two sections of rows and the receipt beside them, without their words. */
+function TradingSkeleton() {
+  const rows = (count: number) =>
+    Array.from({ length: count }, (_, index) => (
+      <div key={index} className="flex items-center gap-3">
+        <Bone className="size-10 shrink-0" />
+        <span className="min-w-0 flex-1 space-y-1.5">
+          <Bone className="h-2.5 w-20" />
+          <Bone className="h-3.5 w-44 max-w-full" />
+        </span>
+        <Bone className="h-8 w-20 shrink-0" />
+      </div>
+    ));
+  return (
+    <div role="status" aria-label="Loading trading settings">
+      <SettingsTabBody narrowAside aside={<Bone className="mx-auto mt-7 h-[34rem] w-full max-w-xs rounded-md" />}>
+        <SectionSkeleton>{rows(3)}</SectionSkeleton>
+        <SectionSkeleton>{rows(2)}</SectionSkeleton>
+      </SettingsTabBody>
+    </div>
   );
 }
 
@@ -338,7 +358,7 @@ function ReceiptPreview({ form }: { form: Form }) {
     // No card around it: the receipt paper is the thing, so it stands on its own.
     <motion.div variants={SECTION_RISE} className="pt-1">
       <p className="mb-2 text-center text-label uppercase text-muted-foreground">Your receipt</p>
-      <div className="mx-auto max-w-xs rounded-md border border-rule/60 bg-white px-5 py-6 font-mono text-xs leading-5 text-neutral-800 shadow-md">
+      <div className="mx-auto max-w-xs rounded-md border border-border bg-white px-5 py-6 font-mono text-xs leading-5 text-neutral-800 shadow-md">
         <p className="text-center text-sm font-semibold">{form.legalName || 'Your business name'}</p>
         <p className="text-center text-neutral-500">{form.tradingAddress || 'Trading address'}</p>
         {form.vatRegistered && form.vatNumber && <p className="text-center text-neutral-500">VAT {form.vatNumber}</p>}

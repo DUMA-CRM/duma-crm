@@ -131,7 +131,7 @@ export function LossesSection({
         className={cn('space-y-4', periodEmpty && 'flex flex-1 flex-col')}
       >
         <div className="flex min-h-9 flex-wrap items-center gap-2">
-          <h2 id="losses-waste" className="flex-1 text-base font-semibold tracking-title text-foreground">
+          <h2 id="losses-waste" className="flex-1 text-base font-semibold tracking-title text-heading">
             Waste
           </h2>
           <Select
@@ -214,7 +214,7 @@ export function LossesSection({
       {loaded.length > 0 && (
         <motion.section variants={SECTION_RISE} aria-labelledby="losses-history" className="space-y-4">
           <div className="flex min-h-9 items-center gap-3">
-            <h2 id="losses-history" className="flex-1 text-base font-semibold tracking-title text-foreground">
+            <h2 id="losses-history" className="flex-1 text-base font-semibold tracking-title text-heading">
               History
             </h2>
             {kinds.length > 1 && (
@@ -230,7 +230,7 @@ export function LossesSection({
           {days.map((day) => (
             <section key={day.key} aria-label={day.label}>
               <h3 className="mb-2 text-label uppercase text-muted-foreground">{day.label}</h3>
-              <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+              <ul className="overflow-hidden rounded-lg border border-border bg-card">
                 {day.items.map((loss) => (
                   <LossRow key={loss.id} loss={loss} unit={unit} cost={cost} money={money} />
                 ))}
@@ -264,7 +264,7 @@ function LossRow({
   const value = movementValue({ quantity, unitCost: loss.unitCost }, cost);
 
   return (
-    <li className="flex items-start gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+    <li className="flex items-start gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
       <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', meta.tile)} aria-hidden="true">
         <meta.icon size={16} />
       </span>

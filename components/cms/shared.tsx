@@ -50,7 +50,7 @@ export function EntryStatusBadge({ status, className }: { status: CmsEntryStatus
 
 export function PanelError({ title, onRetry }: { title: string; onRetry: () => void }) {
   return (
-    <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+    <div className="overflow-hidden rounded-lg border border-border bg-card">
       <ErrorState title={title} onRetry={onRetry} />
     </div>
   );
@@ -58,13 +58,14 @@ export function PanelError({ title, onRetry }: { title: string; onRetry: () => v
 
 /** The hairline card every CMS list sits in. */
 export function Panel({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('overflow-hidden rounded-lg border border-rule/60 bg-card', className)}>{children}</div>;
+  return <div className={cn('overflow-hidden rounded-lg border border-border bg-card', className)}>{children}</div>;
 }
 
 export const TEXTAREA_CLASS =
   'w-full rounded-sm border border-rule bg-control px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-60';
 
-export const FIELD_LABEL_CLASS = 'block text-label uppercase text-muted-foreground';
+// One field-label style across the app.
+export { FIELD_LABEL_CLASS } from '@/components/ui/label';
 
 /** Copy to the clipboard, reporting the outcome — clipboard access can be refused. */
 export async function copyText(text: string): Promise<boolean> {
@@ -131,7 +132,7 @@ export function LanguageChips({ versions }: { versions: Array<{ id: string; loca
     <span className="flex flex-nowrap gap-1 whitespace-nowrap">
       {versions.map((version) => (
         <Tooltip key={version.id} side="top" label={`${version.locale}: ${entryStatusMeta(version.status).label}`}>
-          <span className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-rule/60 bg-background px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
+          <span className="inline-flex shrink-0 items-center gap-1 rounded-sm border border-border bg-background px-1.5 py-0.5 font-mono text-xs text-muted-foreground">
             <span className={cn('size-1.5 rounded-full', dot[version.status])} aria-hidden="true" />
             {version.locale}
           </span>

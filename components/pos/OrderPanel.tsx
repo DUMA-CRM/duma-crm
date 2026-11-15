@@ -1,7 +1,7 @@
 'use client';
 
 import { AnimatePresence } from 'motion/react';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
 import {
   ArrowLeft,
@@ -10,15 +10,20 @@ import {
   Gift,
   History,
   Minus,
+  MoreHorizontal,
   Pause,
   Plus,
   RotateCcw,
+  ShoppingBag,
   ShoppingCart,
+  TicketPercent,
   Trash2,
   UserPlus,
+  UtensilsCrossed,
   X,
 } from '@/components/icons';
 import { CartRow } from '@/components/pos/CartRow';
+import { ChoiceToggle } from '@/components/pos/ChoiceToggle';
 import { CustomerAttach, type CustomerView } from '@/components/pos/CustomerAttach';
 import { ItemCustomiser } from '@/components/pos/ItemCustomiser';
 import { PromoCodeEntry } from '@/components/pos/PromoCodeEntry';
@@ -27,6 +32,7 @@ import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Bone } from '@/components/shared/Skeleton';
 import { SwipeRoot } from '@/components/swipe-actions';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import type { CustomerLoyaltyProgram } from '@/lib/api/loyalty.service';
 import { cn } from '@/lib/utils/cn';
@@ -43,8 +49,11 @@ interface OrderPanelProps {
   groups: OptionGroupRule[] | null;
   onAddToCart: (selected: MenuOption[], quantity: number, note: string) => void;
   onCancelItem: () => void;
-  onQty: (cartId: string, delta: number) => void;
-  onLineNote: (cartId: string, note: string) => void;
+  /** The ticket line open in the editor, when the customiser is changing one rather than adding. */
+  editingLine: CartItem | null;
+  /** Opens a ticket line in the customiser. */
+  onEditLine: (cartId: string) => void;
+  onSaveLine: (selected: MenuOption[], quantity: number, note: string) => void;
   onRemove: (cartId: string) => void;
   /** The last removed line, offered back for a few seconds. */
   removed: CartItem | null;
@@ -59,6 +68,9 @@ interface OrderPanelProps {
   onLoyaltyRewards: (rewards: AppliedLoyaltyReward[]) => void;
   notes: string;
   onNotesChange: (v: string) => void;
+  /** Eat in or takeaway; null when not chosen. */
+  orderType: 'eat_in' | 'takeaway' | null;
+  onOrderTypeChange: (value: 'eat_in' | 'takeaway' | null) => void;
   held: HeldTicket[];
   onHold: () => void;
   onResume: (id: string) => void;
@@ -76,8 +88,9 @@ export function OrderPanel(props: OrderPanelProps) {
     groups,
     onAddToCart,
     onCancelItem,
-    onQty,
-    onLineNote,
+    editingLine,
+    onEditLine,
+    onSaveLine,
     onRemove,
     removed,
     onUndoRemove,
@@ -91,6 +104,8 @@ export function OrderPanel(props: OrderPanelProps) {
     onLoyaltyRewards,
     notes,
     onNotesChange,
+    orderType,
+    onOrderTypeChange,
     held,
     onHold,
     onResume,
@@ -101,9 +116,13 @@ export function OrderPanel(props: OrderPanelProps) {
   } = props;
   const [view, setView] = useState<'ticket' | 'customer' | 'held' | 'rewards'>('ticket');
   const [customerView, setCustomerView] = useState<CustomerView>('find');
-  const [expanded, setExpanded] = useState<string | null>(null);
   const [noteOpen, setNoteOpen] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [moreOpen, setMoreOpen] = useState(false);
+  const [promoOpen, setPromoOpen] = useState(false);
+  // Set when a ⋯ item opens a field: the menu then doesn't hand focus back to ⋯ as it
+  // closes, which used to pull the cursor out of the field just opened — typing went nowhere.
+  const openingField = useRef(false);
   const swipeToRemove = usePosSettingsStore((state) => state.swipeToRemove);
 
   // "Clear" is armed by the first tap and fires on the second — no dialog, and no accidental wipe.
@@ -116,19 +135,34 @@ export function OrderPanel(props: OrderPanelProps) {
   const count = cartCount(cart);
   const loyaltyDiscount = loyaltyRewards.reduce((sum, reward) => sum + reward.discountCents, 0);
   // The promo's saving is the API's estimate; the order's own total replaces it at Charge.
-  const total = Math.max(0, cartTotal(cart) - loyaltyDiscount - (promo?.discountCents ?? 0));
+  const subtotal = cartTotal(cart);
+  const promoDiscount = promo?.discountCents ?? 0;
+  const total = Math.max(0, subtotal - loyaltyDiscount - promoDiscount);
   const empty = cart.length === 0;
 
   let body: React.ReactNode;
   if (selectedItem) {
     body = (
       <ItemCustomiser
-        key={selectedItem.id}
+        key={editingLine?.cartId ?? selectedItem.id}
         item={selectedItem}
         groups={groups}
-        onAdd={onAddToCart}
+        onAdd={editingLine ? onSaveLine : onAddToCart}
         onCancel={onCancelItem}
         currency={currency}
+        editing={
+          editingLine
+            ? { quantity: editingLine.quantity, selectedIds: editingLine.selected.map((option) => option.id), note: editingLine.note ?? '' }
+            : undefined
+        }
+        onRemove={
+          editingLine
+            ? () => {
+                onRemove(editingLine.cartId);
+                onCancelItem();
+              }
+            : undefined
+        }
       />
     );
   } else if (view === 'customer') {
@@ -159,9 +193,9 @@ export function OrderPanel(props: OrderPanelProps) {
               description="Hold a ticket to serve the next customer, then pick it up here."
             />
           ) : (
-            <ul className="divide-y divide-rule/50">
+            <ul className="divide-y divide-border">
               {held.map((ticket) => (
-                <li key={ticket.id} className="flex items-center gap-2 px-4 py-2">
+                <li key={ticket.id} className="flex items-center gap-1 pr-2">
                   <button
                     type="button"
                     onClick={() => {
@@ -169,19 +203,19 @@ export function OrderPanel(props: OrderPanelProps) {
                       setView('ticket');
                     }}
                     disabled={!empty}
-                    className="flex min-h-16 min-w-0 flex-1 items-center gap-3 rounded-lg px-1 text-left disabled:opacity-50"
+                    className="flex min-h-16 min-w-0 flex-1 touch-manipulation items-center gap-3 py-2.5 pl-4 text-left transition-colors duration-75 enabled:active:bg-band disabled:opacity-50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
                   >
                     {ticket.customer && (
-                      <Avatar name={`${ticket.customer.firstName} ${ticket.customer.lastName}`} email={ticket.customer.email} size="md" />
+                      <Avatar name={`${ticket.customer.firstName} ${ticket.customer.lastName}`} email={ticket.customer.email} size="sm" />
                     )}
                     <span className="flex min-w-0 flex-1 flex-col justify-center">
                       <span className="flex items-baseline justify-between gap-3">
-                        <span className="truncate text-base font-semibold text-foreground">{ticket.name}</span>
-                        <span data-figure className="shrink-0 text-base font-semibold tabular-nums">
+                        <span className="truncate text-[15px] font-semibold text-heading">{ticket.name}</span>
+                        <span data-figure className="shrink-0 text-[15px] font-semibold tabular-nums text-heading">
                           {formatPrice(cartTotal(ticket.cart), currency)}
                         </span>
                       </span>
-                      <span className="truncate text-sm text-muted-foreground">
+                      <span className="truncate text-[13px] text-muted-foreground">
                         {cartCount(ticket.cart)} item{cartCount(ticket.cart) === 1 ? '' : 's'} · held <RelativeTime iso={ticket.heldAt} />
                       </span>
                     </span>
@@ -191,9 +225,9 @@ export function OrderPanel(props: OrderPanelProps) {
                     size="icon"
                     onClick={() => onDiscardHeld(ticket.id)}
                     aria-label={`Discard ${ticket.name}`}
-                    className="size-12 shrink-0 text-muted-foreground"
+                    className="size-11 shrink-0 text-muted-foreground hover:bg-destructive/8 hover:text-destructive"
                   >
-                    <Trash2 size={18} />
+                    <Trash2 size={17} />
                   </Button>
                 </li>
               ))}
@@ -201,7 +235,7 @@ export function OrderPanel(props: OrderPanelProps) {
           )}
         </div>
         {!empty && held.length > 0 && (
-          <p className="shrink-0 border-t border-rule/60 px-5 py-3 text-sm text-muted-foreground">
+          <p className="shrink-0 border-t border-border bg-band/40 px-4 py-3 text-sm text-muted-foreground">
             Charge or hold the current ticket before picking one up.
           </p>
         )}
@@ -213,7 +247,7 @@ export function OrderPanel(props: OrderPanelProps) {
         <PanelHeader title="Customer rewards" onBack={() => setView('ticket')} />
         <div className="min-h-0 flex-1 overflow-auto">
           {loyaltyLoading ? (
-            <div className="divide-y divide-rule/50" role="status" aria-busy="true" aria-label="Loading customer rewards">
+            <div className="divide-y divide-border" role="status" aria-busy="true" aria-label="Loading customer rewards">
               {[0, 1].map((row) => (
                 <div key={row} className="space-y-3 px-4 py-4" aria-hidden="true">
                   <div className="flex items-start justify-between gap-3">
@@ -234,7 +268,7 @@ export function OrderPanel(props: OrderPanelProps) {
               description="This customer will see programmes here when an active loyalty rule applies at this location."
             />
           ) : (
-            <div className="divide-y divide-rule/50">
+            <div className="divide-y divide-border">
               {loyaltyProgrammes.map((programme) => {
                 const targets: Array<{ cartId: string; modifierId?: string; name: string; discount: number; maxQuantity: number }> =
                   programme.rewardRule.kind !== 'free_modifier'
@@ -276,7 +310,7 @@ export function OrderPanel(props: OrderPanelProps) {
                   <section key={programme.id} className="px-4 py-4">
                     <div className="flex items-start justify-between gap-3">
                       <div>
-                        <h3 className="font-semibold text-foreground">{programme.name}</h3>
+                        <h3 className="font-semibold text-heading">{programme.name}</h3>
                         <p className="mt-0.5 text-sm text-muted-foreground">
                           {nextProgress} of {programme.rewardRule.cost} {programme.unitPlural} on the next card
                         </p>
@@ -335,7 +369,7 @@ export function OrderPanel(props: OrderPanelProps) {
                               key={`${target.cartId}:${target.modifierId ?? 'item'}`}
                               className={cn(
                                 'flex min-h-14 w-full items-center gap-3 rounded-md border px-3 text-left text-sm transition-colors',
-                                selected ? 'border-primary bg-primary/5' : 'border-rule/60 bg-background hover:bg-band/40',
+                                selected ? 'border-primary bg-primary/5' : 'border-border bg-background hover:bg-band/40',
                               )}
                             >
                               <span className="min-w-0 flex-1">
@@ -345,7 +379,7 @@ export function OrderPanel(props: OrderPanelProps) {
                                 </span>
                               </span>
                               <div
-                                className="flex shrink-0 items-center rounded-md border border-rule/60 bg-field"
+                                className="flex shrink-0 items-center rounded-md border border-border bg-field"
                                 aria-label={`Rewards applied to ${target.name}`}
                               >
                                 <button
@@ -394,22 +428,21 @@ export function OrderPanel(props: OrderPanelProps) {
   } else {
     body = (
       <>
-        <div className="flex h-16 shrink-0 items-center justify-between gap-2 border-b border-rule/60 pl-5 pr-3">
+        {/* The ticket's own bar: what it is and who it's for on the left; the
+            customer, held tickets, and the rarer actions behind ⋮ on the right. */}
+        <div className="flex h-14 shrink-0 items-center justify-between gap-2 border-b border-border pr-2 pl-4">
           <div className="min-w-0">
-            <p className="text-lg font-semibold leading-tight text-foreground">
+            <p className="text-base leading-tight font-semibold text-heading">
               Ticket
               {count > 0 && (
-                <span className="ml-2 text-base font-medium tabular-nums text-muted-foreground">
-                  {count} item{count === 1 ? '' : 's'}
+                <span className="ml-1.5 text-sm font-normal tabular-nums text-muted-foreground">
+                  · {count} item{count === 1 ? '' : 's'}
                 </span>
               )}
             </p>
             {selectedCustomer && (
-              <p className="truncate text-sm text-muted-foreground">
-                For{' '}
-                <span className="font-medium text-foreground">
-                  {selectedCustomer.firstName} {selectedCustomer.lastName}
-                </span>
+              <p className="truncate text-xs text-muted-foreground">
+                {selectedCustomer.firstName} {selectedCustomer.lastName}
                 <span data-figure className="tabular-nums">
                   {' '}
                   · {(selectedCustomer.pointsBalance ?? 0).toLocaleString()} pts
@@ -417,7 +450,7 @@ export function OrderPanel(props: OrderPanelProps) {
               </p>
             )}
           </div>
-          <div className="flex shrink-0 items-center gap-1">
+          <div className="flex shrink-0 items-center">
             <Button
               variant="ghost"
               size="icon"
@@ -430,36 +463,88 @@ export function OrderPanel(props: OrderPanelProps) {
                   ? `Customer: ${selectedCustomer.firstName} ${selectedCustomer.lastName}. Change or remove`
                   : 'Add a customer'
               }
-              className="size-12 text-muted-foreground"
+              className="size-11 text-muted-foreground"
             >
               {selectedCustomer ? (
-                <Avatar name={`${selectedCustomer.firstName} ${selectedCustomer.lastName}`} email={selectedCustomer.email} size="sm" />
+                <Avatar name={`${selectedCustomer.firstName} ${selectedCustomer.lastName}`} email={selectedCustomer.email} size="xs" />
               ) : (
-                <UserPlus size={20} />
+                <UserPlus size={19} />
               )}
             </Button>
-            <Button variant="ghost" onClick={() => setView('held')} className="h-12 gap-2 px-3 text-muted-foreground">
+            <Button variant="ghost" onClick={() => setView('held')} className="h-11 gap-1.5 px-2.5 text-muted-foreground">
               <History size={18} aria-hidden="true" />
               Held
               {held.length > 0 && (
-                <span className="flex h-6 min-w-6 items-center justify-center rounded-full bg-primary px-1.5 text-xs font-semibold tabular-nums text-primary-foreground">
+                <span className="flex h-5 min-w-5 items-center justify-center rounded-sm bg-heading px-1 text-xs font-semibold tabular-nums text-background">
                   {held.length}
                 </span>
               )}
             </Button>
             {!empty && (
-              <Button
-                variant="ghost"
-                onClick={() => (confirmClear ? (onClearCart(), setConfirmClear(false)) : setConfirmClear(true))}
-                className={cn(
-                  'h-12 gap-2',
-                  confirmClear ? 'bg-destructive/8 px-3 text-destructive hover:text-destructive' : 'w-12 px-0 text-muted-foreground',
-                )}
-                aria-label={confirmClear ? 'Tap again to clear the ticket' : 'Clear the ticket'}
+              <Popover
+                open={moreOpen}
+                onOpenChange={(open) => {
+                  setMoreOpen(open);
+                  if (!open) setConfirmClear(false);
+                }}
               >
-                <Trash2 size={18} aria-hidden="true" />
-                {confirmClear && 'Tap to clear'}
-              </Button>
+                <PopoverTrigger asChild>
+                  <Button variant="ghost" size="icon" aria-label="More ticket actions" className="size-11 text-muted-foreground">
+                    <MoreHorizontal size={19} />
+                  </Button>
+                </PopoverTrigger>
+                <PopoverContent
+                  align="end"
+                  className="w-60 p-1.5"
+                  onCloseAutoFocus={(event) => {
+                    if (!openingField.current) return;
+                    event.preventDefault();
+                    openingField.current = false;
+                  }}
+                >
+                  <button
+                    type="button"
+                    onClick={() => {
+                      openingField.current = true;
+                      setNoteOpen(true);
+                      setMoreOpen(false);
+                    }}
+                    className={MENU_ITEM}
+                  >
+                    <FileText size={17} aria-hidden="true" className="text-muted-foreground" />
+                    {notes ? 'Edit order note' : 'Add order note'}
+                  </button>
+                  {promo && !promo.code && (
+                    <button
+                      type="button"
+                      disabled={promo.offline}
+                      onClick={() => {
+                        openingField.current = true;
+                        setPromoOpen(true);
+                        setMoreOpen(false);
+                      }}
+                      className={MENU_ITEM}
+                    >
+                      <TicketPercent size={17} aria-hidden="true" className="text-muted-foreground" />
+                      {promo.offline ? 'Promo code needs a connection' : 'Add promo code'}
+                    </button>
+                  )}
+                  {/* Armed by the first tap, fired by the second — no dialog, and no accidental wipe. */}
+                  <button
+                    type="button"
+                    onClick={() => {
+                      if (!confirmClear) return setConfirmClear(true);
+                      onClearCart();
+                      setConfirmClear(false);
+                      setMoreOpen(false);
+                    }}
+                    className={cn(MENU_ITEM, 'text-destructive', confirmClear && 'bg-destructive/8 font-semibold')}
+                  >
+                    <Trash2 size={17} aria-hidden="true" />
+                    {confirmClear ? 'Tap again to clear' : 'Clear ticket'}
+                  </button>
+                </PopoverContent>
+              </Popover>
             )}
           </div>
         </div>
@@ -474,15 +559,9 @@ export function OrderPanel(props: OrderPanelProps) {
                   <CartRow
                     key={line.cartId}
                     cartItem={line}
-                    expanded={expanded === line.cartId}
                     flash={flashId === line.cartId}
-                    onToggle={() => setExpanded((current) => (current === line.cartId ? null : line.cartId))}
-                    onQty={(delta) => onQty(line.cartId, delta)}
-                    onNote={(note) => onLineNote(line.cartId, note)}
-                    onRemove={() => {
-                      setExpanded(null);
-                      onRemove(line.cartId);
-                    }}
+                    onOpen={() => onEditLine(line.cartId)}
+                    onRemove={() => onRemove(line.cartId)}
                     swipe={swipeToRemove}
                     currency={currency}
                   />
@@ -496,15 +575,9 @@ export function OrderPanel(props: OrderPanelProps) {
                   <CartRow
                     key={line.cartId}
                     cartItem={line}
-                    expanded={expanded === line.cartId}
                     flash={flashId === line.cartId}
-                    onToggle={() => setExpanded((current) => (current === line.cartId ? null : line.cartId))}
-                    onQty={(delta) => onQty(line.cartId, delta)}
-                    onNote={(note) => onLineNote(line.cartId, note)}
-                    onRemove={() => {
-                      setExpanded(null);
-                      onRemove(line.cartId);
-                    }}
+                    onOpen={() => onEditLine(line.cartId)}
+                    onRemove={() => onRemove(line.cartId)}
                     swipe={swipeToRemove}
                     currency={currency}
                   />
@@ -533,14 +606,14 @@ export function OrderPanel(props: OrderPanelProps) {
           </div>
         )}
 
-        <div className="shrink-0 space-y-3 border-t border-rule/60 p-4">
+        <div className="shrink-0 space-y-3 border-t border-border p-4">
           {selectedCustomer && !empty && (
             <button
               type="button"
               onClick={() => setView('rewards')}
               className={cn(
                 'flex min-h-12 w-full items-center gap-3 rounded-md border px-3 text-left transition-colors',
-                loyaltyRewards.length > 0 ? 'border-primary bg-primary/5' : 'border-rule/60 bg-field hover:bg-band/45',
+                loyaltyRewards.length > 0 ? 'border-primary/40 bg-primary/5' : 'border-border bg-card active:bg-band/60',
               )}
             >
               <span className="flex size-8 items-center justify-center rounded-md bg-primary/8 text-primary">
@@ -564,18 +637,24 @@ export function OrderPanel(props: OrderPanelProps) {
               <span className="sr-only">{loyaltyRewards.length > 0 ? 'Change rewards' : 'View rewards'}</span>
             </button>
           )}
-          {promo && (!empty || promo.code) && <PromoCodeEntry {...promo} currency={currency} />}
-          {noteOpen || notes ? (
+          {promo && (promo.code || (promoOpen && !empty)) && (
+            <PromoCodeEntry {...promo} currency={currency} editing={promoOpen} onEditingChange={setPromoOpen} />
+          )}
+          {(noteOpen || notes) && (
             <div className="relative">
-              <FileText size={16} aria-hidden="true" className="pointer-events-none absolute left-3.5 top-4 text-muted-foreground" />
+              <FileText size={16} aria-hidden="true" className="pointer-events-none absolute top-3.5 left-3 text-muted-foreground" />
               <input
                 autoFocus={noteOpen && !notes}
                 value={notes}
                 maxLength={500}
                 onChange={(event) => onNotesChange(event.target.value)}
+                // Left empty: fold it away again, back into ⋯.
+                onBlur={() => {
+                  if (!notes.trim()) setNoteOpen(false);
+                }}
                 placeholder="Order note, e.g. name for the cup"
                 aria-label="Order note"
-                className="h-12 w-full rounded-lg border border-input bg-control pl-10 pr-12 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured"
+                className="h-11 w-full rounded-md border border-input bg-control pr-12 pl-9 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30"
               />
               <Button
                 variant="ghost"
@@ -585,42 +664,48 @@ export function OrderPanel(props: OrderPanelProps) {
                   setNoteOpen(false);
                 }}
                 aria-label="Remove order note"
-                className="absolute right-0.5 top-0.5 size-11 text-muted-foreground"
+                className="absolute top-0 right-0 size-11 text-muted-foreground"
               >
                 <X size={16} />
               </Button>
             </div>
-          ) : (
-            !empty && (
-              <button
-                type="button"
-                onClick={() => setNoteOpen(true)}
-                className="flex h-10 items-center gap-2 text-sm font-medium text-muted-foreground"
-              >
-                <Plus size={16} aria-hidden="true" /> Order note
-              </button>
-            )
           )}
 
-          <div className="flex items-baseline justify-between gap-3">
-            <span className="text-base font-medium text-muted-foreground">Total</span>
-            <span data-figure className="text-3xl font-semibold tabular-nums tracking-tight text-foreground">
-              {formatPrice(total, currency)}
-            </span>
-          </div>
+          {/* How the customer is having it — the kitchen and the orders list both show it. Tap the
+              chosen one again to clear it: a till that doesn't ask never has to. */}
+          {!empty && (
+            <ChoiceToggle clearable options={ORDER_TYPES} value={orderType} onChange={onOrderTypeChange} ariaLabel="Eat in or takeaway" />
+          )}
+
+          {/* Receipt arithmetic: the subtotal and each saving only when there is a saving. */}
+          <dl className="space-y-1 text-sm">
+            {(loyaltyDiscount > 0 || promoDiscount > 0) && (
+              <>
+                <TotalRow label="Subtotal" value={formatPrice(subtotal, currency)} />
+                {loyaltyDiscount > 0 && <TotalRow label="Rewards" value={`−${formatPrice(loyaltyDiscount, currency)}`} />}
+                {promoDiscount > 0 && <TotalRow label="Promo code" value={`−${formatPrice(promoDiscount, currency)}`} />}
+              </>
+            )}
+            <div className="flex items-baseline justify-between gap-3 pt-0.5">
+              <dt className="text-base font-semibold text-heading">Total</dt>
+              <dd data-figure className="text-xl font-semibold tabular-nums text-heading">
+                {formatPrice(total, currency)}
+              </dd>
+            </div>
+          </dl>
 
           <div className="flex gap-2">
             <Button
               variant="outline"
               onClick={onHold}
               disabled={empty}
-              className="h-16 shrink-0 flex-col gap-0.5 px-5 text-sm"
+              className="h-14 shrink-0 gap-2 px-4 text-base"
               aria-label="Hold this ticket"
             >
-              <Pause size={20} aria-hidden="true" />
+              <Pause size={18} aria-hidden="true" />
               Hold
             </Button>
-            <Button onClick={onCharge} disabled={empty} className="h-16 flex-1 justify-between px-5 text-lg">
+            <Button onClick={onCharge} disabled={empty} className="h-14 flex-1 justify-between px-5 text-lg">
               <span>Charge</span>
               <span data-figure className="tabular-nums">
                 {formatPrice(total, currency)}
@@ -635,7 +720,7 @@ export function OrderPanel(props: OrderPanelProps) {
   return (
     <aside
       aria-label="Ticket"
-      className="flex w-[24rem] max-w-full shrink-0 flex-col overflow-hidden border-l border-rule/60 bg-card xl:w-[27rem]"
+      className="flex w-[24rem] max-w-full shrink-0 flex-col overflow-hidden border-l border-border bg-card xl:w-[27rem]"
     >
       {body}
     </aside>
@@ -644,11 +729,11 @@ export function OrderPanel(props: OrderPanelProps) {
 
 function PanelHeader({ title, onBack }: { title: string; onBack: () => void }) {
   return (
-    <div className="flex h-16 shrink-0 items-center gap-2 border-b border-rule/60 px-3">
-      <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to the ticket" className="size-12">
+    <div className="flex h-14 shrink-0 items-center gap-1.5 border-b border-border px-2">
+      <Button variant="ghost" size="icon" onClick={onBack} aria-label="Back to the ticket" className="size-11">
         <ArrowLeft size={20} />
       </Button>
-      <p className="text-lg font-semibold text-foreground">{title}</p>
+      <p className="text-base font-semibold text-heading">{title}</p>
     </div>
   );
 }
@@ -656,11 +741,30 @@ function PanelHeader({ title, onBack }: { title: string; onBack: () => void }) {
 function PanelEmpty({ icon: Icon, title, description }: { icon: typeof ShoppingCart; title: string; description: string }) {
   return (
     <div className="flex h-full flex-col items-center justify-center px-8 py-12 text-center">
-      <span className="flex size-12 items-center justify-center rounded-2xl bg-band text-muted-foreground" aria-hidden="true">
+      <span className="flex size-12 items-center justify-center rounded-md bg-band text-muted-foreground" aria-hidden="true">
         <Icon size={22} />
       </span>
-      <p className="mt-3 text-base font-semibold text-foreground">{title}</p>
+      <p className="mt-3 text-base font-semibold text-heading">{title}</p>
       <p className="mt-1 text-sm text-muted-foreground">{description}</p>
+    </div>
+  );
+}
+
+const ORDER_TYPES = [
+  { value: 'eat_in', label: 'Eat in', icon: UtensilsCrossed },
+  { value: 'takeaway', label: 'Takeaway', icon: ShoppingBag },
+] as const;
+
+const MENU_ITEM =
+  'flex h-11 w-full items-center gap-2.5 rounded-md px-2.5 text-left text-sm font-medium text-foreground transition-colors hover:bg-band/60 disabled:opacity-50 disabled:hover:bg-transparent focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring';
+
+function TotalRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-baseline justify-between gap-3 text-muted-foreground">
+      <dt>{label}</dt>
+      <dd data-figure className="tabular-nums">
+        {value}
+      </dd>
     </div>
   );
 }

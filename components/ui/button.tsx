@@ -13,7 +13,7 @@ const buttonVariants = cva(
         // The lit key: solid graphite with a field-coloured legend.
         default: 'bg-primary text-primary-foreground shadow-sm hover:bg-primary-hover',
         // The unlit key: field fill behind a hairline. The workhorse.
-        outline: 'border-rule bg-field text-foreground hover:bg-band aria-expanded:bg-band',
+        outline: 'border-edge bg-field text-foreground hover:bg-band aria-expanded:bg-band',
         secondary: 'bg-band text-foreground hover:bg-band/70 aria-expanded:bg-band',
         ghost: 'text-foreground hover:bg-band aria-expanded:bg-band',
         // Destruction reads as an exception annotation, not a red slab.

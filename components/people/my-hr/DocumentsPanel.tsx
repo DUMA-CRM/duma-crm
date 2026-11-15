@@ -4,9 +4,10 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 
 import { ChevronDown, Download, FileText, Wallet } from '@/components/icons';
-import { RecordBlock, RecordList, RecordListRow } from '@/components/people/record/shared';
+import { RecordList, RecordListRow } from '@/components/people/record/shared';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
@@ -84,13 +85,13 @@ function PayslipsSection({ employee }: { employee?: HrEmployee }) {
   const open = payslips.find((payslip) => payslip.id === openId);
 
   return (
-    <RecordBlock id="my-payslips" title="Payslips">
+    <RecordGroup id="my-payslips" title="Payslips">
       {isLoading ? (
         <ListSkeleton rows={3} label="Loading your payslips" />
       ) : isError ? (
         // A failed read is not "you have none" — that would be a claim about
         // someone's pay that nothing has checked. Say what is true instead.
-        <div className="rounded-lg border border-rule/60 bg-card">
+        <div className="rounded-lg border border-border bg-card">
           <ErrorState
             icon={Wallet}
             title="Your payslips couldn’t be loaded"
@@ -138,7 +139,7 @@ function PayslipsSection({ employee }: { employee?: HrEmployee }) {
           )}
         </>
       )}
-    </RecordBlock>
+    </RecordGroup>
   );
 }
 
@@ -158,7 +159,7 @@ function DocumentsSection({ documents, note }: { documents: EmployeeDocument[]; 
 
   return (
     // Requesting one is the header's primary action on this tab, so no second button here.
-    <RecordBlock id="my-documents" title="Documents" note={note}>
+    <RecordGroup id="my-documents" title="Documents" footnote={note}>
       <RecordList>
         {documents.length === 0 ? (
           <RecordListRow
@@ -202,7 +203,7 @@ function DocumentsSection({ documents, note }: { documents: EmployeeDocument[]; 
           })
         )}
       </RecordList>
-    </RecordBlock>
+    </RecordGroup>
   );
 }
 

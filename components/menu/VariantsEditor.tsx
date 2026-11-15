@@ -139,9 +139,9 @@ export function VariantsEditor({
       }
     >
       {/* One card, no section around it: the header is the card's own. */}
-      <section aria-labelledby="variants-title" className="overflow-hidden rounded-lg border border-rule/60 bg-control">
+      <section aria-labelledby="variants-title" className="overflow-hidden rounded-lg border border-border bg-control">
         <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3.5">
-          <h2 id="variants-title" className="text-base font-semibold tracking-title text-foreground">
+          <h2 id="variants-title" className="text-base font-semibold tracking-title text-heading">
             {noun.many.charAt(0).toUpperCase() + noun.many.slice(1)}
           </h2>
           {variants.length > 0 && (
@@ -167,7 +167,7 @@ export function VariantsEditor({
         </header>
 
         {variants.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 border-t border-rule/50 px-6 py-12 text-center">
+          <div className="flex flex-col items-center gap-3 border-t border-border px-6 py-12 text-center">
             <RowTile icon={Layers} />
             <div>
               <p className="text-sm font-semibold text-foreground">Sold as one item</p>
@@ -178,10 +178,10 @@ export function VariantsEditor({
           </div>
         ) : (
           <>
-            <div className="overflow-x-auto border-t border-rule/50">
+            <div className="overflow-x-auto border-t border-border">
               <table className="w-full min-w-[40rem] text-sm">
                 <thead>
-                  <tr className="border-b border-rule/50 bg-band/30 text-left text-micro font-semibold uppercase tracking-micro text-muted-foreground">
+                  <tr className="border-b border-border bg-band/30 text-left text-micro font-semibold uppercase tracking-micro text-muted-foreground">
                     <th className="px-4 py-2">{noun.column}</th>
                     <th className="px-2 py-2">SKU</th>
                     <th className="w-28 px-2 py-2">Price</th>
@@ -191,7 +191,7 @@ export function VariantsEditor({
                     <th className="w-12 px-2 py-2" aria-label="Actions" />
                   </tr>
                 </thead>
-                <tbody className="divide-y divide-rule/40">
+                <tbody className="divide-y divide-border">
                   {variants.map((variant) => (
                     <VariantRow
                       key={variant.id}
@@ -207,7 +207,7 @@ export function VariantsEditor({
                 </tbody>
               </table>
             </div>
-            <footer className="border-t border-rule/50 px-4 py-2.5 text-xs text-muted-foreground">
+            <footer className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
               A blank price uses {productPrice ? formatMoney(Number(productPrice), 2) : 'the product’s'}. Click any cell to change it — it
               saves when you leave it.
             </footer>
@@ -316,7 +316,7 @@ function OptionsCard({
                       key={preset.label}
                       type="button"
                       onClick={() => setOptions((current) => [...current, { ...preset.option, values: [...preset.option.values] }])}
-                      className="rounded-md border border-rule/60 bg-control px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-rule hover:text-foreground"
+                      className="rounded-md border border-border bg-control px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-rule hover:text-foreground"
                     >
                       {preset.option.name} · {preset.label}
                     </button>
@@ -329,7 +329,7 @@ function OptionsCard({
 
         {total > 0 && (
           // The result of the options above, and the one action that makes it.
-          <div className="space-y-3 border-t border-rule/50 pt-4">
+          <div className="space-y-3 border-t border-border pt-4">
             <InfoRows>
               <InfoRow icon={Boxes} title="Makes">
                 <span className="text-sm tabular-nums text-muted-foreground">
@@ -483,7 +483,7 @@ function OptionRow({
               placeholder="Name it — Size, Colour, Fit…"
               autoFocus={!option.name}
               onChange={(event) => onChange({ ...option, name: event.target.value })}
-              className="h-8 w-full rounded-md border border-rule bg-control px-2.5 text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground/70 focus:border-measured focus:outline-none"
+              className="h-8 w-full rounded-md border border-rule bg-control px-2.5 text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground/70 focus:border-ring focus:outline-none"
             />
           )}
           {/* Its values: stored ones fixed, new ones tinted and removable, then a field to add more. */}
@@ -493,7 +493,7 @@ function OptionRow({
                 key={value}
                 className={cn(
                   'inline-flex h-7 items-center gap-1 rounded-md border px-2.5 text-xs font-semibold',
-                  removable(value) ? 'border-primary/35 bg-primary/8 text-foreground' : 'border-rule/60 bg-control text-foreground',
+                  removable(value) ? 'border-primary/35 bg-primary/8 text-foreground' : 'border-border bg-control text-foreground',
                 )}
               >
                 {value}
@@ -523,7 +523,7 @@ function OptionRow({
             <input
               aria-label={`Add a ${option.name.trim().toLowerCase() || 'value'}`}
               autoFocus={Boolean(saved)}
-              className="h-7 min-w-32 flex-1 rounded-md border border-dashed border-rule/80 bg-control px-2.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-solid focus:border-measured"
+              className="h-7 min-w-32 flex-1 rounded-md border border-dashed border-rule/80 bg-control px-2.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-solid focus:border-ring"
               placeholder={optionPlaceholder(option.name, option.values.length > 0)}
               value={draft}
               onChange={(event) => {
@@ -546,7 +546,7 @@ function OptionRow({
           </div>
           {stored && (
             // Deleting the whole option is the last thing in it, apart from the editing above.
-            <div className="flex items-center justify-between gap-3 border-t border-rule/50 pt-2.5">
+            <div className="flex items-center justify-between gap-3 border-t border-border pt-2.5">
               <p className="text-xs text-muted-foreground">Deleting a saved value also deletes the variants that use it.</p>
               <button
                 type="button"
@@ -631,7 +631,7 @@ function VariantRow({
             variant.values.map((value) => (
               <span
                 key={value.optionValueId}
-                className="rounded-md border border-rule/55 bg-background px-2 py-0.5 text-xs font-semibold text-foreground"
+                className="rounded-md border border-border bg-background px-2 py-0.5 text-xs font-semibold text-foreground"
               >
                 {value.optionValue.label}
               </span>
@@ -794,7 +794,7 @@ export function CommitInput({
           }
         }}
         className={cn(
-          'h-8 w-full rounded-sm border border-transparent bg-transparent px-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground/60 hover:border-rule/60 hover:bg-background focus:border-measured focus:bg-background focus:outline-none',
+          'h-8 w-full rounded-sm border border-transparent bg-transparent px-2 text-sm text-foreground transition-colors placeholder:text-muted-foreground/60 hover:border-border hover:bg-background focus:border-ring focus:bg-background focus:outline-none',
           prefix && 'pl-5',
           !valid && 'border-exception/60',
           className,

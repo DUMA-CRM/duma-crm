@@ -44,6 +44,19 @@ export function foodCostPct(costing: { netRevenue: number; marginPct: number }):
 }
 
 /**
+ * The usual food-cost bands: up to 30% of the net price is healthy, 35% is the
+ * common ceiling, and above it the price or the recipe needs a look. A guide,
+ * not a rule — a loss leader can sit above it on purpose.
+ */
+export const FOOD_COST_TARGET = { good: 30, ceiling: 35 } as const;
+
+export function foodCostBand(pct: number): 'good' | 'ok' | 'high' {
+  if (pct <= FOOD_COST_TARGET.good) return 'good';
+  if (pct <= FOOD_COST_TARGET.ceiling) return 'ok';
+  return 'high';
+}
+
+/**
  * The lowest menu price, to the penny, whose margin (as costing.ts works it
  * out, VAT included) reaches `targetPct`. The price is in the same posture as
  * the menu: VAT-inclusive when `ctx.pricesIncludeTax`, otherwise before VAT.

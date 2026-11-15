@@ -12,7 +12,7 @@ import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { TONE_TINT } from '@/components/shared/tone';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FieldLabel, Label } from '@/components/ui/label';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { type LocationStock, getLocationStock } from '@/lib/modules/inventory/client';
@@ -54,7 +54,7 @@ function StockContextCard({ ls, onUseSuggestion }: { ls: LocationStock; onUseSug
     Number.isFinite(configuredReorder) && configuredReorder > 0 ? Math.ceil(configuredReorder) : Math.max(Math.ceil(target - qty), 1);
 
   return (
-    <div className="space-y-3 rounded-lg border border-rule/60 bg-field p-4">
+    <div className="space-y-3 rounded-lg border border-border bg-field p-4">
       <div className="flex items-center gap-3">
         <span
           className={cn('flex size-10 shrink-0 items-center justify-center rounded-lg', TONE_TINT[STATUS_TONE[status]])}
@@ -203,9 +203,9 @@ export function RestockRequestDrawer({ onSubmitted, onClose }: { onSubmitted?: (
         <form id="restock-request-form" onSubmit={handleSubmit} className="space-y-5">
           {/* Stock Item */}
           <div className="flex flex-col gap-1.5">
-            <Label required uppercase>
+            <FieldLabel as="span" required>
               Item
-            </Label>
+            </FieldLabel>
             <Select
               value={validStockItemId}
               onValueChange={(value) => {
@@ -274,9 +274,9 @@ export function RestockRequestDrawer({ onSubmitted, onClose }: { onSubmitted?: (
 
           <FormSection icon={AlertTriangle} title="Priority" collapsible defaultOpen={priority === 'urgent'}>
             <div className="flex flex-col gap-1.5">
-              <Label required uppercase>
+              <FieldLabel as="span" required>
                 Priority
-              </Label>
+              </FieldLabel>
               <SegmentedControl options={PRIORITY_OPTIONS} value={priority} onChange={setPriority} />
             </div>
           </FormSection>

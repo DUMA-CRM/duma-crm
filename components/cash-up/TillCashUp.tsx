@@ -137,43 +137,6 @@ export function CashUpButton({ status, onOpen }: { status: CashUpStatus; onOpen:
   );
 }
 
-/** A line at the top of the till when the day needs a manager: not opened yet, or left open from before. */
-export function CashUpNudge({ status, open, onOpen }: { status: CashUpStatus; open: CashUp | null; onOpen: () => void }) {
-  if (status !== 'not-open' && status !== 'stale') return null;
-  const stale = status === 'stale';
-  return (
-    <div
-      role="status"
-      className={cn(
-        'mb-4 flex flex-wrap items-center gap-3 rounded-xl border px-4 py-3',
-        stale ? 'border-exception/30 bg-exception/5' : 'border-warning/35 bg-warning/8',
-      )}
-    >
-      <span
-        className={cn(
-          'flex size-9 shrink-0 items-center justify-center rounded-md',
-          stale ? 'bg-exception/10 text-exception' : 'bg-warning/15 text-warning',
-        )}
-        aria-hidden="true"
-      >
-        {stale ? <AlertTriangle size={17} /> : <Wallet size={17} />}
-      </span>
-      <span className="min-w-0 flex-1 text-sm">
-        <span className="block font-semibold text-foreground">
-          {stale && open ? `${DATE(open.tradingDate, 'long')} was never closed` : 'The day isn’t open yet'}
-        </span>
-        <span className="block text-muted-foreground">
-          {stale ? 'Count the drawer and close it before opening today.' : 'Count the float into the drawer to start the day.'}
-        </span>
-      </span>
-      <Button onClick={onOpen} className="h-10 gap-1.5 px-4">
-        {stale ? 'Close it now' : 'Open the day'}
-        <ArrowRight size={15} aria-hidden="true" />
-      </Button>
-    </div>
-  );
-}
-
 // ── The drawer ───────────────────────────────────────────────────────────────
 
 interface DrawerProps {
@@ -265,7 +228,7 @@ function CashCounter({
       <div
         className={cn(
           'flex flex-wrap items-center justify-between gap-3',
-          !compact && 'rounded-lg border border-rule/60 bg-field px-4 py-3',
+          !compact && 'rounded-lg border border-border bg-field px-4 py-3',
         )}
       >
         {(!compact || mode === 'coins') && (
@@ -319,13 +282,13 @@ function CashCounter({
                 <span className="text-xs text-muted-foreground">Subtotal</span>
                 <span className="text-xs tabular-nums text-muted-foreground">{money(subtotal / 100)}</span>
               </div>
-              <ul className={cn('overflow-hidden', !compact && 'rounded-lg border border-rule/60 bg-card')}>
+              <ul className={cn('overflow-hidden', !compact && 'rounded-lg border border-border bg-card')}>
                 {group.map((entry) => {
                   const quantity = state.counts[entry.value] ?? 0;
                   return (
                     <li
                       key={entry.value}
-                      className={cn('flex items-center gap-3 border-b border-rule/45 py-2 last:border-b-0', !compact && 'px-3')}
+                      className={cn('flex items-center gap-3 border-b border-border py-2 last:border-b-0', !compact && 'px-3')}
                     >
                       <span
                         className={cn(
@@ -350,7 +313,7 @@ function CashCounter({
                           placeholder="0"
                           onFocus={(event) => event.target.select()}
                           onChange={(event) => set(entry.value, Number(event.target.value.replace(/\D/g, '')) || 0)}
-                          className="h-10 w-14 rounded-md border border-input bg-control text-center text-base tabular-nums text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured"
+                          className="h-10 w-14 rounded-md border border-input bg-control text-center text-base tabular-nums text-foreground outline-none placeholder:text-muted-foreground/50 focus:border-ring focus:outline-2 focus:outline-offset-0 focus:outline-ring/30"
                         />
                         <StepButton label={`One more ${entry.label}`} onClick={() => set(entry.value, quantity + 1)}>
                           <Plus size={14} />
@@ -593,7 +556,7 @@ function CloseFlow({
 
       {step === 'check' && (
         <div className="space-y-4">
-          <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-card px-4 py-3">
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
             <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary" aria-hidden="true">
               <Wallet size={20} />
             </span>
@@ -604,7 +567,7 @@ function CloseFlow({
               </p>
             </div>
           </div>
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <ul className="overflow-hidden rounded-lg border border-border bg-field">
             {stale && (
               <CheckRow
                 tone="exception"
@@ -680,9 +643,9 @@ function CloseFlow({
             <ListSkeleton rows={2} label="Loading what the till expects" />
             <div>
               <Bone className="mx-1 mb-1.5 h-3 w-32" />
-              <div className="overflow-hidden rounded-lg border border-rule/60 bg-field" aria-hidden="true">
+              <div className="overflow-hidden rounded-lg border border-border bg-field" aria-hidden="true">
                 {[0, 1, 2].map((line) => (
-                  <div key={line} className="flex items-center justify-between gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+                  <div key={line} className="flex items-center justify-between gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
                     <Bone className={line === 0 ? 'h-3.5 w-28' : 'h-3.5 w-20'} />
                     <Bone className="h-3.5 w-16" />
                   </div>
@@ -692,7 +655,7 @@ function CloseFlow({
           </div>
         ) : (
           <div className="space-y-5">
-            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+            <ul className="overflow-hidden rounded-lg border border-border bg-field">
               <ReconRow icon={Banknote} label="Cash" counted={cashMinor ?? 0} expected={expectedCash} onEdit={() => setStep('cash')} />
               <ReconRow icon={CreditCard} label="Card" counted={cardMinor ?? 0} expected={expectedCard} onEdit={() => setStep('card')} />
             </ul>
@@ -721,7 +684,7 @@ function CloseFlow({
                 onChange={(event) => setNote(event.target.value)}
                 maxLength={2000}
                 placeholder={explain ? 'e.g. £5 paid out for milk, receipt in the drawer' : 'Anything the next shift should know'}
-                className="min-h-24 w-full rounded-md border border-input bg-control p-3 text-base sm:text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-offset-0 focus:outline-measured"
+                className="min-h-24 w-full rounded-md border border-input bg-control p-3 text-base sm:text-sm leading-relaxed text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-offset-0 focus:outline-ring/30"
               />
             </FormSection>
 
@@ -754,7 +717,7 @@ function CheckRow({
   detail: string;
 }) {
   return (
-    <li className="flex items-start gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+    <li className="flex items-start gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
       <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', CHECK_TONE[tone])} aria-hidden="true">
         <Icon size={16} />
       </span>
@@ -823,7 +786,7 @@ function ReconRow({
   const money = useWorkspaceMoney();
   const { balance, difference } = balanceOf(counted, expected);
   return (
-    <li className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+    <li className="flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
       <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', BALANCE_LOOK[balance].tile)} aria-hidden="true">
         <Icon size={16} />
       </span>
@@ -864,11 +827,11 @@ function Breakdown({ tenders, openingFloat }: { tenders: Record<string, number>;
   const lines = Object.entries(tenders).sort(([a], [b]) => (a === 'cash' ? -1 : b === 'cash' ? 1 : a.localeCompare(b)));
   return (
     <section aria-labelledby="cash-up-breakdown">
-      <h3 id="cash-up-breakdown" className="mb-1.5 px-1 text-xs font-semibold text-foreground">
+      <h3 id="cash-up-breakdown" className="mb-1.5 px-1 text-xs font-semibold text-heading">
         What the till expects
       </h3>
-      <dl className="overflow-hidden rounded-lg border border-rule/60 bg-card text-sm">
-        <div className="flex items-center justify-between gap-3 border-b border-rule/45 px-3.5 py-2.5">
+      <dl className="overflow-hidden rounded-lg border border-border bg-card text-sm">
+        <div className="flex items-center justify-between gap-3 border-b border-border px-3.5 py-2.5">
           <dt className="flex items-center gap-2 text-muted-foreground">
             <Wallet size={14} aria-hidden="true" /> Opening float
           </dt>
@@ -878,7 +841,7 @@ function Breakdown({ tenders, openingFloat }: { tenders: Record<string, number>;
           <p className="px-3.5 py-2.5 text-xs text-muted-foreground">No payments taken this day.</p>
         ) : (
           lines.map(([provider, total]) => (
-            <div key={provider} className="flex items-center justify-between gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+            <div key={provider} className="flex items-center justify-between gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
               <dt className="flex items-center gap-2 text-muted-foreground">
                 {provider === 'cash' ? <Coins size={14} aria-hidden="true" /> : <CreditCard size={14} aria-hidden="true" />}
                 {providerLabel(provider)}
@@ -951,13 +914,13 @@ function ClosedSummary({
           </p>
         </div>
 
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+        <ul className="overflow-hidden rounded-lg border border-border bg-field">
           <SummaryRow icon={Banknote} label="Cash" counted={day.countedCash} expected={day.expectedCash} difference={cash} />
           <SummaryRow icon={CreditCard} label="Card" counted={day.terminalCardTotal} expected={day.expectedCard} difference={card} />
         </ul>
 
         {day.notes && (
-          <div className="rounded-lg border border-rule/60 bg-field px-3.5 py-3">
+          <div className="rounded-lg border border-border bg-field px-3.5 py-3">
             <p className="text-xs font-semibold text-foreground">Note</p>
             <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{day.notes}</p>
           </div>
@@ -983,7 +946,7 @@ function SummaryRow({
   const money = useWorkspaceMoney();
   const { balance } = balanceOf(difference, 0);
   return (
-    <li className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+    <li className="flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
       <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', BALANCE_LOOK[balance].tile)} aria-hidden="true">
         <Icon size={16} />
       </span>

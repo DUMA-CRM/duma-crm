@@ -30,13 +30,15 @@ export function DrawerSection({
   return (
     <section aria-labelledby={id}>
       <div className="mb-2 flex min-h-7 items-center justify-between gap-2">
-        <h3 id={id} className="text-sm font-semibold text-foreground">
+        <h3 id={id} className="text-sm font-semibold text-heading">
           {title}
           {count ? <span className="ml-1.5 font-normal tabular-nums text-muted-foreground">{count}</span> : null}
         </h3>
         {action}
       </div>
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">{children}</div>
+      {/* Tinted in light: the drawer is white, so a white card vanished into it and
+          the white inputs inside had nothing to sit on. Dark already separates. */}
+      <div className="overflow-hidden rounded-lg border border-border bg-band/40 dark:bg-field">{children}</div>
     </section>
   );
 }
@@ -67,7 +69,7 @@ export function DetailRow({
   children: React.ReactNode;
 }) {
   return (
-    <div className="border-b border-rule/45 last:border-b-0">
+    <div className="border-b border-border last:border-b-0">
       <button
         type="button"
         aria-expanded={open}
@@ -125,7 +127,7 @@ export function FieldLine({
   children: React.ReactNode;
 }) {
   return (
-    <div className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 border-b border-rule/45 px-3 py-3 last:border-b-0 sm:flex sm:px-4">
+    <div className="grid grid-cols-[2rem_minmax(0,1fr)] items-start gap-x-3 gap-y-1 border-b border-border px-3 py-3 last:border-b-0 sm:flex sm:px-4">
       <RowTile icon={icon} tone={error ? 'danger' : 'default'} />
       <FieldLabel htmlFor={htmlFor} required={required} className="col-start-2 min-w-0 pt-1 sm:w-28 sm:shrink-0 sm:pt-1.5">
         {title}

@@ -83,7 +83,7 @@ export function WheelField({
               className={cn(
                 // The `Input` field exactly: height, hairline, fill and the amber focus marker.
                 'flex h-9 w-full items-center rounded-md border border-input bg-control pl-3 pr-9 text-left text-base text-foreground shadow-sm outline-none sm:text-sm',
-                'tabular-nums transition-[border-color,outline-color] duration-150 focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-measured',
+                'tabular-nums transition-[border-color,outline-color] duration-150 focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30',
                 open && 'border-measured',
                 error && 'border-exception focus-visible:border-exception focus-visible:outline-exception',
                 'disabled:cursor-not-allowed disabled:opacity-50',

@@ -46,6 +46,18 @@ export interface StatusHistoryEntry {
   createdAt: string;
 }
 
+/** One attempt to take the money, as `GET /orders/:id` returns it — for the activity feed. */
+export interface OrderPayment {
+  id: string;
+  provider: string;
+  status: string;
+  amount: string;
+  createdBy: string | null;
+  confirmedBy: string | null;
+  confirmedAt: string | null;
+  createdAt: string;
+}
+
 export type VoidReason = 'customer_request' | 'duplicate' | 'payment_failed' | 'item_unavailable' | 'staff_error' | 'other';
 export type RefundReason = 'customer_request' | 'item_issue' | 'service_issue' | 'duplicate_charge' | 'pricing_error' | 'other';
 
@@ -136,6 +148,7 @@ export interface OrderDetail extends StorefrontOrderFields {
   voidedBy?: string | null;
   refunds?: OrderRefund[];
   statusHistory?: StatusHistoryEntry[];
+  payments?: OrderPayment[];
   createdAt: string;
   updatedAt?: string;
   inventoryWarnings?: InventoryWarning[];
@@ -183,8 +196,11 @@ export interface Order extends StorefrontOrderFields {
 }
 
 /** What an order placed by the business's own website (source `web`) also carries. */
+export type OrderFulfilmentType = 'collection' | 'delivery' | 'shipping' | 'eat_in' | 'takeaway';
+
 export interface StorefrontOrderFields {
-  fulfilmentType?: 'collection' | 'delivery' | 'shipping' | null;
+  /** How the customer gets it: website orders collection/delivery/shipping; till orders eat in or takeaway. */
+  fulfilmentType?: OrderFulfilmentType | null;
   shippingAddress?: OrderShippingAddress | null;
   deliveryMethod?: string | null;
   deliveryFee?: string | null;
@@ -236,8 +252,25 @@ export interface OrdersParams {
     | 'cancelled'
     | 'expired'
     | 'refunded';
+  fulfilmentType?: OrderFulfilmentType;
+  /** Refund state: untouched, part refunded, fully refunded. */
+  refundStatus?: RefundStatus;
+  /** One search box: an order code, an exact total (£8.40), or a customer's name, phone or email. */
+  q?: string;
   from?: string;
   to?: string;
+}
+
+/** What a filtered set of orders adds up to (`GET /orders/summary`). Money is a decimal string. */
+export interface OrdersSummary {
+  count: number;
+  /** Orders that are sales: paid, and not cancelled or expired. */
+  paidCount: number;
+  sales: string;
+  refunded: string;
+  net: string;
+  average: string;
+  byPaymentMethod: Array<{ method: string; count: number; total: string }>;
 }
 
 // Order creation sends IDs only. Item names, unit prices and the order total are
@@ -271,6 +304,8 @@ export interface CreateOrderPayload {
   }>;
   /** A promotions-module code for the whole order. The API checks it again, under lock, and prices it. */
   promoCode?: string;
+  /** Eat in or takeaway, as chosen on the till. */
+  fulfilmentType?: 'eat_in' | 'takeaway';
   items: CreateOrderItem[];
 }
 
@@ -294,11 +329,14 @@ export const getRefundOptions = (id: string) => apiFetch<RefundOptions>(`/orders
 
 export const createRefund = (
   id: string,
-  data: {
-    lines: Array<{ orderItemId: string; orderItemModifierId?: string; quantity: number; restock?: boolean }>;
-    reason: RefundReason;
-    notes?: string;
-  },
+  // Items with quantities, or an amount not tied to items (which needs a note) — exactly one.
+  data:
+    | {
+        lines: Array<{ orderItemId: string; orderItemModifierId?: string; quantity: number; restock?: boolean }>;
+        reason: RefundReason;
+        notes?: string;
+      }
+    | { amount: string; reason: RefundReason; notes: string },
 ) => apiFetch<OrderRefund>(`/orders/${id}/refunds`, { method: 'POST', body: JSON.stringify(data) });
 
 export const approveCashOrder = (id: string) => apiFetch<Order>(`/orders/${id}/approve-cash`, { method: 'POST' });
@@ -325,7 +363,12 @@ export const updateOrderNotes = (id: string, notes: string) =>
 export const markOrderPaid = (id: string, paymentMethod: RecordedPaymentMethod) =>
   apiFetch<Order>(`/orders/${id}/mark-paid`, { method: 'POST', body: JSON.stringify({ paymentMethod }) });
 
-export const getOrders = (params: OrdersParams = {}) => {
+/**
+ * The orders filter as query parameters. The list, its summary and the CSV
+ * export all take the same ones — the API reads them with one shared builder —
+ * so a total or a file always describes exactly the orders on screen.
+ */
+export function orderFilterQuery(params: OrdersParams = {}): URLSearchParams {
   const qs = new URLSearchParams();
   if (params.page) qs.set('page', String(params.page));
   if (params.limit) qs.set('limit', String(params.limit));
@@ -337,8 +380,28 @@ export const getOrders = (params: OrdersParams = {}) => {
   if (params.createdBy) qs.set('createdBy', params.createdBy);
   if (params.paymentMethod) qs.set('paymentMethod', params.paymentMethod);
   if (params.paymentStatus) qs.set('paymentStatus', params.paymentStatus);
+  if (params.refundStatus) qs.set('refundStatus', params.refundStatus);
+  if (params.fulfilmentType) qs.set('fulfilmentType', params.fulfilmentType);
+  if (params.q) qs.set('q', params.q);
   if (params.from) qs.set('from', params.from);
   if (params.to) qs.set('to', params.to);
-  const q = qs.toString();
+  return qs;
+}
+
+export const getOrders = (params: OrdersParams = {}) => {
+  const q = orderFilterQuery(params).toString();
   return apiFetch<OrdersResponse>(`/orders${q ? `?${q}` : ''}`);
+};
+
+/**
+ * Several orders to one status in one call (`orders:bulk`). The API refuses the
+ * whole batch if any is already completed, so callers send only eligible orders.
+ */
+export const bulkUpdateOrderStatus = (ids: string[], status: Exclude<OrderStatus, 'expired' | 'cancelled'>) =>
+  apiFetch<{ updated: number; ids: string[] }>('/orders/bulk-status', { method: 'PATCH', body: JSON.stringify({ ids, status }) });
+
+/** Totals for the same filters as `getOrders` (paging ignored). */
+export const getOrdersSummary = (params: OrdersParams = {}) => {
+  const q = orderFilterQuery({ ...params, page: undefined, limit: undefined }).toString();
+  return apiFetch<OrdersSummary>(`/orders/summary${q ? `?${q}` : ''}`);
 };

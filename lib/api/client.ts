@@ -92,6 +92,8 @@ export class ApiError extends Error {
     public readonly issues: ApiFieldIssue[] = [],
     /** The capability the caller was missing, when the API named one. */
     public readonly capability?: string,
+    /** Structured `warnings` from a refusal the caller may override (a rota request breaking a working-time rule). Unvalidated. */
+    public readonly warnings: unknown[] = [],
   ) {
     super(message);
     this.name = 'ApiError';
@@ -129,6 +131,7 @@ async function extractErrorMessage(res: Response): Promise<{
   code?: string;
   issues: ApiFieldIssue[];
   capability?: string;
+  warnings?: unknown[];
 }> {
   const fallback = `${res.status} ${res.statusText}`.trim();
   try {
@@ -141,12 +144,14 @@ async function extractErrorMessage(res: Response): Promise<{
         code?: unknown;
         issues?: unknown;
         capability?: unknown;
+        warnings?: unknown;
       };
       return {
         message: normaliseErrorMessage(body.message ?? body.error, fallback),
         code: typeof body.code === 'string' ? body.code.slice(0, 100) : undefined,
         issues: normaliseIssues(body.issues),
         capability: typeof body.capability === 'string' ? body.capability.slice(0, 100) : undefined,
+        warnings: Array.isArray(body.warnings) ? body.warnings.slice(0, 50) : undefined,
       };
     } catch {
       // Plain-text body: use it only if it doesn't look like an HTML page.
@@ -190,10 +195,10 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   });
 
   if (!res.ok) {
-    const { message, code, issues, capability } = await extractErrorMessage(res);
+    const { message, code, issues, capability, warnings } = await extractErrorMessage(res);
     // Keep request internals on the error for diagnostics without putting API
     // paths into every customer-facing toast and inline validation message.
-    throw new ApiError(res.status, message, code, `${method} ${path}`, issues, capability);
+    throw new ApiError(res.status, message, code, `${method} ${path}`, issues, capability, warnings ?? []);
   }
 
   // 204 No Content — return undefined cast as T

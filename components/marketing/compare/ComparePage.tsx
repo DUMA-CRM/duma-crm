@@ -356,13 +356,13 @@ export function ComparePage({ content }: { content: Comparison }) {
           })}
           {/* The sixth tile: when the competitor alone is enough, and when DUMA earns its place beside it. */}
           <article
-            className="flex flex-col justify-between rounded-[14px] bg-sidebar px-6 py-6 text-sidebar-foreground"
+            className="flex flex-col justify-between rounded-[14px] bg-panel px-6 py-6 text-panel-foreground"
             data-reveal=""
             data-reveal-delay={120}
           >
             <div>
               <p className="text-lg leading-snug font-semibold tracking-display">{content.stronger.verdict.alone}</p>
-              <p className="mt-3 text-pretty leading-relaxed text-sidebar-foreground/75">{content.stronger.verdict.addDuma}</p>
+              <p className="mt-3 text-pretty leading-relaxed text-panel-foreground/75">{content.stronger.verdict.addDuma}</p>
             </div>
             <a
               href={`#${key}-together`}

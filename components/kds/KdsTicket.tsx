@@ -1,11 +1,20 @@
 'use client';
 
-import { useLayoutEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
+import { useEffect, useLayoutEffect, useRef, useState } from 'react';
 
-import { AlertTriangle, Bell, CheckCircle2, Clock, Flame, Loader2, Smartphone } from '@/components/icons';
-import { SOURCE_META, STATUS_META } from '@/components/orders/orderMeta';
+import { AlertTriangle, ArrowRight, Bell, CheckCircle2, Clock, ExternalLink, Flame, Loader2, RotateCcw, Smartphone } from '@/components/icons';
+import { FULFILMENT_LABEL, SOURCE_META, STATUS_META } from '@/components/orders/orderMeta';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
+import {
+  ContextMenu,
+  ContextMenuContent,
+  ContextMenuItem,
+  ContextMenuLabel,
+  ContextMenuSeparator,
+  ContextMenuTrigger,
+} from '@/components/ui/context-menu';
 
 import type { Order, OrderItem } from '@/lib/modules/ordering/client';
 import { cn } from '@/lib/utils/cn';
@@ -28,15 +37,19 @@ export const LANE_LABEL: Record<KdsLane, string> = {
   ready: STATUS_META.ready.label,
 };
 
+/** Each lane's mark: a small square on its title, as on the marketing site's kitchen tile. Not amber or red — those are lateness. */
+export const LANE_DOT: Record<KdsLane, string> = { pending: 'var(--key-1)', preparing: 'var(--key-5)', ready: 'var(--momentum)' };
+
 /*
- * The header band carries the age — the one thing read from across the
- * kitchen — as colour, fill length and a word ("Late"), so it survives colour
- * blindness and a glance. Channel sits below it as text, never as the colour.
+ * The header is the status, the way every kitchen screen does it: the age — the
+ * one thing read from across the kitchen — fills it as colour, bar length and a
+ * word ("Late"), so it survives colour blindness and a glance. Channel sits
+ * below as text, never as the colour. The body stays neutral.
  */
 const TONE = {
-  ok: { band: 'bg-band/70 text-foreground', bar: 'bg-momentum', card: 'border-rule/70' },
-  approaching: { band: 'bg-measured/15 text-foreground', bar: 'bg-measured', card: 'border-measured' },
-  crashed: { band: 'bg-exception text-on-fill', bar: 'bg-on-fill/75', card: 'border-exception' },
+  ok: { band: 'bg-card text-heading active:bg-band', bar: 'bg-momentum', card: 'border-border' },
+  approaching: { band: 'bg-measured/18 text-heading active:bg-measured/28', bar: 'bg-measured', card: 'border-measured/70' },
+  crashed: { band: 'bg-exception text-on-fill active:brightness-95', bar: 'bg-on-fill/75', card: 'border-exception' },
 } as const;
 
 /**
@@ -61,6 +74,13 @@ function AgeBar({ since, lateMins, className }: { since: string; lateMins: numbe
   return <div ref={ref} className={cn('h-full', className)} />;
 }
 
+/**
+ * The first tap on the header arms it ("Tap again") for this long; a second tap
+ * inside it moves the ticket on, one tap alone does nothing. Two seconds rather
+ * than a double-click's ~350 ms: a cook with wet hands, looking up, isn't quick.
+ */
+const ARM_MS = 2000;
+
 /** "No onion", "Without sugar", "Remove foam": the lines a kitchen must not miss. */
 const isNegative = (name: string) => /^(no|without|remove|hold)\b/i.test(name.trim());
 
@@ -75,6 +95,8 @@ export function KdsTicket({
   bumping,
   onToggleItem,
   onBump,
+  onBack,
+  orderHref,
   onRetryItems,
 }: {
   order: Order;
@@ -88,8 +110,33 @@ export function KdsTicket({
   bumping: boolean;
   onToggleItem: (itemId: string) => void;
   onBump: () => void;
+  /** Back one stage — none in the first lane. */
+  onBack?: () => void;
+  /** The order on the Orders screen, when this person may open it. */
+  orderHref?: string;
   onRetryItems: () => void;
 }) {
+  // Tap, then tap again, moves the ticket on (Toast and Lightspeed use a double tap): the
+  // first tap arms the header and says "Tap again"; a lone stray tap in a busy kitchen does nothing.
+  const router = useRouter();
+  const [armed, setArmed] = useState(false);
+  const lastTap = useRef(0);
+  useEffect(() => {
+    if (!armed) return;
+    const timer = window.setTimeout(() => setArmed(false), ARM_MS);
+    return () => window.clearTimeout(timer);
+  }, [armed]);
+  const tapHeader = () => {
+    const at = Date.now();
+    if (at - lastTap.current < ARM_MS) {
+      lastTap.current = 0;
+      setArmed(false);
+      onBump();
+      return;
+    }
+    lastTap.current = at;
+    setArmed(true);
+  };
   // When a ticket is late is the workspace's setting (Settings → Configuration → Orders).
   const lateness = useLateness();
   const age = ageState(order, now, lateness);
@@ -104,33 +151,56 @@ export function KdsTicket({
   const tapToStrike = useKdsStore((state) => state.tapToStrike);
   const showModifiers = useKdsStore((state) => state.showModifiers);
 
+  const previous = onBack ? LANE_LABEL[lane === 'ready' ? 'preparing' : 'pending'] : null;
+
   return (
+    // Right-click (long-press on a tablet) for the rest: either way along, or the order itself.
+    <ContextMenu>
+      <ContextMenuTrigger asChild>
     <article
       aria-labelledby={`ticket-${order.id}`}
-      className={cn('flex shrink-0 break-inside-avoid flex-col overflow-hidden rounded-xl border-2 bg-card', tone.card)}
+      className={cn('flex shrink-0 break-inside-avoid flex-col overflow-hidden rounded-md border bg-card', tone.card)}
     >
-      <header className={cn('pb-0', compact ? 'px-3 pt-2' : 'px-4 pt-3', tone.band)}>
-        <div className="flex items-start justify-between gap-3">
-          <h3 id={`ticket-${order.id}`} className={cn('min-w-0 truncate font-bold leading-tight', compact ? 'text-xl' : 'text-2xl')}>
+      {/* Double-tap the header to move the ticket on — the Undo toast and Recall
+          catch a mistake. Nothing else in it is a control. */}
+      <button
+        type="button"
+        onClick={tapHeader}
+        disabled={bumping}
+        aria-label={`${action.label}: ${name}. Tap twice, or open the menu for more.`}
+        className={cn(
+          'block w-full touch-manipulation text-left transition-colors duration-75 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring disabled:cursor-wait',
+          compact ? 'px-3 pt-2' : 'px-3.5 pt-2.5',
+          // The age bar is the header's bottom edge; without one, a hairline is. Never both —
+          // two translucent lines stacked read as one darker one.
+          !lateness && 'border-b border-border',
+          tone.band,
+        )}
+      >
+        <span className="flex items-start justify-between gap-3">
+          <span
+            id={`ticket-${order.id}`}
+            className={cn('min-w-0 truncate font-mono font-bold leading-tight', compact ? 'text-xl' : 'text-2xl')}
+          >
             {name}
-          </h3>
-          <div className="shrink-0 text-right">
-            <p data-figure className={cn('font-bold leading-tight tabular-nums', compact ? 'text-xl' : 'text-2xl')}>
+          </span>
+          <span className="shrink-0 text-right">
+            <span data-figure className={cn('block font-mono font-bold leading-tight tabular-nums', compact ? 'text-xl' : 'text-2xl')}>
               <span className="sr-only">In this stage for </span>
               {elapsedLabel(stageSince(order), now)}
-            </p>
+            </span>
             {age.tone === 'crashed' && (
-              <p className="text-xs font-bold uppercase tracking-wide">
+              <span className="block text-xs font-bold uppercase tracking-wide">
                 Late<span className="sr-only"> — past {lateness ? durationLabel(lateness.lateMins) : ''}</span>
-              </p>
+              </span>
             )}
-            {age.tone === 'approaching' && <p className="text-xs font-semibold uppercase tracking-wide text-measured">Nearly late</p>}
-          </div>
-        </div>
-        <div
+            {age.tone === 'approaching' && <span className="block text-xs font-bold uppercase tracking-wide text-measured">Nearly late</span>}
+          </span>
+        </span>
+        <span
           className={cn(
             'mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm font-semibold',
-            compact ? 'pb-1.5' : 'pb-2.5',
+            compact ? 'pb-1.5' : 'pb-2',
             age.tone === 'crashed' ? 'text-on-fill/85' : 'text-muted-foreground',
           )}
         >
@@ -138,7 +208,16 @@ export function KdsTicket({
             <source.icon size={15} aria-hidden="true" />
             {source.label}
           </span>
-          {showStage && <span className="rounded-md bg-background/70 px-2 py-0.5 text-foreground">{LANE_LABEL[lane]}</span>}
+          {/* Eat in or takeaway decides plate or bag — said next to where the order came from. */}
+          {order.fulfilmentType && FULFILMENT_LABEL[order.fulfilmentType] && (
+            <span className={cn(age.tone === 'crashed' ? 'text-on-fill' : 'text-heading')}>{FULFILMENT_LABEL[order.fulfilmentType]}</span>
+          )}
+          {showStage && (
+            <span className="flex items-center gap-1.5">
+              <span aria-hidden="true" className="size-2 rounded-[2px]" style={{ backgroundColor: LANE_DOT[lane] }} />
+              {LANE_LABEL[lane]}
+            </span>
+          )}
           {collectAt && (
             <span className="flex items-center gap-1.5">
               <Clock size={15} aria-hidden="true" /> Collect {formatInstant(collectAt, { hour: '2-digit', minute: '2-digit' }, '—', [])}
@@ -149,32 +228,47 @@ export function KdsTicket({
               Placed {elapsedLabel(order.createdAt, now)} ago
             </span>
           )}
-        </div>
+          {/* What the tap does, said once, quietly. */}
+          <span aria-hidden="true" className={cn('ml-auto flex items-center gap-1 text-xs font-bold uppercase tracking-wide', armed && 'text-primary')}>
+            {bumping ? (
+              <>
+                <Loader2 size={13} className="animate-spin" /> Updating
+              </>
+            ) : armed ? (
+              <>Tap again</>
+            ) : (
+              <>
+                <action.icon size={13} /> {action.label}
+                <ArrowRight size={12} />
+              </>
+            )}
+          </span>
+        </span>
         {/* No lateness, no ageing bar: there is nothing to run out of. */}
         {lateness && (
-          <div className="-mx-4 h-1.5 bg-black/10" aria-hidden="true">
+          <span className={cn('block h-1', age.tone === 'crashed' ? 'bg-black/15' : 'bg-border', compact ? '-mx-3' : '-mx-3.5')} aria-hidden="true">
             <AgeBar since={stageSince(order)} lateMins={lateness.lateMins} className={tone.bar} />
-          </div>
+          </span>
         )}
-      </header>
+      </button>
 
       {allergens.length > 0 && (
-        <p className="flex items-center gap-2 border-b-2 border-exception bg-exception/10 px-4 py-2 text-base font-bold uppercase tracking-wide text-exception">
+        <p className="flex items-center gap-2 bg-exception px-3.5 py-2 text-base font-bold uppercase tracking-wide text-on-fill">
           <AlertTriangle size={18} aria-hidden="true" className="shrink-0" />
           Allergens: {allergens.map((allergen) => allergen.replaceAll('_', ' ')).join(', ')}
         </p>
       )}
 
       {order.notes && (
-        <p className="border-b border-measured/40 bg-measured/10 px-4 py-2.5 text-base font-semibold leading-snug text-foreground">
+        <p className="border-b border-measured/40 bg-measured/10 px-3.5 py-2.5 text-base font-semibold leading-snug text-heading">
           <span className="mr-1.5 text-xs font-bold uppercase tracking-wide text-measured">Note</span>
           {order.notes}
         </p>
       )}
 
-      <div className="flex flex-1 flex-col py-1">
+      <div className="flex flex-1 flex-col py-1.5">
         {itemsError ? (
-          <div className="m-3 flex items-center justify-between gap-3 rounded-lg border border-exception/50 bg-exception/6 px-3 py-2">
+          <div className="m-3 flex items-center justify-between gap-3 rounded-md border border-exception/50 bg-exception/6 px-3 py-2">
             <p className="text-sm font-semibold text-exception">Items didn’t load</p>
             <Button variant="outline" onClick={onRetryItems} className="h-11">
               Retry
@@ -253,7 +347,7 @@ export function KdsTicket({
                   </span>
                 </>
               );
-              const rowClass = cn('flex w-full gap-3 text-left', compact ? 'px-3 py-1.5' : 'px-4 py-2');
+              const rowClass = cn('flex w-full gap-3 text-left', compact ? 'px-3 py-1.5' : 'px-3.5 py-2');
               return (
                 <li key={item.id}>
                   {tapToStrike ? (
@@ -276,18 +370,28 @@ export function KdsTicket({
         )}
       </div>
 
-      <div className={compact ? 'p-2 pt-1' : 'p-3 pt-1'}>
-        <Button
-          onClick={onBump}
-          disabled={bumping}
-          className={cn('w-full gap-2 active:not-aria-[haspopup]:translate-y-0', compact ? 'h-12 text-base' : 'h-16 text-lg')}
-          aria-label={`${action.label}: ${name}`}
-        >
-          {bumping ? <Loader2 className="animate-spin" aria-hidden="true" /> : <action.icon size={20} aria-hidden="true" />}
-          {bumping ? 'Updating…' : action.label}
-        </Button>
-      </div>
     </article>
+      </ContextMenuTrigger>
+      <ContextMenuContent>
+        <ContextMenuLabel>{name}</ContextMenuLabel>
+        <ContextMenuItem icon={action.icon} disabled={bumping} onSelect={onBump}>
+          {action.label}
+        </ContextMenuItem>
+        {onBack && previous && (
+          <ContextMenuItem icon={RotateCcw} disabled={bumping} onSelect={onBack}>
+            Back to {previous}
+          </ContextMenuItem>
+        )}
+        {orderHref && (
+          <>
+            <ContextMenuSeparator />
+            <ContextMenuItem icon={ExternalLink} onSelect={() => router.push(orderHref)}>
+              Open in Orders
+            </ContextMenuItem>
+          </>
+        )}
+      </ContextMenuContent>
+    </ContextMenu>
   );
 }
 
@@ -298,7 +402,7 @@ function ItemRowsSkeleton({ compact, rows = 2, label }: { compact: boolean; rows
   return (
     <div role={label ? 'status' : undefined} aria-busy={label ? true : undefined} aria-label={label}>
       {Array.from({ length: rows }, (_, index) => (
-        <div key={index} className={cn('flex gap-3', compact ? 'px-3 py-1.5' : 'px-4 py-2')} aria-hidden="true">
+        <div key={index} className={cn('flex gap-3', compact ? 'px-3 py-1.5' : 'px-3.5 py-2')} aria-hidden="true">
           <Bone className={cn('shrink-0', compact ? 'h-6 w-7' : 'h-7 w-9')} />
           <Bone className={cn(compact ? 'h-5' : 'h-6', ITEM_W[index % ITEM_W.length])} />
         </div>
@@ -307,7 +411,7 @@ function ItemRowsSkeleton({ compact, rows = 2, label }: { compact: boolean; rows
   );
 }
 
-/** A whole `KdsTicket` loading: header band, age bar, item lines and the bump key, same size. */
+/** A whole `KdsTicket` loading: header band, age bar and item lines, same size. */
 export function KdsTicketSkeleton({
   index = 0,
   compact: forced,
@@ -319,10 +423,10 @@ export function KdsTicketSkeleton({
   const compact = forced ?? stored;
   return (
     <div
-      className="flex shrink-0 break-inside-avoid flex-col overflow-hidden rounded-xl border-2 border-rule/60 bg-card"
+      className="flex shrink-0 break-inside-avoid flex-col overflow-hidden rounded-md border border-border bg-card"
       aria-hidden="true"
     >
-      <div className={compact ? 'px-3 pt-2' : 'px-4 pt-3'}>
+      <div className={compact ? 'px-3 pt-2' : 'px-3.5 pt-2.5'}>
         <div className="flex items-start justify-between gap-3">
           <Bone className={cn(compact ? 'h-6' : 'h-7', index % 2 === 0 ? 'w-32' : 'w-24')} />
           <Bone className={cn('shrink-0', compact ? 'h-6 w-12' : 'h-7 w-14')} />
@@ -331,13 +435,10 @@ export function KdsTicketSkeleton({
           <Bone className="h-4 w-16" />
           {!compact && <Bone className="h-4 w-24" />}
         </div>
-        <div className={cn('h-1.5 bg-band', compact ? '-mx-3' : '-mx-4')} />
+        <div className={cn('h-1 bg-border', compact ? '-mx-3' : '-mx-3.5')} />
       </div>
-      <div className="flex flex-1 flex-col py-1">
+      <div className="flex flex-1 flex-col py-1.5">
         <ItemRowsSkeleton compact={compact} rows={2 + (index % 2)} />
-      </div>
-      <div className={compact ? 'p-2 pt-1' : 'p-3 pt-1'}>
-        <Bone className={cn('w-full rounded-lg', compact ? 'h-12' : 'h-16')} />
       </div>
     </div>
   );

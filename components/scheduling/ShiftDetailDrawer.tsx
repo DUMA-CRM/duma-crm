@@ -42,6 +42,7 @@ export function ShiftDetailDrawer({
   hourlyRate,
   money,
   onClose,
+  actions,
 }: {
   detail: ShiftDetail;
   now: number;
@@ -51,6 +52,8 @@ export function ShiftDetailDrawer({
   hourlyRate: number | null;
   money: (amount: number) => string;
   onClose: () => void;
+  /** Self-service buttons for a planned shift (Got it, swap, give up), above Close. */
+  actions?: React.ReactNode;
 }) {
   if (detail.kind === 'unplanned') {
     const { run } = detail;
@@ -102,7 +105,16 @@ export function ShiftDetailDrawer({
       }
       leading={<Tile className={state === 'now' ? 'bg-primary/10 text-primary' : 'bg-primary/8 text-primary'} />}
       onClose={onClose}
-      footer={<CloseButton onClose={onClose} />}
+      footer={
+        actions ? (
+          <div className="flex flex-col gap-2">
+            {actions}
+            <CloseButton onClose={onClose} />
+          </div>
+        ) : (
+          <CloseButton onClose={onClose} />
+        )
+      }
     >
       <div className="space-y-6">
         {state === 'now' && progress !== null && (
@@ -157,7 +169,7 @@ export function ShiftDetailDrawer({
         {shift.notes && (
           <section>
             <SectionTitle>Note from your manager</SectionTitle>
-            <p className="flex items-start gap-2.5 rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-sm leading-relaxed text-foreground">
+            <p className="flex items-start gap-2.5 rounded-lg border border-border bg-field px-3.5 py-3 text-sm leading-relaxed text-foreground">
               <FileText size={15} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <span className="whitespace-pre-wrap">{shift.notes}</span>
             </p>
@@ -191,7 +203,7 @@ export function ShiftDetailDrawer({
               can be added.
             </p>
           ) : (
-            <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">
+            <p className="rounded-lg border border-dashed border-border px-3.5 py-3 text-sm text-muted-foreground">
               {state === 'now'
                 ? 'You’re not clocked in for this shift yet.'
                 : 'Nothing yet — you can clock in from an hour before the start.'}
@@ -213,9 +225,9 @@ function StatePill({ state, missed }: { state: ReturnType<typeof shiftState>; mi
 /** Each clock-in as a row: in, out, how long, and where if it wasn't the planned till. */
 function ClockList({ entries, now }: { entries: Shift[]; now: number }) {
   return (
-    <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+    <ul className="overflow-hidden rounded-lg border border-border bg-field">
       {entries.map((entry) => (
-        <li key={entry.id} className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0">
+        <li key={entry.id} className="flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0">
           <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-momentum/10 text-momentum">
             <Clock size={16} aria-hidden="true" />
           </span>
@@ -252,16 +264,16 @@ function CloseButton({ onClose }: { onClose: () => void }) {
 }
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-sm font-semibold text-foreground">{children}</h3>;
+  return <h3 className="mb-2 text-sm font-semibold text-heading">{children}</h3>;
 }
 
 function Panel({ children }: { children: React.ReactNode }) {
-  return <dl className="overflow-hidden rounded-lg border border-rule/60 bg-field">{children}</dl>;
+  return <dl className="overflow-hidden rounded-lg border border-border bg-field">{children}</dl>;
 }
 
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
       <dt className="w-20 shrink-0 text-xs text-muted-foreground">{label}</dt>
       <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 text-sm text-foreground">{children}</dd>
     </div>

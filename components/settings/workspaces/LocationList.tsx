@@ -1,23 +1,25 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
+import { AnimatePresence, motion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
 import { Check, ChefHat, Clock, Globe, MapPin, Pencil, Plus, Power, Store, Target, Trash2 } from '@/components/icons';
 import { ChoiceGrid } from '@/components/onboarding/ChoiceGrid';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards } from '@/components/shared/FormParts';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { Modal } from '@/components/shared/Modal';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { StatusDot } from '@/components/shared/StatusDot';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FIELD_LABEL_CLASS, FieldLabel } from '@/components/ui/label';
 import { TimePicker } from '@/components/ui/time-picker';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -96,7 +98,6 @@ type ModalState =
 /** Where the business trades from. Every action is shown only to a role the API will accept it from. */
 export function LocationList({ tenant }: { tenant?: Tenant }) {
   const qc = useQueryClient();
-  const reduceMotion = useReducedMotion();
   const capabilities = useAuthStore((state) => state.capabilities);
   const { tenantId, locationId, setLocationId } = useWorkspaceStore();
   const [modal, setModal] = useState<ModalState | null>(null);
@@ -153,9 +154,10 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
   const rows = locations.data ?? [];
 
   return (
-    <SettingsSection
+    <RecordGroup
+      id="locations"
       title="Locations"
-      description={workspaceActive ? undefined : 'This workspace is winding down, so locations can be closed but not added or reopened.'}
+      footnote={workspaceActive ? undefined : 'This workspace is winding down, so locations can be closed but not added or reopened.'}
       actions={
         canWrite && tenantId ? (
           <Button size="sm" disabled={!workspaceActive} onClick={() => setModal({ mode: 'create' })}>
@@ -165,24 +167,30 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
       }
     >
       {!tenantId ? (
-        <EmptyState icon={MapPin} title="No workspace selected" description="Choose a workspace to see where it trades from." compact />
+        <div className="rounded-lg border border-border bg-card shadow-sm">
+          <EmptyState icon={MapPin} title="No workspace selected" description="Choose a workspace to see where it trades from." compact />
+        </div>
       ) : locations.isPending ? (
-        <TilesSkeleton count={2} label="Loading locations" />
+        <ListSkeleton rows={2} label="Loading locations" />
       ) : locations.isError ? (
-        <ErrorState title="Couldn’t load locations" onRetry={() => void locations.refetch()} />
+        <div className="rounded-lg border border-border bg-card shadow-sm">
+          <ErrorState title="Couldn’t load locations" onRetry={() => void locations.refetch()} />
+        </div>
       ) : rows.length === 0 ? (
-        <EmptyState
-          icon={MapPin}
-          title="No locations yet"
-          description="Add the first place this business trades from."
-          action={
-            canWrite && workspaceActive ? { label: 'Add location', icon: Plus, onClick: () => setModal({ mode: 'create' }) } : undefined
-          }
-          compact
-        />
+        <div className="rounded-lg border border-border bg-card shadow-sm">
+          <EmptyState
+            icon={MapPin}
+            title="No locations yet"
+            description="Add the first place this business trades from."
+            action={
+              canWrite && workspaceActive ? { label: 'Add location', icon: Plus, onClick: () => setModal({ mode: 'create' }) } : undefined
+            }
+            compact
+          />
+        </div>
       ) : (
-        <ul className="space-y-2">
-          {rows.map((row, index) => {
+        <ListRowGroup>
+          {rows.map((row) => {
             const selected = row.id === locationId;
             const details = [
               row.orderFulfilmentMode === 'counter' ? 'Counter service' : 'Kitchen',
@@ -190,107 +198,78 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
               row.dailyRevenueTarget != null ? `${Number(row.dailyRevenueTarget).toLocaleString()} a day` : null,
             ].filter(Boolean);
             return (
-              <motion.li
+              // The tint and the tick mark this device's location; aria-pressed says it.
+              <ListRow
                 key={row.id}
-                initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                animate={{ opacity: 1, y: 0 }}
-                transition={{ delay: reduceMotion ? 0 : index * 0.04, duration: 0.3, ease: [0.16, 1, 0.3, 1] }}
-                className={cn(
-                  'relative flex items-center gap-3 rounded-lg border px-3.5 py-3 transition-[border-color,background-color,box-shadow] duration-150',
-                  row.isActive && !selected && 'hover:border-rule hover:bg-band/45',
-                  selected ? 'border-primary bg-primary/5 shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-rule/70 bg-background/60',
-                )}
-              >
-                <button
-                  type="button"
-                  // Clicking the current location again clears it, as it did before.
-                  onClick={() => row.isActive && setLocationId(selected ? null : row.id)}
-                  disabled={!row.isActive}
-                  aria-pressed={selected}
-                  aria-label={selected ? `Stop using ${row.name} on this device` : `Use ${row.name} on this device`}
-                  className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none after:absolute after:inset-0 after:rounded-lg focus-visible:after:outline-2 focus-visible:after:outline-offset-2 focus-visible:after:outline-ring disabled:cursor-default"
-                >
-                  <span
-                    className={cn(
-                      'flex size-10 shrink-0 items-center justify-center rounded-md border transition-colors duration-150',
-                      // Light green like every other icon tile; a closed site goes grey.
-                      selected
-                        ? 'border-primary/40 bg-primary text-primary-foreground'
-                        : row.isActive
-                          ? 'border-rule/55 bg-primary/8 text-primary'
-                          : 'border-rule/55 bg-band text-muted-foreground opacity-60',
-                    )}
-                  >
-                    {selected ? <Check size={17} aria-hidden="true" /> : <MapPin size={17} aria-hidden="true" />}
-                  </span>
-                  <span className="min-w-0 flex-1">
-                    <span className="flex items-center gap-2">
-                      <span className={cn('truncate text-sm font-semibold', row.isActive ? 'text-foreground' : 'text-muted-foreground')}>
-                        {row.name}
-                      </span>
-                      {!row.isActive && <StatusDot tone="muted" label="Closed" />}
-                    </span>
-                    <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-                      {[row.address || 'No address', ...details].join(' · ')}
-                    </span>
-                  </span>
-                </button>
-
-                {/* The tint and the tick mark this device's location; aria-pressed says it. */}
-                {/* Above the stretched row button, so the icons stay their own targets. */}
-                {(canWrite || canTarget || canActivate) && (
-                  <div className="relative z-10 flex shrink-0 items-center gap-0.5">
-                    {!canWrite && canTarget && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        title="Daily target"
-                        aria-label={`Daily target for ${row.name}`}
-                        onClick={() => setModal({ mode: 'target', location: row })}
-                      >
-                        <Target aria-hidden="true" />
-                      </Button>
-                    )}
-                    {canWrite && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        title="Edit"
-                        aria-label={`Edit ${row.name}`}
-                        onClick={() => setModal({ mode: 'edit', location: row })}
-                      >
-                        <Pencil aria-hidden="true" />
-                      </Button>
-                    )}
-                    {canActivate && (row.isActive || workspaceActive) && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        title={row.isActive ? 'Close' : 'Reopen'}
-                        aria-label={`${row.isActive ? 'Close' : 'Reopen'} ${row.name}`}
-                        onClick={() => setModal({ mode: 'active', location: row })}
-                      >
-                        <Power aria-hidden="true" />
-                      </Button>
-                    )}
-                    {canWrite && (
-                      <Button
-                        variant="ghost"
-                        size="icon-sm"
-                        className="hover:text-exception"
-                        title="Delete"
-                        aria-label={`Delete ${row.name}`}
-                        onClick={() => setModal({ mode: 'delete', location: row })}
-                      >
-                        <Trash2 aria-hidden="true" />
-                      </Button>
-                    )}
-                  </div>
-                )}
-              </motion.li>
+                icon={selected ? Check : MapPin}
+                tone="primary"
+                title={row.name}
+                titleExtra={!row.isActive && <StatusDot tone="muted" label="Closed" />}
+                meta={[row.address || 'No address', ...details].join(' · ')}
+                muted={!row.isActive}
+                selected={selected}
+                // Clicking the current location again clears it, as it did before.
+                onClick={row.isActive ? () => setLocationId(selected ? null : row.id) : undefined}
+                pressed={row.isActive ? selected : undefined}
+                targetLabel={
+                  row.isActive ? (selected ? `Stop using ${row.name} on this device` : `Use ${row.name} on this device`) : undefined
+                }
+                chevron={false}
+                actions={
+                  canWrite || canTarget || canActivate ? (
+                    <>
+                      {!canWrite && canTarget && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title="Daily target"
+                          aria-label={`Daily target for ${row.name}`}
+                          onClick={() => setModal({ mode: 'target', location: row })}
+                        >
+                          <Target aria-hidden="true" />
+                        </Button>
+                      )}
+                      {canWrite && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title="Edit"
+                          aria-label={`Edit ${row.name}`}
+                          onClick={() => setModal({ mode: 'edit', location: row })}
+                        >
+                          <Pencil aria-hidden="true" />
+                        </Button>
+                      )}
+                      {canActivate && (row.isActive || workspaceActive) && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          title={row.isActive ? 'Close' : 'Reopen'}
+                          aria-label={`${row.isActive ? 'Close' : 'Reopen'} ${row.name}`}
+                          onClick={() => setModal({ mode: 'active', location: row })}
+                        >
+                          <Power aria-hidden="true" />
+                        </Button>
+                      )}
+                      {canWrite && (
+                        <Button
+                          variant="ghost"
+                          size="icon-sm"
+                          className="hover:text-exception"
+                          title="Delete"
+                          aria-label={`Delete ${row.name}`}
+                          onClick={() => setModal({ mode: 'delete', location: row })}
+                        >
+                          <Trash2 aria-hidden="true" />
+                        </Button>
+                      )}
+                    </>
+                  ) : undefined
+                }
+              />
             );
           })}
-        </ul>
+        </ListRowGroup>
       )}
 
       {(modal?.mode === 'create' || modal?.mode === 'edit') && tenantId && (
@@ -345,7 +324,7 @@ export function LocationList({ tenant }: { tenant?: Tenant }) {
           onClose={() => setModal(null)}
         />
       )}
-    </SettingsSection>
+    </RecordGroup>
   );
 }
 
@@ -474,13 +453,15 @@ function LocationForm({
           />
         </div>
         <div className="sm:col-span-2">
-          <label className="mb-1.5 block text-label uppercase text-muted-foreground">Timezone</label>
+          <FieldLabel as="span" className="mb-1.5" required>
+            Timezone
+          </FieldLabel>
           <TimezoneSelect value={timezone} onChange={setTimezone} required placeholder="Search timezone…" />
         </div>
       </div>
 
       <fieldset>
-        <legend className="mb-2 text-label uppercase text-muted-foreground">Order workflow</legend>
+        <legend className={cn(FIELD_LABEL_CLASS, 'mb-2')}>Order workflow</legend>
         <ChoiceGrid<OrderFulfilmentMode>
           label="Order workflow"
           shortcuts={false}
@@ -492,7 +473,7 @@ function LocationForm({
 
       <fieldset>
         <div className="mb-2 flex items-center justify-between">
-          <legend className="text-label uppercase text-muted-foreground">Opening hours</legend>
+          <legend className={FIELD_LABEL_CLASS}>Opening hours</legend>
           {hoursMode === 'set' && (
             <button
               type="button"
@@ -517,12 +498,12 @@ function LocationForm({
           />
         </div>
         {hoursMode === 'always' ? (
-          <p className="rounded-lg border border-rule/60 bg-band/40 px-3.5 py-3 text-sm text-muted-foreground">
+          <p className="rounded-lg border border-border bg-band/40 px-3.5 py-3 text-sm text-muted-foreground">
             Orders are taken around the clock — right for an online shop. The dashboard reads the whole day as trading, and won’t ask for
             hours.
           </p>
         ) : (
-          <div className="divide-y divide-rule/40 rounded-lg border border-rule/60">
+          <div className="divide-y divide-border rounded-lg border border-border">
             {WEEKDAYS.map(({ key, label }) => {
               const day = hours[key];
               return (
@@ -587,7 +568,7 @@ function LocationForm({
         hint="Net takings this site aims for in a day. Leave empty for no target."
       />
 
-      <div className="flex items-center justify-between rounded-lg border border-rule/60 px-4 py-3">
+      <div className="flex items-center justify-between rounded-lg border border-border px-4 py-3">
         <span>
           <span className="block text-sm font-semibold text-foreground">Open for trading</span>
           <span className="text-xs text-muted-foreground">Closed locations keep their history but leave the till.</span>

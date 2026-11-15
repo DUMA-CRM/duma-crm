@@ -8,6 +8,7 @@ const DIM = {
   sm: { box: 'size-8 text-xs', px: 64 },
   md: { box: 'size-9 text-xs', px: 72 },
   lg: { box: 'size-12 text-sm', px: 96 },
+  xl: { box: 'size-24 text-2xl', px: 192 },
 } as const;
 
 export type AvatarSize = keyof typeof DIM;
@@ -23,8 +24,7 @@ export function initialsOf(name?: string | null): string {
    corner — an email that failed, someone on shift — so a row can show the
    person and their state in one mark instead of a generic glyph.
 
-   Flat, like every other icon tile; the old `InitialsAvatar` gradient is the
-   odd one out and is being retired. */
+   Flat, like every other icon tile. */
 export function Avatar({
   name,
   email,

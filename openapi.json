@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:3000",
+      "url": "http://localhost:7777",
       "description": "Local v1"
     }
   ],
@@ -514,6 +514,7 @@
     },
     "/v1/auth/sign-in/social": {
       "post": {
+        "operationId": "postV1AuthSignInSocial",
         "tags": [
           "Auth"
         ],
@@ -552,11 +553,16 @@
           "200": {
             "description": "`{ url, redirect: true }`"
           },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
           "404": {
             "description": "Google sign-in is not configured"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
           }
-        },
-        "operationId": "postV1AuthSignInSocial"
+        }
       }
     },
     "/v1/auth/get-session": {
@@ -6407,6 +6413,73 @@
             "description": "Too many requests — rate limited"
           }
         }
+      }
+    },
+    "/v1/menu-items/images": {
+      "post": {
+        "operationId": "postV1MenuItemsImages",
+        "tags": [
+          "Menu Items"
+        ],
+        "summary": "Upload a menu photo",
+        "description": "multipart/form-data with `file` (an image, max 25 MB) and optional `title`, `altText`. Stored in the workspace's media storage (folder \"Menu\") and counted against its allowance, without needing Website content. Returns the asset with a `url` to save as a menu item's `imageUrl`.",
+        "responses": {
+          "201": {
+            "description": "The stored photo, with its url"
+          },
+          "400": {
+            "description": "Not an image"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "413": {
+            "description": "Storage allowance full"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/menu-items/images/{id}/file/{name}": {
+      "get": {
+        "operationId": "getV1MenuItemsImagesByIdFileByName",
+        "tags": [
+          "Menu Items"
+        ],
+        "summary": "Download a menu photo",
+        "description": "Public and keyless, for <img src> on the till, the QR menu and websites. Serves a photo uploaded through POST /menu-items/images, or one a menu item uses, while the menu module is on. Always streamed (never redirected to the bucket), so it loads through a same-origin proxy.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The image"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "name",
+            "required": true
+          }
+        ]
       }
     },
     "/v1/menu-items/{id}": {
@@ -12934,7 +13007,7 @@
                       },
                       "declinedModules": {
                         "default": [],
-                        "maxItems": 28,
+                        "maxItems": 29,
                         "type": "array",
                         "items": {
                           "type": "string",
@@ -12966,7 +13039,8 @@
                             "referrals",
                             "notes",
                             "reservations",
-                            "forms"
+                            "forms",
+                            "marketing"
                           ]
                         }
                       }
@@ -13385,7 +13459,7 @@
                       },
                       "declinedModules": {
                         "default": [],
-                        "maxItems": 28,
+                        "maxItems": 29,
                         "type": "array",
                         "items": {
                           "type": "string",
@@ -13417,7 +13491,8 @@
                             "referrals",
                             "notes",
                             "reservations",
-                            "forms"
+                            "forms",
+                            "marketing"
                           ]
                         }
                       }
@@ -13551,7 +13626,8 @@
                         "referrals",
                         "notes",
                         "reservations",
-                        "forms"
+                        "forms",
+                        "marketing"
                       ]
                     },
                     "description": "selectedModules for workspace setup apply."
@@ -15884,7 +15960,7 @@
           "Orders"
         ],
         "summary": "Get order by ID",
-        "description": "Returns a full order with items and modifiers.",
+        "description": "Returns a full order with items and modifiers, its refunds, status history and payment attempts.",
         "responses": {
           "200": {
             "description": "Order with items and modifiers"
@@ -15921,7 +15997,7 @@
           "Orders"
         ],
         "summary": "Export orders as CSV or JSON",
-        "description": "Returns a downloadable file. Supports ?from, ?to, ?status, ?locationId, ?format=(csv|json). store_manager+ only.",
+        "description": "Returns a downloadable file. Takes every GET /orders filter (from, to, status, locationId, source, createdBy, paymentMethod, paymentStatus, refundStatus, customerId, customerPhone, q) plus ?format=(csv|json).",
         "parameters": [
           {
             "name": "from",
@@ -16061,6 +16137,14 @@
                       "bank_transfer"
                     ],
                     "example": "card"
+                  },
+                  "fulfilmentType": {
+                    "type": "string",
+                    "enum": [
+                      "eat_in",
+                      "takeaway"
+                    ],
+                    "description": "Eat in or takeaway, as chosen on the till."
                   },
                   "promoCode": {
                     "type": "string",
@@ -16256,6 +16340,55 @@
             "description": "Filter by payment method"
           },
           {
+            "name": "paymentStatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string"
+            },
+            "description": "Filter by payment status (e.g. paid, unpaid, awaiting_cash_approval)"
+          },
+          {
+            "name": "fulfilmentType",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "eat_in",
+                "takeaway",
+                "collection",
+                "delivery",
+                "shipping"
+              ]
+            },
+            "description": "Filter by how the customer gets the order"
+          },
+          {
+            "name": "refundStatus",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "none",
+                "partially_refunded",
+                "refunded"
+              ]
+            },
+            "description": "Filter by refund state"
+          },
+          {
+            "name": "q",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "maxLength": 100
+            },
+            "description": "One search box: an order code (#1A2B3C4D or its first 4–8 characters), an exact total (£8.40), or a customer name, phone or email"
+          },
+          {
             "name": "from",
             "in": "query",
             "required": false,
@@ -16279,6 +16412,33 @@
         "responses": {
           "200": {
             "description": "{ data: Order[], total: number, page: number, limit: number, pages: number }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/orders/summary": {
+      "get": {
+        "operationId": "getV1OrdersSummary",
+        "tags": [
+          "Orders"
+        ],
+        "summary": "Totals for a filtered set of orders",
+        "description": "Takes the same filters as GET /orders and returns what they add up to: how many orders, sales (paid and not cancelled), refunds issued on them, net, average sale and a split by payment method. Money is a decimal string.",
+        "responses": {
+          "200": {
+            "description": "{ count, paidCount, sales, refunded, net, average, byPaymentMethod: [{ method, count, total }] }"
+          },
+          "400": {
+            "description": "Invalid filter"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -16468,10 +16628,15 @@
               "schema": {
                 "type": "object",
                 "required": [
-                  "lines",
                   "reason"
                 ],
+                "description": "Send `lines` (items, with quantities) or `amount` (a sum not tied to items, with a note) — exactly one.",
                 "properties": {
+                  "amount": {
+                    "type": "string",
+                    "pattern": "^\\d+(\\.\\d{1,2})?$",
+                    "description": "A refund not tied to items. Needs notes."
+                  },
                   "lines": {
                     "type": "array",
                     "minItems": 1,
@@ -19646,6 +19811,16 @@
                   "notes": {
                     "type": "string",
                     "maxLength": 1000
+                  },
+                  "positionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "breakMinutes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 240,
+                    "default": 0
                   }
                 }
               }
@@ -19750,7 +19925,7 @@
           "Scheduling"
         ],
         "summary": "My rota",
-        "description": "Published shifts assigned to the authenticated staff member. Optional from/to on startsAt.",
+        "description": "Published shifts assigned to the authenticated staff member, with position, break and publish/acknowledge stamps. Optional from/to on startsAt.",
         "responses": {
           "200": {
             "description": "Array of my published scheduled shifts"
@@ -19958,7 +20133,7 @@
           "Scheduling"
         ],
         "summary": "Publish draft shifts",
-        "description": "Marks draft shifts as published so staff can see them. Scope by locationId and from/to (on startsAt). store_manager+ only.",
+        "description": "Marks draft shifts as published so staff can see them, stamping publishedAt and clearing acknowledgedAt. Scope by locationId and from/to (on startsAt). With notify (default true) one scheduling.rota_published outbox event names the staff on those shifts — delivery of that notification is not built yet.",
         "requestBody": {
           "required": true,
           "content": {
@@ -19980,6 +20155,10 @@
                   "to": {
                     "type": "string",
                     "format": "date-time"
+                  },
+                  "notify": {
+                    "type": "boolean",
+                    "default": true
                   }
                 }
               }
@@ -19988,7 +20167,7 @@
         },
         "responses": {
           "200": {
-            "description": "{ published: number }"
+            "description": "{ published: number, notified: number }"
           },
           "400": {
             "description": "Validation failed — invalid request body"
@@ -20003,6 +20182,235 @@
             "description": "Too many requests — rate limited"
           }
         }
+      }
+    },
+    "/v1/scheduled-shifts/bulk": {
+      "post": {
+        "operationId": "postV1ScheduledShiftsBulk",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Create many draft shifts",
+        "description": "Inserts 1–300 shifts in one transaction, always as draft whatever status is sent. Every shift must be at a location the caller can access; one bad shift rejects the batch.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "shifts"
+                ],
+                "properties": {
+                  "shifts": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 300,
+                    "items": {
+                      "type": "object"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "{ created: ScheduledShift[] }"
+          },
+          "400": {
+            "description": "Invalid"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/scheduled-shifts/bulk-delete": {
+      "post": {
+        "operationId": "postV1ScheduledShiftsBulkDelete",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Delete many draft shifts",
+        "description": "Deletes the listed shifts that are drafts at locations the caller can access. Published, cancelled, unknown or out-of-scope ids are counted as skipped, never deleted.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "ids"
+                ],
+                "properties": {
+                  "ids": {
+                    "type": "array",
+                    "minItems": 1,
+                    "maxItems": 300,
+                    "items": {
+                      "type": "string",
+                      "format": "uuid"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ deleted: number, skipped: number }"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/scheduled-shifts/copy": {
+      "post": {
+        "operationId": "postV1ScheduledShiftsCopy",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Copy a rota week",
+        "description": "Copies every non-cancelled shift of the source week to the target week as drafts, at the same wall-clock times in the location's time zone (so a copy across a clock change does not drift an hour). replace first deletes the target week's drafts (never published shifts); skip_clashes skips a shift whose person already works then or is on approved leave; open copies those as unassigned slots instead.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "locationId",
+                  "fromWeekStart",
+                  "toWeekStart",
+                  "mode"
+                ],
+                "properties": {
+                  "locationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "fromWeekStart": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-11-16"
+                  },
+                  "toWeekStart": {
+                    "type": "string",
+                    "format": "date",
+                    "example": "2026-11-23"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "skip_clashes",
+                      "replace",
+                      "open"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ created, skipped, opened }"
+          },
+          "400": {
+            "description": "Invalid"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Location not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/scheduled-shifts/open/my": {
+      "get": {
+        "operationId": "getV1ScheduledShiftsOpenMy",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Open shifts I can claim",
+        "description": "Self-service. Published, unassigned, future shifts at the caller's locations whose position (if any) the caller is qualified for. Same shape as /my plus myRequestId — the caller's pending claim on that shift, if any.",
+        "responses": {
+          "200": {
+            "description": "Array of open shifts with myRequestId"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "No staff profile"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/scheduled-shifts/{id}/acknowledge": {
+      "post": {
+        "operationId": "postV1ScheduledShiftsByIdAcknowledge",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Acknowledge my shift",
+        "description": "Self-service. The assigned person confirms they have seen a published shift; sets acknowledgedAt. Any later change to the shift clears it again.",
+        "responses": {
+          "200": {
+            "description": "The shift"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not your published shift"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
       }
     },
     "/v1/scheduled-shifts/{id}": {
@@ -20081,6 +20489,15 @@
                   "notes": {
                     "type": "string",
                     "maxLength": 1000
+                  },
+                  "positionId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "breakMinutes": {
+                    "type": "integer",
+                    "minimum": 0,
+                    "maximum": 240
                   }
                 }
               }
@@ -20137,6 +20554,1209 @@
           },
           "404": {
             "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/rota/planner": {
+      "get": {
+        "operationId": "getV1RotaPlanner",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Week planner bundle",
+        "description": "Everything the week grid needs in one call: staff who can work the location (contracted hours, pay rate only for roles that may see pay, an under-18 flag — never the date of birth — positions and availability), positions, the week's non-cancelled shifts, pending and approved leave, net sales per day (actual to today; forecast = mean of the same weekday over the previous four weeks), labour targets, and the count of open requests.",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "weekStart",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "date"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "RotaPlanner"
+          },
+          "400": {
+            "description": "Missing params"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Location not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/rota/positions": {
+      "get": {
+        "operationId": "getV1RotaPositions",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "List positions",
+        "description": "The tenant's positions (including inactive) with the staff qualified for each. With locationId: that location's plus the all-location ones.",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of positions with staffIds"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1RotaPositions",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Create position",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "name"
+                ],
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "locationId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "description": "Omit or null for every location"
+                  },
+                  "color": {
+                    "type": "string",
+                    "maxLength": 16,
+                    "default": "slate"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Position"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "409": {
+            "description": "Name already used"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/rota/positions/{id}": {
+      "patch": {
+        "operationId": "patchV1RotaPositionsById",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Update position",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 50
+                  },
+                  "color": {
+                    "type": "string",
+                    "maxLength": 16
+                  },
+                  "sortOrder": {
+                    "type": "integer"
+                  },
+                  "isActive": {
+                    "type": "boolean"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Position"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Name already used"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1RotaPositionsById",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Delete position",
+        "description": "Removes the position and everyone's qualification for it. Shifts and template slots that used it keep their time and person, with no position.",
+        "responses": {
+          "200": {
+            "description": "{ success: true }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/rota/positions/{id}/staff": {
+      "put": {
+        "operationId": "putV1RotaPositionsByIdStaff",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Set who is qualified for a position",
+        "description": "Replaces the set. Every user must be staff of the position's tenant.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "userIds"
+                ],
+                "properties": {
+                  "userIds": {
+                    "type": "array",
+                    "maxItems": 500,
+                    "items": {
+                      "type": "string"
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ staffIds: string[] }"
+          },
+          "400": {
+            "description": "Unknown staff"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/rota/availability/me": {
+      "get": {
+        "operationId": "getV1RotaAvailabilityMe",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "My availability",
+        "description": "Self-service: the caller's recurring weekly availability.",
+        "responses": {
+          "200": {
+            "description": "Availability[]"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "put": {
+        "operationId": "putV1RotaAvailabilityMe",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Set my availability",
+        "description": "Self-service: replaces the caller's recurring weekly availability (up to 50 rules).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "rules"
+                ],
+                "properties": {
+                  "rules": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "weekday": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6,
+                          "description": "0 = Monday"
+                        },
+                        "startMinute": {
+                          "type": "integer"
+                        },
+                        "endMinute": {
+                          "type": "integer"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "unavailable",
+                            "preferred"
+                          ]
+                        },
+                        "note": {
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Availability[]"
+          },
+          "400": {
+            "description": "Invalid"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/rota/availability": {
+      "get": {
+        "operationId": "getV1RotaAvailability",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "A staff member's availability",
+        "parameters": [
+          {
+            "name": "userId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Availability[]"
+          },
+          "400": {
+            "description": "userId required"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/rota/availability/{userId}": {
+      "put": {
+        "operationId": "putV1RotaAvailabilityByUserId",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Set a staff member's availability",
+        "description": "Replaces the person's recurring weekly availability (up to 50 rules).",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "rules"
+                ],
+                "properties": {
+                  "rules": {
+                    "type": "array",
+                    "maxItems": 50,
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "weekday": {
+                          "type": "integer",
+                          "minimum": 0,
+                          "maximum": 6,
+                          "description": "0 = Monday"
+                        },
+                        "startMinute": {
+                          "type": "integer"
+                        },
+                        "endMinute": {
+                          "type": "integer"
+                        },
+                        "kind": {
+                          "type": "string",
+                          "enum": [
+                            "unavailable",
+                            "preferred"
+                          ]
+                        },
+                        "note": {
+                          "type": "string",
+                          "maxLength": 200
+                        }
+                      }
+                    }
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Availability[]"
+          },
+          "400": {
+            "description": "Invalid"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/rota/templates": {
+      "get": {
+        "operationId": "getV1RotaTemplates",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "List rota templates",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": true,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Array of templates with shiftCount"
+          },
+          "400": {
+            "description": "locationId required"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/rota/templates/from-week": {
+      "post": {
+        "operationId": "postV1RotaTemplatesFromWeek",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Save weeks as a template",
+        "description": "Captures the non-cancelled shifts of 1–4 weeks from weekStart as local day/minute slots, so applying it later keeps the wall-clock times.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "locationId",
+                  "weekStart",
+                  "weeks",
+                  "name"
+                ],
+                "properties": {
+                  "locationId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "weekStart": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "weeks": {
+                    "type": "integer",
+                    "minimum": 1,
+                    "maximum": 4
+                  },
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "Template"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Location not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/rota/templates/{id}": {
+      "get": {
+        "operationId": "getV1RotaTemplatesById",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Get a rota template",
+        "responses": {
+          "200": {
+            "description": "Template with shifts"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1RotaTemplatesById",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Rename a rota template",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "maxLength": 80
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "Template"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1RotaTemplatesById",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Delete a rota template",
+        "responses": {
+          "200": {
+            "description": "{ success: true }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/rota/templates/{id}/apply": {
+      "post": {
+        "operationId": "postV1RotaTemplatesByIdApply",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Apply a rota template",
+        "description": "Stamps the template onto the week(s) from weekStart as drafts, at the same local times. Modes as for POST /scheduled-shifts/copy.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "weekStart",
+                  "mode"
+                ],
+                "properties": {
+                  "weekStart": {
+                    "type": "string",
+                    "format": "date"
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "skip_clashes",
+                      "replace",
+                      "open"
+                    ]
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "{ created, skipped, opened }"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/rota/targets/{locationId}": {
+      "get": {
+        "operationId": "getV1RotaTargetsByLocationId",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Labour targets",
+        "description": "Target labour %, weekly budget, employer on-cost % and working-time rule overrides. Defaults when nothing is set.",
+        "responses": {
+          "200": {
+            "description": "LabourTargets"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Location not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "locationId",
+            "required": true
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putV1RotaTargetsByLocationId",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Set labour targets",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "targetLabourPct",
+                  "weeklyBudget",
+                  "onCostPct",
+                  "rules"
+                ],
+                "properties": {
+                  "targetLabourPct": {
+                    "type": "string",
+                    "example": "28.00"
+                  },
+                  "weeklyBudget": {
+                    "type": "string",
+                    "example": "4200.00"
+                  },
+                  "onCostPct": {
+                    "type": "string",
+                    "example": "13.80"
+                  },
+                  "rules": {
+                    "type": "object",
+                    "description": "Partial WorkingTimeRules; null switches a rule off"
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "LabourTargets"
+          },
+          "400": {
+            "description": "Invalid"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "locationId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/rota/requests": {
+      "get": {
+        "operationId": "getV1RotaRequests",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "List shift requests",
+        "parameters": [
+          {
+            "name": "locationId",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "format": "uuid"
+            }
+          },
+          {
+            "name": "status",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": "string",
+              "enum": [
+                "pending",
+                "accepted",
+                "approved",
+                "declined",
+                "cancelled"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ShiftRequest[]"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1RotaRequests",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Request a shift change",
+        "description": "Self-service. claim: take a published open shift you are qualified for. drop: give up your own future published shift. swap: hand your shift to targetUserId (staff at the location), optionally taking targetShiftId of theirs in exchange — they accept, then a manager approves. One open request per shift per person.",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "required": [
+                  "kind",
+                  "scheduledShiftId"
+                ],
+                "properties": {
+                  "kind": {
+                    "type": "string",
+                    "enum": [
+                      "claim",
+                      "swap",
+                      "drop"
+                    ]
+                  },
+                  "scheduledShiftId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "targetUserId": {
+                    "type": "string"
+                  },
+                  "targetShiftId": {
+                    "type": "string",
+                    "format": "uuid"
+                  },
+                  "note": {
+                    "type": "string",
+                    "maxLength": 500
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "201": {
+            "description": "ShiftRequest"
+          },
+          "400": {
+            "description": "Not allowed for this shift"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Shift not found"
+          },
+          "409": {
+            "description": "Already requested"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/rota/requests/my": {
+      "get": {
+        "operationId": "getV1RotaRequestsMy",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "My shift requests",
+        "description": "Self-service: requests the caller made, or that name them as the swap partner.",
+        "responses": {
+          "200": {
+            "description": "ShiftRequest[]"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/rota/requests/{id}/accept": {
+      "post": {
+        "operationId": "postV1RotaRequestsByIdAccept",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Accept a swap",
+        "description": "Self-service: the swap partner agrees. The request then waits for a manager to approve.",
+        "responses": {
+          "200": {
+            "description": "ShiftRequest"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Not pending"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/rota/requests/{id}/cancel": {
+      "post": {
+        "operationId": "postV1RotaRequestsByIdCancel",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Cancel my request",
+        "description": "Self-service: the requester withdraws a request that has not been decided.",
+        "responses": {
+          "200": {
+            "description": "ShiftRequest"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Already decided"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/rota/requests/{id}/decline": {
+      "post": {
+        "operationId": "postV1RotaRequestsByIdDecline",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Decline a request",
+        "description": "A manager with scheduling:publish declines any open request at their location; the swap partner may decline one still waiting for them.",
+        "responses": {
+          "200": {
+            "description": "ShiftRequest"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Already decided"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/rota/requests/{id}/approve": {
+      "post": {
+        "operationId": "postV1RotaRequestsByIdApprove",
+        "tags": [
+          "Scheduling"
+        ],
+        "summary": "Approve a request",
+        "description": "Applies a pending claim/drop or an accepted swap in one transaction, re-stamping publishedAt and clearing acknowledgedAt on the moved shifts; other open requests on those shifts are declined. The person who would end up on each shift is checked against the working-time rules (leave, overlap, qualification, rest, weekly and under-18 limits); if anything is breached the answer is 409 with warnings, unless override is true.",
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "override": {
+                    "type": "boolean",
+                    "default": false
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "ShiftRequest"
+          },
+          "400": {
+            "description": "Validation failed — invalid request body"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "409": {
+            "description": "Not approvable, or { error, warnings }"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -21249,6 +22869,30 @@
         }
       }
     },
+    "/v1/analytics-connections/check": {
+      "post": {
+        "operationId": "postV1AnalyticsConnectionsCheck",
+        "tags": [
+          "Analytics"
+        ],
+        "summary": "Check the analytics connection still works",
+        "description": "Fetches the last seven days from the provider and, when that succeeds, records the check time. Nothing is returned but the time.",
+        "responses": {
+          "200": {
+            "description": "The connection answered"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          },
+          "502": {
+            "description": "The provider refused or did not answer"
+          }
+        }
+      }
+    },
     "/v1/analytics-connections/report": {
       "get": {
         "operationId": "getV1AnalyticsConnectionsReport",
@@ -21403,6 +23047,17 @@
             "description": "Filter by tenant — super_admin only. Everyone else is pinned to their own tenant."
           },
           {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform"
+              ]
+            },
+            "description": "platform: only what platform administrators did, plus workspace lifecycle and classification changes — DUMA Admin → Activity. Narrows; never widens past the caller’s tenant scoping."
+          },
+          {
             "name": "from",
             "in": "query",
             "schema": {
@@ -21516,6 +23171,17 @@
               "format": "uuid"
             },
             "description": "Filter by tenant — super_admin only. Everyone else is pinned to their own tenant."
+          },
+          {
+            "name": "scope",
+            "in": "query",
+            "schema": {
+              "type": "string",
+              "enum": [
+                "platform"
+              ]
+            },
+            "description": "platform: only what platform administrators did, plus workspace lifecycle and classification changes — DUMA Admin → Activity. Narrows; never widens past the caller’s tenant scoping."
           },
           {
             "name": "from",
@@ -21646,7 +23312,7 @@
           "HR - Employees"
         ],
         "summary": "Update my employee profile",
-        "description": "Employees can update their own address, emergency contacts, and bank/NI details.",
+        "description": "Employees can update their own address, emergency contacts, NI number and bank details (sort code and account number encrypted at rest; changes audited).",
         "requestBody": {
           "required": true,
           "content": {
@@ -21669,6 +23335,25 @@
                   "emergencyContactRelation": {
                     "type": "string",
                     "maxLength": 100
+                  },
+                  "niNumber": {
+                    "type": [
+                      "string",
+                      "null"
+                    ],
+                    "maxLength": 13
+                  },
+                  "accountHolder": {
+                    "type": "string",
+                    "maxLength": 255
+                  },
+                  "sortCode": {
+                    "type": "string",
+                    "description": "Six digits; dashes and spaces ignored"
+                  },
+                  "accountNumber": {
+                    "type": "string",
+                    "description": "Eight digits"
                   }
                 }
               }
@@ -23828,6 +25513,40 @@
         ]
       }
     },
+    "/v1/qr-ordering/locations/{locationId}/preview": {
+      "get": {
+        "operationId": "getV1QrOrderingLocationsByLocationIdPreview",
+        "tags": [
+          "QR Ordering"
+        ],
+        "summary": "Preview the guest menu from the draft",
+        "description": "The guest menu as the settings page previews it: built from the draft content, with every available item, whether or not ordering is on or anything is published. Staff only.",
+        "responses": {
+          "200": {
+            "description": "Guest menu (preview)"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "locationId",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/cms/delivery/assets/{id}/file/{name}": {
       "get": {
         "operationId": "getV1CmsDeliveryAssetsByIdFileByName",
@@ -24184,6 +25903,397 @@
     "/v1/cms/delivery/assets/{id}": {
       "get": {
         "operationId": "getV1CmsDeliveryAssetsById",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "Asset metadata",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: Asset }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/blog/assets/{id}/file/{name}": {
+      "get": {
+        "operationId": "getV1BlogAssetsByIdFileByName",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "Download an asset file",
+        "description": "Public and keyless, for use in <img src>. Cached for a year: an asset's file never changes under the same id.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The file"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "name",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/blog/assets/{id}/renditions/{renditionId}": {
+      "get": {
+        "operationId": "getV1BlogAssetsByIdRenditionsByRenditionId",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "Download a smaller copy of an image",
+        "description": "Public and keyless, like the asset file — what a `srcset` entry points at. Cached for a year.",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "The image"
+          },
+          "404": {
+            "description": "Not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "renditionId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/blog/preview/{token}": {
+      "get": {
+        "operationId": "getV1BlogPreviewByToken",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "Read one draft through a preview link",
+        "description": "Keyless. The token comes from a \"Preview on site\" link (`?duma_preview=`); it names one entry and expires. Returns the draft, with media and references resolved one level (`include=0..2`).",
+        "security": [],
+        "responses": {
+          "200": {
+            "description": "{ data: Entry, preview: { expiresAt } }"
+          },
+          "401": {
+            "description": "Invalid or expired link"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "token",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/blog/content-types": {
+      "get": {
+        "operationId": "getV1BlogContentTypes",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "List the content types this key can read",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: ContentType[] }"
+          },
+          "401": {
+            "description": "Missing or invalid key"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/blog/content-types/{typeKey}": {
+      "get": {
+        "operationId": "getV1BlogContentTypesByTypeKey",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "One content type's schema",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "ContentType"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not available to this key"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "typeKey",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/blog/locales": {
+      "get": {
+        "operationId": "getV1BlogLocales",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "The workspace's content locales",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: Locale[] }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/blog/sync": {
+      "get": {
+        "operationId": "getV1BlogSync",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "What changed since a point in time",
+        "description": "For mirroring content into a static site without a full rebuild. Returns entries published (or republished) after `since`, and what stopped being delivered (`deletions`: unpublished or deleted entries, deleted assets), oldest first. Apply `deletions` first, then upsert `entries`; store `nextSince` and pass it next time. Omit `since` for everything published. `limit` ≤ 200; `hasMore` means call again at once.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ entries, deletions, nextSince, hasMore }"
+          },
+          "400": {
+            "description": "Bad `since`"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/blog/entries/{typeKey}": {
+      "get": {
+        "operationId": "getV1BlogEntriesByTypeKey",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "Query entries of a content type",
+        "description": "Filters: `filter[field][op]=value` with ops eq, ne, lt, lte, gt, gte, in, nin (comma separated), contains, startsWith, exists. System fields id, slug, createdAt, updatedAt, publishedAt are filterable and sortable. Nested group fields use dots: `filter[seo.title]`. `sort=-publishedAt,title` · `limit` (≤100) with `page` or `offset` · `fields=title,hero` · `include=0..3` resolves media and references · `locale=fr` with `fallback=true|false` · `q=` full-text search · `status=draft` (preview keys only).",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: Entry[], meta: { total, limit, offset, page, pages, locale } }"
+          },
+          "400": {
+            "description": "Invalid query"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "typeKey",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/blog/entries/{typeKey}/{idOrSlug}": {
+      "get": {
+        "operationId": "getV1BlogEntriesByTypeKeyByIdOrSlug",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "One entry by id or slug",
+        "description": "Accepts `locale`, `fallback`, `fields`, `include` and `status` as the list does.",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: Entry }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not found or not published"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "typeKey",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "idOrSlug",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/blog/singletons/{typeKey}": {
+      "get": {
+        "operationId": "getV1BlogSingletonsByTypeKey",
+        "tags": [
+          "CMS Delivery"
+        ],
+        "summary": "A singleton's entry",
+        "security": [
+          {
+            "cmsApiKey": []
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "{ data: Entry }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not a singleton, or not published"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "typeKey",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/blog/assets/{id}": {
+      "get": {
+        "operationId": "getV1BlogAssetsById",
         "tags": [
           "CMS Delivery"
         ],

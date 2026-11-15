@@ -48,7 +48,7 @@ export function EditorShell({
 }: {
   eyebrow?: string;
   title: string;
-  /** Small glyph shown in a tinted badge left of the title. */
+  /** Small glyph shown on a soft brand tint left of the title. */
   icon?: React.ReactNode;
   /** Rendered left of the title as-is (e.g. an avatar) — replaces `icon`. */
   leading?: React.ReactNode;
@@ -119,14 +119,12 @@ export function EditorShell({
         </Button>
       )}
       {leading ??
-        (icon && (
-          <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary text-primary-foreground">{icon}</div>
-        ))}
+        (icon && <div className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">{icon}</div>)}
 
       <div className="flex min-w-0 items-center gap-2.5">
         <h1
           aria-label={eyebrow ? `${eyebrow}: ${title}` : undefined}
-          className="truncate text-base font-semibold tracking-title text-foreground"
+          className="truncate text-base font-semibold tracking-title text-heading"
         >
           {title}
         </h1>
@@ -137,7 +135,14 @@ export function EditorShell({
 
       <div className="flex-1" />
 
-      {actions && <div className="flex shrink-0 items-center gap-1.5 md:gap-2">{actions}</div>}
+      {/* One size for every header button, whatever each page passed — 36px, the
+          design system's control height. Pages mixed `sm` (32px, smaller text) with
+          the default, so the header changed height from page to page. */}
+      {actions && (
+        <div className="flex shrink-0 items-center gap-1.5 md:gap-2 [&_[data-slot=button]]:h-9 [&_[data-slot=button]]:text-sm [&_[data-slot=button][class*='size-8']]:size-9">
+          {actions}
+        </div>
+      )}
 
       {/* Separates page actions from the app tools that follow in the bar. */}
       {inBar && <div className="ml-0.5 hidden h-6 w-px shrink-0 bg-divider sm:block" aria-hidden="true" />}
@@ -153,7 +158,7 @@ export function EditorShell({
         slot && createPortal(masthead, slot)
       ) : (
         // Same surface as the bar it stands in for.
-        <div className="flex shrink-0 items-center gap-2 border-b border-divider bg-card px-3 py-2 md:px-6">{masthead}</div>
+        <div className="flex shrink-0 items-center gap-2 border-b border-border bg-field px-3 py-2 md:px-6">{masthead}</div>
       )}
 
       {subheader}

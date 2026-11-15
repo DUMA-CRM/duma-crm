@@ -151,7 +151,7 @@ export function ModelAssist({
               key={idea}
               type="button"
               onClick={() => setPrompt(idea)}
-              className="rounded-md border border-rule/60 bg-control px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-rule hover:text-foreground"
+              className="rounded-md border border-border bg-control px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-rule hover:text-foreground"
             >
               {idea}
             </button>

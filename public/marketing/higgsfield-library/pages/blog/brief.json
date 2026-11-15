@@ -1,0 +1,13 @@
+{
+  "path": "/blog",
+  "name": "Blog",
+  "summary": "",
+  "description": "",
+  "source_status": "HTTP Error 403: Forbidden",
+  "folder": "pages/blog",
+  "local_sources": [
+    "app/(marketing)/blog/page.tsx"
+  ],
+  "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
+  "scene": "A quiet caf\u00e9 reading corner with a business notebook, book and coffee in soft daylight."
+}

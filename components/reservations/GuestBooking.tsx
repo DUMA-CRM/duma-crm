@@ -11,6 +11,7 @@ import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { ApiError } from '@/lib/api/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -45,7 +46,7 @@ export function GuestBooking({ token }: { token: string }) {
   if (page.isPending) {
     return (
       <main className="min-h-dvh bg-background" aria-busy="true">
-        <div className="h-20 bg-sidebar" />
+        <div className="h-20 bg-panel" />
         <div className="mx-auto max-w-2xl space-y-4 px-4 py-8">
           <Bone className="h-24 rounded-lg" />
           <Bone className="h-48 rounded-lg" />
@@ -291,7 +292,9 @@ function BookingSteps({ token, page }: { token: string; page: BookingPage }) {
               />
             </div>
             <label className="block space-y-1.5">
-              <span className="text-sm font-medium">Anything we should know? (optional)</span>
+              <FieldLabel as="span" optional>
+                Anything we should know?
+              </FieldLabel>
               <textarea
                 value={details.notes}
                 onChange={(event) => setDetails({ ...details, notes: event.target.value })}

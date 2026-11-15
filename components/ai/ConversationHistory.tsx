@@ -61,7 +61,7 @@ export function ConversationHistory({
   return (
     <section aria-label="Saved conversations" className="py-1">
       <div className="flex items-baseline justify-between gap-3">
-        <h3 className="text-base font-semibold tracking-title text-foreground">Your conversations</h3>
+        <h3 className="text-base font-semibold tracking-title text-heading">Your conversations</h3>
         {data && data.length > 0 && <span className="text-label text-muted-foreground">{data.length} saved</span>}
       </div>
       <p className="mt-1 mb-4 text-sm text-muted-foreground">Recent chats in this workspace and location. Only you can open them.</p>
@@ -78,7 +78,7 @@ export function ConversationHistory({
           role="status"
           aria-busy="true"
           aria-label="Loading conversations"
-          className="divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field"
+          className="divide-y divide-border overflow-hidden rounded-lg border border-border bg-field"
         >
           {['w-3/5', 'w-4/5', 'w-1/2'].map((width) => (
             <div key={width} className="flex items-center gap-3 px-3.5 py-3" aria-hidden="true">
@@ -124,7 +124,7 @@ export function ConversationHistory({
         />
       )}
       {/* The settings page's row list: one bordered panel, a row per chat. */}
-      <ul className={cn('divide-y divide-rule/40 overflow-hidden rounded-lg border border-rule/60 bg-field', !data?.length && 'hidden')}>
+      <ul className={cn('divide-y divide-border overflow-hidden rounded-lg border border-border bg-field', !data?.length && 'hidden')}>
         {data?.map((chat) => (
           <li key={chat.id} className="group/row flex items-center gap-2 pr-2">
             <button

@@ -4,14 +4,12 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { InfoRow, InfoRows, PickerRow } from '@/components/cms/rows';
+import { InfoRow, InfoRows } from '@/components/cms/rows';
 import { AlertTriangle, Bell, CheckCircle2, Clock, type IconComponent, Timer } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { SaveBar, Switch } from '@/components/settings/controls';
+import { ChangeRow, SaveBar, Switch, ValueMissing } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Bone } from '@/components/shared/Skeleton';
-import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -33,6 +31,8 @@ import {
 } from '@/lib/utils/kitchen-age';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
+
+import { ConfigurationBodySkeleton } from './shared';
 
 const UNITS: { value: DurationUnit; label: string }[] = [
   { value: 'minutes', label: 'minutes' },
@@ -60,9 +60,8 @@ const draftOf = (lateness: Lateness | null, vocabulary: 'menu' | 'retail' | 'mix
  * When an order counts as late — per workspace, because five minutes is late
  * for a flat white and nothing for a parcel. Feeds the kitchen screen's colours,
  * the dashboard's "needs you" strip and anything else that flags a late order.
- * Laid out like the other rules tabs: the switch and the two thresholds in the
- * main column, each threshold a row that opens its field; what staff will see
- * alongside.
+ * Laid out like Settings → Account: the switch and the two thresholds as rows,
+ * each threshold's Change opening its field; what staff will see in the rail.
  */
 export function OrdersConfiguration() {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -78,7 +77,7 @@ export function OrdersConfiguration() {
   });
 
   if (!tenantId) return <p className="text-sm text-muted-foreground">Choose a workspace to see its order settings.</p>;
-  if (modules.isPending) return <Bone className="h-96 w-full rounded-lg" />;
+  if (modules.isPending) return <ConfigurationBodySkeleton label="Loading order settings" preview="aspect-[4/3]" />;
   if (modules.isError) return <ErrorState title="Couldn’t load the order settings" onRetry={() => void modules.refetch()} />;
   const ordering = modules.data.modules.find((state) => state.moduleId === 'ordering');
   if (!ordering) {
@@ -148,17 +147,26 @@ function OrdersForm({
     onError: (error) => toast('error', error.message || 'Changes couldn’t be saved. Try again.'),
   });
 
-  const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
-  /** A threshold: its length on the row, the amount and unit (and what it does) underneath. */
-  const durationRow = (row: Row, icon: IconComponent, title: string, hint: string) => {
+  // One row open at a time. Cancel puts the threshold back as it was when the row opened; the draft is still saved through the bar.
+  const [before, setBefore] = useState<Draft | null>(null);
+  const toggle = (row: Row) => {
+    if (open === row) {
+      if (before) set({ [row]: before[row] });
+      setOpen(null);
+      return;
+    }
+    setBefore(draft);
+    setOpen(row);
+  };
+  /** A threshold: its length on the row, the amount and unit underneath. */
+  const durationRow = (row: Row, icon: IconComponent, title: string) => {
     const value = draft[row];
     const mins = row === 'nearly' ? nearlyMins : lateMins;
     return (
-      <PickerRow
+      <ChangeRow
         icon={icon}
-        title={title}
-        value={mins === null ? 'Not set' : durationLabel(mins)}
-        muted={mins === null}
+        label={title}
+        value={mins === null ? <ValueMissing>Not set</ValueMissing> : durationLabel(mins)}
         open={open === row}
         onToggle={() => toggle(row)}
       >
@@ -178,61 +186,30 @@ function OrdersForm({
             ariaLabel={`${title} unit`}
           />
         </div>
-        <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
-      </PickerRow>
+      </ChangeRow>
     );
   };
 
   return (
-    <SettingsTabBody
-      narrowAside
-      aside={
-        <SettingsSection title="What staff see" actions={<Badge variant={draft.on ? 'success' : 'muted'}>{draft.on ? 'On' : 'Off'}</Badge>}>
-          {!draft.on ? (
-            <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">
-                No order turns amber or red on the kitchen screen, and the dashboard doesn’t list late orders.
-              </p>
-              {vocabulary === 'retail' && (
-                <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-                  Off by default for products — a parcel isn’t late after five minutes.
-                </p>
-              )}
-            </div>
-          ) : next ? (
-            <>
-              <InfoRows>
-                <InfoRow icon={CheckCircle2} tone="success" title="On time">
-                  <span className="text-sm text-muted-foreground">Under {durationLabel(next.nearlyMins)}</span>
-                </InfoRow>
-                <InfoRow icon={Timer} tone="warning" title="Nearly late">
-                  <span className="text-sm text-muted-foreground">After {durationLabel(next.nearlyMins)}</span>
-                </InfoRow>
-                <InfoRow icon={AlertTriangle} tone="danger" title="Late">
-                  <span className="text-sm text-muted-foreground">After {durationLabel(next.lateMins)}</span>
-                </InfoRow>
-              </InfoRows>
-              <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-                Counted in each stage — how long an order has been new, preparing or ready — not since it was placed. Late orders also show
-                on the dashboard.
-              </p>
-            </>
-          ) : (
-            <p className="text-sm text-muted-foreground">Fix the times and you’ll see here when an order turns amber and red.</p>
-          )}
-        </SettingsSection>
-      }
-    >
+    <SettingsTabBody narrowAside stickyAside aside={<LatenessPreview on={draft.on} next={next} retail={vocabulary === 'retail'} />}>
       <SettingsSection
         title="Late orders"
-        footnote={canChange ? undefined : 'Only someone who can change workspace settings can change this.'}
+        footnote={
+          <>
+            Counted in each stage — how long an order has been new, preparing or ready — not since it was placed.
+            {!canChange && ' Only someone who can change workspace settings can change this.'}
+          </>
+        }
       >
-        <fieldset disabled={!canChange} className="min-w-0 space-y-3">
-          <InfoRow icon={Bell} title="Flag late orders">
-            <Switch checked={draft.on} onChange={(on) => set({ on })} label="Flag late orders" disabled={!canChange} />
-          </InfoRow>
-          {draft.on && durationRow('nearly', Timer, 'Nearly late after', 'The ticket turns amber.')}
-          {draft.on && durationRow('late', Clock, 'Late after', 'It turns red and shows on the dashboard.')}
+        <fieldset disabled={!canChange} className="min-w-0">
+          <ChangeRow
+            icon={Bell}
+            label="Late orders"
+            value={draft.on ? 'Flagged' : <ValueMissing>Not flagged</ValueMissing>}
+            trailing={<Switch checked={draft.on} onChange={(on) => set({ on })} label="Flag late orders" disabled={!canChange} />}
+          />
+          {draft.on && durationRow('nearly', Timer, 'Nearly late after')}
+          {draft.on && durationRow('late', Clock, 'Late after')}
         </fieldset>
       </SettingsSection>
 
@@ -250,5 +227,35 @@ function OrdersForm({
         />
       )}
     </SettingsTabBody>
+  );
+}
+
+/** What staff will see with the draft: when a ticket turns amber and red, or that nothing does. */
+function LatenessPreview({ on, next, retail }: { on: boolean; next: Lateness | null; retail: boolean }) {
+  return (
+    <SettingsSection title="What staff see">
+      {!on ? (
+        <div className="space-y-3">
+          <p className="text-sm text-muted-foreground">
+            No order turns amber or red on the kitchen screen, and the dashboard doesn’t list late orders.
+          </p>
+          {retail && <p className="text-xs text-muted-foreground">Off by default for products — a parcel isn’t late after five minutes.</p>}
+        </div>
+      ) : next ? (
+        <InfoRows>
+          <InfoRow icon={CheckCircle2} tone="success" title="On time">
+            <span className="text-sm text-muted-foreground">Under {durationLabel(next.nearlyMins)}</span>
+          </InfoRow>
+          <InfoRow icon={Timer} tone="warning" title="Nearly late">
+            <span className="text-sm text-muted-foreground">After {durationLabel(next.nearlyMins)}</span>
+          </InfoRow>
+          <InfoRow icon={AlertTriangle} tone="danger" title="Late">
+            <span className="text-sm text-muted-foreground">After {durationLabel(next.lateMins)}</span>
+          </InfoRow>
+        </InfoRows>
+      ) : null}
+      {on && next && <p className="mt-4 text-xs text-muted-foreground">Late orders also show on the dashboard.</p>}
+      {on && !next && <p className="text-sm text-muted-foreground">Fix the times and you’ll see here when an order turns amber and red.</p>}
+    </SettingsSection>
   );
 }

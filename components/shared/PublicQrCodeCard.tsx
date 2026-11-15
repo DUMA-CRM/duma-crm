@@ -75,7 +75,7 @@ export function PublicQrCodeCard({
   if (actions === 'rows') {
     return (
       <section aria-label={`Your ${purpose} QR code`} className="space-y-3">
-        <div ref={codeRef} className="mx-auto w-fit rounded-lg border border-rule/50 bg-white p-3">
+        <div ref={codeRef} className="mx-auto w-fit rounded-lg border border-border bg-white p-3">
           <QRCode value={url} size={size} aria-label={`${purpose} QR code for ${locationName}`} />
         </div>
         <ActionRows>
@@ -89,7 +89,7 @@ export function PublicQrCodeCard({
 
   return (
     <section aria-label={`Your ${purpose} QR code`} className="flex w-fit max-w-full items-stretch gap-2">
-      <div ref={codeRef} className="shrink-0 rounded-lg border border-rule/50 bg-white p-3">
+      <div ref={codeRef} className="shrink-0 rounded-lg border border-border bg-white p-3">
         <QRCode value={url} size={size} aria-label={`${purpose} QR code for ${locationName}`} />
       </div>
       <div className="flex w-[4.5rem] flex-col gap-2 [&>*]:h-auto [&>*]:flex-1 [&_svg]:size-5">

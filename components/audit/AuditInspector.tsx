@@ -10,6 +10,7 @@ import {
   Check,
   ChevronDown,
   ChevronRight,
+  Clock,
   ExternalLink,
   type IconComponent,
   Layers3,
@@ -53,8 +54,8 @@ const STATUS_TONE: Record<AuditStatus['tone'], string> = {
  * One audit entry, read top to bottom in the order an owner asks:
  *
  *   1. What changed     — the point of the entry
- *   2. Who and when     — the person, their role, the moment, and a way in
- *   3. See more         — everything by them, on this record, or like this
+ *   2. Who and when     — the person, their role, the moment and the record
+ *   3. See more         — open the record; everything by them, on it, or like this
  *   4. Technical details — folded away: the request, the payloads, the IDs
  *
  * `chrome="drawer"` drops the header and the inner scroller for the narrow
@@ -133,7 +134,7 @@ export function AuditInspector({
       <section>
         <SectionTitle>What changed</SectionTitle>
         {changes.length > 0 || facts.length > 0 ? (
-          <dl className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <dl className="overflow-hidden rounded-lg border border-border bg-card">
             {changes.map((change) => (
               <Row key={change.label} label={change.label}>
                 {change.before !== undefined && (
@@ -156,92 +157,65 @@ export function AuditInspector({
             {hasPayload ? 'Only that it happened — no field-level detail was recorded.' : 'No details were stored with this entry.'}
           </p>
         )}
-        {onlyNewValues && (
-          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">These are the new values. Earlier ones weren’t recorded.</p>
-        )}
+        {onlyNewValues && <p className="mt-2 text-xs leading-relaxed text-muted-foreground">Earlier values weren’t recorded.</p>}
       </section>
 
+      {/* Who and when, then where to go next — both as the same rows: tile, line, action. */}
       <section>
         <SectionTitle>Who and when</SectionTitle>
-        <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
-          {/* In the drawer the title already names who and the description says
-              when, so the person shrinks to their email and the When row goes. */}
+        <ul className="overflow-hidden rounded-lg border border-border bg-card">
+          {/* In the drawer the title already names who and the description says when. */}
           {chrome === 'drawer' ? (
             log.userEmail && (
-              <div className="flex items-center gap-3 border-b border-rule/50 px-3.5 py-2.5">
-                <p className="min-w-0 flex-1 truncate text-sm text-foreground">{log.userEmail}</p>
-                <AuditCopyButton value={log.userEmail} label="email" />
-              </div>
+              <PanelRow
+                tile={<RowIcon icon={User} />}
+                title={log.userEmail}
+                trailing={<AuditCopyButton value={log.userEmail} label="email" />}
+              />
             )
           ) : (
-            <div className="flex items-center gap-3 border-b border-rule/50 px-3.5 py-3">
-              <Avatar name={auditActor(log)} email={log.userEmail} size="md" />
-              <div className="min-w-0 flex-1">
-                <p className="truncate text-sm font-semibold text-foreground">{auditActor(log)}</p>
-                <p className="truncate text-xs text-muted-foreground">
-                  {[role ?? 'Role not recorded', log.userEmail].filter(Boolean).join(' · ')}
-                </p>
-              </div>
-              {log.userEmail && <AuditCopyButton value={log.userEmail} label="email" />}
-            </div>
+            <PanelRow
+              tile={<Avatar name={auditActor(log)} email={log.userEmail} size="sm" />}
+              title={auditActor(log)}
+              detail={[role ?? 'Role not recorded', log.userEmail].filter(Boolean).join(' · ')}
+              trailing={log.userEmail && <AuditCopyButton value={log.userEmail} label="email" />}
+            />
           )}
-          <dl>
-            {chrome !== 'drawer' && (
-              <Row label="When">
-                <span>{fullTimestamp(log.createdAt)}</span>
-              </Row>
-            )}
-            <Row label="Record">
-              <span>{resourceLabel(log.resourceType)}</span>
-            </Row>
-          </dl>
-        </div>
-        {link && (
-          <Link
-            href={link.href}
-            className="mt-2 flex h-10 items-center justify-center gap-2 rounded-md border border-rule/70 bg-field text-sm font-semibold text-foreground transition-colors hover:bg-band focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-          >
-            <ExternalLink size={14} className="text-primary" aria-hidden="true" />
-            {link.exact ? 'Open this record' : `Open ${resourceLabel(log.resourceType).toLowerCase()}`}
-          </Link>
-        )}
+          {chrome !== 'drawer' && <PanelRow tile={<RowIcon icon={Clock} />} title={fullTimestamp(log.createdAt)} detail="When" />}
+          <PanelRow tile={<RowIcon icon={Layers3} />} title={resourceLabel(log.resourceType)} detail="Record" />
+        </ul>
       </section>
 
       <section>
         <SectionTitle>See more</SectionTitle>
-        <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+        <ul className="overflow-hidden rounded-lg border border-border bg-card">
+          {link && (
+            <PanelRow
+              href={link.href}
+              tile={<RowIcon icon={ExternalLink} />}
+              title={link.exact ? 'Open this record' : `Open ${resourceLabel(log.resourceType).toLowerCase()}`}
+              trailing={<ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />}
+            />
+          )}
           {pivots.map((pivot) => {
-            const Icon = pivot.icon;
             const disabled = pivot.applied || !pivot.available;
             return (
-              <li key={pivot.kind} className="border-b border-rule/45 last:border-b-0">
-                <button
-                  type="button"
-                  disabled={disabled}
-                  onClick={() => onPivot({ kind: pivot.kind, value: pivot.value, label: pivot.label })}
-                  className={cn(
-                    'flex w-full items-center gap-3 px-3.5 py-2.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
-                    disabled ? 'cursor-default text-muted-foreground' : 'text-foreground hover:bg-band/60',
-                  )}
-                >
-                  <span
-                    className={cn(
-                      'flex size-8 shrink-0 items-center justify-center rounded-md',
-                      disabled ? 'bg-band text-muted-foreground' : 'bg-primary/8 text-primary',
-                    )}
-                  >
-                    <Icon size={15} aria-hidden="true" />
-                  </span>
-                  <span className="min-w-0 flex-1 truncate">{pivot.label}</span>
-                  {pivot.applied ? (
+              <PanelRow
+                key={pivot.kind}
+                onClick={disabled ? undefined : () => onPivot({ kind: pivot.kind, value: pivot.value, label: pivot.label })}
+                disabled={disabled}
+                tile={<RowIcon icon={pivot.icon} muted={disabled} />}
+                title={pivot.label}
+                trailing={
+                  pivot.applied ? (
                     <span className="flex shrink-0 items-center gap-1 text-xs font-medium text-primary">
                       <Check size={13} aria-hidden="true" /> Showing
                     </span>
                   ) : (
                     pivot.available && <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
-                  )}
-                </button>
-              </li>
+                  )
+                }
+              />
             );
           })}
         </ul>
@@ -255,7 +229,7 @@ export function AuditInspector({
 
   return (
     <div className="flex h-full min-h-0 flex-col">
-      <header className="flex shrink-0 items-start gap-3 border-b border-rule/60 bg-surface px-5 py-4">
+      <header className="flex shrink-0 items-start gap-3 border-b border-border bg-surface px-5 py-4">
         <AuditGlyph
           icon={auditIcon(log, severity)}
           size={18}
@@ -290,12 +264,79 @@ export function AuditInspector({
 // ── Pieces ────────────────────────────────────────────────────────────────────
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-sm font-semibold text-foreground">{children}</h3>;
+  return <h3 className="mb-2 text-sm font-semibold text-heading">{children}</h3>;
+}
+
+/** A tinted icon tile, the size the rows share. */
+function RowIcon({ icon: Icon, muted = false }: { icon: IconComponent; muted?: boolean }) {
+  return (
+    <span
+      className={cn(
+        'flex size-8 shrink-0 items-center justify-center rounded-md',
+        muted ? 'bg-band text-muted-foreground' : 'bg-primary/8 text-primary',
+      )}
+    >
+      <Icon size={15} aria-hidden="true" />
+    </span>
+  );
+}
+
+/**
+ * One row of the panel's lists — a tile, a line (and a muted line under it), something on
+ * the right. A link with `href`, a button with `onClick`, otherwise a plain fact.
+ */
+function PanelRow({
+  tile,
+  title,
+  detail,
+  trailing,
+  href,
+  onClick,
+  disabled = false,
+}: {
+  tile: React.ReactNode;
+  title: React.ReactNode;
+  detail?: React.ReactNode;
+  trailing?: React.ReactNode;
+  href?: string;
+  onClick?: () => void;
+  disabled?: boolean;
+}) {
+  const body = (
+    <>
+      {tile}
+      <span className="min-w-0 flex-1">
+        <span className={cn('block truncate text-sm', disabled ? 'text-muted-foreground' : 'text-foreground', detail && 'font-semibold')}>
+          {title}
+        </span>
+        {detail && <span className="block truncate text-xs text-muted-foreground">{detail}</span>}
+      </span>
+      {trailing}
+    </>
+  );
+  const rowClass = 'flex w-full items-center gap-3 px-3.5 py-2.5 text-left';
+  const interactive =
+    'transition-colors hover:bg-band/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring';
+  return (
+    <li className="border-b border-border last:border-b-0">
+      {href ? (
+        <Link href={href} className={cn(rowClass, interactive)}>
+          {body}
+        </Link>
+      ) : onClick || disabled ? (
+        <button type="button" disabled={disabled} onClick={onClick} className={cn(rowClass, disabled ? 'cursor-default' : interactive)}>
+          {body}
+        </button>
+      ) : (
+        <div className={rowClass}>{body}</div>
+      )}
+    </li>
+  );
 }
 
 function Row({ label, children, mono = false }: { label: string; children: React.ReactNode; mono?: boolean }) {
   return (
-    <div className="flex items-baseline gap-3 border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+    <div className="flex items-baseline gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
       <dt className="w-24 shrink-0 text-xs text-muted-foreground">{label}</dt>
       <dd
         className={cn(
@@ -328,7 +369,7 @@ function TechnicalDetails({ log }: { log: AuditLog }) {
   ];
 
   return (
-    <section className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+    <section className="overflow-hidden rounded-lg border border-border bg-card">
       <button
         type="button"
         aria-expanded={open}
@@ -336,7 +377,6 @@ function TechnicalDetails({ log }: { log: AuditLog }) {
         className="flex w-full items-center gap-2 px-3.5 py-3 text-left text-sm font-semibold text-foreground transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
       >
         Technical details
-        <span className="font-normal text-muted-foreground">· for support</span>
         <ChevronDown
           size={15}
           className={cn('ml-auto shrink-0 text-muted-foreground transition-transform duration-200', open && 'rotate-180')}
@@ -350,7 +390,7 @@ function TechnicalDetails({ log }: { log: AuditLog }) {
             animate={reduceMotion ? { opacity: 1 } : { height: 'auto', opacity: 1 }}
             exit={reduceMotion ? { opacity: 0 } : { height: 0, opacity: 0 }}
             transition={{ duration: 0.24, ease: EASE }}
-            className="overflow-hidden border-t border-rule/50"
+            className="overflow-hidden border-t border-border"
           >
             <dl>
               {rows
@@ -362,7 +402,7 @@ function TechnicalDetails({ log }: { log: AuditLog }) {
                   </Row>
                 ))}
             </dl>
-            <div className="space-y-3 border-t border-rule/50 p-3.5">
+            <div className="space-y-3 border-t border-border p-3.5">
               <JsonBlock title="Request body" value={parseAuditMeta(log.metadata)} />
               <JsonBlock title="Response" value={parseAuditMeta(log.response)} />
               <div className="flex justify-end">

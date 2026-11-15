@@ -235,7 +235,7 @@ export function PrimeCostReport({ filters }: { filters: ReportFilterState }) {
 
           <ReportBlock title="Where the money went" description="Sales without VAT, less what the food and the team cost.">
             <ProfitBar summary={current} />
-            <dl className="mt-4 divide-y divide-rule/45 border-t border-rule/45">
+            <dl className="mt-4 divide-y divide-border border-t border-border">
               {lines.map((line) => (
                 <div key={line.key} className="flex items-baseline justify-between gap-4 py-2.5 text-sm">
                   <dt className={cn('flex items-baseline gap-2', line.strong ? 'font-semibold text-foreground' : 'text-muted-foreground')}>

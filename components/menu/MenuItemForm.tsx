@@ -5,13 +5,15 @@ import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
 import { RowTile } from '@/components/cms/rows';
-import { ArrowRight, Boxes, ImageIcon, Layers, Link2, Tag, UtensilsCrossed } from '@/components/icons';
+import { ArrowRight, Boxes, ChevronDown, ImageIcon, Layers, Link2, Tag, UtensilsCrossed } from '@/components/icons';
+import { ItemImageField } from '@/components/menu/ItemImageField';
 import { categoryTone } from '@/components/menu/shared';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { proxiedImage } from '@/lib/api/client';
@@ -111,12 +113,13 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
   });
 
   const groups = groupByCategory(all, (m) => modifierCategory(m));
+  const [opened, setOpened] = useState<Set<string>>(() => new Set());
 
   if (all.length === 0)
     return (
       <p className="text-sm text-muted-foreground">
         No modifiers exist yet.{' '}
-        <Link href="/menu/modifiers/new" className="font-semibold text-primary hover:underline">
+        <Link href="/menu/modifiers" className="font-semibold text-primary hover:underline">
           Create one
         </Link>{' '}
         — sizes, milks, syrups — then attach it here.
@@ -124,21 +127,23 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
     );
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-3">
       {groups.map((group) => {
         const groupId = group.items.find((modifier) => modifier.groupId)?.groupId;
         const rule = rules.find((entry) => entry.id === groupId);
         const attachedHere = group.items.filter((m) => attachedIds.has(m.id)).length;
+        // A group the item doesn't use folds to its heading — open it to offer something.
+        const open = attachedHere > 0 || opened.has(group.category);
         return (
-          <div key={group.category}>
-            <div className="mb-2 flex items-center justify-between gap-3">
-              <p className="text-label uppercase text-muted-foreground">
-                {group.category}
-                <span className="ml-2 normal-case tabular-nums">
-                  {attachedHere}/{group.items.length} offered
+          <section key={group.category} aria-label={group.category} className="overflow-hidden rounded-lg border border-border bg-card">
+            <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5', open && 'border-b border-border')}>
+              <span className="min-w-0 flex-1">
+                <span className="block truncate text-sm font-semibold text-heading">{group.category}</span>
+                <span className="block text-xs text-muted-foreground tabular-nums">
+                  {attachedHere === 0 ? 'Not offered' : `${attachedHere} of ${group.items.length} offered`}
                 </span>
-              </p>
-              {groupId && rule && (
+              </span>
+              {groupId && rule && attachedHere > 0 ? (
                 <Select
                   value={`${rule.minSelections}:${rule.maxSelections ?? 'many'}`}
                   onValueChange={(next) => updateRule.mutate({ groupId, value: next })}
@@ -151,57 +156,80 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
                   ariaLabel={`${group.category} selection rule`}
                   className="h-8 w-auto min-w-48 shrink-0 whitespace-nowrap text-xs"
                 />
+              ) : (
+                attachedHere === 0 && (
+                  <button
+                    type="button"
+                    onClick={() =>
+                      setOpened((current) => {
+                        const next = new Set(current);
+                        if (next.has(group.category)) next.delete(group.category);
+                        else next.add(group.category);
+                        return next;
+                      })
+                    }
+                    aria-expanded={open}
+                    className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/8 focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    {open ? 'Hide' : 'Offer'}
+                    <ChevronDown size={14} className={cn('transition-transform', open && 'rotate-180')} aria-hidden="true" />
+                  </button>
+                )
               )}
             </div>
-            <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
-              {group.items.map((m) => {
-                const isAttached = attachedIds.has(m.id);
-                return (
-                  <li
-                    key={m.id}
-                    className={cn(
-                      'flex items-center border-b border-rule/45 transition-colors last:border-b-0 hover:bg-band/40',
-                      isAttached && 'bg-primary/4',
-                    )}
-                  >
-                    {/* The label carries the padding, so the whole row — not just the text — toggles it. */}
-                    <label className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-3 px-3.5 py-2.5">
-                      <input
-                        type="checkbox"
-                        checked={isAttached}
-                        disabled={toggle.isPending}
-                        onChange={(e) => toggle.mutate({ modifierId: m.id, on: e.target.checked })}
-                        className="size-4 shrink-0 rounded accent-primary"
-                      />
-                      <span className={cn('truncate text-sm', isAttached ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
-                        {modifierLabel(m)}
-                      </span>
-                      {adjust(m.priceAdjust, symbol) && (
-                        <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{adjust(m.priceAdjust, symbol)}</span>
+            {open && (
+              <ul>
+                {group.items.map((m) => {
+                  const isAttached = attachedIds.has(m.id);
+                  return (
+                    <li
+                      key={m.id}
+                      className={cn(
+                        'flex items-center border-b border-border transition-colors last:border-b-0 hover:bg-band/40',
+                        isAttached && 'bg-primary/4',
                       )}
-                    </label>
-                    {isAttached && (
-                      <button
-                        type="button"
-                        disabled={toggleDefault.isPending}
-                        onClick={() => toggleDefault.mutate({ modifierId: m.id, isDefault: !defaultIds.has(m.id) })}
-                        aria-pressed={defaultIds.has(m.id)}
-                        title="Pre-select this at the till"
-                        className={cn(
-                          'mr-3.5 shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold transition-colors',
-                          defaultIds.has(m.id)
-                            ? 'bg-primary text-primary-foreground'
-                            : 'bg-band text-muted-foreground hover:text-foreground',
+                    >
+                      {/* The label carries the padding, so the whole row — not just the text — toggles it. */}
+                      <label className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-3 px-3.5 py-2.5">
+                        <input
+                          type="checkbox"
+                          checked={isAttached}
+                          disabled={toggle.isPending}
+                          onChange={(e) => toggle.mutate({ modifierId: m.id, on: e.target.checked })}
+                          className="size-4 shrink-0 rounded accent-primary"
+                        />
+                        <span className={cn('truncate text-sm', isAttached ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+                          {modifierLabel(m)}
+                        </span>
+                        {adjust(m.priceAdjust, symbol) && (
+                          <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
+                            {adjust(m.priceAdjust, symbol)}
+                          </span>
                         )}
-                      >
-                        {defaultIds.has(m.id) ? 'Default' : 'Set default'}
-                      </button>
-                    )}
-                  </li>
-                );
-              })}
-            </ul>
-          </div>
+                      </label>
+                      {isAttached && (
+                        <button
+                          type="button"
+                          disabled={toggleDefault.isPending}
+                          onClick={() => toggleDefault.mutate({ modifierId: m.id, isDefault: !defaultIds.has(m.id) })}
+                          aria-pressed={defaultIds.has(m.id)}
+                          title="Pre-select this at the till"
+                          className={cn(
+                            'mr-3.5 shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold transition-colors',
+                            defaultIds.has(m.id)
+                              ? 'bg-primary text-primary-foreground'
+                              : 'bg-band text-muted-foreground hover:text-foreground',
+                          )}
+                        >
+                          {defaultIds.has(m.id) ? 'Default' : 'Set default'}
+                        </button>
+                      )}
+                    </li>
+                  );
+                })}
+              </ul>
+            )}
+          </section>
         );
       })}
     </div>
@@ -407,7 +435,9 @@ export function MenuItemForm({
   const priceError = !/^\d+(\.\d{1,2})?$/.test(price.trim()) ? 'A price like 3.20.' : null;
   // The API takes any string; links and inline data images are what's actually used.
   const imageError =
-    imageUrl.trim() && !/^(https?:\/\/\S+|data:image\/)/.test(imageUrl.trim()) ? 'A full web address, starting https://' : null;
+    imageUrl.trim() && !/^(https?:\/\/\S+|data:image\/|\/v1\/(cms\/delivery|menu-items\/images)\/)/.test(imageUrl.trim())
+      ? 'A full web address, starting https://'
+      : null;
   const slugError =
     slug.trim() && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim())
       ? 'Lower-case letters, numbers and dashes, like oversized-hoodie.'
@@ -430,8 +460,73 @@ export function MenuItemForm({
       }}
     >
       <SettingsTabBody
+        stickyAside
         aside={
           <>
+            {/* How it reads where it's sold — the till tile, as Square's item preview. */}
+            <SettingsSection title={tools.kitchen ? 'At the till' : 'In your shop'}>
+              <div className="overflow-hidden rounded-lg border border-border bg-card">
+                <div className="relative aspect-4/3 bg-band">
+                  {preview ? (
+                    // eslint-disable-next-line @next/next/no-img-element
+                    <img
+                      src={preview}
+                      alt=""
+                      onError={() => setImageBroken(true)}
+                      className={cn('absolute inset-0 size-full object-cover', !isAvailable && 'opacity-60 grayscale')}
+                    />
+                  ) : tools.retail && item && onOpenTab ? (
+                    <button
+                      type="button"
+                      onClick={() => onOpenTab('photos')}
+                      className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
+                    >
+                      <ImageIcon size={24} aria-hidden="true" />
+                      <span className="text-xs font-semibold">Add photos</span>
+                    </button>
+                  ) : (
+                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground/60 select-none">
+                      {tools.retail && !tools.kitchen ? (
+                        <Tag size={26} aria-hidden="true" />
+                      ) : (
+                        <UtensilsCrossed size={26} aria-hidden="true" />
+                      )}
+                      <span className="text-xs font-semibold">
+                        {imageBroken ? 'Didn’t load' : tools.retail && !item ? 'Photos next' : 'No image'}
+                      </span>
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1.5 px-3.5 py-3">
+                  <div className="flex items-baseline justify-between gap-3">
+                    <p className={cn('truncate text-base font-semibold', name.trim() ? 'text-heading' : 'text-muted-foreground/60')}>
+                      {name.trim() || words.newItem}
+                    </p>
+                    <p className="shrink-0 text-base font-semibold tabular-nums text-foreground">{priceText}</p>
+                  </div>
+                  <span
+                    className={cn(
+                      'inline-block rounded-sm px-1.5 py-0.5 text-micro font-semibold uppercase tracking-micro',
+                      categoryTone(currentCategory?.slug ?? '', currentCategory),
+                    )}
+                  >
+                    {currentCategory?.name ?? `No ${words.group.toLowerCase()}`}
+                  </span>
+                  {description.trim() && <p className="line-clamp-2 text-xs text-muted-foreground">{description.trim()}</p>}
+                </div>
+              </div>
+              <div className="mt-4">
+                <SettingRows>
+                  <SettingRow
+                    icon={tools.retail && !tools.kitchen ? Tag : UtensilsCrossed}
+                    title={words.available}
+                    description={isAvailable ? undefined : tools.kitchen ? 'Hidden at the till and online.' : 'Hidden from shoppers.'}
+                  >
+                    <Switch label={words.available} checked={isAvailable} onChange={setIsAvailable} />
+                  </SettingRow>
+                </SettingRows>
+              </div>
+            </SettingsSection>
             {tools.retail && (
               <ProductSummary
                 item={item}
@@ -440,196 +535,126 @@ export function MenuItemForm({
                 onOpenTab={onOpenTab}
               />
             )}
-            {tools.kitchen && (
-              <SettingsSection title="Modifiers" description="Tick to offer, and set the default the till pre-selects.">
-                {item ? (
-                  <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
-                ) : (
-                  <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">
-                    Create the item first — sizes, milks and syrups can be attached straight after.
-                  </p>
-                )}
-              </SettingsSection>
-            )}
           </>
         }
       >
-        {/* One card, the settings profile card's shape: the item as it reads at
-            the till (image tile, name, section, price) over the fields that
-            make it, with availability at the foot. */}
-        <SettingsSection>
-          <div className="flex flex-col gap-5 sm:flex-row sm:items-start">
-            <div className="relative size-28 shrink-0 overflow-hidden rounded-xl bg-linear-to-br from-primary/15 via-band to-band shadow-sm">
-              {preview ? (
-                // eslint-disable-next-line @next/next/no-img-element
-                <img
-                  src={preview}
-                  alt=""
-                  onError={() => setImageBroken(true)}
-                  className={cn('absolute inset-0 size-full object-cover', !isAvailable && 'opacity-60 grayscale')}
-                />
-              ) : tools.retail && item && onOpenTab ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenTab('photos')}
-                  className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
-                >
-                  <ImageIcon size={24} aria-hidden="true" />
-                  <span className="text-micro font-semibold">Add photos</span>
-                </button>
-              ) : (
-                <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground/50 select-none">
-                  {tools.retail && !tools.kitchen ? <Tag size={26} aria-hidden="true" /> : <UtensilsCrossed size={26} aria-hidden="true" />}
-                  <span className="text-micro font-semibold">
-                    {imageBroken ? 'Didn’t load' : tools.retail && !item ? 'Photos next' : 'No image'}
-                  </span>
-                </div>
-              )}
-            </div>
-            <div className="min-w-0 flex-1 space-y-3">
-              <div>
-                <div className="flex items-baseline justify-between gap-3">
-                  <p
-                    className={cn(
-                      'truncate text-2xl font-semibold tracking-headline',
-                      name.trim() ? 'text-foreground' : 'text-muted-foreground/60',
-                    )}
-                  >
-                    {name.trim() || words.newItem}
-                  </p>
-                  <p className="shrink-0 text-xl font-semibold tabular-nums text-foreground">{priceText}</p>
-                </div>
-                <p className="mt-1.5 flex flex-wrap items-center gap-1.5">
-                  <span
-                    className={cn(
-                      'rounded-sm px-1.5 py-0.5 text-micro font-semibold uppercase tracking-micro',
-                      categoryTone(currentCategory?.slug ?? '', currentCategory),
-                    )}
-                  >
-                    {currentCategory?.name ?? `No ${words.group.toLowerCase()}`}
-                  </span>
-                </p>
-              </div>
-              {tools.kitchen && (
-                <Input
-                  label="Image"
-                  value={imageUrl}
-                  onChange={(e) => {
-                    setImageUrl(e.target.value);
-                    setImageBroken(false);
-                  }}
-                  placeholder="https://… (optional)"
-                  error={show(imageError)}
-                />
-              )}
-              {tools.retail && !tools.kitchen && (
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {item
-                    ? 'Sizes, stock and photos have their own tabs above.'
-                    : 'Name it, price it and give it a category. Sizes, stock and photos come next.'}
-                </p>
-              )}
-            </div>
-          </div>
-
-          <div className="mt-6 border-t border-rule/45 pt-6">
-            <div className="space-y-4">
-              <Input
-                label="Name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                maxLength={255}
-                placeholder={words.namePlaceholder}
-                autoFocus={!item}
-                error={show(nameError)}
-              />
-              {tools.retail && (
-                <Input
-                  label="Web address"
-                  value={slug}
-                  onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                  maxLength={160}
-                  placeholder={item ? 'Made from the name when you save' : 'Made from the name'}
-                  hint="Its address in your online shop, like /products/oversized-hoodie"
-                  error={slugError ?? undefined}
-                  className="font-mono"
-                />
-              )}
-              <div className="grid gap-4 sm:grid-cols-2">
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-label uppercase text-muted-foreground">{words.group}</span>
-                  <Select
-                    value={categoryId}
-                    onValueChange={setCategoryId}
-                    options={[
-                      ...(categoryId ? [] : [{ value: '', label: words.groupPlaceholder }]),
-                      ...categories
-                        .filter((entry) => entry.isActive || entry.id === item?.categoryId)
-                        .map((entry) => ({ value: entry.id, label: entry.name })),
-                    ]}
-                    ariaLabel={words.group}
-                    ariaInvalid={submitted && !!categoryError}
-                    className="w-full"
-                  />
-                  {submitted && categoryError && <p className="text-xs text-destructive">{categoryError}</p>}
-                </div>
-                <Input
-                  label="Price"
-                  value={price}
-                  onChange={(e) => setPrice(e.target.value)}
-                  inputMode="decimal"
-                  placeholder={tools.retail && !tools.kitchen ? '25.00' : '3.20'}
-                  leftIcon={<span className="text-sm">{symbol}</span>}
-                  className="tabular-nums"
-                  error={show(priceError)}
-                />
-              </div>
-              {/* Only meaningful for a VAT-registered tenant — otherwise no rate
-                  applies to anything and the field is pure noise. */}
-              {vat.vatRegistered && (
-                <div className="flex flex-col gap-1.5">
-                  <span className="text-label uppercase text-muted-foreground">VAT rate</span>
-                  <Select
-                    value={vatRate}
-                    onValueChange={setVatRate}
-                    options={[
-                      { value: '', label: `Use default (${vat.defaultVatRate}%)` },
-                      { value: '20', label: 'Standard — 20%' },
-                      { value: '5', label: 'Reduced — 5%' },
-                      { value: '0', label: 'Zero-rated — 0%' },
-                    ]}
-                    ariaLabel={`VAT rate for this ${words.item}`}
-                    className="w-full"
-                  />
-                  <p className="text-xs text-muted-foreground">
-                    {tools.kitchen
-                      ? 'Hot food and drink are standard-rated; most cold takeaway food is zero-rated. This changes the margin shown, not the price.'
-                      : 'Most goods are standard-rated; children’s clothing and shoes are zero-rated. This changes the VAT recorded, not the price.'}
-                  </p>
-                </div>
-              )}
+        <SettingsSection title="Details">
+          <div className="space-y-4">
+            <Input
+              label="Name"
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+              maxLength={255}
+              placeholder={words.namePlaceholder}
+              autoFocus={!item}
+              error={show(nameError)}
+            />
+            {/* Section and price side by side, as Square's item sheet has them — price isn't a card of its own. */}
+            <div className="grid gap-4 sm:grid-cols-2">
               <div className="flex flex-col gap-1.5">
-                <span className="text-label uppercase text-muted-foreground">Description</span>
-                <textarea
-                  value={description}
-                  onChange={(e) => setDescription(e.target.value)}
-                  rows={tools.retail && !tools.kitchen ? 4 : 2}
-                  placeholder={words.descriptionPlaceholder}
-                  aria-label="Description"
-                  className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-measured focus:outline-2 focus:outline-measured sm:text-sm"
+                <FieldLabel as="span">{words.group}</FieldLabel>
+                <Select
+                  value={categoryId}
+                  onValueChange={setCategoryId}
+                  options={[
+                    ...(categoryId ? [] : [{ value: '', label: words.groupPlaceholder }]),
+                    ...categories
+                      .filter((entry) => entry.isActive || entry.id === item?.categoryId)
+                      .map((entry) => ({ value: entry.id, label: entry.name })),
+                  ]}
+                  ariaLabel={words.group}
+                  ariaInvalid={submitted && !!categoryError}
+                  className="w-full"
                 />
+                {submitted && categoryError && <p className="text-xs text-destructive">{categoryError}</p>}
               </div>
+              <Input
+                label="Price"
+                value={price}
+                onChange={(e) => setPrice(e.target.value)}
+                inputMode="decimal"
+                placeholder={tools.retail && !tools.kitchen ? '25.00' : '3.20'}
+                leftIcon={<span className="text-sm">{symbol}</span>}
+                className="tabular-nums"
+                hint={vat.vatRegistered ? (vat.pricesIncludeTax ? 'Including VAT' : 'Before VAT') : undefined}
+                error={show(priceError)}
+              />
             </div>
-          </div>
-
-          <div className="mt-6 border-t border-rule/45 pt-5">
-            <SettingRows>
-              <SettingRow icon={tools.retail && !tools.kitchen ? Tag : UtensilsCrossed} title={words.available}>
-                <Switch label={words.available} checked={isAvailable} onChange={setIsAvailable} />
-              </SettingRow>
-            </SettingRows>
+            {/* Only meaningful for a VAT-registered tenant — otherwise no rate
+                applies to anything and the field is pure noise. */}
+            {vat.vatRegistered && (
+              <div className="flex flex-col gap-1.5">
+                <FieldLabel as="span">VAT rate</FieldLabel>
+                <Select
+                  value={vatRate}
+                  onValueChange={setVatRate}
+                  options={[
+                    { value: '', label: `Use default (${vat.defaultVatRate}%)` },
+                    { value: '20', label: 'Standard — 20%' },
+                    { value: '5', label: 'Reduced — 5%' },
+                    { value: '0', label: 'Zero-rated — 0%' },
+                  ]}
+                  ariaLabel={`VAT rate for this ${words.item}`}
+                  className="w-full"
+                />
+                <p className="text-xs leading-relaxed text-muted-foreground">
+                  {tools.kitchen
+                    ? 'Hot food and drink are standard-rated; most cold takeaway food is zero-rated. This changes the margin shown, not the price.'
+                    : 'Most goods are standard-rated; children’s clothing and shoes are zero-rated. This changes the VAT recorded, not the price.'}
+                </p>
+              </div>
+            )}
+            <div className="flex flex-col gap-1.5">
+              <FieldLabel as="span">Description</FieldLabel>
+              <textarea
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                rows={tools.retail && !tools.kitchen ? 4 : 3}
+                placeholder={words.descriptionPlaceholder}
+                aria-label="Description"
+                className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30 sm:text-sm"
+              />
+            </div>
+            {tools.retail && (
+              <Input
+                label="Web address"
+                value={slug}
+                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+                maxLength={160}
+                placeholder={item ? 'Made from the name when you save' : 'Made from the name'}
+                hint="Its address in your online shop, like /products/oversized-hoodie"
+                error={slugError ?? undefined}
+                className="font-mono"
+              />
+            )}
           </div>
         </SettingsSection>
+
+        {tools.kitchen && (
+          <SettingsSection title="Photo" description="Shown on the till tile, the QR menu and online.">
+            <ItemImageField
+              value={imageUrl}
+              onChange={(url) => {
+                setImageUrl(url);
+                setImageBroken(false);
+              }}
+              itemName={name}
+              error={show(imageError)}
+            />
+          </SettingsSection>
+        )}
+
+        {tools.kitchen && (
+          <SettingsSection title="Modifiers" description="What can be chosen with it, and what the till pre-selects.">
+            {item ? (
+              <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
+            ) : (
+              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">
+                Create the item first — sizes, milks and syrups can be attached straight after.
+              </p>
+            )}
+          </SettingsSection>
+        )}
       </SettingsTabBody>
     </form>
   );

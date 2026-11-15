@@ -90,7 +90,7 @@ export function BookingsDay({
       <li
         key={booking.id}
         className={cn(
-          'flex items-center gap-3 rounded-lg border border-rule/50 bg-control px-3 py-2.5',
+          'flex items-center gap-3 rounded-lg border border-border bg-control px-3 py-2.5',
           !isLive(booking.status) && 'opacity-70',
         )}
       >

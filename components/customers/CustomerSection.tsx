@@ -14,7 +14,7 @@ export function CustomerSection({
   if (!collapsible) return <SettingsSection {...props} />;
   const { title, description, actions, children, footnote, className, bodyClassName } = props;
   return (
-    <details open={defaultOpen} className={cn('group/customer-section min-w-0 rounded-lg border border-rule/60 bg-field', className)}>
+    <details open={defaultOpen} className={cn('group/customer-section min-w-0 rounded-lg border border-border bg-field', className)}>
       <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
         <span className="min-w-0 flex-1">{title}</span>
         {actions}

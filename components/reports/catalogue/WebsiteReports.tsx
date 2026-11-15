@@ -738,7 +738,7 @@ function CustomEvents({ data, previous, filters }: WidgetProps) {
       ) : rows?.length ? (
         <>
           {data.eventSeries && data.eventSeries.length > 0 && (
-            <div className="border-b border-rule/50 p-4">
+            <div className="border-b border-border p-4">
               <StackedColumnChart
                 buckets={buckets.map((bucket) => ({ label: bucket.label, axis: bucket.axis }))}
                 series={stack}

@@ -189,7 +189,7 @@ export function VatReport({ filters }: { filters: ReportFilterState }) {
       ) : (
         <>
           {!tax.vatRegistered && (
-            <p className="flex items-start gap-2.5 rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-sm text-foreground">
+            <p className="flex items-start gap-2.5 rounded-lg border border-border bg-field px-3.5 py-3 text-sm text-foreground">
               <Calculator size={16} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               This workspace isn’t set as VAT-registered, so no VAT is charged on sales. Change it in Settings → Trading &amp; tax.
             </p>

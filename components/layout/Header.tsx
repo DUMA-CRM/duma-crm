@@ -1,25 +1,19 @@
 'use client';
 
-import { useQueryClient } from '@tanstack/react-query';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect } from 'react';
 
 import { DumaAgent } from '@/components/ai/DumaAgent';
-import { PanelRight, RotateCcw } from '@/components/icons';
-import { UpdateNotifier } from '@/components/updates/UpdateNotifier';
+import { PanelRight } from '@/components/icons';
 
 import { useWorkspaceModules } from '@/lib/hooks/useWorkspaceContext';
-import { cn } from '@/lib/utils/cn';
 import { usePageHeaderStore } from '@/stores/pageHeaderStore';
 import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 
+import { AccountMenu } from './AccountMenu';
+import { HeaderIconButton } from './HeaderIconButton';
 import { SidebarToggle } from './SidebarToggle';
-import { ThemeToggle } from './ThemeToggle';
-
-const iconButton = 'w-9 h-9 rounded-md flex items-center justify-center hover:bg-band hover:text-foreground transition-colors';
 
 export function Header() {
-  const [spinning, setSpinning] = useState(false);
-  const qc = useQueryClient();
   // Ask DUMA works in a workspace; DUMA Admin has none, so it has no assistant.
   const agentEnabled = useWorkspaceModules()?.some((module) => module.moduleId === 'agent' && module.status === 'enabled') ?? false;
   // Only pages that render a right-hand panel get the drawer toggle.
@@ -34,17 +28,11 @@ export function Header() {
     return () => setBarVisible(false);
   }, [setBarVisible]);
 
-  const handleReload = useCallback(async () => {
-    setSpinning(true);
-    await qc.invalidateQueries();
-    setTimeout(() => setSpinning(false), 600);
-  }, [qc]);
-
   return (
-    // Card, not page: the bar carries the page's masthead, so it reads as the
-    // sheet's own header lifted off the content rather than a gap above it.
-    // Opaque — <main> is a separate scroll container, so nothing passes under.
-    <header className="h-14 shrink-0 bg-card border-b border-divider flex items-center gap-2 md:gap-3 px-3 md:px-6 sticky top-0 z-20">
+    // On the page colour behind a hairline, like the marketing header and the
+    // light sidebar beside it. Opaque — <main> is a separate scroll container,
+    // so nothing passes under.
+    <header className="h-14 shrink-0 bg-field border-b border-border flex items-center gap-2 md:gap-3 px-3 md:px-6 sticky top-0 z-20">
       <SidebarToggle />
 
       {/* The page's masthead — back, title, page actions — is portalled in here
@@ -52,29 +40,26 @@ export function Header() {
           the app tools to the right. */}
       <div ref={slotRef} className="flex min-w-0 flex-1 items-center gap-1.5 md:gap-2" />
 
-      {/* Location scope and activity history live in the sidebar; the header
-          keeps only what acts on the page in front of you. */}
+      {/* What acts on the page in front of you, then who is signed in. Theme,
+          what's new and sign out live in the account menu; data refreshes on
+          its own after every change, so there is no reload button. */}
       <div className="flex shrink-0 items-center gap-1 md:gap-2">
         {agentEnabled && <DumaAgent />}
-        <UpdateNotifier />
-
-        <button onClick={handleReload} aria-label="Reload data" className={iconButton}>
-          <RotateCcw size={18} aria-hidden="true" className={cn('transition-transform duration-500', spinning && 'rotate-180')} />
-        </button>
-
-        <ThemeToggle />
 
         {/* Page sidebar (right panel) toggle — drawer mode below lg only */}
         {hasPageSidebar && (
-          <button
+          <HeaderIconButton
+            label={pageSidebarOpen ? 'Hide page panel' : 'Show page panel'}
             onClick={togglePageSidebar}
-            aria-label="Toggle page panel"
             aria-expanded={pageSidebarOpen}
-            className={cn(iconButton, 'lg:hidden', pageSidebarOpen && 'bg-band text-primary')}
+            active={pageSidebarOpen}
+            className="lg:hidden"
           >
             <PanelRight size={18} aria-hidden="true" />
-          </button>
+          </HeaderIconButton>
         )}
+
+        <AccountMenu />
       </div>
     </header>
   );

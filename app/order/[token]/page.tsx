@@ -13,8 +13,16 @@ export default async function PublicOrderPage({
   searchParams,
 }: {
   params: Promise<{ token: string }>;
-  searchParams: Promise<{ order?: string; payment?: string }>;
+  searchParams: Promise<{ order?: string; payment?: string; preview?: string; location?: string }>;
 }) {
   const [{ token }, query] = await Promise.all([params, searchParams]);
-  return <QrOrderExperience token={token} initialTrackingToken={query.order ?? null} paymentCancelled={query.payment === 'cancelled'} />;
+  return (
+    <QrOrderExperience
+      token={token}
+      initialTrackingToken={query.order ?? null}
+      paymentCancelled={query.payment === 'cancelled'}
+      // The settings page's phone: the menu built from the draft (a staff-only call), not the published one.
+      previewLocationId={query.preview === '1' ? (query.location ?? null) : null}
+    />
+  );
 }

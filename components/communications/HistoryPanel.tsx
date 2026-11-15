@@ -141,7 +141,7 @@ export function HistoryPanel({
         </div>
         <div>
           <Bone className="mb-2 ml-1 h-4 w-24" />
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <div className="overflow-hidden rounded-lg border border-border bg-card">
             {Array.from({ length: 8 }, (_, index) => (
               <RowSkeleton key={index} index={index} avatar />
             ))}
@@ -152,7 +152,7 @@ export function HistoryPanel({
 
   if (history.isError && deliveries.length === 0)
     return (
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
         <ErrorState title="Email history couldn’t be loaded" onRetry={() => void history.refetch()} />
       </div>
     );
@@ -179,7 +179,7 @@ export function HistoryPanel({
         <motion.section
           variants={SECTION_RISE}
           aria-label="Needs attention"
-          className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3"
+          className="flex items-center gap-3 rounded-lg border border-border bg-field px-4 py-3"
         >
           <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-exception/8 text-exception">
             <MailX size={18} aria-hidden="true" />
@@ -258,7 +258,7 @@ export function HistoryPanel({
         <div className="space-y-6">
           {days.map((day) => (
             <motion.section key={day.day} variants={SECTION_RISE} aria-labelledby={`history-day-${day.day}`}>
-              <h2 id={`history-day-${day.day}`} className="mb-2 px-1 text-sm font-semibold text-foreground">
+              <h2 id={`history-day-${day.day}`} className="mb-2 px-1 text-sm font-semibold text-heading">
                 {dayHeading(day.day, now)}
               </h2>
               <ul className="space-y-2">
@@ -311,7 +311,7 @@ function DeliveryRow({
     .join(' · ');
 
   return (
-    <li className="group flex items-center gap-2 rounded-lg border border-rule/60 bg-field pr-3 transition-colors hover:border-rule">
+    <li className="group flex items-center gap-2 rounded-lg border border-border bg-field pr-3 transition-colors hover:border-rule">
       <button
         type="button"
         onClick={onOpen}

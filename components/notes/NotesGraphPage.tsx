@@ -114,7 +114,7 @@ export function NotesGraphPage() {
                 align="end"
                 sideOffset={8}
                 collisionPadding={12}
-                className="z-90 flex w-72 max-w-[calc(100vw-1.5rem)] flex-col gap-3 rounded-lg border border-rule/60 bg-card p-3 shadow-lg"
+                className="z-90 flex w-72 max-w-[calc(100vw-1.5rem)] flex-col gap-3 rounded-lg border border-border bg-card p-3 shadow-lg"
               >
                 {controls}
               </Popover.Content>
@@ -150,12 +150,12 @@ export function NotesGraphPage() {
               }}
             />
             {graph.data.links.length === 0 && (
-              <p className="pointer-events-none absolute inset-x-0 top-3 mx-auto w-fit rounded-md border border-rule/60 bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+              <p className="pointer-events-none absolute inset-x-0 top-3 mx-auto w-fit rounded-md border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
                 No links yet — type <kbd className="font-semibold text-foreground">[[</kbd> in a note to link another.
               </p>
             )}
             {graph.data.truncated && (
-              <p className="pointer-events-none absolute bottom-9 left-3 rounded-md border border-rule/60 bg-card/95 px-3 py-1.5 text-xs text-muted-foreground">
+              <p className="pointer-events-none absolute bottom-9 left-3 rounded-md border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground">
                 Showing the 1,000 most recently edited notes.
               </p>
             )}
@@ -177,7 +177,7 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (on: boolean) 
       onClick={() => onChange(!on)}
       className={cn(
         'h-9 shrink-0 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-ring',
-        on ? 'border-primary bg-primary/8 text-foreground' : 'border-rule/60 bg-background text-muted-foreground hover:text-foreground',
+        on ? 'border-primary bg-primary/8 text-foreground' : 'border-border bg-background text-muted-foreground hover:text-foreground',
       )}
     >
       {label}

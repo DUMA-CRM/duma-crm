@@ -90,9 +90,9 @@ function Frame({ embedded, brandName, children }: { embedded: boolean; brandName
   if (embedded) return <main className="mx-auto max-w-2xl bg-transparent p-4 sm:p-6">{children}</main>;
   return (
     <main className="min-h-dvh bg-background">
-      {brandName ? <GuestHeader brandName={brandName} /> : <div className="h-20 bg-sidebar" />}
+      {brandName ? <GuestHeader brandName={brandName} /> : <div className="h-20 bg-panel" />}
       <div className="mx-auto max-w-2xl px-4 py-8 sm:px-6">
-        <div className="rounded-xl border border-rule/60 bg-field p-6 shadow-sm sm:p-8">{children}</div>
+        <div className="rounded-xl border border-border bg-field p-6 shadow-sm sm:p-8">{children}</div>
       </div>
       <PublicFooter />
     </main>

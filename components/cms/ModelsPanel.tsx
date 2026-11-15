@@ -212,7 +212,7 @@ function ModelsAside({ types }: { types: ModelWithCounts[] }) {
             return (
               <li key={entry.type}>
                 <Tooltip side="top" wrap label={entry.description}>
-                  <span className="inline-flex items-center gap-1.5 rounded-md border border-rule/55 bg-control px-2 py-1 text-xs font-medium text-foreground">
+                  <span className="inline-flex items-center gap-1.5 rounded-md border border-border bg-control px-2 py-1 text-xs font-medium text-foreground">
                     <Icon size={12} className="text-muted-foreground" aria-hidden="true" />
                     {entry.label}
                   </span>

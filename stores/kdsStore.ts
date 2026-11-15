@@ -22,8 +22,6 @@ export interface KdsDisplay {
   tapToStrike: boolean;
   /** Modifiers under each item. Allergens and "No …" lines show regardless. */
   showModifiers: boolean;
-  /** The toolbar (live status, all day, recall, sound, full screen). Off leaves only the tickets. */
-  showToolbar: boolean;
   /** Which sound plays for a new order. */
   sound: ChimeSound;
 }
@@ -36,7 +34,6 @@ export const DEFAULT_KDS_DISPLAY: KdsDisplay = {
   cardSize: 'comfortable',
   tapToStrike: true,
   showModifiers: true,
-  showToolbar: true,
   sound: 'chime',
 };
 
@@ -60,12 +57,14 @@ export const useKdsStore = create<KdsStore>()(
     }),
     {
       name: 'kds-settings',
-      version: 3,
+      version: 5,
       // v1 held only the chime; the display starts at the defaults. v3 dropped
-      // darkScreen — the kitchen screen follows the app's own dark mode.
+      // darkScreen — the kitchen screen follows the app’s own dark mode. v5
+      // (2026-11-12) dropped showToolbar: the controls moved into the app header.
       migrate: (persisted) => {
         const state = { ...DEFAULT_KDS_DISPLAY, ...(persisted as object) } as Record<string, unknown>;
         delete state.darkScreen;
+        delete state.showToolbar;
         return state as unknown as KdsStore;
       },
     },

@@ -101,7 +101,7 @@ export default function ErrorPage({ error, retry: retrySegment }: { error: Error
       </div>
 
       <div>
-        <h1 ref={headingRef} tabIndex={-1} className="text-xl font-semibold text-foreground outline-none">
+        <h1 ref={headingRef} tabIndex={-1} className="text-xl font-semibold text-heading outline-none">
           {description.title}
         </h1>
         <p className="mt-1 max-w-[60ch] text-base leading-6 text-muted-foreground">{description.body}</p>

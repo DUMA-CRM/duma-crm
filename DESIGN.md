@@ -381,7 +381,7 @@ Lists of records — activity, attendance, requests, exception items — are rul
 ### Do:
 
 - **Do** make the next useful action obvious for the signed-in role.
-- **Do** preserve the oat → porcelain → band material ladder across specialist pages.
+- **Do** keep every surface — back office, till, KDS and guest ordering — on the marketing site's material: near-white page `#faf9f6`, white cards, neutral tray, translucent hairline borders, true-black headings (`text-heading`), 10px card corners with 7px controls, a barely-there card shadow, and a soft `border-edge` on outline buttons (UI-ADR-045).
 - **Do** keep domain colour ownership stable: action brand green, orders apricot, kitchen/reference periwinkle, stock/warning saffron, team/success green, exception red.
 - **Do** build attached tabs and segmented controls with compact 5–8px corners.
 - **Do** use a dominant service board with a stable context workbench when the surface is genuinely time-based.

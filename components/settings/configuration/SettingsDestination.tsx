@@ -16,7 +16,7 @@ export function SettingsDestination({ href, title, description, icon: Icon, titl
     <Link
       href={href}
       aria-label={`Configure ${title}`}
-      className="group flex min-h-18 items-center gap-3 rounded-lg border border-rule/60 bg-field px-3 py-3 transition-[border-color,background-color] duration-150 hover:border-primary/45 hover:bg-band/35 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+      className="group flex min-h-18 items-center gap-3 rounded-lg border border-border bg-field px-3 py-3 transition-[border-color,background-color] duration-150 hover:border-primary/45 hover:bg-band/35 focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
     >
       <span className="flex size-[42px] shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary" aria-hidden="true">
         <Icon size={20} />

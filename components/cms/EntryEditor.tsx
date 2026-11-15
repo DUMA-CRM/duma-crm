@@ -1216,7 +1216,7 @@ function HistoryDrawer({
       ) : (
         <ol className="space-y-2">
           {versionsQuery.data.map((version) => (
-            <li key={version.id} className="rounded-lg border border-rule/50 bg-field">
+            <li key={version.id} className="rounded-lg border border-border bg-field">
               <button
                 type="button"
                 className="flex w-full items-center justify-between gap-2 px-3.5 py-2.5 text-left text-sm hover:bg-band/50"
@@ -1230,7 +1230,7 @@ function HistoryDrawer({
                 <RelativeTime iso={version.createdAt} className="text-xs text-muted-foreground" />
               </button>
               {selected === version.id && (
-                <div className="border-t border-rule/40 p-3.5">
+                <div className="border-t border-border p-3.5">
                   {snapshotQuery.isPending ? (
                     <LoadingState label="Loading snapshot" compact />
                   ) : (
@@ -1280,7 +1280,7 @@ function ReviewState({ entry }: { entry: CmsEntry }) {
     <div
       className={cn(
         'flex items-start gap-3 rounded-lg border px-3.5 py-3',
-        changes ? 'border-measured/40 bg-measured/6' : 'border-rule/50 bg-background/60',
+        changes ? 'border-measured/40 bg-measured/6' : 'border-border bg-background/60',
       )}
     >
       {changes ? (

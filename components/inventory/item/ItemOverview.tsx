@@ -294,7 +294,7 @@ export function ItemOverview({
 
             {(nutritionRows.length > 0 || allergens.length > 0) && (
               <RecordBlock id="item-nutrition" title="Nutrition" note={item.nutritionBasis ? BASIS_LABEL[item.nutritionBasis] : undefined}>
-                <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                <div className="overflow-hidden rounded-lg border border-border bg-card">
                   {nutritionRows.length > 0 && (
                     // The Demand and Item rows' shape — tinted tile, bold value, muted label — two to a line.
                     <dl className="grid grid-cols-2">
@@ -303,7 +303,7 @@ export function ItemOverview({
                         return (
                           <div
                             key={f.key}
-                            className="flex items-center gap-3 border-t border-rule/45 px-3.5 py-3 odd:border-r [&:nth-child(-n+2)]:border-t-0"
+                            className="flex items-center gap-3 border-t border-border px-3.5 py-3 odd:border-r [&:nth-child(-n+2)]:border-t-0"
                           >
                             <span
                               className="flex size-9 shrink-0 items-center justify-center rounded-md bg-momentum/8 text-momentum"
@@ -323,7 +323,7 @@ export function ItemOverview({
                     </dl>
                   )}
                   {allergens.length > 0 ? (
-                    <div className={cn('flex items-center gap-3 px-3.5 py-3', nutritionRows.length > 0 && 'border-t border-rule/45')}>
+                    <div className={cn('flex items-center gap-3 px-3.5 py-3', nutritionRows.length > 0 && 'border-t border-border')}>
                       <span
                         className="flex size-9 shrink-0 items-center justify-center rounded-md bg-measured/8 text-measured"
                         aria-hidden="true"

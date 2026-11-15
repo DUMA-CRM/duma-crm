@@ -873,13 +873,13 @@ function PurchaseOrderDrawer({ order, onClose }: { order: PurchaseOrder; onClose
             No lines on this order.
           </p>
         ) : (
-          <ul className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+          <ul className="overflow-hidden rounded-lg border border-border bg-field">
             {lines.map((line) => {
               const wanted = num(line.quantityOrdered);
               const got = num(line.quantityReceived);
               const unit = line.stockItem?.unit;
               return (
-                <li key={line.id} className="border-b border-rule/45 px-3.5 py-2.5 last:border-b-0">
+                <li key={line.id} className="border-b border-border px-3.5 py-2.5 last:border-b-0">
                   <div className="flex items-baseline justify-between gap-3">
                     <span className="min-w-0 truncate text-sm font-medium text-foreground">{line.stockItem?.name ?? 'Removed item'}</span>
                     <span className="shrink-0 text-sm tabular-nums text-foreground">{money(wanted * num(line.unitCost))}</span>

@@ -2,7 +2,14 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { computeCosting } from '../../lib/menu/costing.ts';
-import { foodCostPct, parseAmount, priceForTargetMargin, recipeCost, roundUpPrice } from '../../lib/utils/margin-calculator.ts';
+import {
+  foodCostBand,
+  foodCostPct,
+  parseAmount,
+  priceForTargetMargin,
+  recipeCost,
+  roundUpPrice,
+} from '../../lib/utils/margin-calculator.ts';
 
 const REGISTERED_INCLUSIVE = { pricesIncludeTax: true, defaultVatRate: 20, vatRegistered: true };
 const REGISTERED_EXCLUSIVE = { pricesIncludeTax: false, defaultVatRate: 20, vatRegistered: true };
@@ -78,4 +85,12 @@ test('a target price rounded up for the menu never falls below the target margin
   assert.equal(roundUpPrice(2.4, 10), 2.4);
   assert.equal(roundUpPrice(2.41, 10), 2.5);
   assert.equal(roundUpPrice(2.41, 5), 2.45);
+});
+
+test('food cost bands: 30% and under is healthy, up to 35% the ceiling, above it needs a look', () => {
+  assert.equal(foodCostBand(18), 'good');
+  assert.equal(foodCostBand(30), 'good');
+  assert.equal(foodCostBand(30.1), 'ok');
+  assert.equal(foodCostBand(35), 'ok');
+  assert.equal(foodCostBand(41), 'high');
 });

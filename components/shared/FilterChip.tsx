@@ -24,10 +24,8 @@ export function FilterChip({
   return (
     <span
       className={cn(
-        'inline-flex max-w-full items-center border pl-2.5 text-xs font-medium text-primary',
-        tag
-          ? 'min-h-8 gap-2 rounded-md border-primary/25 bg-primary/5 pr-1'
-          : 'h-7 gap-1.5 rounded-full border-primary/20 bg-primary/8 pr-1.5',
+        'inline-flex max-w-full items-center rounded-md bg-band pl-2.5 text-xs font-medium text-foreground',
+        tag ? 'min-h-8 gap-2 pr-1' : 'h-7 gap-1.5 pr-1',
       )}
     >
       {Icon && <Icon size={14} aria-hidden="true" className="shrink-0" />}
@@ -37,10 +35,8 @@ export function FilterChip({
         onClick={onRemove}
         aria-label={`Remove ${label} filter`}
         className={cn(
-          'flex shrink-0 items-center justify-center hover:bg-band',
-          tag
-            ? 'size-7 rounded-sm text-muted-foreground transition-colors hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring'
-            : 'size-5 rounded-full focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30',
+          'flex shrink-0 items-center justify-center rounded-sm text-muted-foreground transition-colors hover:bg-foreground/8 hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring',
+          tag ? 'size-7' : 'size-5',
         )}
       >
         <X size={tag ? 13 : 11} aria-hidden="true" />

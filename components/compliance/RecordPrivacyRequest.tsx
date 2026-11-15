@@ -112,7 +112,7 @@ export function RecordPrivacyRequest({
         {!fixedSubject && (
           <Question title="Who asked?">
             {subject ? (
-              <div className="flex items-center gap-3 rounded-lg border border-rule/60 bg-field px-3.5 py-3">
+              <div className="flex items-center gap-3 rounded-lg border border-border bg-field px-3.5 py-3">
                 <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/10 text-primary">
                   <Check size={16} aria-hidden="true" />
                 </span>
@@ -162,8 +162,7 @@ export function RecordPrivacyRequest({
 
         <p className="rounded-lg bg-band/60 px-3.5 py-3 text-xs leading-relaxed text-muted-foreground">
           The law gives you one month to respond, so this will be due on{' '}
-          <span className="font-semibold text-foreground">{formatDate(due.toISOString())}</span>. It stays in the Compliance queue until
-          it’s completed or declined.
+          <span className="font-semibold text-foreground">{formatDate(due.toISOString())}</span>.
         </p>
       </form>
     </Drawer>
@@ -173,7 +172,7 @@ export function RecordPrivacyRequest({
 function Question({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) {
   return (
     <section>
-      <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+      <h3 className="text-sm font-semibold text-heading">{title}</h3>
       {hint && <p className="mt-0.5 text-xs text-muted-foreground">{hint}</p>}
       <div className="mt-2.5">{children}</div>
     </section>
@@ -248,7 +247,7 @@ function SubjectPicker({ tenantId, onPick }: { tenantId?: string; onPick: (subje
         leftIcon={<Search size={14} />}
         autoFocus
       />
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-field">
+      <div className="overflow-hidden rounded-lg border border-border bg-field">
         {waiting ? (
           <p className="px-3.5 py-3 text-xs text-muted-foreground">Type at least two letters to search your customers.</p>
         ) : loading && results.length === 0 ? (
@@ -260,7 +259,7 @@ function SubjectPicker({ tenantId, onPick }: { tenantId?: string; onPick: (subje
         ) : (
           <ul>
             {results.map((result) => (
-              <li key={result.id} className="border-b border-rule/45 last:border-b-0">
+              <li key={result.id} className="border-b border-border last:border-b-0">
                 <button
                   type="button"
                   onClick={() => onPick(result)}

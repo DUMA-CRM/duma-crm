@@ -5,15 +5,13 @@ import { useState } from 'react';
 import QRCode from 'react-qr-code';
 
 import { Modal } from '@/components/customers/CustomerDialogs';
-import { GrantRewardModal, rewardLabel } from '@/components/customers/CustomerLoyaltyCards';
 import { CustomerNotesPanel } from '@/components/customers/CustomerNotesPanel';
-import { Ban, Calendar, CheckCircle2, Coffee, Coins, Gift, Mail, Pencil, Phone, QrCode, Send, ShieldAlert } from '@/components/icons';
+import { Ban, Calendar, CheckCircle2, Coffee, Mail, Phone, QrCode, ShieldAlert } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { CopyGlyph } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 
-import type { CustomerLoyaltyProgram } from '@/lib/api/loyalty.service';
 import { getMarketingPreferences } from '@/lib/modules/customers/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
@@ -21,166 +19,44 @@ import { birthdayHint, daysUntilBirthday } from '@/lib/utils/customer-card';
 import { customerQrValue } from '@/lib/utils/customer-qr';
 import type { Customer } from '@/types/customers';
 
-import { CustomerDisclosure, CustomerSection } from './CustomerSection';
-
 /**
- * The stable context column beside the record.
+ * The stable context column beside the record: how to reach them, whether
+ * they may be emailed, what the team should know, and the card the till scans
+ * — the same on every tab, as Shopify's customer page keeps its right column.
  *
- * Everything a member of staff needs *while* working a guest, in the same place
- * on every tab: who this is at the till, how to reach them, whether they may be
- * emailed, and every action they can take — as words.
- *
- * The actions were three unlabelled icon squares in the top bar. A pencil, an
- * envelope and a pile of coins are a quiz, not an interface, and "Coins" being
- * the only route to a points adjustment is the kind of thing staff learn once
- * and then teach each other. Naming them costs a column and buys the page.
+ * What staff *do* — start an order, email, edit — is in the page header, and
+ * loyalty sits in the main column with the figures, as Square's profile has it.
  *
  * The consent row is here rather than on the Compliance tab because it gates
- * the action directly above it: an address that must not be emailed should say
- * so next to the Send button, not two tabs away.
+ * the Send email button: an address that must not be emailed should say so on
+ * every tab, not two tabs away.
  */
-
-export type WorkbenchAction = 'email' | 'points' | 'edit';
 
 interface Props {
   customer: Customer;
-  /** The loyalty wallet; birthday programmes put a "give it now" action here. */
-  loyaltyProgrammes: CustomerLoyaltyProgram[];
   canEdit: boolean;
-  canAdjustPoints: boolean;
   /** False on the Compliance tab, where the full consent panel sits beside it — and without Communications. */
   showConsent?: boolean;
-  /** Emailing a customer is Communications'; without it there's no Send email. */
-  canEmail?: boolean;
-  /** The loyalty cards, under Contact on every tab — absent when the workspace runs no programme. */
-  loyalty?: React.ReactNode;
-  /** Their refer-a-friend code, under the loyalty cards — absent without the referrals module. */
+  /** What they usually order — under Contact, since it's what staff act on at the till. */
+  insights?: React.ReactNode;
+  /** Marketing consent and privacy requests — the rail's last section. */
+  privacy?: React.ReactNode;
+  /** Their refer-a-friend code — absent without the referrals module. */
   referral?: React.ReactNode;
-  onAction: (action: WorkbenchAction) => void;
   className?: string;
 }
 
-export function CustomerWorkbench({
-  customer,
-  loyaltyProgrammes,
-  canEdit,
-  canAdjustPoints,
-  showConsent = true,
-  canEmail = true,
-  loyalty,
-  referral,
-  onAction,
-  className,
-}: Props) {
-  const [granting, setGranting] = useState<CustomerLoyaltyProgram | null>(null);
-  // Issued automatically once each birthday; this is the by-hand route, for a
-  // birthday the guest mentions at the till, or one that fell before they joined.
-  const birthdayProgrammes = loyaltyProgrammes.filter(
-    (programme) => programme.earnRule.trigger === 'birthday' && (programme.earnRule.benefitMode ?? 'rewards') !== 'points',
-  );
-  // Read-only here; the Compliance tab owns changing it. Failing quietly is
-  // correct — a missing consent record must not blank out the contact card.
-  const { data: preferences } = useQuery({
-    queryKey: moduleQueryKeys.customers.key('marketing-preferences', customer.id),
-    queryFn: () => getMarketingPreferences(customer.id),
-    enabled: Boolean(customer.email) && (showConsent || canEmail),
-  });
-
-  const consent: ConsentState = !customer.email
-    ? 'none'
-    : preferences?.suppression
-      ? 'suppressed'
-      : preferences?.marketingOptIn
-        ? 'opted_in'
-        : 'opted_out';
-
+export function CustomerWorkbench({ customer, canEdit, showConsent = true, insights, privacy, referral, className }: Props) {
+  const consent = useConsent(customer, showConsent);
   const erased = Boolean(customer.anonymisedAt);
   // Pinned per mount; a countdown in days does not need a live clock.
   const [now] = useState(() => Date.now());
   const birthdaySoon = birthdayHint(daysUntilBirthday(customer.dob, now));
 
   return (
-    <aside className={cn('flex min-w-0 flex-col gap-3', className)} aria-label="Guest details and actions">
-      {/* ── What you can do ──────────────────────────────────────────────
-          First, not last: on a phone this column sits above the figures, and
-          someone holding a queue needs the verbs before the analytics. */}
-      {/* Only what this workspace can do: no Send email without Communications, no points without a programme. */}
-      {!erased && (canEmail || canAdjustPoints || canEdit) && (
-        <SettingsSection
-          title="Actions"
-          footnote={
-            // The disabled Send button states the rule; this states the fix.
-            canEmail && !customer.email ? 'No email address on this record, so nothing can be sent yet.' : undefined
-          }
-        >
-          <div className="grid grid-cols-2 gap-2">
-            {canEmail && (
-              <Button
-                variant="outline"
-                onClick={() => onAction('email')}
-                disabled={!customer.email || consent === 'suppressed'}
-                title={
-                  !customer.email
-                    ? 'Add an email address first'
-                    : consent === 'suppressed'
-                      ? 'This address is suppressed and cannot be emailed'
-                      : undefined
-                }
-                size="sm"
-                className="w-full justify-start"
-              >
-                <Send data-icon="inline-start" />
-                Send email
-              </Button>
-            )}
-
-            {canAdjustPoints && (
-              <Button variant="outline" onClick={() => onAction('points')} size="sm" className="w-full justify-start">
-                <Coins data-icon="inline-start" />
-                Adjust points
-              </Button>
-            )}
-
-            {canAdjustPoints &&
-              birthdayProgrammes.map((programme) => (
-                <Button
-                  key={programme.id}
-                  variant="outline"
-                  onClick={() => setGranting(programme)}
-                  title={`${rewardLabel(programme)} — issued automatically each birthday`}
-                  size="sm"
-                  className="col-span-2 w-full justify-start"
-                >
-                  <Gift data-icon="inline-start" />
-                  <span className="truncate">Give birthday reward</span>
-                  {birthdayProgrammes.length > 1 && (
-                    <span className="ml-auto truncate text-xs text-muted-foreground">{programme.name}</span>
-                  )}
-                </Button>
-              ))}
-
-            {canEdit && (
-              <Button variant="outline" onClick={() => onAction('edit')} size="sm" className="w-full justify-start">
-                <Pencil data-icon="inline-start" />
-                Edit details
-              </Button>
-            )}
-          </div>
-          {granting && (
-            <GrantRewardModal
-              customerId={customer.id}
-              customerName={`${customer.firstName} ${customer.lastName}`.trim()}
-              programme={granting}
-              onClose={() => setGranting(null)}
-            />
-          )}
-        </SettingsSection>
-      )}
-
-      {/* ── Reaching them ────────────────────────────────────────────────
-          The record's own rows — value first, what it is beneath — with the
-          things you do with a number on the right: call it, copy it. A phone
-          number selected by hand is a phone number mistyped. */}
+    <aside className={cn('flex min-w-0 flex-col gap-5', className)} aria-label="Guest details">
+      {/* The record's own rows — value first, what it is beneath — with the
+          things you do with a number on the right: call it, copy it. */}
       <SettingsSection title="Contact" bodyClassName="px-2 pt-2 pb-2">
         <ul>
           <ContactRow
@@ -223,19 +99,31 @@ export function CustomerWorkbench({
         </ul>
       </SettingsSection>
 
-      {loyalty && <CustomerDisclosure title="Loyalty & rewards">{loyalty}</CustomerDisclosure>}
+      {insights}
 
-      {referral && <CustomerDisclosure title="Referrals">{referral}</CustomerDisclosure>}
-
-      {/* ── What the team should know ────────────────────────────────────
-          In the column rather than the Guest tab, so a note can be written
-          while reading the timeline that prompted it. */}
       <CustomerNotesPanel customer={customer} canEdit={canEdit && !erased} />
 
-      {/* ── Identity at the till ─────────────────────────────────────── */}
+      {referral}
+
       <MembershipCard customer={customer} />
+
+      {privacy}
     </aside>
   );
+}
+
+/**
+ * Marketing consent as one word for the record. Read-only — the Compliance
+ * tab owns changing it — and failing quietly is correct: a missing consent
+ * record must not blank out the contact card or the header's Send email.
+ */
+export function useConsent(customer: Pick<Customer, 'id' | 'email'> | undefined, enabled = true): ConsentState {
+  const { data: preferences } = useQuery({
+    queryKey: moduleQueryKeys.customers.key('marketing-preferences', customer?.id),
+    queryFn: () => getMarketingPreferences(customer!.id),
+    enabled: Boolean(customer?.email) && enabled,
+  });
+  return !customer?.email ? 'none' : preferences?.suppression ? 'suppressed' : preferences?.marketingOptIn ? 'opted_in' : 'opted_out';
 }
 
 // ── Membership card ───────────────────────────────────────────────────────
@@ -256,11 +144,15 @@ function MembershipCard({ customer }: { customer: Customer }) {
   const qrValue = customerQrValue(customer.id);
 
   return (
-    <CustomerSection title="Loyalty card" collapsible>
-      <Button variant="outline" size="sm" className="mb-3" onClick={() => setScanning(true)}>
-        <QrCode data-icon="inline-start" />
-        Show to scan
-      </Button>
+    <SettingsSection
+      title="Loyalty card"
+      actions={
+        <Button variant="ghost" size="sm" onClick={() => setScanning(true)}>
+          <QrCode data-icon="inline-start" />
+          Show to scan
+        </Button>
+      }
+    >
       <article
         aria-label={`Loyalty card for ${name}`}
         className="relative overflow-hidden rounded-xl bg-primary p-4 text-primary-foreground shadow-sm"
@@ -297,7 +189,7 @@ function MembershipCard({ customer }: { customer: Customer }) {
       {scanning && (
         <Modal title="Scan this code" description={`${name} · member ${memberNumber}`} onClose={() => setScanning(false)}>
           <div className="flex flex-col items-center gap-4 py-2">
-            <div className="rounded-lg border border-rule/60 bg-white p-4">
+            <div className="rounded-lg border border-border bg-white p-4">
               <QRCode value={qrValue} size={224} bgColor="#ffffff" aria-label={`Loyalty QR code for ${name}`} />
             </div>
             <p className="max-w-xs text-center text-sm text-muted-foreground">
@@ -309,7 +201,7 @@ function MembershipCard({ customer }: { customer: Customer }) {
           </div>
         </Modal>
       )}
-    </CustomerSection>
+    </SettingsSection>
   );
 }
 
@@ -340,7 +232,7 @@ function CopyValue({ value, label, onDark = false }: { value: string; label: str
 
 // ── Consent ───────────────────────────────────────────────────────────────
 
-type ConsentState = 'opted_in' | 'opted_out' | 'suppressed' | 'none';
+export type ConsentState = 'opted_in' | 'opted_out' | 'suppressed' | 'none';
 
 /**
  * Consent carries a glyph and words, never colour alone — the Two-Channel Rule.

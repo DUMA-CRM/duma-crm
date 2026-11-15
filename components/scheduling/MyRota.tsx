@@ -7,6 +7,7 @@ import { useEffect, useMemo, useState } from 'react';
 import {
   AlertCircle,
   AlertTriangle,
+  ArrowLeftRight,
   Banknote,
   CalendarClock,
   CalendarDays,
@@ -19,11 +20,14 @@ import {
   LogOut,
   MapPin,
   Timer,
+  UserMinus,
 } from '@/components/icons';
+import { AvailabilityEditor } from '@/components/scheduling/AvailabilityEditor';
+import { MyShiftRequests, OpenShifts, ShiftRequestDialog, ShiftsToAcknowledge } from '@/components/scheduling/RotaRequests';
 import { type ShiftDetail, ShiftDetailDrawer } from '@/components/scheduling/ShiftDetailDrawer';
 import { WeekSchedule } from '@/components/scheduling/WeekSchedule';
 import { useRotaChanges } from '@/components/scheduling/useRotaChanges';
-import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
@@ -31,18 +35,30 @@ import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
 import { SlideToClockIn } from '@/components/shifts/SlideToClockIn';
 import { Button } from '@/components/ui/button';
 import { Calendar } from '@/components/ui/calendar';
+import { ContextMenuItem } from '@/components/ui/context-menu';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import { useAuth } from '@/lib/hooks/useAuth';
 import { type OpeningHours, type Weekday, getLocations } from '@/lib/modules/organization/client';
 import { type HrEmployee, getMyEmployee, getMyLeaveRequests } from '@/lib/modules/people/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { type ScheduledShift, getMyScheduledShifts } from '@/lib/modules/workforce/client';
+import { type ScheduledShift, acknowledgeScheduledShift, getMyScheduledShifts } from '@/lib/modules/workforce/client';
 import { type Shift, clockIn, getActiveShifts, getMyShifts } from '@/lib/modules/workforce/client';
+import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
-import { formatDuration, localDateKey, paidMinutes, unpaidBreak, weekOffsetFor } from '@/lib/utils/my-rota';
+import {
+  type RotaChange,
+  acknowledgeMarker,
+  formatDuration,
+  localDateKey,
+  paidMinutes,
+  unpaidBreak,
+  weekOffsetFor,
+} from '@/lib/utils/my-rota';
 import { formatInstant, workspaceDateKey, zonedToInstant } from '@/lib/utils/workspace-time';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 // ── Date helpers ──────────────────────────────────────────────────────────────
@@ -449,7 +465,36 @@ export function MyRota() {
   const paidWeekMins = useMemo(() => shifts.reduce((sum, shift) => sum + paidMinutes(shift, breakRuleOf(employee)), 0), [employee, shifts]);
 
   // ── New or changed since you last looked ────────────────────────────────────
-  const changes = useRotaChanges(user?.id, localDateKey(weekStart), shifts, !isLoading && !rotaError);
+  const deviceChanges = useRotaChanges(user?.id, localDateKey(weekStart), shifts, !isLoading && !rotaError);
+  // The server's acknowledgement wins wherever the API reports it; the
+  // per-device diff covers an API that doesn't yet.
+  const changes = useMemo(() => {
+    const merged = new Map<string, RotaChange>(deviceChanges);
+    for (const shift of shifts) {
+      const marker = acknowledgeMarker(shift);
+      if (marker === undefined) continue;
+      if (marker) merged.set(shift.id, marker);
+      else merged.delete(shift.id);
+    }
+    return merged;
+  }, [deviceChanges, shifts]);
+
+  // ── Swaps, giving up, and confirming what's new ─────────────────────────────
+  // Swapping needs a colleague list, which only the planner (`scheduling:read`)
+  // gives; everyone else can give a shift up and let the manager find cover.
+  const capabilities = useAuthStore((s) => s.capabilities);
+  const canSwap = hasCapability(capabilities, 'scheduling:read');
+  const [requesting, setRequesting] = useState<{ shift: ScheduledShift; kind: 'swap' | 'drop' } | null>(null);
+  const requestable = (shift: ScheduledShift) =>
+    shift.status === 'published' && shift.userId === user?.id && new Date(shift.startsAt).getTime() > now;
+  const acknowledge = useMutation({
+    mutationFn: acknowledgeScheduledShift,
+    onError: (error) => toast('error', (error as Error).message || 'That shift wasn’t confirmed. Try again.'),
+    onSettled: () => {
+      for (const resource of ['my-rota', 'my-rota-day', 'my-rota-upcoming'] as const)
+        void qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key(resource) });
+    },
+  });
 
   // ── The drawer, and the keyboard ────────────────────────────────────────────
   const [detail, setDetail] = useState<ShiftDetail | null>(null);
@@ -539,15 +584,11 @@ export function MyRota() {
         animate="shown"
         variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
       >
-        {/* ── Time clock: the one thing this page is opened for mid-shift ──────
-            One panel whether or not you are on: the dial takes the tile's
-            place while a scheduled shift runs, so progress is not a second card. */}
-        <motion.section
-          variants={SECTION_RISE}
-          aria-label="Time clock"
-          className={cn('overflow-hidden rounded-lg border bg-field', myActive ? 'border-momentum/35' : 'border-rule/60')}
-        >
-          <div className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center">
+        {/* ── You, right now: the clock as the identity line, the week's four
+            figures under it — Settings → Account's identity card. While a
+            scheduled shift runs the dial takes the tile's place. */}
+        <SettingsSection>
+          <section aria-label="Time clock" className="flex flex-col gap-4 sm:flex-row sm:items-center">
             {onShiftWithPlan ? (
               <ShiftDial elapsedMinutes={clockedMins} plannedMinutes={activePlannedMinutes} breakSpan={dialBreakSpan} label={dialLabel} />
             ) : (
@@ -565,13 +606,7 @@ export function MyRota() {
             <div className="min-w-0 flex-1">
               {myActive ? (
                 <>
-                  <p className="flex flex-wrap items-center gap-2">
-                    <span className="rounded-sm bg-momentum/10 px-1.5 py-0.5 text-micro font-semibold text-momentum">On shift</span>
-                    <span className="text-sm text-muted-foreground">
-                      since <span className="font-mono font-semibold tabular-nums text-foreground">{fmtClock(myActive.clockedIn)}</span>
-                    </span>
-                  </p>
-                  <p className="mt-1.5 font-mono text-2xl font-semibold tracking-headline tabular-nums text-foreground">
+                  <p className="font-mono text-2xl font-semibold tracking-headline tabular-nums text-foreground">
                     {fmtHrs(clockedMins)}
                     {onShiftWithPlan && (
                       <span className="ml-2 font-sans text-sm font-normal tracking-normal text-muted-foreground">
@@ -579,9 +614,15 @@ export function MyRota() {
                       </span>
                     )}
                   </p>
-                  <p className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-muted-foreground">
+                  <p className="mt-1.5 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm text-muted-foreground">
+                    <span className="flex items-center gap-2">
+                      <span className="rounded-sm bg-momentum/10 px-1.5 py-0.5 text-micro font-semibold text-momentum">On shift</span>
+                      <span>
+                        since <span className="font-mono font-semibold tabular-nums text-foreground">{fmtClock(myActive.clockedIn)}</span>
+                      </span>
+                    </span>
                     <span className="flex items-center gap-1.5">
-                      <MapPin size={13} aria-hidden="true" />
+                      <MapPin size={14} aria-hidden="true" />
                       {activeScheduledShift?.location?.name ?? (onShiftWithPlan ? 'Location not listed' : 'No scheduled shift matched')}
                     </span>
                     {breakStartsAt && (
@@ -595,17 +636,17 @@ export function MyRota() {
                 </>
               ) : (
                 <>
-                  <p className="text-base font-semibold text-foreground">Not clocked in</p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {!locationId
-                      ? 'Choose a location in the header before clocking in.'
-                      : upcomingToday
-                        ? `Today’s shift starts at ${fmtTime(new Date(upcomingToday.startsAt))}${
+                  <p className="text-2xl font-semibold tracking-headline text-foreground">Not clocked in</p>
+                  {(!locationId || upcomingToday) && (
+                    <p className="mt-1.5 text-sm text-muted-foreground">
+                      {!locationId
+                        ? 'Choose a location in the header before clocking in.'
+                        : `Today’s shift starts at ${fmtTime(new Date(upcomingToday!.startsAt))}${
                             // Null within the last rounding minute — better silent than "in 0m".
-                            fmtUntil(upcomingToday.startsAt, now) ? ` · in ${fmtUntil(upcomingToday.startsAt, now)}` : ''
-                          }`
-                        : 'Clocking in starts your record for today.'}
-                  </p>
+                            fmtUntil(upcomingToday!.startsAt, now) ? ` · in ${fmtUntil(upcomingToday!.startsAt, now)}` : ''
+                          }`}
+                    </p>
+                  )}
                 </>
               )}
             </div>
@@ -629,97 +670,99 @@ export function MyRota() {
                 />
               )}
             </div>
-          </div>
+          </section>
 
           {/* Scheduled to be here and not on the clock — the one thing worth
               interrupting for. Failures sit against the control that caused them. */}
-          {lateByMins > 0 && (
-            <ClockNotice tone="warning" icon={AlertTriangle}>
-              Your shift started {fmtHrs(lateByMins)} ago at {fmtTime(new Date(currentScheduledToday!.startsAt))} and you’re not clocked in.
-            </ClockNotice>
+          {(lateByMins > 0 || activeShiftError || clockError) && (
+            <div className="mt-4 space-y-2">
+              {lateByMins > 0 && (
+                <ClockNotice tone="warning" icon={AlertTriangle}>
+                  Your shift started {fmtHrs(lateByMins)} ago at {fmtTime(new Date(currentScheduledToday!.startsAt))} and you’re not clocked
+                  in.
+                </ClockNotice>
+              )}
+              {activeShiftError && (
+                <ClockNotice
+                  tone="exception"
+                  icon={AlertCircle}
+                  action={
+                    <Button variant="outline" size="xs" onClick={() => void refetchActiveShift()}>
+                      Retry
+                    </Button>
+                  }
+                >
+                  Clock status unavailable, so clocking in is held back.
+                </ClockNotice>
+              )}
+              {clockError && (
+                <ClockNotice tone="exception" icon={AlertCircle}>
+                  You weren’t clocked in. {clockError.message}
+                </ClockNotice>
+              )}
+            </div>
           )}
-          {activeShiftError && (
-            <ClockNotice
-              tone="exception"
-              icon={AlertCircle}
-              action={
-                <Button variant="outline" size="xs" onClick={() => void refetchActiveShift()}>
-                  Retry
-                </Button>
-              }
-            >
-              Clock status unavailable, so clocking in is held back.
-            </ClockNotice>
-          )}
-          {clockError && (
-            <ClockNotice tone="exception" icon={AlertCircle}>
-              You weren’t clocked in. {clockError.message}
-            </ClockNotice>
-          )}
-        </motion.section>
 
-        {/* ── The week at a glance ──────────────────────────────────────────
-            Four facts, said once: they replace the next-shift strip and the
-            summary line the schedule used to carry in its header. */}
-        <motion.dl variants={SECTION_RISE} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-          <Fact
-            surface="page"
-            icon={CalendarClock}
-            label={nextLabel}
-            value={
-              upcoming.isPending
-                ? '…'
-                : upcoming.isError
-                  ? '—'
+          {/* The week at a glance — said once: the schedule's header carries no summary. */}
+          <dl className="mt-6 grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+            <Fact
+              icon={CalendarClock}
+              label={nextLabel}
+              value={
+                upcoming.isPending
+                  ? '…'
+                  : upcoming.isError
+                    ? '—'
+                    : nextShift
+                      ? relativeDay(nextShift.startsAt, today)
+                      : `None in ${UPCOMING_DAYS / 7} weeks`
+              }
+              hint={
+                upcoming.isError
+                  ? 'Couldn’t be loaded'
                   : nextShift
-                    ? relativeDay(nextShift.startsAt, today)
-                    : `None in ${UPCOMING_DAYS / 7} weeks`
-            }
-            hint={
-              upcoming.isError
-                ? 'Couldn’t be loaded'
-                : nextShift
-                  ? `${fmtTime(new Date(nextShift.startsAt))}–${fmtTime(new Date(nextShift.endsAt))} · ${nextShift.location?.name ?? 'Location not listed'}`
-                  : undefined
-            }
-            tone={upcoming.isError ? 'warning' : 'default'}
-            // Takes you to its week — usually this one, sometimes the next.
-            onSelect={nextShift ? () => setOffset(weekOffsetFor(calendarDay(workspaceDateKey(nextShift.startsAt)), today)) : undefined}
-          />
-          <Fact
-            surface="page"
-            icon={CalendarRange}
-            label="Scheduled"
-            value={isLoading ? '…' : fmtHrs(totalMins)}
-            hint={`${shifts.length} ${shifts.length === 1 ? 'shift' : 'shifts'}`}
-          />
-          <Fact
-            surface="page"
-            icon={Clock}
-            label="Worked"
-            value={fmtHrs(workedMins)}
-            hint={
-              workedThisWeek.length === 0 ? 'Nothing clocked this week' : totalMins > 0 ? `of ${fmtHrs(totalMins)} scheduled` : undefined
-            }
-          />
-          {hourlyRate !== null ? (
-            <Fact
-              surface="page"
-              icon={Banknote}
-              label="Est. pay"
-              value={isLoading ? '…' : money((paidWeekMins / 60) * hourlyRate)}
-              hint={`${fmtHrs(paidWeekMins)} paid · before deductions`}
+                    ? `${fmtTime(new Date(nextShift.startsAt))}–${fmtTime(new Date(nextShift.endsAt))} · ${nextShift.location?.name ?? 'Location not listed'}`
+                    : undefined
+              }
+              tone={upcoming.isError ? 'warning' : 'default'}
+              // Takes you to its week — usually this one, sometimes the next.
+              onSelect={nextShift ? () => setOffset(weekOffsetFor(calendarDay(workspaceDateKey(nextShift.startsAt)), today)) : undefined}
             />
-          ) : (
             <Fact
-              surface="page"
-              icon={Coffee}
-              label="Breaks"
-              value={breakRule?.value ?? 'None set'}
-              hint={breakRule?.hint ?? 'Your manager sets the break rule'}
+              icon={CalendarRange}
+              label="Scheduled"
+              value={isLoading ? '…' : fmtHrs(totalMins)}
+              hint={`${shifts.length} ${shifts.length === 1 ? 'shift' : 'shifts'}`}
             />
-          )}
-        </motion.dl>
+            <Fact
+              icon={Clock}
+              label="Worked"
+              value={fmtHrs(workedMins)}
+              hint={workedThisWeek.length > 0 && totalMins > 0 ? `of ${fmtHrs(totalMins)} scheduled` : undefined}
+            />
+            {hourlyRate !== null ? (
+              <Fact
+                icon={Banknote}
+                label="Est. pay"
+                value={isLoading ? '…' : money((paidWeekMins / 60) * hourlyRate)}
+                hint={`${fmtHrs(paidWeekMins)} paid · before deductions`}
+              />
+            ) : (
+              <Fact
+                icon={Coffee}
+                label="Breaks"
+                value={breakRule?.value ?? 'None set'}
+                hint={breakRule?.hint ?? 'Your manager sets the break rule'}
+              />
+            )}
+          </dl>
+        </SettingsSection>
+
+        {/* What's new on the rota and not yet confirmed — only there while there is some. */}
+        <ShiftsToAcknowledge
+          shifts={upcoming.data ?? []}
+          onOpen={(shift) => setOffset(weekOffsetFor(calendarDay(workspaceDateKey(shift.startsAt)), today))}
+        />
 
         {/* ── Week schedule ─────────────────────────────────────────────────── */}
         <WeekSchedule
@@ -738,7 +781,28 @@ export function MyRota() {
           loading={isLoading}
           error={rotaError ? (rotaErrorDetail ?? true) : null}
           onRetry={() => void refetchRota()}
+          menuFor={(shift) =>
+            requestable(shift) ? (
+              <>
+                {canSwap && (
+                  <ContextMenuItem icon={ArrowLeftRight} onSelect={() => setRequesting({ shift, kind: 'swap' })}>
+                    Swap with…
+                  </ContextMenuItem>
+                )}
+                <ContextMenuItem icon={UserMinus} onSelect={() => setRequesting({ shift, kind: 'drop' })}>
+                  Give up shift
+                </ContextMenuItem>
+              </>
+            ) : null
+          }
         />
+
+        {/* Open shifts to pick up beside what you've asked for; then when you can work. */}
+        <div className="grid items-start gap-5 lg:grid-cols-2">
+          <OpenShifts />
+          <MyShiftRequests />
+        </div>
+        <AvailabilityEditor canEdit title="My availability" />
 
         {detail && (
           <ShiftDetailDrawer
@@ -749,8 +813,38 @@ export function MyRota() {
             hourlyRate={hourlyRate}
             money={money}
             onClose={() => setDetail(null)}
+            actions={
+              detail.kind === 'shift' &&
+              (acknowledgeMarker(detail.shift) || requestable(detail.shift)) && (
+                <div className="flex flex-wrap gap-2">
+                  {acknowledgeMarker(detail.shift) && (
+                    <Button
+                      className="flex-1"
+                      disabled={acknowledge.isPending}
+                      onClick={() => acknowledge.mutate(detail.shift.id, { onSuccess: () => setDetail(null) })}
+                    >
+                      Got it
+                    </Button>
+                  )}
+                  {requestable(detail.shift) && (
+                    <>
+                      {canSwap && (
+                        <Button variant="outline" className="flex-1" onClick={() => setRequesting({ shift: detail.shift, kind: 'swap' })}>
+                          <ArrowLeftRight size={15} aria-hidden="true" /> Swap
+                        </Button>
+                      )}
+                      <Button variant="outline" className="flex-1" onClick={() => setRequesting({ shift: detail.shift, kind: 'drop' })}>
+                        <UserMinus size={15} aria-hidden="true" /> Give up
+                      </Button>
+                    </>
+                  )}
+                </div>
+              )
+            }
           />
         )}
+
+        {requesting && <ShiftRequestDialog shift={requesting.shift} initialKind={requesting.kind} onClose={() => setRequesting(null)} />}
 
         {clockOutOpen && clockLocationId && (
           <ClockOutDialog
@@ -781,19 +875,12 @@ function ClockNotice({
     <div
       role={tone === 'exception' ? 'alert' : undefined}
       className={cn(
-        'flex items-center gap-3 border-t px-5 py-3 text-sm',
-        tone === 'warning' ? 'border-measured/30 bg-measured/6' : 'border-exception/30 bg-exception/5',
+        'flex items-center gap-2.5 rounded-md px-3 py-2 text-sm font-medium',
+        tone === 'warning' ? 'bg-measured/10 text-measured' : 'bg-exception/8 text-exception',
       )}
     >
-      <span
-        className={cn(
-          'flex size-8 shrink-0 items-center justify-center rounded-md',
-          tone === 'warning' ? 'bg-measured/12 text-measured' : 'bg-exception/10 text-exception',
-        )}
-      >
-        <Icon size={15} aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1 text-foreground">{children}</span>
+      <Icon size={15} className="shrink-0" aria-hidden="true" />
+      <span className="min-w-0 flex-1">{children}</span>
       {action}
     </div>
   );

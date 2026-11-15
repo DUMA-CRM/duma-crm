@@ -311,7 +311,7 @@ function Field({ help, children }: { help: FieldHelp; children: React.ReactNode 
             {help.path.map((part, index) => (
               <span key={part} className="flex items-center gap-1">
                 {index > 0 && <ChevronRight size={11} aria-hidden="true" />}
-                <span className="rounded border border-rule/60 bg-band/60 px-1.5 py-px font-medium text-foreground">{part}</span>
+                <span className="rounded border border-border bg-band/60 px-1.5 py-px font-medium text-foreground">{part}</span>
               </span>
             ))}
           </span>

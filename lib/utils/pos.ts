@@ -101,7 +101,7 @@ const UNGROUPED: ComboRule = { minSelections: 0, maxSelections: null };
 /**
  * The item's options in the groups the API enforces (`POST /orders` rejects a
  * required group left empty, or too many picks). Groups follow the order set on
- * Menu → Categories (the group's `sortOrder`, then name — as that page sorts),
+ * Menu → Modifiers (the group's `sortOrder`, then name — as that page sorts),
  * and options their own `sortOrder`. Options outside any group are "Extras",
  * any number.
  */
@@ -310,6 +310,18 @@ export function movePinned(ids: string[], id: string, delta: -1 | 1): string[] {
 }
 
 /** Category tiles for the categories-first layout: only categories with something on sale, with a count and a cover image. */
+/** Till key colours (`--key-1`…`--key-8` in globals.css), cycled. */
+export const KEY_COLOURS = 8;
+
+/**
+ * Each category's key colour, by its place in the merchant's own category
+ * order — so a category keeps its colour while the menu changes around it, and
+ * the bar on a key matches the swatch on its tab.
+ */
+export function categoryColours(categories: Array<{ id: string }>): Record<string, string> {
+  return Object.fromEntries(categories.map((category, index) => [category.id, `var(--key-${(index % KEY_COLOURS) + 1})`]));
+}
+
 export function categoryTiles(items: MenuItem[], categories: Array<{ id: string; name: string }>) {
   return categories
     .map((category) => {

@@ -13,6 +13,7 @@ import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { FilterChip } from '@/components/shared/FilterChip';
+import { ListRowGroup } from '@/components/shared/ListRow';
 import { LoadMore } from '@/components/shared/LoadMore';
 import { Bone } from '@/components/shared/Skeleton';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
@@ -35,12 +36,12 @@ import type { TimelineEntry, TimelineKind } from '@/types/customers';
 
 /**
  * One chronological feed of everything that happened with a guest — orders,
- * points, emails, consent and privacy: a filter bar, then each day as a tinted
- * panel of white rows — a kind-coloured tile, a bold lead, a muted detail
- * line, a pill only when something went wrong, and the time. An order opens
- * the Orders page's full drawer; anything else opens its own detail.
- *
- * No panel around it: the rows are boxed already, and the tab names the page.
+ * points, emails, consent and privacy: the Orders page's filter bar, then each
+ * day as the audit log lays it out — the date (how many, what they spent) on
+ * the page, its rows in one card beneath: a
+ * kind-coloured tile, a bold lead, a muted detail line, a pill only when
+ * something went wrong, and the time. An order opens the Orders page's full
+ * drawer; anything else opens its own detail.
  * The feed covers the *merged group* — a record folded into this one
  * contributes its history too, which is the whole point of merging.
  */
@@ -140,7 +141,7 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
               type="search"
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              placeholder="Search loaded activity…"
+              placeholder="Search activity"
               aria-label="Search loaded customer activity"
               leftIcon={<Search size={15} aria-hidden="true" />}
             />
@@ -176,7 +177,7 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
       </motion.div>
 
       {mergedIn && (
-        <motion.p variants={SECTION_RISE} className="rounded-lg border border-rule/60 bg-field px-3.5 py-2.5 text-xs text-muted-foreground">
+        <motion.p variants={SECTION_RISE} className="rounded-lg border border-border bg-field px-3.5 py-2.5 text-xs text-muted-foreground">
           Includes history from {data!.group.length - 1} record{data!.group.length - 1 === 1 ? '' : 's'} merged into this one.
         </motion.p>
       )}
@@ -189,7 +190,7 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
             <Bone className="mb-2 ml-1 h-4 w-24" />
             <div className="space-y-2">
               {Array.from({ length: 6 }, (_, index) => (
-                <Bone key={index} className="h-[3.75rem] rounded-md" />
+                <Bone key={index} className="h-14 rounded-md" />
               ))}
             </div>
           </div>
@@ -218,8 +219,9 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
         ) : (
           <div className="space-y-6">
             {days.map((day) => (
+              // The audit log's day: the heading on the page, the day's rows in one card under it.
               <section key={day.key} aria-labelledby={`timeline-day-${day.key}`}>
-                <h2 id={`timeline-day-${day.key}`} className="mb-2 flex items-center gap-2 px-1 text-sm font-semibold text-foreground">
+                <h2 id={`timeline-day-${day.key}`} className="mb-2 flex items-center gap-2 px-1 text-sm font-semibold text-heading">
                   {day.label}
                   <span className="rounded-full bg-band px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
                     {day.entries.length}
@@ -231,8 +233,7 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
                     </span>
                   )}
                 </h2>
-                {/* Each day a tinted panel of white rows — the newer cards' shape. */}
-                <ul className="space-y-2">
+                <ListRowGroup>
                   {day.entries.map((entry) => (
                     <EntryRow
                       key={`${entry.kind}-${entry.id}`}
@@ -243,7 +244,7 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
                       onOpen={() => setOpenEntry(entry)}
                     />
                   ))}
-                </ul>
+                </ListRowGroup>
               </section>
             ))}
 
@@ -263,11 +264,9 @@ export function CustomerTimeline({ customerId }: { customerId: string }) {
                 </Button>
               </p>
             ) : (
-              !full && (
+              search.trim() && (
                 <p className="pb-2 text-center text-xs tabular-nums text-muted-foreground">
-                  {search.trim()
-                    ? `${visible.length} of ${entries.length} loaded entries`
-                    : `That’s everything — ${entries.length.toLocaleString()} ${entries.length === 1 ? 'entry' : 'entries'}`}
+                  {visible.length} of {entries.length} loaded entries
                 </p>
               )
             )}
@@ -319,17 +318,17 @@ function EntryRow({
   const row = timelineRowText(entry, money, now);
 
   return (
-    <li>
+    <li className="border-b border-border last:border-b-0">
       <button
         type="button"
         onClick={onOpen}
         className={cn(
-          'group flex w-full items-center gap-3 rounded-lg border border-rule/60 bg-field px-3 py-3 text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-          selected ? 'ring-2 ring-primary/30' : 'hover:bg-background',
+          'group flex w-full items-center gap-3 px-4 py-2.5 text-left transition-colors focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring',
+          selected ? 'bg-primary/5' : 'hover:bg-band/40',
         )}
       >
-        <span className={cn('flex size-10 shrink-0 items-center justify-center rounded-md', meta.tile)}>
-          <Icon size={18} aria-hidden="true" />
+        <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', meta.tile)}>
+          <Icon size={16} aria-hidden="true" />
         </span>
         <span className="min-w-0 flex-1">
           <span className="block truncate text-sm text-foreground">
@@ -342,11 +341,7 @@ function EntryRow({
             {row.pill.label}
           </span>
         )}
-        <time
-          className="shrink-0 rounded-md bg-band/70 px-1.5 py-0.5 text-xs font-medium tabular-nums text-muted-foreground"
-          dateTime={entry.at}
-          title={formatDateTime(entry.at)}
-        >
+        <time className="shrink-0 text-xs tabular-nums text-muted-foreground" dateTime={entry.at} title={formatDateTime(entry.at)}>
           {time(entry.at)}
         </time>
         <ChevronRight

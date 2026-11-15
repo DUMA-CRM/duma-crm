@@ -84,7 +84,7 @@ export const fmtHours = (h: number): string => `${Math.round(h * 100) / 100}h`;
 export const inp =
   'w-full h-9 bg-control border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 export const sel = inp + ' cursor-pointer';
-export const lbl = 'block text-xs font-bold text-muted-foreground uppercase tracking-widest mb-1.5';
+export const lbl = 'mb-1.5 block text-sm font-medium text-foreground';
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 

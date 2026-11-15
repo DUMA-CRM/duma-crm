@@ -51,11 +51,11 @@ export function FormSection({
         event.currentTarget.open = true;
       }}
       open={defaultOpen}
-      className="group/form-section rounded-lg border border-rule/60 bg-field"
+      className="group/form-section rounded-lg border border-border bg-field"
     >
       <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
         {Icon && (
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-rule/55 bg-background text-muted-foreground">
+          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
             <Icon size={16} aria-hidden="true" />
           </span>
         )}
@@ -70,8 +70,8 @@ export function FormSection({
     </details>
   ) : (
     <section>
-      <h3 className="mb-2 text-sm font-semibold text-foreground">{title}</h3>
-      <div className={cn('space-y-3', framed && 'rounded-lg border border-rule/60 bg-field p-3 sm:p-4')}>{content}</div>
+      <h3 className="mb-2 text-sm font-semibold text-heading">{title}</h3>
+      <div className={cn('space-y-3', framed && 'rounded-lg border border-border bg-field p-3 sm:p-4')}>{content}</div>
     </section>
   );
 }
@@ -111,8 +111,8 @@ export function ChoiceCards<T extends string>({
                 ? 'border-primary bg-primary/5 font-semibold text-foreground shadow-[inset_0_0_0_1px_var(--primary)]'
                 : 'border-primary bg-primary/5 font-semibold text-foreground'
               : appearance === 'settings'
-                ? 'border-rule/70 bg-control font-medium text-foreground hover:border-rule hover:bg-band/45'
-                : 'border-rule/60 bg-background/60 font-medium text-foreground hover:bg-band/40',
+                ? 'border-border bg-control font-medium text-foreground hover:border-rule hover:bg-band/45'
+                : 'border-border bg-background/60 font-medium text-foreground hover:bg-band/40',
           )}
         >
           {option.icon && (
@@ -173,7 +173,7 @@ export function NumberStepper({
       >
         <Minus size={16} />
       </button>
-      <label className="flex flex-1 items-center justify-center gap-1 border-x border-rule/60">
+      <label className="flex flex-1 items-center justify-center gap-1 border-x border-border">
         <span className="sr-only">{label}</span>
         <input
           type="number"

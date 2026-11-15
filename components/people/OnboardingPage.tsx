@@ -4,7 +4,6 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useRef, useState } from 'react';
 
-import { DurationPicker } from '@/components/ui/duration-picker';
 import {
   AlertTriangle,
   ArrowLeft,
@@ -23,8 +22,6 @@ import {
   Loader2,
   Mail,
   MapPin,
-  Pencil,
-  Plus,
   Receipt,
   ShieldCheck,
   Store,
@@ -43,7 +40,9 @@ import { Avatar, EMPLOYMENT_CONFIG, PAY_CONFIG } from '@/components/people/share
 import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
+import { DurationPicker } from '@/components/ui/duration-picker';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 
 import { ApiError } from '@/lib/api/client';
 import type { EmploymentType, PayType } from '@/lib/api/hr.service';
@@ -331,7 +330,8 @@ export function OnboardingPage({ onClose, onCreated }: { onClose: () => void; on
         ) : (
           <form
             ref={formRef}
-            className="relative w-full max-w-2xl"
+            // The review lays its four groups out as two columns, so it takes more width than a question.
+            className={cn('relative w-full', step === 'review' ? 'max-w-4xl' : 'max-w-2xl')}
             noValidate
             onSubmit={(event) => {
               event.preventDefault();
@@ -486,7 +486,7 @@ interface Question {
   body: React.ReactNode;
 }
 
-const fieldLabel = 'mb-1.5 block text-label uppercase text-muted-foreground';
+const fieldLabel = 'mb-1.5 block text-sm font-medium text-foreground';
 
 function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
   const { draft, update, choose, first } = q;
@@ -564,7 +564,9 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
             />
             {draft.scope === 'location' && (
               <div>
-                <p className={fieldLabel}>Which locations?</p>
+                <FieldLabel as="span" className="mb-1.5">
+                  Which locations?
+                </FieldLabel>
                 <Loaded source={q.locations} what="locations" empty="This workspace has no locations yet.">
                   <ChoiceGrid
                     label="Locations"
@@ -727,7 +729,9 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
             />
             {draft.payType && (
               <div>
-                <p className={fieldLabel}>{hourly ? 'Hourly rate' : 'Annual salary'}</p>
+                <FieldLabel as="span" className="mb-1.5">
+                  {hourly ? 'Hourly rate' : 'Annual salary'}
+                </FieldLabel>
                 <BigInput
                   key={draft.payType}
                   label={hourly ? 'Hourly rate' : 'Annual salary'}
@@ -772,7 +776,9 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
         body: (
           <div className="grid gap-6 sm:grid-cols-2">
             <div>
-              <p className={fieldLabel}>Unpaid break</p>
+              <FieldLabel as="span" className="mb-1.5">
+                Unpaid break
+              </FieldLabel>
               <DurationPicker
                 aria-label="Unpaid break"
                 value={draft.unpaidBreakMins}
@@ -783,7 +789,9 @@ function questionFor(step: StaffStepId, q: QuestionContext): Question | null {
               />
             </div>
             <div>
-              <p className={fieldLabel}>Once a shift passes</p>
+              <FieldLabel as="span" className="mb-1.5">
+                Once a shift passes
+              </FieldLabel>
               <DurationPicker
                 aria-label="Break threshold"
                 value={draft.breakThresholdMins}
@@ -901,7 +909,7 @@ function Loaded<T>({ source, what, empty, children }: { source: Loadable<T>; wha
         label={`Loading ${what}`}
         className="grid gap-3 sm:grid-cols-2"
         tile="mt-0.5 size-9"
-        tileClassName="min-h-16 items-start gap-3.5 border-rule/70 bg-field px-4 py-3.5"
+        tileClassName="min-h-16 items-start gap-3.5 border-border bg-field px-4 py-3.5"
       />
     );
   }
@@ -990,8 +998,9 @@ function StaffReview({
     ? `${draft.accountHolder.trim()} · ${ctx.uk ? formatSortCode(draft.sortCode) : draft.sortCode} · ••••${draft.accountNumber.replace(/\s/g, '').slice(-4)}`
     : '';
 
-  const groups: Array<{ title: string; rows: Array<{ step: StaffStepId; label: string; value: string; muted?: boolean }> }> = [
+  const groups: Array<{ id: string; title: string; rows: Array<{ step: StaffStepId; label: string; value: string; muted?: boolean }> }> = [
     {
+      id: 'account',
       title: 'Account',
       rows: [
         // The name heads the review beside their picture, so it isn't a row too.
@@ -1001,6 +1010,7 @@ function StaffReview({
       ],
     },
     {
+      id: 'personal',
       title: 'Personal',
       rows: [
         {
@@ -1019,6 +1029,7 @@ function StaffReview({
       ],
     },
     {
+      id: 'job',
       title: 'Job & pay',
       rows: [
         { step: 'job', label: 'Job', value: [draft.jobTitle.trim(), draft.department.trim()].filter(Boolean).join(' · ') },
@@ -1035,6 +1046,7 @@ function StaffReview({
       ],
     },
     {
+      id: 'tax',
       title: 'Tax & bank',
       rows: [
         { step: 'tax', label: ctx.uk ? 'NI & tax' : statutoryIdLabel(country), value: tax || skipped, muted: !tax },
@@ -1065,39 +1077,47 @@ function StaffReview({
       <div className="flex items-center gap-3">
         <Avatar name={draft.name} email={draft.email.trim() || undefined} size="lg" />
         <p className="min-w-0 flex-1 truncate text-lg font-semibold tracking-title text-foreground">{draft.name.trim() || 'New starter'}</p>
-        <Button type="button" variant="ghost" size="icon-sm" title="Change name" aria-label="Change name" onClick={() => onEdit('name')}>
-          <Pencil aria-hidden="true" />
+        <Button type="button" variant="ghost" size="sm" aria-label="Change name" onClick={() => onEdit('name')}>
+          Change
         </Button>
       </div>
-      {groups.map((group) => (
-        <section key={group.title}>
-          <h2 className="mb-1.5 text-label uppercase text-muted-foreground/80">{group.title}</h2>
-          <RecordList>
-            {group.rows.map((row) => (
-              <RecordListRow
-                key={row.label}
-                icon={REVIEW_ICON[row.step] ?? FileText}
-                tone={row.muted ? 'muted' : 'reference'}
-                value={row.muted ? undefined : row.value}
-                placeholder={row.value}
-                label={row.label}
-                trailing={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    title={row.muted ? 'Add' : 'Change'}
-                    aria-label={`${row.muted ? 'Add' : 'Change'} ${row.label.toLowerCase()}`}
-                    onClick={() => onEdit(row.step)}
-                  >
-                    {row.muted ? <Plus aria-hidden="true" /> : <Pencil aria-hidden="true" />}
-                  </Button>
-                }
-              />
+      {/* Two stacked columns, not paired rows — a short group never leaves a hole beside it. */}
+      <div className="grid items-start gap-5 md:grid-cols-2">
+        {[groups.slice(0, 2), groups.slice(2)].map((column, index) => (
+          <div key={index} className="flex min-w-0 flex-col gap-5">
+            {column.map((group) => (
+              <section key={group.title} aria-labelledby={`review-${group.id}`}>
+                <h2 id={`review-${group.id}`} className="mb-2 px-1 text-base font-semibold tracking-title text-heading">
+                  {group.title}
+                </h2>
+                <RecordList>
+                  {group.rows.map((row) => (
+                    <RecordListRow
+                      key={row.label}
+                      icon={REVIEW_ICON[row.step] ?? FileText}
+                      tone={row.muted ? 'muted' : 'reference'}
+                      value={row.muted ? undefined : row.value}
+                      placeholder={row.value}
+                      label={row.label}
+                      trailing={
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          aria-label={`${row.muted ? 'Add' : 'Change'} ${row.label.toLowerCase()}`}
+                          onClick={() => onEdit(row.step)}
+                        >
+                          {row.muted ? 'Add' : 'Change'}
+                        </Button>
+                      }
+                    />
+                  ))}
+                </RecordList>
+              </section>
             ))}
-          </RecordList>
-        </section>
-      ))}
+          </div>
+        ))}
+      </div>
       <p className="text-xs text-muted-foreground">
         Adding {firstName(draft.name) || 'them'} creates their account and employee record, and emails them a link to sign in.
       </p>
@@ -1162,7 +1182,7 @@ function Done({
 
       <section className="mt-10">
         <h2 className="text-label uppercase text-muted-foreground">Before their first shift</h2>
-        <ul className="mt-3 divide-y divide-rule/45 border-y border-rule/45">
+        <ul className="mt-3">
           {(uk ? FOLLOW_UP_UK : FOLLOW_UP).map((item, index) => (
             <motion.li
               key={item}
@@ -1171,7 +1191,7 @@ function Done({
               transition={{ delay: reduceMotion ? 0 : 0.2 + index * 0.05, duration: 0.3, ease: EASE }}
               className="flex items-start gap-3 py-2.5 text-sm text-foreground"
             >
-              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-rule/70 text-micro tabular-nums text-muted-foreground">
+              <span className="mt-0.5 flex size-5 shrink-0 items-center justify-center rounded-full border border-border text-micro tabular-nums text-muted-foreground">
                 {index + 1}
               </span>
               {item}

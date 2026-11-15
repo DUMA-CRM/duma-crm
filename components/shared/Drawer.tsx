@@ -45,7 +45,15 @@ interface DrawerProps {
   footerClassName?: string;
   /** Position and size of the panel, e.g. offset to sit beside an open drawer. */
   style?: React.CSSProperties;
+  /**
+   * How it arrives. `side` (default) slides the panel in from the edge;
+   * `instant` shows it at once with no motion — for stepping between records
+   * with the panel already open, where only the contents change.
+   */
+  enter?: DrawerEnter;
 }
+
+export type DrawerEnter = 'side' | 'instant';
 
 /**
  * Right-hand slide-over for record detail/edit, next to the list it came from.
@@ -76,7 +84,9 @@ export function Drawer({
   bodyClassName,
   footerClassName,
   style,
+  enter = 'side',
 }: DrawerProps) {
+  const stepping = enter === 'instant';
   const ownPanelRef = useRef<HTMLDivElement>(null);
   const panelRef = externalPanelRef ?? ownPanelRef;
   // Held in a ref so the focus effect runs once per opening. Callers pass
@@ -164,8 +174,8 @@ export function Drawer({
         style={modal ? undefined : style}
         className={cn(
           'relative flex h-full w-full max-w-xl flex-col overflow-hidden bg-field shadow-2xl outline-none',
-          'sm:rounded-xl sm:border sm:border-rule/60',
-          'duration-200 ease-out animate-in slide-in-from-right-8 fade-in-0 motion-reduce:animate-none',
+          'sm:rounded-xl sm:border sm:border-border',
+          !stepping && 'duration-200 ease-out animate-in slide-in-from-right-8 fade-in-0 motion-reduce:animate-none',
           !modal && 'pointer-events-auto',
           className,
         )}
@@ -174,13 +184,13 @@ export function Drawer({
           middle. Without one, a long description wraps and the close button stays top-right. */}
         <header
           className={cn(
-            'flex shrink-0 gap-3 border-b border-rule/50 bg-field px-5 sm:px-6',
+            'flex shrink-0 gap-3 border-b border-border bg-field px-5 sm:px-6',
             headerMark ? 'items-center py-4' : 'items-start pt-5 pb-4',
           )}
         >
           {headerMark && <div className="shrink-0">{headerMark}</div>}
           <div className="min-w-0 flex-1">
-            <h2 className="break-words text-base font-semibold tracking-title text-foreground">{title}</h2>
+            <h2 className="break-words text-base font-semibold tracking-title text-heading">{title}</h2>
             {description && (
               <p
                 className="mt-1 break-words text-xs leading-relaxed text-muted-foreground"
@@ -216,7 +226,7 @@ export function Drawer({
           <div
             data-drawer-footer
             className={cn(
-              'shrink-0 border-t border-rule/50 bg-field [&_[data-slot=button]]:h-auto [&_[data-slot=button]]:min-h-9 [&_[data-slot=button]]:min-w-0 [&_[data-slot=button]]:whitespace-normal [&_[data-slot=button]]:py-1.5',
+              'shrink-0 border-t border-border bg-field [&_[data-slot=button]]:h-auto [&_[data-slot=button]]:min-h-9 [&_[data-slot=button]]:min-w-0 [&_[data-slot=button]]:whitespace-normal [&_[data-slot=button]]:py-1.5',
               footerClassName ?? 'px-5 pt-3 pb-[max(0.75rem,env(safe-area-inset-bottom))] sm:px-6',
             )}
           >
@@ -233,7 +243,7 @@ export function Drawer({
     // on a phone, where every pixel of width counts.
     modal ? (
       <div className="fixed inset-0 z-50 flex h-dvh justify-end sm:p-2">
-        <div className="absolute inset-0 bg-black/30 backdrop-blur-[2px] duration-200 animate-in fade-in-0" onClick={onClose} />
+        <div className={cn('absolute inset-0 bg-black/30', !stepping && 'duration-200 animate-in fade-in-0')} onClick={onClose} />
         {panel}
       </div>
     ) : (
@@ -254,16 +264,19 @@ export function DrawerHeaderButton({
   pressed,
   disabled,
   children,
+  ...rest
 }: {
   label: string;
-  onClick: () => void;
+  /** Optional when the button is a Radix trigger (`asChild`), which supplies its own. */
+  onClick?: React.MouseEventHandler<HTMLButtonElement>;
   /** For a toggle (e.g. history open, wide mode). */
   pressed?: boolean;
   disabled?: boolean;
   children: React.ReactNode;
-}) {
+} & Omit<React.ComponentProps<'button'>, 'onClick' | 'disabled' | 'children' | 'className'>) {
   return (
     <button
+      {...rest}
       type="button"
       onClick={onClick}
       aria-label={label}
@@ -274,7 +287,7 @@ export function DrawerHeaderButton({
         'flex size-8 items-center justify-center rounded-md border transition-colors focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-50',
         pressed
           ? 'border-primary/40 bg-primary/8 text-primary'
-          : 'border-rule/60 bg-background text-muted-foreground hover:bg-band hover:text-foreground',
+          : 'border-edge bg-background text-muted-foreground hover:bg-band hover:text-foreground',
       )}
     >
       {children}

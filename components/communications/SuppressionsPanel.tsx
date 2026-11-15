@@ -16,6 +16,7 @@ import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import {
@@ -106,7 +107,7 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
       <div className="space-y-4">
         <Input label="Email" type="email" value={email} onChange={(event) => setEmail(event.target.value)} required autoFocus />
         <div className="space-y-1.5">
-          <p className="text-sm font-medium text-foreground">Why</p>
+          <FieldLabel as="span">Why</FieldLabel>
           <Select value={reason} onValueChange={setReason} options={ADD_REASONS} ariaLabel="Why" className="w-full" />
           <p className="text-xs text-muted-foreground">{SUPPRESSION_REASONS.find((item) => item.value === reason)?.detail}</p>
         </div>
@@ -127,7 +128,7 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
         </div>
         <div>
           <Bone className="mb-2 h-3 w-24" />
-          <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+          <div className="overflow-hidden rounded-lg border border-border bg-card">
             {Array.from({ length: 4 }, (_, index) => (
               <RowSkeleton key={index} index={index} avatar />
             ))}
@@ -138,7 +139,7 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
 
   if (suppressions.isError)
     return (
-      <div className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+      <div className="overflow-hidden rounded-lg border border-border bg-card">
         <ErrorState title="Suppressions couldn’t be loaded" onRetry={() => void suppressions.refetch()} />
       </div>
     );
@@ -186,7 +187,7 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
           ) : (
             groups.map((group) => (
               <motion.section key={group.reason} variants={SECTION_RISE} aria-label={group.label}>
-                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-foreground">
+                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-heading">
                   {group.label}
                   <span className="text-xs font-normal text-muted-foreground tabular-nums">{group.items.length}</span>
                 </h2>
@@ -232,7 +233,7 @@ function SuppressionRow({ item, canLift, onLift }: { item: MarketingSuppression;
   const name = item.customer ? `${item.customer.firstName} ${item.customer.lastName}` : null;
   return (
     <ListRow
-      className="rounded-lg border border-rule/60 bg-field [&:last-child]:border-b"
+      className="rounded-lg border border-border bg-field [&:last-child]:border-b"
       icon={name ? undefined : ShieldOff}
       tone="muted"
       leading={name ? <Avatar name={name} /> : undefined}

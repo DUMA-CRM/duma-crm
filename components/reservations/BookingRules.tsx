@@ -249,7 +249,7 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
               rows={3}
               autoFocus
               placeholder="We hold tables for 15 minutes. Dogs welcome on the terrace."
-              className="w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-measured disabled:opacity-60"
+              className="w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30 disabled:opacity-60"
             />
             <p className="mt-1.5 text-xs text-muted-foreground">Shown on the booking page and in the confirmation email.</p>
           </PickerRow>

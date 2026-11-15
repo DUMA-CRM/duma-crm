@@ -226,3 +226,29 @@ export function mondayOf(date: Date): Date {
 export function weekOffsetFor(target: Date, today: Date): number {
   return Math.round((mondayOf(target).getTime() - mondayOf(today).getTime()) / (7 * 86_400_000));
 }
+
+// ── Acknowledgement ───────────────────────────────────────────────────────
+
+export interface AcknowledgeFields {
+  status?: string;
+  createdAt?: string;
+  publishedAt?: string | null;
+  acknowledgedAt?: string | null;
+}
+
+/** A republish this long after the shift was made counts as a change, not the first showing. */
+export const CHANGED_AFTER_MS = 10 * 60_000;
+
+/**
+ * "New" or "Changed" for a published shift the person hasn't confirmed yet,
+ * from the server's own record. `undefined` when the API doesn't report
+ * acknowledgement at all (an older API), so the caller can fall back to the
+ * per-device diff; `null` when there is nothing to say.
+ */
+export function acknowledgeMarker(shift: AcknowledgeFields): RotaChange | null | undefined {
+  if (shift.acknowledgedAt === undefined && shift.publishedAt === undefined) return undefined;
+  if (shift.status !== 'published' || shift.acknowledgedAt) return null;
+  const published = shift.publishedAt ? Date.parse(shift.publishedAt) : NaN;
+  const created = shift.createdAt ? Date.parse(shift.createdAt) : NaN;
+  return Number.isFinite(published) && Number.isFinite(created) && published - created > CHANGED_AFTER_MS ? 'changed' : 'new';
+}

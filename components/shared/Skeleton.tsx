@@ -29,7 +29,7 @@ const META_W = ['w-56', 'w-40', 'w-48', 'w-64', 'w-36', 'w-52'];
 /** A `ListRow` without its words: tile (or avatar), title, one meta line, a trailing value. */
 export function RowSkeleton({ index = 0, avatar = false, trailing = true }: { index?: number; avatar?: boolean; trailing?: boolean }) {
   return (
-    <div className="flex items-center gap-3 border-b border-rule/45 px-3.5 py-3 last:border-b-0" aria-hidden="true">
+    <div className="flex items-center gap-3 border-b border-border px-3.5 py-3 last:border-b-0" aria-hidden="true">
       <Bone className={cn('size-9 shrink-0', avatar && 'rounded-md')} />
       <span className="min-w-0 flex-1 space-y-1.5">
         <Bone className={cn('h-3.5 max-w-full', TITLE_W[index % TITLE_W.length])} />
@@ -69,7 +69,7 @@ export function ListSkeleton({
       aria-busy="true"
       aria-label={label}
       className={cn(
-        framed && 'overflow-hidden rounded-lg border border-rule/60',
+        framed && 'overflow-hidden rounded-lg border border-border shadow-sm',
         framed && (surface === 'field' ? 'bg-field' : 'bg-card'),
         className,
       )}
@@ -86,13 +86,13 @@ export function FactSkeleton({ surface = 'page' }: { surface?: 'panel' | 'page' 
   return (
     <div
       className={cn(
-        'flex items-stretch overflow-hidden rounded-lg border',
-        surface === 'page' ? 'border-rule/60 bg-field' : surface === 'card' ? 'border-rule/60 bg-card' : 'border-rule/50 bg-background/60',
+        'flex items-center gap-3 rounded-lg border px-3.5 py-3',
+        surface === 'panel' ? 'border-border bg-band/35' : 'border-border bg-card shadow-sm',
       )}
       aria-hidden="true"
     >
-      <span className="w-12 shrink-0 border-r border-rule/40 bg-band/50" />
-      <span className="min-w-0 flex-1 space-y-1.5 px-3.5 py-3">
+      <Bone className="min-h-10 w-10 shrink-0 self-stretch rounded-md" />
+      <span className="min-w-0 flex-1 space-y-1.5">
         <Bone className="h-2.5 w-16" />
         <Bone className={cn('w-20', surface === 'page' ? 'h-5.5' : 'h-4')} />
       </span>

@@ -68,7 +68,7 @@ import { BrandMark } from './PostDetails';
 
 /** The control surface the settings pages use for a text input. */
 const control =
-  'w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-measured focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-measured disabled:opacity-60';
+  'w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30 disabled:opacity-60';
 interface Draft extends TargetDraft {
   media: Asset[];
   local: string;
@@ -225,7 +225,7 @@ function TikTokFields({
       <label
         className={cn(
           'flex items-start gap-3 rounded-md border px-3 py-2.5 text-sm',
-          o.consent === true ? 'border-rule/60 bg-band/30' : 'border-measured/40 bg-measured/5',
+          o.consent === true ? 'border-border bg-band/30' : 'border-measured/40 bg-measured/5',
         )}
       >
         <input
@@ -528,7 +528,7 @@ export function PostComposer({
                       'flex h-9 shrink-0 items-center gap-2 rounded-full border px-3 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-ring',
                       i === active
                         ? 'border-primary bg-primary/5 text-foreground shadow-[inset_0_0_0_1px_var(--primary)]'
-                        : 'border-rule/70 bg-field text-muted-foreground hover:bg-band/45 hover:text-foreground',
+                        : 'border-border bg-field text-muted-foreground hover:bg-band/45 hover:text-foreground',
                     )}
                   >
                     {a && <BrandMark platform={a.provider} />}
@@ -555,7 +555,7 @@ export function PostComposer({
                     key={a.id}
                     type="button"
                     onClick={() => add(a)}
-                    className="group flex min-w-0 items-center gap-3 rounded-lg border border-rule/70 bg-field px-3 py-2.5 text-left transition-colors hover:border-rule hover:bg-band/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+                    className="group flex min-w-0 items-center gap-3 rounded-lg border border-border bg-field px-3 py-2.5 text-left transition-colors hover:border-rule hover:bg-band/45 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
                   >
                     <BrandTile brand={CONNECTOR_BRANDS[a.provider]!} />
                     <span className="min-w-0 flex-1">
@@ -680,7 +680,7 @@ export function PostComposer({
                 >
                   <div className="grid grid-cols-3 gap-2 sm:grid-cols-4">
                     {t.media.map((a) => (
-                      <div key={a.id} className="group relative aspect-square overflow-hidden rounded-md border border-rule/60 bg-band/40">
+                      <div key={a.id} className="group relative aspect-square overflow-hidden rounded-md border border-border bg-band/40">
                         {a.mimeType.startsWith('video/') ? (
                           <video controls preload="metadata" src={assetSrc(a)} className="size-full object-cover" />
                         ) : (

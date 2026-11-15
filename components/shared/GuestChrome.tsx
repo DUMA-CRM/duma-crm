@@ -7,12 +7,12 @@ import { Logo } from '@/components/shared/Logo';
 /** The place, in the same dark band as the QR menu. */
 export function GuestHeader({ brandName, place }: { brandName: string; place?: string }) {
   return (
-    <header className="bg-sidebar text-sidebar-foreground">
+    <header className="bg-panel text-panel-foreground">
       <div className="mx-auto flex max-w-2xl items-center gap-3 px-4 py-5 sm:px-6">
         <Logo size={38} variant="onDark" />
         <div>
           <p className="font-semibold">{brandName}</p>
-          {place && <p className="text-xs text-sidebar-foreground/70">{place}</p>}
+          {place && <p className="text-xs text-panel-foreground/75">{place}</p>}
         </div>
       </div>
     </header>

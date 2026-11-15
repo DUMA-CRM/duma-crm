@@ -1,12 +1,11 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { SectionInfo } from '@/components/cms/rows';
+import { BrandTile } from '@/components/cms/rows';
 import {
   Calculator,
   CheckCircle2,
@@ -23,11 +22,14 @@ import {
   Trash2,
   Wallet,
 } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Bone } from '@/components/shared/Skeleton';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { ListSkeleton } from '@/components/shared/Skeleton';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/label';
@@ -44,7 +46,6 @@ import {
 } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
-import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -450,101 +451,47 @@ export function PaymentsConnectWizard({ onClose, onDone }: { onClose: () => void
   );
 }
 
-/**
- * A reader drawn as the card it takes: the chip, the provider where the card
- * network would be, the name across the middle. On, it is the brand's forest
- * green; paused, it greys out like a card left in the drawer.
- */
-function ReaderCard({
+/** A reader as a list row: its provider's mark, name, state, and the switch and delete always in reach. */
+function ReaderRow({
   name,
   provider,
   active,
   busy,
-  index,
   onToggle,
   onDelete,
 }: {
   name: string;
-  provider: string;
+  provider: PaymentProvider;
   active: boolean;
   busy: boolean;
-  index: number;
   onToggle: (isActive: boolean) => void;
   onDelete: () => void;
 }) {
-  const reduceMotion = useReducedMotion();
+  const brand = provider === 'cash' ? undefined : BRANDS[provider];
+  const leading =
+    brand && 'path' in brand ? (
+      <BrandTile brand={brand} className="size-9" />
+    ) : brand ? (
+      <span className="flex size-9 shrink-0 items-center justify-center rounded-md text-white" style={{ background: brand.background }}>
+        <brand.icon size={16} aria-hidden="true" />
+      </span>
+    ) : undefined;
   return (
-    <motion.li
-      initial={reduceMotion ? false : { opacity: 0 }}
-      animate={{ opacity: 1 }}
-      transition={{ delay: reduceMotion ? 0 : index * 0.06, duration: 0.3 }}
-      className={cn(
-        'relative flex aspect-[1.586] flex-col justify-between overflow-hidden rounded-2xl p-5 shadow-md transition-colors',
-        active ? 'bg-primary text-primary-foreground' : 'border border-rule/60 bg-band text-muted-foreground shadow-none',
-      )}
-    >
-      {/* Two faint rings, like the watermark on a real card. */}
-      <span
-        aria-hidden="true"
-        className={cn(
-          'pointer-events-none absolute -right-10 -top-12 size-44 rounded-full border-[18px]',
-          active ? 'border-white/6' : 'border-black/[0.03]',
-        )}
-      />
-      <span
-        aria-hidden="true"
-        className={cn(
-          'pointer-events-none absolute -bottom-16 -right-2 size-40 rounded-full border-[14px]',
-          active ? 'border-white/5' : 'border-black/[0.03]',
-        )}
-      />
-
-      <div className="relative flex items-start justify-between gap-3">
-        {/* The chip. */}
-        <span
-          aria-hidden="true"
-          className={cn(
-            'grid h-8 w-11 grid-cols-3 gap-px overflow-hidden rounded-md border p-1',
-            active ? 'border-white/30 bg-white/20' : 'border-rule/60 bg-field',
-          )}
-        >
-          {Array.from({ length: 6 }, (_, cell) => (
-            <span key={cell} className={cn('rounded-[2px]', active ? 'bg-white/25' : 'bg-band')} />
-          ))}
-        </span>
-        <span
-          className={cn('text-xs font-semibold uppercase tracking-wide', active ? 'text-primary-foreground/80' : 'text-muted-foreground')}
-        >
-          {provider}
-        </span>
-      </div>
-
-      <p
-        className={cn(
-          'relative truncate text-xl font-semibold tracking-headline',
-          active ? 'text-primary-foreground' : 'text-foreground/70',
-        )}
-      >
-        {name}
-      </p>
-
-      <div className="relative flex items-center justify-between gap-3">
-        <span
-          className={cn('flex items-center gap-1.5 text-xs font-semibold', active ? 'text-primary-foreground/90' : 'text-muted-foreground')}
-        >
-          <span className={cn('size-1.5 rounded-full', active ? 'bg-white' : 'bg-muted-foreground/60')} aria-hidden="true" />
-          {active ? 'Taking payments' : 'Paused'}
-        </span>
+    <ListRow
+      leading={leading}
+      icon={CreditCard}
+      tone={active ? 'success' : 'muted'}
+      title={name}
+      meta={PROVIDER_LABELS[provider]}
+      muted={!active}
+      trailing={<Badge variant={active ? 'success' : 'muted'}>{active ? 'Taking payments' : 'Paused'}</Badge>}
+      control={
         <span className="flex items-center gap-1">
-          <Switch label={`${active ? 'Pause' : 'Turn on'} ${name}`} checked={active} disabled={busy} onChange={onToggle} onDark={active} />
+          <Switch label={`${active ? 'Pause' : 'Turn on'} ${name}`} checked={active} disabled={busy} onChange={onToggle} />
           <Button
             variant="ghost"
             size="icon-sm"
-            className={cn(
-              active
-                ? 'text-primary-foreground/80 hover:bg-white/15 hover:text-primary-foreground'
-                : 'text-muted-foreground hover:text-exception',
-            )}
+            className="text-muted-foreground hover:text-exception"
             aria-label={`Delete ${name}`}
             title="Delete"
             disabled={busy}
@@ -553,8 +500,8 @@ function ReaderCard({
             <Trash2 aria-hidden="true" />
           </Button>
         </span>
-      </div>
-    </motion.li>
+      }
+    />
   );
 }
 
@@ -627,7 +574,6 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
             tone: paused && !active ? 'warning' : undefined,
           },
         ],
-        problem: !locationId ? 'Choose a location to see its card readers.' : null,
       }}
       usedBy={[
         { icon: Monitor, label: 'Till', href: '/pos' },
@@ -639,31 +585,46 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
       ]}
       onClose={onClose}
     >
-      <SettingsSection
+      <RecordGroup
+        id="card-readers"
         title={location ? `Readers at ${location.name}` : 'Readers'}
-        actions={<SectionInfo label="Readers belong to one location. Switch location to see another’s." />}
+        actions={
+          locationId && methods.length > 0 ? (
+            <Button variant="outline" size="sm" onClick={onAdd}>
+              <Plus aria-hidden="true" /> Add reader
+            </Button>
+          ) : undefined
+        }
+        footnote="Readers belong to one location. Switch location to see another’s."
       >
         {!locationId ? (
-          <p className="text-sm text-muted-foreground">Choose a location to see its card readers.</p>
+          <ListRowGroup>
+            <ListRow icon={MapPin} tone="warning" title="Choose a location to see its card readers." />
+          </ListRowGroup>
         ) : readers.isPending ? (
-          <div role="status" aria-busy="true" aria-label="Loading readers" className="grid gap-4 sm:grid-cols-2">
-            {Array.from({ length: 2 }, (_, index) => (
-              <Bone key={index} className="aspect-[1.586] rounded-2xl" />
-            ))}
-          </div>
+          <ListSkeleton rows={2} label="Loading readers" />
         ) : readers.isError ? (
           <ErrorState title="Couldn’t load readers" onRetry={() => void readers.refetch()} />
+        ) : methods.length === 0 ? (
+          <div className="rounded-lg border border-border bg-card shadow-sm">
+            <EmptyState
+              compact
+              icon={CreditCard}
+              title="No readers yet"
+              description="Readers you add here are offered at the till."
+              action={{ label: 'Add your first reader', onClick: onAdd }}
+            />
+          </div>
         ) : (
-          <ul className="grid gap-4 sm:grid-cols-2">
-            {methods.map((method, index) => {
+          <ListRowGroup>
+            {methods.map((method) => {
               const isActive = method.isActive !== false;
               const busy = (toggle.isPending && toggle.variables?.id === method.id) || (remove.isPending && remove.variables === method.id);
               return (
-                <ReaderCard
+                <ReaderRow
                   key={method.id}
-                  index={index}
                   name={method.displayName}
-                  provider={PROVIDER_LABELS[method.provider]}
+                  provider={method.provider}
                   active={isActive}
                   busy={busy}
                   onToggle={(next) => toggle.mutate({ id: method.id, isActive: next })}
@@ -671,22 +632,9 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
                 />
               );
             })}
-            <li>
-              {/* The same card shape, dashed: where the next reader will go. */}
-              <button
-                type="button"
-                onClick={onAdd}
-                className="flex aspect-[1.586] w-full flex-col items-center justify-center gap-2 rounded-2xl border-2 border-dashed border-rule/70 text-muted-foreground transition-colors hover:border-primary/50 hover:bg-primary/5 hover:text-primary focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-              >
-                <span className="flex size-10 items-center justify-center rounded-full bg-band">
-                  <Plus size={20} aria-hidden="true" />
-                </span>
-                <span className="text-sm font-semibold">{methods.length === 0 ? 'Add your first reader' : 'Add reader'}</span>
-              </button>
-            </li>
-          </ul>
+          </ListRowGroup>
         )}
-      </SettingsSection>
+      </RecordGroup>
       {deleting && (
         <ConfirmModal
           title={`Delete ${deleting.displayName}?`}

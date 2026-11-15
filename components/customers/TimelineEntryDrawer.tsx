@@ -204,7 +204,7 @@ function EmailDetailBody({ entry, customerId, tenantId }: { entry: TimelineEntry
             srcDoc={delivery.htmlBody}
             // Floors at 24rem so a long fact list shrinks the drawer's scroll
             // rather than squeezing the message down to a letterbox.
-            className="min-h-96 w-full flex-1 rounded-lg border border-rule/60 bg-white"
+            className="min-h-96 w-full flex-1 rounded-lg border border-border bg-white"
           />
         </section>
       ) : (
@@ -238,7 +238,7 @@ function PointsDetailBody({ entry }: { entry: TimelineEntry }) {
       <section>
         <SectionTitle>Reason</SectionTitle>
         {entry.reason ? (
-          <p className="rounded-lg border border-rule/60 bg-field px-3.5 py-3 text-sm text-foreground">{entry.reason}</p>
+          <p className="rounded-lg border border-border bg-field px-3.5 py-3 text-sm text-foreground">{entry.reason}</p>
         ) : (
           <p className="rounded-lg border border-dashed border-rule/60 px-3.5 py-3 text-sm text-muted-foreground">
             No reason was recorded against this adjustment. Recording one makes the ledger answerable later.
@@ -313,18 +313,18 @@ function PrivacyDetailBody({ entry }: { entry: TimelineEntry }) {
 // ── Pieces — the newer drawers' ───────────────────────────────────────────
 
 function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 flex min-h-7 items-center text-sm font-semibold text-foreground">{children}</h3>;
+  return <h3 className="mb-2 flex min-h-7 items-center text-sm font-semibold text-heading">{children}</h3>;
 }
 
 /** One white card of rows, as Media's file drawer groups its details. */
 function Panel({ children }: { children: React.ReactNode }) {
-  return <dl className="overflow-hidden rounded-lg border border-rule/60 bg-control">{children}</dl>;
+  return <dl className="overflow-hidden rounded-lg border border-border bg-control">{children}</dl>;
 }
 
 /** Tile and name on the left, the value on the right — wrapping, since a subject or an address can be long. */
 function Row({ icon, label, children }: { icon: IconComponent; label: string; children: React.ReactNode }) {
   return (
-    <div className="flex items-center gap-3 border-b border-rule/45 px-4 py-2.5 last:border-b-0">
+    <div className="flex items-center gap-3 border-b border-border px-4 py-2.5 last:border-b-0">
       <RowTile icon={icon} />
       <dt className="w-24 shrink-0 text-sm font-semibold text-foreground">{label}</dt>
       <dd className="flex min-w-0 flex-1 flex-wrap items-center justify-end gap-1.5 text-right text-sm text-muted-foreground">

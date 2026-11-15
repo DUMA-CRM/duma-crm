@@ -32,6 +32,7 @@ import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { serverCache } from '@/lib/api/cache-policy';
@@ -308,7 +309,7 @@ export function RestockApprovals({
       {showBatch && (
         <motion.div
           variants={SECTION_RISE}
-          className="flex flex-wrap items-center gap-3 rounded-lg border border-rule/60 bg-field px-4 py-3"
+          className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-field px-4 py-3"
         >
           <ShoppingCart size={16} className="shrink-0 text-primary" aria-hidden="true" />
           <p className="min-w-0 flex-1 text-sm text-foreground">
@@ -367,8 +368,8 @@ export function RestockApprovals({
           <div className="space-y-5">
             {groups.map((group) => (
               <div key={group.key}>
-                {group.label && <h2 className="mb-2 px-1 text-sm font-semibold text-foreground">{group.label}</h2>}
-                <ul className="overflow-hidden rounded-lg border border-rule/60 bg-card">
+                {group.label && <h2 className="mb-2 px-1 text-sm font-semibold text-heading">{group.label}</h2>}
+                <ul className="overflow-hidden rounded-lg border border-border bg-card">
                   {group.items.map((request) => (
                     <RequestRow
                       key={request.id}
@@ -528,7 +529,7 @@ function RequestJourney({ stages }: { stages: RestockJourneyStage[] }) {
                 'flex size-5 shrink-0 items-center justify-center rounded-full border text-[10px] transition-colors',
                 stage.state === 'done' && 'border-momentum/25 bg-momentum/10 text-momentum',
                 stage.state === 'current' && 'border-primary bg-primary text-primary-foreground',
-                stage.state === 'next' && 'border-rule/70 bg-field text-muted-foreground',
+                stage.state === 'next' && 'border-border bg-field text-muted-foreground',
               )}
             >
               {stage.state === 'done' ? (
@@ -617,7 +618,7 @@ function RequestRow({
   const expandable = !!notes || (pending && canDecide);
 
   return (
-    <li className={cn('border-b border-rule/45 last:border-b-0', busy && 'pointer-events-none opacity-50')}>
+    <li className={cn('border-b border-border last:border-b-0', busy && 'pointer-events-none opacity-50')}>
       <div
         role={expandable ? 'button' : undefined}
         tabIndex={expandable ? 0 : undefined}
@@ -769,11 +770,15 @@ function RequestRow({
                 >
                   <div className="grid gap-3 sm:grid-cols-2">
                     <div>
-                      <p className="mb-1.5 text-label uppercase text-muted-foreground">Quantity ({unit})</p>
+                      <FieldLabel as="span" className="mb-1.5" optional={false}>
+                        Quantity ({unit})
+                      </FieldLabel>
                       <NumberStepper label="Quantity" value={qty} onChange={setQty} min={1} />
                     </div>
                     <div>
-                      <p className="mb-1.5 text-label uppercase text-muted-foreground">Priority</p>
+                      <FieldLabel as="span" className="mb-1.5" optional={false}>
+                        Priority
+                      </FieldLabel>
                       <ChoiceCards
                         value={editPriority}
                         onChange={setEditPriority}

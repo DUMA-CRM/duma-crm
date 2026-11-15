@@ -163,7 +163,7 @@ export function Provisioning({ onEditDetails }: ProvisioningProps) {
   return (
     <div className="mx-auto w-full max-w-md" aria-live="polite">
       <p className="text-label uppercase text-muted-foreground">Almost there</p>
-      <h1 className="mt-3 text-2xl font-semibold tracking-headline text-foreground">Setting up {draft.businessName.trim()}</h1>
+      <h1 className="mt-3 text-2xl font-semibold tracking-headline text-heading">Setting up {draft.businessName.trim()}</h1>
       <ol className="mt-8 space-y-4">
         {STAGES.map((entry, index) => {
           const done = index < activeIndex;

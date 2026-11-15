@@ -9,6 +9,7 @@ import { MascotGlyph } from '@/components/shared/EmptyState';
 import { ChoiceCards } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
+import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { type Order, type OrderStatus, type VoidReason, updateOrderStatus } from '@/lib/modules/ordering/client';
@@ -60,6 +61,16 @@ export function useStatusChange(order: Pick<Order, 'id'>, onDone?: () => void) {
 }
 
 /**
+ * Where an order can move next. A finished order doesn't move — a refunded
+ * "done" order used to offer "cancel" because its payment no longer read as
+ * paid. Otherwise an unpaid order can only be cancelled.
+ */
+export function nextStatuses(order: Pick<Order, 'status' | 'paymentStatus' | 'source'>): OrderStatus[] {
+  if (NEXT_STATUSES[order.status].length === 0) return [];
+  return paymentClears(order) ? NEXT_STATUSES[order.status] : ['cancelled'];
+}
+
+/**
  * The status pill, and — where the order can still move — a menu of the next
  * steps. Cancelling opens the void dialog, because a void needs a reason for
  * the audit trail. An unpaid order can only be cancelled.
@@ -68,11 +79,7 @@ export function StatusMenu({ order }: { order: Order }) {
   const [open, setOpen] = useState(false);
   const [voiding, setVoiding] = useState(false);
   const change = useStatusChange(order, () => setOpen(false));
-  // A finished order doesn't move — a refunded "done" order used to offer
-  // "cancel" because its payment no longer read as paid. Otherwise an unpaid
-  // order can only be cancelled.
-  const nexts =
-    NEXT_STATUSES[order.status].length === 0 ? [] : !paymentClears(order) ? (['cancelled'] as OrderStatus[]) : NEXT_STATUSES[order.status];
+  const nexts = nextStatuses(order);
 
   if (nexts.length === 0) return <StatusPill status={order.status} />;
 
@@ -104,9 +111,9 @@ export function StatusMenu({ order }: { order: Order }) {
             align="end"
             sideOffset={6}
             onClick={(event) => event.stopPropagation()}
-            className="z-[90] min-w-44 overflow-hidden rounded-lg border border-rule/60 bg-card p-1 shadow-lg"
+            className="z-[90] min-w-44 overflow-hidden rounded-lg border border-border bg-card p-1 shadow-lg"
           >
-            <p className="px-2.5 pt-1.5 pb-1 text-label uppercase text-muted-foreground">Move to</p>
+            <p className="px-2.5 pt-1.5 pb-1 text-xs font-medium text-muted-foreground">Move to</p>
             {nexts.map((next) => {
               const meta = STATUS_META[next];
               const Icon = meta.icon;
@@ -168,11 +175,11 @@ export function VoidModal({ order, onClose }: { order: Pick<Order, 'id'>; onClos
     >
       <div className="space-y-4">
         <div>
-          <p className="mb-1.5 text-label uppercase text-muted-foreground">Reason</p>
+          <p className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>Reason</p>
           <ChoiceCards value={reason} onChange={setReason} options={VOID_REASON_OPTIONS as { value: VoidReason; label: string }[]} />
         </div>
         <label className="block">
-          <span className="mb-1.5 block text-label uppercase text-muted-foreground">Notes</span>
+          <span className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>Notes</span>
           <textarea
             value={notes}
             onChange={(event) => setNotes(event.target.value)}

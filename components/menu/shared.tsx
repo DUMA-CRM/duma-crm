@@ -53,7 +53,7 @@ export function categoryTone(category: string, record?: MenuCategoryRecord): str
 }
 
 export const inputClass =
-  'w-full h-9 rounded-md border border-input bg-control px-3 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground transition-[border-color,outline-color] duration-150 focus:border-measured focus:outline-2 focus:outline-measured sm:text-sm';
+  'w-full h-9 rounded-md border border-input bg-control px-3 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground transition-[border-color,outline-color] duration-150 focus:border-ring focus:outline-2 focus:outline-ring/30 sm:text-sm';
 
 /* A glyph for each of the fourteen FSA allergens, so a chip is recognised before
    it is read. The glyph only leads: the word always stays beside it — an allergen
