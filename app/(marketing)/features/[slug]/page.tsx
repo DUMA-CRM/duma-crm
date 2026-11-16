@@ -13,8 +13,8 @@ import { MODULES, type MarketingModule, SITE_NAME, modulePath } from '@/lib/mark
 /**
  * /features/[slug] — one part of DUMA, written in the internal workspace's CMS
  * (type feature-page) and rendered in the blog's article layout. A module has a
- * page exactly when its entry is published; the slug must also be a module's,
- * so an entry can't invent an address. Anything else is a 404.
+ * page when its CMS entry is published or established fallback copy exists.
+ * The slug must also be a module's. Anything else is a 404.
  */
 async function resolve(slug: string): Promise<{ entry: MarketingModule; page: BlogPost } | undefined> {
   const entry = MODULES.find((m) => m.slug === slug);
