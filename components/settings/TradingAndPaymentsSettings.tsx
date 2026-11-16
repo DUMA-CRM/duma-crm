@@ -5,11 +5,12 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 
 import { Calculator, Coins, Hash, type IconComponent, Landmark, MapPin, StickyNote, Store, Tags, Trash2 } from '@/components/icons';
-import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
+import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards } from '@/components/shared/FormParts';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
 import { SectionSkeleton } from '@/components/shared/TileSkeleton';
 import { Input } from '@/components/ui/input';
@@ -201,7 +202,7 @@ function TradingForm({
     <SettingsTabBody narrowAside stickyAside aside={<ReceiptPreview form={form} />}>
       {/* Side by side on a wide screen: two short sections of equal weight, the receipt beside them. */}
       <div className="grid items-start gap-5 xl:grid-cols-2">
-        <SettingsSection title="Receipts">
+        <RecordGroup card id="trading-receipts" title="Receipts">
           <div>
             {textRow('legalName', Store, 'Business name', 'Not set', 'North Street Coffee Ltd')}
             {showAddress &&
@@ -215,9 +216,9 @@ function TradingForm({
               )}
             {textRow('receiptFooter', StickyNote, 'Thank-you line', 'None', 'Thank you — see you soon', undefined, 200)}
           </div>
-        </SettingsSection>
+        </RecordGroup>
 
-        <SettingsSection title="Money and VAT">
+        <RecordGroup card id="trading-money-and-vat" title="Money and VAT">
           <div>
             <ChangeRow
               icon={Coins}
@@ -290,10 +291,10 @@ function TradingForm({
               </>
             )}
           </div>
-        </SettingsSection>
+        </RecordGroup>
       </div>
 
-      <SettingsSection title="Orders">
+      <RecordGroup card id="trading-orders" title="Orders">
         <div>
           <ChangeRow
             icon={Trash2}
@@ -314,7 +315,7 @@ function TradingForm({
             }
           />
         </div>
-      </SettingsSection>
+      </RecordGroup>
 
       <SaveBar
         dirty={dirty}

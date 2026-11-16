@@ -2,6 +2,16 @@ import { createHmac, timingSafeEqual } from 'node:crypto';
 
 import { type Token, type Tokens, marked } from 'marked';
 
+/** Keep self-canonical pages in the sitemap; omit pages that nominate another URL. */
+export function isSelfCanonical(pageUrl: string, canonicalUrl?: string): boolean {
+  if (!canonicalUrl) return true;
+  try {
+    return new URL(canonicalUrl, pageUrl).href === new URL(pageUrl).href;
+  } catch {
+    return false;
+  }
+}
+
 /**
  * Pure helpers for the blog: heading anchors shared by the table of contents
  * and the renderer, reading time, and the CMS webhook signature check. No

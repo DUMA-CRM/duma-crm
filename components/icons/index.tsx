@@ -232,6 +232,7 @@ import {
   TextItalicIcon,
   TextStrikethroughIcon,
   TextUnderlineIcon,
+  ThermometerIcon,
   TimerIcon,
   ToggleOnIcon,
   TradeDownIcon,
@@ -471,6 +472,7 @@ export const SwitchCamera = /*#__PURE__*/ glyph(SwitchCameraIcon, 'SwitchCamera'
 export const Tag = /*#__PURE__*/ glyph(TagIcon, 'Tag');
 export const Tags = /*#__PURE__*/ glyph(TagsIcon, 'Tags');
 export const Target = /*#__PURE__*/ glyph(TargetIcon, 'Target');
+export const Thermometer = /*#__PURE__*/ glyph(ThermometerIcon, 'Thermometer');
 export const Timer = /*#__PURE__*/ glyph(TimerIcon, 'Timer');
 export const Trash2 = /*#__PURE__*/ glyph(Delete02Icon, 'Trash2');
 export const TrendingDown = /*#__PURE__*/ glyph(TradeDownIcon, 'TrendingDown');

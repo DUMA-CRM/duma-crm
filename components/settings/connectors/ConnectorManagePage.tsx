@@ -4,7 +4,6 @@ import { useState } from 'react';
 
 import { BrandTile, RowMenu, type RowMenuItem, RowWarning } from '@/components/cms/rows';
 import { Activity, type IconComponent, Loader2, Trash2 } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ChangeRow } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
@@ -77,7 +76,9 @@ function ManageBody({
   children?: React.ReactNode;
 }) {
   const healthSection = health && (
-    <SettingsSection
+    <RecordGroup
+      card
+      id="connector-health"
       title="Health"
       actions={
         health.test && (
@@ -102,7 +103,7 @@ function ManageBody({
       </div>
       {health.problem && <RowWarning className="mt-4">{health.problem}</RowWarning>}
       {health.extra && <div className="mt-4">{health.extra}</div>}
-    </SettingsSection>
+    </RecordGroup>
   );
   const usedBySection = usedBy.length > 0 && (
     <RecordGroup id="connector-used-by" title="Used by">

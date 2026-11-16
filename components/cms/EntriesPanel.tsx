@@ -62,6 +62,8 @@ import { clickSelection } from '@/lib/utils/media-folders';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useCmsTenantId } from '@/components/cms/ContentScope';
 
+import { CmsNeedsYou } from './CmsNeedsYou';
+
 import { FolderTile } from './MediaFolders';
 import { EntryStatusBadge, LanguageChips, PanelError, cmsKeys, copyEntryJson, copyText, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
@@ -674,6 +676,12 @@ export function EntriesPanel({
         if (event.key === 'Escape' && (selecting || selectedModel)) clearSelection();
       }}
     >
+      <CmsNeedsYou
+        onShowStatus={(next) => {
+          setStatus(next);
+          resetPaging();
+        }}
+      />
       <div className="flex flex-wrap items-center gap-2">
         <div className="min-w-56 flex-1">
           <Input

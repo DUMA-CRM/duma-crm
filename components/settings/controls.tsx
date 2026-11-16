@@ -534,7 +534,8 @@ export function ChangeRow({
             animate={{ opacity: 1, height: 'auto' }}
             exit={reduceMotion ? { opacity: 0 } : { opacity: 0, height: 0 }}
             transition={{ duration: 0.28, ease: [0.16, 1, 0.3, 1] }}
-            className="overflow-hidden"
+            // The clip that animates the height bleeds 4px past the row, so a focus ring isn't cut off.
+            className="-mx-1 -mb-1 overflow-hidden px-1 pb-1"
           >
             <div className="pt-4 sm:pl-13">{children}</div>
           </motion.div>

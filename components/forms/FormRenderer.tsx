@@ -1,13 +1,14 @@
 'use client';
 
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useId, useMemo, useRef, useState } from 'react';
+import { useEffect, useId, useMemo, useRef, useState } from 'react';
 
-import { ArrowLeft, ArrowRight, Check, CheckCircle2, Loader2, Star } from '@/components/icons';
+import { ArrowLeft, ArrowRight, Check, CircleAlert, Loader2, Star } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 
 import { ApiError } from '@/lib/api/client';
 import { cn } from '@/lib/utils/cn';
+import { accentInk } from '@/lib/utils/form-accent';
 import {
   type Answer,
   type Answers,
@@ -86,6 +87,12 @@ export function FormRenderer({
   const visiblePageCount = shownPages.filter(Boolean).length;
   const step = shownPages.slice(0, pageIndex + 1).filter(Boolean).length;
   const accent = form.accentColor || 'var(--primary)';
+  // White or near-black on the accent, whichever reads; a pale accent would fail AA with white.
+  const ink = accentInk(form.accentColor);
+  const doneHeading = useRef<HTMLHeadingElement>(null);
+  useEffect(() => {
+    if (done) doneHeading.current?.focus({ preventScroll: true });
+  }, [done]);
 
   const set = (field: FormField, value: Answer | undefined) => {
     setAnswers((current) => {
@@ -156,26 +163,36 @@ export function FormRenderer({
     }
   };
 
-  const style = { '--form-accent': accent } as React.CSSProperties;
+  const style = { '--form-accent': accent, '--form-ink': ink } as React.CSSProperties;
+  const anyRequired = form.fields.some((field) => field.required && isInputField(field) && field.type !== 'hidden');
 
   if (done) {
     return (
-      <div ref={top} style={style} className="py-6 text-center">
+      <div ref={top} style={style} className="scroll-mt-6 py-8 text-center sm:py-10">
         <motion.div
-          initial={reduceMotion ? false : { scale: 0.6, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 260, damping: 18 } }}
-          className="mx-auto flex size-14 items-center justify-center rounded-full bg-(--form-accent) text-white"
+          initial={reduceMotion ? false : { scale: 0.7, opacity: 0 }}
+          animate={{ scale: 1, opacity: 1, transition: { type: 'spring', stiffness: 260, damping: 20 } }}
+          className="mx-auto flex size-12 items-center justify-center rounded-full bg-(--form-accent) text-(--form-ink)"
         >
-          <CheckCircle2 size={28} aria-hidden="true" />
+          <Check size={24} strokeWidth={2.5} aria-hidden="true" />
         </motion.div>
-        <h2 className="mt-4 text-2xl font-semibold tracking-title text-heading">{done.successTitle}</h2>
-        <p className="mx-auto mt-2 max-w-md whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{done.successMessage}</p>
-        {done.redirectUrl && !preview && <p className="mt-4 text-xs text-muted-foreground">Taking you onwards…</p>}
+        {/* Focused on arrival, so a screen reader says the response went. */}
+        <h2 ref={doneHeading} tabIndex={-1} className="mt-5 text-2xl font-semibold tracking-title text-heading outline-none">
+          {done.successTitle}
+        </h2>
+        <p className="mx-auto mt-2 max-w-md text-base leading-relaxed whitespace-pre-line text-muted-foreground sm:text-sm">
+          {done.successMessage}
+        </p>
+        {done.redirectUrl && !preview && (
+          <p role="status" className="mt-4 text-sm text-muted-foreground">
+            Taking you onwards…
+          </p>
+        )}
         {done.redirectUrl && preview && <p className="mt-4 text-xs text-muted-foreground">Live, this goes on to {done.redirectUrl}</p>}
         {(!done.redirectUrl || preview) && (
           <Button
             variant="outline"
-            className="mt-6"
+            className="mt-6 h-11 px-4"
             onClick={() => {
               setDone(null);
               setAnswers(initialAnswers);
@@ -193,23 +210,20 @@ export function FormRenderer({
   return (
     <div ref={top} style={style} className="scroll-mt-6">
       {!hideHeader && (
-        <header className="mb-6">
-          <h1 className="text-2xl font-semibold tracking-title text-heading">{form.name}</h1>
+        <header className="mb-8">
+          <h1 className="text-2xl font-semibold tracking-title text-balance text-heading sm:text-[1.75rem]">{form.name}</h1>
           {form.description && (
-            <p className="mt-1.5 whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{form.description}</p>
+            <p className="mt-2 text-base leading-relaxed whitespace-pre-line text-muted-foreground sm:text-sm">{form.description}</p>
           )}
         </header>
       )}
 
       {form.showProgress && visiblePageCount > 1 && (
-        <div className="mb-6" aria-label={`Step ${step} of ${visiblePageCount}`}>
-          <div className="mb-1.5 flex justify-between text-xs font-medium text-muted-foreground">
-            <span>
-              Step {step} of {visiblePageCount}
-            </span>
-            <span>{Math.round(((step - 1) / visiblePageCount) * 100)}%</span>
-          </div>
-          <div className="h-1.5 overflow-hidden rounded-full bg-band">
+        <div className="mb-8">
+          <p className="mb-2 text-xs font-medium text-muted-foreground">
+            Step {step} of {visiblePageCount}
+          </p>
+          <div className="h-1 overflow-hidden rounded-full bg-band" aria-hidden="true">
             <motion.div
               className="h-full rounded-full bg-(--form-accent)"
               initial={false}
@@ -235,6 +249,12 @@ export function FormRenderer({
           </label>
         </div>
 
+        {anyRequired && (
+          <p aria-hidden="true" className="-mt-4 mb-6 text-xs text-muted-foreground">
+            <span className="text-exception">*</span> Required
+          </p>
+        )}
+
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={pageIndex}
@@ -242,7 +262,7 @@ export function FormRenderer({
             animate={{ opacity: 1, x: 0 }}
             exit={reduceMotion ? undefined : { opacity: 0, x: -12 }}
             transition={{ duration: 0.2 }}
-            className="grid grid-cols-2 gap-x-4 gap-y-5"
+            className="grid grid-cols-2 gap-x-4 gap-y-7"
           >
             {page.map((field) =>
               visible.has(field.id) ? (
@@ -266,40 +286,44 @@ export function FormRenderer({
         </AnimatePresence>
 
         {formError && (
-          <p role="alert" className="mt-5 rounded-md bg-exception/8 px-3 py-2 text-sm font-medium text-exception">
-            {formError}
+          <p role="alert" className="mt-6 flex items-start gap-2 rounded-md bg-exception/8 px-3 py-2.5 text-sm font-medium text-exception">
+            <CircleAlert size={16} className="mt-0.5 shrink-0" aria-hidden="true" />
+            <span>{formError}</span>
           </p>
         )}
 
-        <div className="mt-8 flex items-center justify-between gap-3">
-          {pageIndex > 0 ? (
+        <div className="mt-10 flex items-center gap-3">
+          {pageIndex > 0 && (
             <Button
               type="button"
               variant="ghost"
+              className="h-12 shrink-0 px-3 sm:h-11"
               onClick={() => {
                 const previous = shownPages.slice(0, pageIndex).lastIndexOf(true);
                 goTo(previous === -1 ? 0 : previous);
               }}
             >
-              <ArrowLeft size={15} aria-hidden="true" />
+              <ArrowLeft size={16} aria-hidden="true" />
               Back
             </Button>
-          ) : (
-            <span />
           )}
           <button
             type="submit"
             disabled={submitting}
-            className="inline-flex h-11 min-w-32 items-center justify-center gap-2 rounded-md bg-(--form-accent) px-5 text-sm font-semibold text-white shadow-sm transition-[filter,transform] hover:brightness-110 active:scale-[0.98] disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-(--form-accent)"
+            aria-busy={submitting || undefined}
+            className="inline-flex h-12 flex-1 items-center justify-center gap-2 rounded-md bg-(--form-accent) px-6 text-base font-semibold text-(--form-ink) shadow-sm transition-[filter,transform] hover:brightness-105 active:scale-[0.98] disabled:opacity-60 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground sm:h-11 sm:min-w-36 sm:flex-none sm:text-sm"
           >
             {submitting ? (
-              <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+              <>
+                <Loader2 size={16} className="animate-spin" aria-hidden="true" />
+                <span className="sr-only">Sending</span>
+              </>
             ) : isLast ? (
               form.submitLabel || 'Submit'
             ) : (
               <>
                 Next
-                <ArrowRight size={15} aria-hidden="true" />
+                <ArrowRight size={16} aria-hidden="true" />
               </>
             )}
           </button>
@@ -309,10 +333,14 @@ export function FormRenderer({
   );
 }
 
+/* 16px on a phone so iOS doesn't zoom into the box; the compact size from sm up. */
 const inputClass =
-  'w-full rounded-md border border-input bg-control px-3 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-(--form-accent) focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-(--form-accent) aria-invalid:border-exception';
+  'w-full rounded-md border border-input bg-control px-3 text-base text-foreground shadow-xs outline-none transition-colors placeholder:text-muted-foreground focus-visible:border-foreground focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-foreground/25 aria-invalid:border-exception sm:text-sm';
 
-/** One question: its label, help, control and problem. */
+/** The focus ring for every choice: the ink colour, so it shows whatever the accent. */
+const choiceFocus = 'focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground';
+
+/** One question: its label, help, control and problem — the help and the problem are both read with the control. */
 function FieldControl({
   field,
   value,
@@ -326,21 +354,35 @@ function FieldControl({
 }) {
   const id = `field-${field.id}`;
   const describedBy = useId();
+  const helpId = `${id}-help`;
 
   if (field.type === 'heading') {
     return (
-      <div className="pt-2">
+      <div className="pt-3">
         <h2 className="text-lg font-semibold tracking-title text-heading">{field.label}</h2>
-        {field.description && <p className="mt-1 whitespace-pre-line text-sm text-muted-foreground">{field.description}</p>}
+        {field.description && <p className="mt-1 text-sm leading-relaxed whitespace-pre-line text-muted-foreground">{field.description}</p>}
       </div>
     );
   }
   if (field.type === 'paragraph') {
-    return <p className="whitespace-pre-line text-sm leading-relaxed text-muted-foreground">{field.label}</p>;
+    return <p className="text-base leading-relaxed whitespace-pre-line text-muted-foreground sm:text-sm">{field.label}</p>;
   }
 
-  const aria = { id, 'aria-invalid': Boolean(problem) || undefined, 'aria-describedby': describedBy } as const;
+  const hasHelp = Boolean(field.description) && field.type !== 'consent';
+  const described = hasHelp ? `${helpId} ${describedBy}` : describedBy;
+  const aria = { id, 'aria-invalid': Boolean(problem) || undefined, 'aria-describedby': described } as const;
+  /** A set of buttons answers it: the group is named by the question and carries its help, problem and state. */
+  const group = (role: 'radiogroup' | 'group') =>
+    ({
+      role,
+      id,
+      tabIndex: -1,
+      'aria-labelledby': `${id}-label`,
+      'aria-describedby': described,
+      'aria-invalid': Boolean(problem) || undefined,
+    }) as const;
   const text = typeof value === 'string' || typeof value === 'number' ? String(value) : '';
+  const grouped = ['radio', 'checkboxes', 'yes_no', 'rating', 'scale'].includes(field.type);
 
   const control = (() => {
     switch (field.type) {
@@ -352,7 +394,7 @@ function FieldControl({
             rows={4}
             placeholder={field.placeholder}
             onChange={(event) => onChange(event.target.value)}
-            className={cn(inputClass, 'py-2 leading-relaxed')}
+            className={cn(inputClass, 'min-h-28 py-2.5 leading-relaxed')}
           />
         );
       case 'select':
@@ -361,7 +403,7 @@ function FieldControl({
             {...aria}
             value={text}
             onChange={(event) => onChange(event.target.value || undefined)}
-            className={cn(inputClass, 'h-11 appearance-auto')}
+            className={cn(inputClass, 'h-12 appearance-auto sm:h-11')}
           >
             <option value="">{field.placeholder || 'Choose…'}</option>
             {(field.options ?? []).map((option) => (
@@ -376,13 +418,7 @@ function FieldControl({
         const multiple = field.type === 'checkboxes';
         const chosen = Array.isArray(value) ? value : typeof value === 'string' ? [value] : [];
         return (
-          <div
-            role={multiple ? 'group' : 'radiogroup'}
-            aria-labelledby={`${id}-label`}
-            {...{ id }}
-            tabIndex={-1}
-            className="grid gap-2 sm:grid-cols-2"
-          >
+          <div {...group(multiple ? 'group' : 'radiogroup')} className="grid gap-2 outline-none sm:grid-cols-2">
             {(field.options ?? []).map((option) => {
               const on = chosen.includes(option.label);
               return (
@@ -403,24 +439,24 @@ function FieldControl({
                     )
                   }
                   className={cn(
-                    'flex min-h-11 items-center gap-2.5 rounded-md border px-3 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--form-accent)',
-                    on
-                      ? 'border-(--form-accent) bg-(--form-accent)/8 font-medium text-foreground'
-                      : 'border-input bg-control text-foreground hover:bg-band/50',
+                    'flex min-h-12 items-center gap-3 rounded-md border px-3.5 py-2.5 text-left text-base text-foreground transition-colors sm:min-h-11 sm:text-sm',
+                    choiceFocus,
+                    on ? 'border-(--form-accent) bg-(--form-accent)/8 font-medium' : 'border-input bg-control hover:bg-band/50',
                   )}
                 >
                   <span
+                    aria-hidden="true"
                     className={cn(
-                      'flex size-4.5 shrink-0 items-center justify-center border transition-colors',
+                      'flex size-5 shrink-0 items-center justify-center border transition-colors',
                       multiple ? 'rounded-[5px]' : 'rounded-full',
-                      on ? 'border-(--form-accent) bg-(--form-accent) text-white' : 'border-rule bg-background',
+                      on ? 'border-(--form-accent) bg-(--form-accent) text-(--form-ink)' : 'border-rule bg-background',
                     )}
                   >
                     {on &&
                       (multiple ? (
-                        <Check size={12} strokeWidth={3} aria-hidden="true" />
+                        <Check size={13} strokeWidth={3} aria-hidden="true" />
                       ) : (
-                        <span className="size-1.5 rounded-full bg-white" />
+                        <span className="size-2 rounded-full bg-(--form-ink)" />
                       ))}
                   </span>
                   {option.label}
@@ -432,7 +468,7 @@ function FieldControl({
       }
       case 'yes_no':
         return (
-          <div role="radiogroup" aria-labelledby={`${id}-label`} id={id} tabIndex={-1} className="flex gap-2">
+          <div {...group('radiogroup')} className="grid grid-cols-2 gap-2 outline-none sm:flex">
             {[
               { label: 'Yes', on: value === true },
               { label: 'No', on: value === false },
@@ -444,9 +480,10 @@ function FieldControl({
                 aria-checked={choice.on}
                 onClick={() => onChange(choice.on ? undefined : choice.label === 'Yes')}
                 className={cn(
-                  'h-11 min-w-24 rounded-md border px-4 text-sm font-medium transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--form-accent)',
+                  'h-12 rounded-md border px-5 text-base font-medium transition-colors sm:h-11 sm:min-w-28 sm:text-sm',
+                  choiceFocus,
                   choice.on
-                    ? 'border-(--form-accent) bg-(--form-accent) text-white'
+                    ? 'border-(--form-accent) bg-(--form-accent) text-(--form-ink)'
                     : 'border-input bg-control text-foreground hover:bg-band/50',
                 )}
               >
@@ -457,17 +494,23 @@ function FieldControl({
         );
       case 'consent':
         return (
-          <label htmlFor={id} className="flex cursor-pointer items-start gap-3 rounded-md border border-input bg-control px-3 py-3 text-sm">
+          <label
+            htmlFor={id}
+            className={cn(
+              'flex cursor-pointer items-start gap-3 rounded-md border bg-control px-3.5 py-3 text-base sm:text-sm',
+              problem ? 'border-exception' : 'border-input',
+            )}
+          >
             <input
               {...aria}
               type="checkbox"
               checked={value === true}
               onChange={(event) => onChange(event.target.checked)}
-              className="mt-0.5 size-4.5 shrink-0 accent-(--form-accent)"
+              className="mt-0.5 size-5 shrink-0 accent-(--form-accent) focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-foreground"
             />
             <span className="leading-relaxed text-foreground">
               {field.label}
-              {field.required && <span className="text-exception"> *</span>}
+              {field.required && <RequiredMark />}
             </span>
           </label>
         );
@@ -475,7 +518,7 @@ function FieldControl({
         const max = ratingMax(field);
         const current = typeof value === 'number' ? value : 0;
         return (
-          <div role="radiogroup" aria-labelledby={`${id}-label`} id={id} tabIndex={-1} className="flex gap-1">
+          <div {...group('radiogroup')} className="-ml-1.5 flex flex-wrap outline-none">
             {Array.from({ length: max }, (_, index) => index + 1).map((score) => (
               <button
                 key={score}
@@ -485,8 +528,9 @@ function FieldControl({
                 aria-label={`${score} of ${max}`}
                 onClick={() => onChange(current === score ? undefined : score)}
                 className={cn(
-                  'flex size-11 items-center justify-center rounded-md transition-[color,transform] hover:scale-110 focus-visible:outline-2 focus-visible:outline-(--form-accent)',
-                  score <= current ? 'text-(--form-accent)' : 'text-rule',
+                  'flex size-11 items-center justify-center rounded-md transition-[color,transform] hover:scale-110',
+                  choiceFocus,
+                  score <= current ? 'text-(--form-accent)' : 'text-muted-foreground',
                 )}
               >
                 <Star size={28} className={score <= current ? '[&_path]:fill-current' : undefined} aria-hidden="true" />
@@ -500,7 +544,8 @@ function FieldControl({
         const points = Array.from({ length: max - min + 1 }, (_, index) => min + index);
         return (
           <div>
-            <div role="radiogroup" aria-labelledby={`${id}-label`} id={id} tabIndex={-1} className="flex gap-1">
+            {/* Wraps to a second line on a phone rather than shrinking the buttons below a thumb. */}
+            <div {...group('radiogroup')} className="grid grid-cols-[repeat(auto-fit,minmax(2.75rem,1fr))] gap-1.5 outline-none">
               {points.map((score) => (
                 <button
                   key={score}
@@ -509,9 +554,10 @@ function FieldControl({
                   aria-checked={value === score}
                   onClick={() => onChange(value === score ? undefined : score)}
                   className={cn(
-                    'h-11 min-w-0 flex-1 rounded-md border text-sm font-medium tabular-nums transition-colors focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-(--form-accent)',
+                    'h-12 min-w-0 rounded-md border text-base font-medium tabular-nums transition-colors sm:h-11 sm:text-sm',
+                    choiceFocus,
                     value === score
-                      ? 'border-(--form-accent) bg-(--form-accent) text-white'
+                      ? 'border-(--form-accent) bg-(--form-accent) text-(--form-ink)'
                       : 'border-input bg-control text-foreground hover:bg-band/50',
                   )}
                 >
@@ -520,9 +566,9 @@ function FieldControl({
               ))}
             </div>
             {(field.minLabel || field.maxLabel) && (
-              <div className="mt-1.5 flex justify-between text-xs text-muted-foreground">
+              <div className="mt-2 flex justify-between gap-4 text-xs text-muted-foreground">
                 <span>{field.minLabel}</span>
-                <span>{field.maxLabel}</span>
+                <span className="text-right">{field.maxLabel}</span>
               </div>
             )}
           </div>
@@ -559,32 +605,53 @@ function FieldControl({
               const raw = event.target.value;
               onChange(field.type === 'number' ? (raw === '' ? undefined : Number(raw)) : raw);
             }}
-            className={cn(inputClass, 'h-11')}
+            className={cn(inputClass, 'h-12 sm:h-11')}
           />
         );
       }
     }
   })();
 
+  const Title = grouped ? 'p' : 'label';
   return (
     <div>
       {field.type !== 'consent' && (
-        <label id={`${id}-label`} htmlFor={id} className="mb-1.5 block text-sm font-semibold text-foreground">
+        <Title
+          id={`${id}-label`}
+          {...(grouped ? {} : { htmlFor: id })}
+          className="block text-base font-semibold text-foreground sm:text-sm"
+        >
           {field.label}
-          {field.required && <span className="text-exception"> *</span>}
-        </label>
+          {field.required && <RequiredMark />}
+        </Title>
       )}
-      {field.description && field.type !== 'consent' && (
-        <p className="-mt-0.5 mb-2 whitespace-pre-line text-xs text-muted-foreground">{field.description}</p>
+      {hasHelp && (
+        <p id={helpId} className="mt-1 text-sm leading-relaxed whitespace-pre-line text-muted-foreground sm:text-xs">
+          {field.description}
+        </p>
       )}
-      {control}
+      <div className="mt-2.5">{control}</div>
       <p
         id={describedBy}
         role={problem ? 'alert' : undefined}
-        className={cn('text-xs font-medium text-exception', problem ? 'mt-1.5' : 'sr-only')}
+        className={cn('flex items-start gap-1.5 text-sm font-medium text-exception', problem ? 'mt-2' : 'sr-only')}
       >
+        {problem && <CircleAlert size={15} className="mt-0.5 shrink-0" aria-hidden="true" />}
         {problem ?? ''}
       </p>
     </div>
+  );
+}
+
+/** A red asterisk you see, "required" you hear. */
+function RequiredMark() {
+  return (
+    <>
+      <span aria-hidden="true" className="text-exception">
+        {' '}
+        *
+      </span>
+      <span className="sr-only"> (required)</span>
+    </>
   );
 }

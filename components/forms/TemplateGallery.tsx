@@ -1,127 +1,201 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion, useReducedMotion } from 'motion/react';
+import { useMemo, useState } from 'react';
 
-import { CalendarCheck, type IconComponent, Loader2, Mail, Plus, Send, Star, UserPlus } from '@/components/icons';
-import { Modal } from '@/components/shared/Modal';
+import {
+  CalendarCheck,
+  ChefHat,
+  ClipboardPaste,
+  type IconComponent,
+  Loader2,
+  Mail,
+  Plus,
+  Send,
+  Star,
+  Thermometer,
+  UserPlus,
+} from '@/components/icons';
+import { Drawer } from '@/components/shared/Drawer';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { Button } from '@/components/ui/button';
 
 import { createForm } from '@/lib/modules/forms/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { FORM_TEMPLATES, type FormTemplate, isInputField } from '@/lib/utils/forms';
+import { definitionFromQuestions, questionsFromText } from '@/lib/utils/form-questions';
+import { FORM_TEMPLATES, type FormDefinition, fieldTypeLabel, isInputField } from '@/lib/utils/forms';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { FIELD_ICONS } from './field-icons';
+
+/** The tile's glyph while that way in is being created. */
+const Spinner: IconComponent = ({ className, ...props }) => <Loader2 {...props} className={cn('animate-spin', className)} />;
+
 const ICONS: Record<string, IconComponent> = {
-  blank: Plus,
-  contact: Mail,
-  private_event: CalendarCheck,
+  booking: CalendarCheck,
   feedback: Star,
+  private_event: ChefHat,
   job: UserPlus,
+  fridge: Thermometer,
+  contact: Mail,
   newsletter: Send,
 };
 
+// Forms just made from Blank or a pasted list open with their name ready to type over.
+const fresh = new Set<string>();
+/** Whether this form was just created here and its name should take the focus — asked once. */
+export const takeFreshForm = (id: string) => fresh.delete(id);
+
+const textarea =
+  'w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30';
+
+const PASTE_EXAMPLE = 'Your name *\nEmail *\nHow many guests?\nWhich day?\nOccasion: Birthday, Anniversary, Other\nAnything else?';
+
+type Start = { id: string; name: string; definition: FormDefinition; focusName: boolean };
+
 /**
- * The ways to start a form, as cards: blank, or a template with its questions
- * already written. Picking one creates the draft and opens it — the name and
- * every question can be changed in the builder.
+ * The three ways to start a form: blank, paste the questions you already have,
+ * or a café template. Every one creates the draft and opens the builder with
+ * the questions on it — nothing to set up first.
  */
-export function TemplateGallery({ onCreated, compact = false }: { onCreated: (id: string) => void; compact?: boolean }) {
+export function TemplateGallery({ onCreated }: { onCreated: (id: string) => void }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
   const queryClient = useQueryClient();
-  const reduceMotion = useReducedMotion();
+  const [pasting, setPasting] = useState(false);
+  const [text, setText] = useState('');
+  const parsed = useMemo(() => questionsFromText(text), [text]);
+
   const create = useMutation({
-    mutationFn: (template: FormTemplate) =>
-      createForm({ name: template.id === 'blank' ? 'Untitled form' : template.name, definition: template.definition() }, tenantId),
-    onSuccess: async (form) => {
+    mutationFn: (start: Start) => createForm({ name: start.name, definition: start.definition }, tenantId),
+    onSuccess: async (form, start) => {
+      if (start.focusName) fresh.add(form.id);
       await queryClient.invalidateQueries({ queryKey: moduleQueryKeys.forms.all });
       onCreated(form.id);
     },
     onError: (error) => toast('error', error.message),
   });
+  const start = (next: Start) => {
+    if (!create.isPending) create.mutate(next);
+  };
+  const busy = (id: string) => create.isPending && create.variables?.id === id;
+  const rowState = (id: string) => cn(create.isPending && 'pointer-events-none', create.isPending && !busy(id) && 'opacity-60');
 
-  return (
-    <ul className={cn('grid gap-3', compact ? 'sm:grid-cols-2' : 'sm:grid-cols-2 xl:grid-cols-3')}>
-      {FORM_TEMPLATES.map((template, index) => {
-        const Icon = ICONS[template.id] ?? Plus;
-        const questions = template.definition().fields.filter(isInputField).length;
-        const pending = create.isPending && create.variables?.id === template.id;
-        return (
-          <motion.li
-            key={template.id}
-            initial={reduceMotion ? false : { opacity: 0, y: 8 }}
-            animate={{ opacity: 1, y: 0, transition: { delay: reduceMotion ? 0 : index * 0.04 } }}
-          >
-            <button
-              type="button"
-              disabled={create.isPending}
-              onClick={() => create.mutate(template)}
-              className="group flex h-full w-full flex-col rounded-lg border border-border bg-field p-4 text-left transition-[border-color,box-shadow,transform] hover:-translate-y-0.5 hover:border-rule hover:shadow-md disabled:cursor-wait disabled:opacity-70 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
-            >
-              <span className="flex items-center justify-between">
-                <span
-                  className={cn(
-                    'flex size-9 items-center justify-center rounded-md border',
-                    template.id === 'blank'
-                      ? 'border-dashed border-rule bg-background text-muted-foreground'
-                      : 'border-border bg-background text-foreground',
-                  )}
-                >
-                  {pending ? <Loader2 size={16} className="animate-spin" aria-hidden="true" /> : <Icon size={16} aria-hidden="true" />}
-                </span>
-                {questions > 0 && <span className="text-xs tabular-nums text-muted-foreground">{questions} questions</span>}
-              </span>
-              <span className="mt-3 text-sm font-semibold text-foreground">{template.name}</span>
-              <span className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{template.description}</span>
-              {template.id !== 'blank' && <Sketch template={template} />}
-            </button>
-          </motion.li>
-        );
-      })}
-    </ul>
-  );
-}
-
-/** A glimpse of the form's shape: a bar per question, wider for the long ones. */
-function Sketch({ template }: { template: FormTemplate }) {
-  const fields = template
-    .definition()
-    .fields.filter((field) => field.type !== 'hidden' && field.type !== 'page_break')
-    .slice(0, 4);
-  return (
-    <span aria-hidden="true" className="mt-4 flex flex-col gap-1.5 rounded-md bg-band/45 p-2.5 transition-colors group-hover:bg-band/70">
-      {fields.map((field) => (
-        <span key={field.id} className="flex items-center gap-1.5">
-          <span className="h-1.5 w-10 shrink-0 rounded-full bg-rule/70" />
-          <span
-            className={cn(
-              'h-3 rounded-sm border border-border bg-background',
-              field.type === 'long_text'
-                ? 'w-full'
-                : field.width === 'half'
-                  ? 'w-1/2'
-                  : field.type === 'rating' || field.type === 'yes_no'
-                    ? 'w-1/3'
-                    : 'w-3/4',
-            )}
+  if (pasting) {
+    const choices = parsed.filter((question) => question.options).length;
+    return (
+      <div className="flex flex-col gap-4">
+        <div>
+          <label htmlFor="paste-questions" className="text-sm font-semibold text-foreground">
+            Your questions, one per line
+          </label>
+          <textarea
+            id="paste-questions"
+            autoFocus
+            rows={8}
+            value={text}
+            onChange={(event) => setText(event.target.value)}
+            placeholder={PASTE_EXAMPLE}
+            className={cn(textarea, 'mt-2 min-h-44 field-sizing-content resize-none text-base sm:text-sm')}
           />
-        </span>
-      ))}
-    </span>
+          <p className="mt-2 text-xs leading-relaxed text-muted-foreground">
+            End with * for required. Options go after a colon, with commas — or on indented lines underneath.
+          </p>
+        </div>
+
+        {parsed.length > 0 && (
+          <RecordGroup
+            id="paste-preview"
+            title={`${parsed.length} ${parsed.length === 1 ? 'question' : 'questions'}${choices ? ` · ${choices} with options` : ''}`}
+            footnote="You can change any of it in the builder."
+          >
+            <ol className="max-h-72 overflow-y-auto rounded-lg border border-border bg-card px-2 py-1.5 shadow-sm">
+              {parsed.map((question, index) => {
+                const Icon = FIELD_ICONS[question.type];
+                return (
+                  <li key={index} className="flex min-w-0 items-center gap-2.5 px-1.5 py-1.5 text-sm">
+                    <Icon size={14} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1 truncate text-foreground">
+                      {question.label}
+                      {question.required && <span className="text-exception"> *</span>}
+                    </span>
+                    <span className="shrink-0 text-xs text-muted-foreground">
+                      {question.options ? `${question.options.length} options` : fieldTypeLabel(question.type)}
+                    </span>
+                  </li>
+                );
+              })}
+            </ol>
+          </RecordGroup>
+        )}
+
+        <div className="flex flex-wrap justify-end gap-2">
+          <Button variant="outline" className="pointer-coarse:h-11" onClick={() => setPasting(false)} disabled={create.isPending}>
+            Back
+          </Button>
+          <Button
+            className="pointer-coarse:h-11"
+            disabled={parsed.length === 0 || create.isPending}
+            onClick={() => start({ id: 'paste', name: 'Untitled form', definition: definitionFromQuestions(parsed), focusName: true })}
+          >
+            {busy('paste') && <Loader2 className="animate-spin" aria-hidden="true" />}
+            Make the form
+          </Button>
+        </div>
+      </div>
+    );
+  }
+
+  const blank = FORM_TEMPLATES.find((template) => template.id === 'blank')!;
+  return (
+    <div className="flex flex-col gap-5" aria-busy={create.isPending || undefined}>
+      <ListRowGroup aria-label="Start from">
+        <ListRow
+          icon={busy('blank') ? Spinner : Plus}
+          title="Blank form"
+          meta="Start typing your first question"
+          onClick={() => start({ id: 'blank', name: 'Untitled form', definition: blank.definition(), focusName: true })}
+          className={rowState('blank')}
+        />
+        <ListRow
+          icon={ClipboardPaste}
+          title="Paste your questions"
+          meta="From a document or a note — one per line"
+          onClick={() => setPasting(true)}
+          className={rowState('paste')}
+        />
+      </ListRowGroup>
+
+      <RecordGroup id="form-templates" title="Templates">
+        <ListRowGroup aria-label="Templates">
+          {FORM_TEMPLATES.filter((template) => template.id !== 'blank').map((template) => {
+            const questions = template.definition().fields.filter(isInputField).length;
+            return (
+              <ListRow
+                key={template.id}
+                icon={busy(template.id) ? Spinner : (ICONS[template.id] ?? Plus)}
+                tone="muted"
+                title={template.name}
+                meta={template.description}
+                trailing={<span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">{questions} questions</span>}
+                onClick={() => start({ id: template.id, name: template.name, definition: template.definition(), focusName: false })}
+                className={rowState(template.id)}
+              />
+            );
+          })}
+        </ListRowGroup>
+      </RecordGroup>
+    </div>
   );
 }
 
-/** "New form": the gallery in a dialog. */
+/** "New form": the three ways in, as one sheet — full screen on a phone. */
 export function NewFormDialog({ onClose, onCreated }: { onClose: () => void; onCreated: (id: string) => void }) {
   return (
-    <Modal
-      title="New form"
-      description="Start blank, or from a form that’s already written — change anything afterwards."
-      size="2xl"
-      onClose={onClose}
-    >
-      <TemplateGallery onCreated={onCreated} compact={false} />
-    </Modal>
+    <Drawer title="New form" onClose={onClose}>
+      <TemplateGallery onCreated={onCreated} />
+    </Drawer>
   );
 }

@@ -8,7 +8,6 @@ import { RowWarning } from '@/components/cms/rows';
 import { ArrowLeft, ArrowRight, LayoutGrid, Loader2, ShieldCheck, Sparkles } from '@/components/icons';
 import { FOUNDATION_MODULES, MODULE_COPY, byModuleOrder, moduleCopy } from '@/components/onboarding/modules';
 import { type QuestionContext, questionFor } from '@/components/onboarding/questions';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ChangeRow, Switch, ValueAside } from '@/components/settings/controls';
 import { ModuleChangeDialog } from '@/components/settings/workspaces/ModuleChangeDialog';
@@ -76,9 +75,9 @@ export function ModulesTab() {
 
   if (!tenantId) {
     return (
-      <SettingsSection title="Modules">
+      <RecordGroup card id="modules-modules" title="Modules">
         <p className="text-sm text-muted-foreground">Choose a workspace to see its modules.</p>
-      </SettingsSection>
+      </RecordGroup>
     );
   }
 
@@ -207,7 +206,12 @@ function ModuleOverview({
   };
 
   const setup = (
-    <SettingsSection title="Setup" footnote="A review asks about your business and only adds tools — it never switches one off.">
+    <RecordGroup
+      card
+      id="modules-setup"
+      title="Setup"
+      footnote="A review asks about your business and only adds tools — it never switches one off."
+    >
       <ChangeRow
         icon={LayoutGrid}
         label="Tools on"
@@ -224,7 +228,7 @@ function ModuleOverview({
         }
       />
       <ChangeRow icon={ShieldCheck} label="Always on" value="Sign-in, roles and settings" />
-    </SettingsSection>
+    </RecordGroup>
   );
   const group = (key: string, title: string, ids: WorkspaceModuleId[]) =>
     ids.length > 0 && (

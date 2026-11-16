@@ -20,8 +20,8 @@ import {
   Zap,
 } from '@/components/icons';
 import { useSettingsTenantId } from '@/components/settings/SettingsScope';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/label';
@@ -577,11 +577,11 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
         />
       }
     >
-      <SettingsSection title="Sender">
+      <RecordGroup card id="email-sender" title="Sender">
         <SenderFields form={form} update={update} idPrefix="manage" />
-      </SettingsSection>
+      </RecordGroup>
 
-      <SettingsSection title="Mail server">
+      <RecordGroup card id="email-mail-server" title="Mail server">
         {/* It rarely changes, so it reads as one row until you ask to edit it. */}
         <ChangeRow
           icon={Server}
@@ -601,7 +601,7 @@ export function EmailConnectorPage({ onClose, onReconnect }: { onClose: () => vo
         >
           <ServerFields form={form} update={update} hasPassword={Boolean(connection?.hasPassword)} idPrefix="manage" />
         </ChangeRow>
-      </SettingsSection>
+      </RecordGroup>
     </ConnectorManagePage>
   );
 }

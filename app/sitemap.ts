@@ -5,6 +5,7 @@ import { listPosts } from '@/lib/blog/posts';
 import { docEndpoints, indexedEndpoint } from '@/lib/marketing/developers';
 import { GLOSSARY } from '@/lib/marketing/glossary';
 import { MODULES, PAGES, absoluteUrl, modulePath } from '@/lib/marketing/site';
+import { isSelfCanonical } from '@/lib/utils/blog';
 
 /**
  * Every published marketing page, read from lib/marketing/site.ts — the same
@@ -33,7 +34,7 @@ export default async function sitemap(): Promise<MetadataRoute.Sitemap> {
       priority: 0.8,
     })),
     ...posts
-      .filter((post) => !post.sample && !post.seo.noIndex && !post.seo.canonicalUrl)
+      .filter((post) => !post.sample && !post.seo.noIndex && isSelfCanonical(absoluteUrl(`/blog/${post.slug}`), post.seo.canonicalUrl))
       .map((post) => ({
         url: absoluteUrl(`/blog/${post.slug}`),
         lastModified: post.updatedAt,

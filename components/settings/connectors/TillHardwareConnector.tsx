@@ -5,12 +5,12 @@ import { useEffect, useState } from 'react';
 
 import { InfoRow, InfoRows, SectionInfo } from '@/components/cms/rows';
 import { Banknote, CheckCircle2, type IconComponent, Loader2, Monitor, Plug, Printer, Search, Zap } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { useMounted } from '@/components/settings/configuration/shared';
 import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards, NumberStepper } from '@/components/shared/FormParts';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -702,11 +702,13 @@ export function TillHardwareConnectorPage({ onClose, onConnect }: { onClose: () 
         />
       }
     >
-      <SettingsSection title="Till" actions={<SectionInfo label={BROWSER_NOTE} />}>
+      <RecordGroup card id="till-till" title="Till" actions={<SectionInfo label={BROWSER_NOTE} />}>
         <NameField hardware={hardware} />
-      </SettingsSection>
+      </RecordGroup>
 
-      <SettingsSection
+      <RecordGroup
+        card
+        id="till-printer"
         title="Printer"
         actions={
           <SectionInfo label="On iPad, open the receipt after a sale, then Share → Print to an AirPrint printer. If the printer opens the drawer on every print, turn that off so card receipts and reprints don’t open it." />
@@ -719,14 +721,14 @@ export function TillHardwareConnectorPage({ onClose, onConnect }: { onClose: () 
             <p className="text-sm text-muted-foreground">Staff open the drawer by hand. Run setup again to connect a printer.</p>
           )}
         </fieldset>
-      </SettingsSection>
+      </RecordGroup>
 
       {automatic && (
-        <SettingsSection title="Cash drawer">
+        <RecordGroup card id="till-cash-drawer" title="Cash drawer">
           <fieldset disabled={hardware.busy} className="min-w-0">
             <DrawerFields hardware={hardware} />
           </fieldset>
-        </SettingsSection>
+        </RecordGroup>
       )}
     </ConnectorManagePage>
   );

@@ -15,7 +15,7 @@ export const DUMA_VS_SEVENROOMS: Comparison = {
   breadcrumb: 'DUMA vs SevenRooms',
   metaTitle: 'SevenRooms Alternative UK: DUMA vs SevenRooms | DUMA',
   description:
-    'SevenRooms is reservations, guest CRM and marketing on a quote. DUMA puts simpler bookings next to the till, stock and rotas, free. An honest comparison, November 2026.',
+    'Compare SevenRooms and DUMA for bookings, guest CRM and marketing. See how reservations fit alongside your till, stock and staff rotas.',
   checked: '2026-11-03',
   asOf: 'November 2026',
   hero: {

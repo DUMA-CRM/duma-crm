@@ -30,7 +30,7 @@ import {
 } from '@/components/icons';
 import { PhoneFrame } from '@/components/settings/PhoneFrame';
 import { QrMenuList } from '@/components/settings/QrMenuList';
-import { SECTION_RISE, SettingsSection as Section } from '@/components/settings/SettingsSection';
+import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { relativeTime } from '@/components/settings/connectors/shared';
 import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
@@ -321,7 +321,7 @@ export function QrOrderingSettings() {
       {/* Two stacked columns, not paired rows: a short card never leaves a gap beside a tall one. */}
       <div className="grid items-start gap-5 xl:grid-cols-2">
         <div className="flex min-w-0 flex-col gap-5">
-          <Section title="Ordering">
+          <RecordGroup card id="qr-ordering" title="Ordering">
             <fieldset disabled={!canEdit} className="min-w-0">
               {switchRow('isEnabled', QrCode, 'Orders', 'Taken', 'Off', 'Take orders')}
               {switchRow(
@@ -372,8 +372,8 @@ export function QrOrderingSettings() {
             {!paymentsValid && (
               <RowWarning className="mt-4">Guests can’t check out with no way to pay — turn on card payments or cash.</RowWarning>
             )}
-          </Section>
-          <Section title="Guest page" actions={statusBadge}>
+          </RecordGroup>
+          <RecordGroup card id="qr-guest-page" title="Guest page" actions={statusBadge}>
             <div>
               <ChangeRow icon={MapPin} label="Location" value={<span className="truncate">{location?.name ?? 'This location'}</span>} />
               <ChangeRow
@@ -416,10 +416,10 @@ export function QrOrderingSettings() {
             </div>
             {/* While there are unsaved edits, Publish rides in the SaveBar instead. */}
             {canEdit && !dirty && <div className="mt-4 [&>button]:w-full">{publishButton}</div>}
-          </Section>
+          </RecordGroup>
         </div>
         <div className="flex min-w-0 flex-col gap-5">
-          <Section title="Pickup times">
+          <RecordGroup card id="qr-pickup-times" title="Pickup times">
             <fieldset disabled={!canEdit} className="min-w-0">
               {numberRow(
                 'readyIn',
@@ -467,8 +467,8 @@ export function QrOrderingSettings() {
                 'days',
               )}
             </fieldset>
-          </Section>
-          <Section title="Welcome page">
+          </RecordGroup>
+          <RecordGroup card id="qr-welcome-page" title="Welcome page">
             <fieldset disabled={!canEdit} className="min-w-0">
               <ChangeRow
                 icon={ImagePlus}
@@ -561,7 +561,7 @@ export function QrOrderingSettings() {
                 </p>
               </ChangeRow>
             </fieldset>
-          </Section>
+          </RecordGroup>
         </div>
       </div>
 

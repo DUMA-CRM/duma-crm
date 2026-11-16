@@ -16,7 +16,7 @@ import { DEFAULT_RULES, costPence, formatHours, formatRotaMoney, shiftSpan } fro
 const PATH = '/tools/rota-builder';
 
 const DESCRIPTION =
-  'Free staff rota builder for cafés, restaurants and shops: plan the week’s shifts, see hours and staff cost in any currency, check breaks and rest, then print or save it.';
+  'Free staff rota builder: plan shifts, calculate hours and staff costs, check breaks and rest, then print or save your weekly rota. No sign-up needed.';
 
 export const metadata: Metadata = marketingMetadata({
   title: 'Free Staff Rota Builder & Printable Shift Planner | DUMA',
@@ -184,7 +184,8 @@ export default function RotaBuilderPage() {
           </div>
         </section>
 
-        <Section spacing="snug" aria-label="Rota builder">
+        <Section spacing="snug" aria-labelledby="rota-builder-heading">
+          <h2 id="rota-builder-heading" className="sr-only">Build your weekly rota</h2>
           <RotaBuilder />
         </Section>
       </div>

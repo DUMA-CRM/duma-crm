@@ -33,7 +33,7 @@ with each page's status — update it when a page is done.
 ## What makes the layout
 
 1. **Columns of stacks, not a form.** The page is one or two columns of
-   `SettingsSection` cards. Account uses two *equal* columns
+   titled sections (`RecordGroup card`, see 4). Account uses two *equal* columns
    (`grid items-start gap-5 lg:grid-cols-2`, each column `min-w-0` holding a
    `SettingsTabBody` stack). Use equal columns when the page has two separate
    concerns of similar weight (who you are | how you sign in). Use a single
@@ -91,21 +91,39 @@ with each page's status — update it when a page is done.
    - **A list of things** (sessions, devices, members) → rows with a tile, a
      bold line, a muted line, and an action at the right edge; a destructive
      action is `ghost` until hovered and goes through `ConfirmModal`.
-   - **A titled list that is the whole section** (Upcoming, History, Payslips,
-     Documents — audit-log rows) → **no section card around it.** Use
+   - **Titles sit above the card, never inside it** (the user's call,
+     2026-11-16; reference: Settings → Developers). Every titled section is a
      `RecordGroup` (`components/shared/RecordGroup`): the title on the page,
-     the rows (`RecordList` / `ListRowGroup`) as the only card, the footnote
-     under it — as the Audit log draws a day. A `SettingsSection` around a list
-     that is already a bordered card is a card inside a card; don't. Settings,
-     facts and editable rows keep their `SettingsSection` card.
+     the card beneath it, the footnote under the card — as the Audit log draws
+     a day.
+     - **Settings, facts and editable rows** → `<RecordGroup card id="…"
+       title="…" actions={…} footnote="…">`. `card` wraps the rows in the one
+       card (`rounded-lg border-border bg-card px-5 py-4 shadow-sm`).
+     - **A list that is already a bordered card** (`ListRowGroup`,
+       `RecordList`) → `RecordGroup` *without* `card`, or it's a card inside a
+       card.
+     - **Title-row buttons are small:** `<Button variant="outline"
+       size="sm"><Plus aria-hidden="true" /> Add language</Button>` — never
+       the 36px header size (`h-9`), never primary. Header buttons stay 36px;
+       buttons beside a section title are `size="sm"`.
+     - **Explanations stay visible as the footnote,** under the card, by
+       default. The user rejected an ⓘ on full-width page sections (Privacy &
+       export, 2026-11-16) but asked for one on a narrow sidebar card (Model
+       editor → Who can edit): there, the note goes behind `SectionInfo`
+       (`components/cms/rows`) in the title row's `actions`. Use the ⓘ only
+       for a sidebar card, and ask if unsure.
+     - `id` is unique on the page (`"<page>-<title-slug>"`), so a link can land
+       on it.
+     - Only an untitled identity block keeps a bare `SettingsSection` card.
    - **Long help** (how to install, steps) → a `Modal`, opened from the row; not
      paragraphs on the page.
 5. **Four states, inside the section that owns the query.** `TilesSkeleton` or
    `Bone` shaped like the content, `ErrorState` with `onRetry`, `EmptyState`
    that says what will appear, then the content — as `ActiveSessionsSection`
    does. A failed section never blanks the page.
-6. **Motion and surfaces are inherited.** `SettingsSection` carries
-   `SECTION_RISE` and the card surface (`border-border bg-card shadow-sm`).
+6. **Motion and surfaces are inherited.** `RecordGroup` and `SettingsSection`
+   carry `SECTION_RISE`; `RecordGroup card` gives the card surface
+   (`border-border bg-card shadow-sm`).
    Outside `SettingsShell`, wrap the body in the stagger `motion.div` from
    `SettingsShell.tsx`. No new animation, no gradients, no hand-rolled cards.
 
@@ -129,8 +147,9 @@ with each page's status — update it when a page is done.
 |---|---|---|
 | Equal columns | `grid items-start gap-5 lg:grid-cols-2` | as `AccountHome` |
 | Stack / main + rail | `SettingsTabBody` (`aside`, `narrowAside`, `stickyAside`) | `components/settings/SettingsShell` |
-| Section card | `SettingsSection` (`title?`, `actions`, `footnote`) | `components/settings/SettingsSection` |
-| Titled list, no card around it | `RecordGroup` (`id`, `title`, `actions?`, `footnote?`) | `components/shared/RecordGroup` |
+| Titled section: title above, rows in one card | `RecordGroup card` (`id`, `title`, `actions?` as `size="sm"` outline buttons, `footnote?`) | `components/shared/RecordGroup` |
+| Titled list (already a card) | `RecordGroup` without `card` | `components/shared/RecordGroup` |
+| Untitled identity card only | `SettingsSection` (no `title`) | `components/settings/SettingsSection` |
 | The list's rows | `RecordList` + `RecordListRow`, or `ListRowGroup` + `ListRow` | `components/people/record/shared`, `components/shared/ListRow` |
 | Editable value row | `ChangeRow` | `components/settings/controls` |
 | Switch / action row | `SettingRows`, `SettingRow` | `components/settings/controls` |

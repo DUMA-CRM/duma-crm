@@ -24,6 +24,12 @@ settings, then detail pages.
 | 16 | `/admin/system` | `AdminSystem` | Platform settings rows | todo |
 | 17 | `/scheduling` | `MyRota` | Your own rota: clock + week facts as the identity card; the week stays a calendar (`RecordGroup` over one hairline grid) | done 2026-11-15 |
 | 18 | `/compliance` (+ customer record → Privacy requests drawer, staff record) | `ComplianceWorkspace` → `PrivacyRequestsPanel` | A deadline queue as one list of rows that open in place | done 2026-11-15 |
+| 19 | `/content?tab=configure` | `ContentConfiguration` | Content's settings landing: one `ListRowGroup` of editors, each meta line a live fact | done 2026-11-16 |
+| 20 | `/content?tab=configure&section=locales` | `LocalesPanel` | Languages as a `RecordGroup` list (coverage per row) beside Missing translations · Prices `ChangeRow` sections | done 2026-11-16 |
+| 21 | `/content?tab=configure&section=settings` | `ContentSettingsPanel` | File privacy and Backup beside Storage: a bento of `ChangeRow` sections, no rail | done 2026-11-16 |
+| 22 | `/content?model=<id\|new>` | `ModelEditor` | Details · Display \| Ask DUMA · Who can edit as a bento of `ChangeRow` sections; Fields a `RecordGroup` of `ListRow`s that open their settings in place; the entry form as a live preview in the rail | done 2026-11-16 |
+| 23 | `/forms?form=<id>&tab=settings` | `FormSettingsPanel` | Taking responses · Look \| After someone submits · Customers as a bento of `ChangeRow` sections (draft + the editor's SaveBar, Cancel restores the row); the thank-you screen as a live preview in the rail | done 2026-11-16 |
+| 24 | `/forms?form=<id>&tab=share` | `SharePanel` | Link · QR code \| On your website · With your own code as a bento of `RecordGroup card`s, no rail | done 2026-11-16 |
 
 ## Left out, on purpose
 
@@ -33,5 +39,11 @@ settings, then detail pages.
 - **Operational screens the layout doesn't suit:** `/pos`, `/kds`, `/orders`,
   `/reservations`, `/staff/rota`, `/staff/shifts`, `/inventory`
   (lists), `/reports/*`, `/dashboard`, `/audit-log`, `/notes/graph`,
-  `/cash-up`, `/content`, `/communications`, `/automation`.
+  `/cash-up`, `/content` (except its Configure pages and model editor, 19–22), `/communications`, `/automation`.
+- **Content → Configure → Models** (`ModelsPanel`) is a list, so it follows the list
+  conventions (Staff → Team) instead: search, count, `RecordGroup` + `ListRowGroup` (2026-11-16).
+- **Forms list and a form's Responses** (`FormsList`, `ResponsesPanel`) are lists, so they follow the
+  list conventions: `Fact surface="page"` figures (list only), a search with inline `Select`s and the
+  count, one `ListRowGroup` (2026-11-16). **Forms → Summary** is a report: figures, Per day, and a
+  `RecordGroup card` per question in two stacked columns. **Forms → Build** belongs to the builder.
 - **Redirects:** `/settings/advanced`, `/settings`.

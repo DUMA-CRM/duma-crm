@@ -37,7 +37,7 @@ export function MoveToPage({
 
   return (
     <div role="group" aria-label="Move to">
-      <div className="flex items-center gap-1 pb-1.5">
+      <div className="flex items-center gap-1 pb-1">
         <button
           type="button"
           onClick={onBack}
@@ -80,7 +80,7 @@ export function MoveToPage({
                   style={{ paddingLeft: `${8 + target.depth * 12}px` }}
                   className={cn(
                     'flex w-full items-center gap-2 rounded-md py-1.5 pr-2 text-left text-sm transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-ring',
-                    current ? 'bg-primary/10 text-foreground' : 'text-foreground hover:bg-band/60 disabled:opacity-50',
+                    current ? 'bg-band text-foreground' : 'text-foreground hover:bg-band/60 disabled:opacity-50',
                   )}
                 >
                   <Icon

@@ -7,9 +7,11 @@ import { useEffect, useMemo, useState } from 'react';
 import { InfoRow } from '@/components/cms/rows';
 import {
   Archive,
+  Bell,
   Check,
   ChevronLeft,
   ChevronRight,
+  CircleDashed,
   ClipboardList,
   Clock,
   Download,
@@ -20,17 +22,19 @@ import {
   Search,
   Trash2,
   UserRound,
+  X,
 } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Bone } from '@/components/shared/Skeleton';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import {
@@ -60,10 +64,18 @@ const STATUS_BADGE: Record<FormResponseStatus, 'success' | 'muted' | 'outline'> 
 const STATUS_LABEL: Record<FormResponseStatus, string> = { new: 'New', reviewed: 'Reviewed', archived: 'Archived' };
 const SOURCE_LABEL = { hosted: 'Form page', embed: 'Website', api: 'API' } as const;
 const PAGE_SIZE = 25;
+const FILTERS: { value: ResponseFilter; label: string }[] = [
+  { value: 'open', label: 'Open' },
+  { value: 'new', label: 'New' },
+  { value: 'reviewed', label: 'Reviewed' },
+  { value: 'archived', label: 'Archived' },
+];
 
 /**
- * Responses as an inbox: open ones first (new and reviewed), a search across
- * every answer, newest at the top. Opening one shows every answer and where it
+ * Responses as an inbox, in the list conventions (Staff → Team, Content →
+ * Entries): a search across every answer, one status select and the count,
+ * then one row per response, newest at the top. Select turns the rows into
+ * choices for the bulk actions. Opening one shows every answer and where it
  * came from — and marks it reviewed. Several can be marked or deleted at once;
  * Export takes what the filter shows as CSV.
  */
@@ -78,6 +90,7 @@ export function ResponsesPanel({ form }: { form: FormDetail }) {
   const [search, setSearch] = useState('');
   const [q, setQ] = useState('');
   const [page, setPage] = useState(1);
+  const [selecting, setSelecting] = useState(false);
   const [chosen, setChosen] = useState<Set<string>>(new Set());
   // Held as a copy, so marking it reviewed (which can drop it from the "New" list) doesn't close it.
   const [open, setOpen] = useState<FormResponse | null>(null);
@@ -171,168 +184,161 @@ export function ResponsesPanel({ form }: { form: FormDetail }) {
   const total = query.data?.total ?? 0;
   const pages = query.data?.pages ?? 1;
 
+  const changeFilter = (next: ResponseFilter) => {
+    setFilter(next);
+    setPage(1);
+    setChosen(new Set());
+  };
+  const stopSelecting = () => {
+    setSelecting(false);
+    setChosen(new Set());
+  };
+
   return (
-    <div className="flex flex-col gap-4">
+    <div className="flex flex-col gap-3">
       <div className="flex flex-wrap items-center gap-2">
-        <SegmentedControl<ResponseFilter>
-          value={filter}
-          onChange={(next) => {
-            setFilter(next);
-            setPage(1);
-            setChosen(new Set());
-          }}
-          ariaLabel="Which responses"
-          options={[
-            { value: 'open', label: 'Open' },
-            { value: 'new', label: 'New' },
-            { value: 'reviewed', label: 'Reviewed' },
-            { value: 'archived', label: 'Archived' },
-          ]}
-        />
-        <div className="min-w-48 flex-1 sm:max-w-xs">
+        <div className="min-w-56 flex-1">
           <Input
+            type="search"
             aria-label="Search the answers"
             placeholder="Search the answers"
             value={search}
             leftIcon={<Search size={14} aria-hidden="true" />}
             onChange={(event) => setSearch(event.target.value)}
+            rightAction={
+              search ? (
+                <button
+                  type="button"
+                  onClick={() => setSearch('')}
+                  aria-label="Clear search"
+                  className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+                >
+                  <X size={13} aria-hidden="true" />
+                </button>
+              ) : undefined
+            }
           />
         </div>
-        <Button
-          variant="outline"
-          className="ml-auto h-9 gap-1.5"
-          disabled={total === 0 || exportCsv.isPending}
-          onClick={() => exportCsv.mutate()}
-        >
-          <Download size={14} aria-hidden="true" />
-          Export CSV
-        </Button>
+        <Select
+          value={filter}
+          onValueChange={(value) => changeFilter(value as ResponseFilter)}
+          options={FILTERS}
+          ariaLabel="Which responses"
+          className="w-40"
+        />
+        <span className="ml-auto flex items-center gap-2">
+          {!query.isPending && !query.isError && (
+            <span className="text-xs tabular-nums text-muted-foreground" aria-live="polite">
+              {total.toLocaleString('en-GB')} {total === 1 ? 'response' : 'responses'}
+            </span>
+          )}
+          {canTriage && rows.length > 0 && (
+            <Button
+              variant={selecting ? 'secondary' : 'outline'}
+              aria-pressed={selecting}
+              onClick={() => (selecting ? stopSelecting() : setSelecting(true))}
+            >
+              <ListChecks data-icon="inline-start" />
+              {selecting ? 'Done' : 'Select'}
+            </Button>
+          )}
+          <Button variant="outline" disabled={total === 0 || exportCsv.isPending} onClick={() => exportCsv.mutate()}>
+            <Download data-icon="inline-start" />
+            Export CSV
+          </Button>
+        </span>
       </div>
 
-      {chosen.size > 0 && canTriage && (
-        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-border bg-band/50 px-3 py-2">
-          <span className="mr-auto text-sm font-medium">{chosen.size} chosen</span>
-          <Button variant="ghost" className="h-8 gap-1.5 text-xs" onClick={() => bulk.mutate({ ids: [...chosen], action: 'reviewed' })}>
-            <Check size={13} aria-hidden="true" />
+      {selecting && canTriage && (
+        <div className="flex min-h-9 flex-wrap items-center gap-2" role="region" aria-label="Bulk actions">
+          <span className="mr-auto text-sm font-semibold tabular-nums text-foreground">{chosen.size} selected</span>
+          <Button variant="ghost" size="sm" onClick={() => setChosen(allChosen ? new Set() : new Set(rows.map((row) => row.id)))}>
+            {allChosen ? 'Clear' : 'Choose this page'}
+          </Button>
+          <Button
+            variant="outline"
+            size="sm"
+            disabled={chosen.size === 0 || bulk.isPending}
+            onClick={() => bulk.mutate({ ids: [...chosen], action: 'reviewed' })}
+          >
+            <Check data-icon="inline-start" />
             Mark reviewed
           </Button>
           <Button
-            variant="ghost"
-            className="h-8 gap-1.5 text-xs"
+            variant="outline"
+            size="sm"
+            disabled={chosen.size === 0 || bulk.isPending}
             onClick={() => bulk.mutate({ ids: [...chosen], action: filter === 'archived' ? 'reviewed' : 'archived' })}
           >
-            {filter === 'archived' ? <RotateCcw size={13} aria-hidden="true" /> : <Archive size={13} aria-hidden="true" />}
+            {filter === 'archived' ? <RotateCcw data-icon="inline-start" /> : <Archive data-icon="inline-start" />}
             {filter === 'archived' ? 'Unarchive' : 'Archive'}
           </Button>
-          <Button variant="destructive" className="h-8 gap-1.5 text-xs" onClick={() => setConfirmDelete([...chosen])}>
-            <Trash2 size={13} aria-hidden="true" />
+          <Button variant="destructive" size="sm" disabled={chosen.size === 0} onClick={() => setConfirmDelete([...chosen])}>
+            <Trash2 data-icon="inline-start" />
             Delete
           </Button>
         </div>
       )}
 
-      <div className="overflow-hidden rounded-lg border border-border bg-field">
-        {query.isPending ? (
-          <div className="space-y-2 p-4" aria-busy="true">
-            {Array.from({ length: 6 }, (_, index) => (
-              <Bone key={index} className="h-10 rounded-md" />
-            ))}
-          </div>
-        ) : query.isError ? (
-          <ErrorState title="Couldn’t load the responses" onRetry={() => void query.refetch()} />
-        ) : rows.length === 0 ? (
-          <EmptyState
-            icon={ClipboardList}
-            compact
-            title={
-              q
-                ? `Nothing matches “${q}”`
-                : filter === 'open'
-                  ? 'No responses yet'
-                  : `No ${STATUS_LABEL[filter as FormResponseStatus]?.toLowerCase() ?? ''} responses`
-            }
-            description={
-              q
-                ? 'The search looks through every answer.'
-                : filter === 'open'
-                  ? form.publishedAt
-                    ? 'Share the form and answers appear here the moment they’re sent.'
-                    : 'Publish the form, then share it — answers appear here the moment they’re sent.'
-                  : undefined
-            }
-          />
-        ) : (
-          <div className={cn('overflow-x-auto transition-opacity', query.isPlaceholderData && 'opacity-60')}>
-            <table className="w-full text-sm">
-              <thead>
-                <tr className="border-b border-border text-left text-xs text-muted-foreground">
-                  {canTriage && (
-                    <th className="w-10 py-2.5 pl-4">
-                      <input
-                        type="checkbox"
-                        aria-label="Choose every response on this page"
-                        checked={allChosen}
-                        onChange={() => setChosen(allChosen ? new Set() : new Set(rows.map((row) => row.id)))}
-                        className="size-4 accent-primary"
-                      />
-                    </th>
-                  )}
-                  <th className="py-2.5 pr-3 pl-4 font-medium">From</th>
-                  {columns.map((field) => (
-                    <th key={field.id} className="hidden max-w-48 truncate px-3 py-2.5 font-medium md:table-cell">
-                      {field.label}
-                    </th>
-                  ))}
-                  <th className="px-3 py-2.5 font-medium">Sent</th>
-                  <th className="py-2.5 pr-4 pl-3 text-right font-medium">Status</th>
-                </tr>
-              </thead>
-              <tbody>
-                {rows.map((row) => (
-                  <tr
-                    key={row.id}
-                    onClick={() => openResponse(row)}
-                    className={cn(
-                      'cursor-pointer border-b border-border transition-colors last:border-0 hover:bg-band/40',
-                      row.status === 'new' && 'font-semibold',
-                      chosen.has(row.id) && 'bg-band/50',
-                    )}
-                  >
-                    {canTriage && (
-                      <td className="py-2.5 pl-4" onClick={(event) => event.stopPropagation()}>
-                        <input
-                          type="checkbox"
-                          aria-label="Choose this response"
-                          checked={chosen.has(row.id)}
-                          onChange={() => toggle(row.id)}
-                          className="size-4 accent-primary"
-                        />
-                      </td>
-                    )}
-                    <td className="max-w-56 py-2.5 pr-3 pl-4">
-                      <span className="flex items-center gap-2">
-                        {row.status === 'new' && <span className="size-2 shrink-0 rounded-full bg-momentum" aria-label="New" />}
-                        <span className="truncate">{row.customer?.name ?? responseTitle(fields, row.answers) ?? 'Anonymous'}</span>
-                      </span>
-                    </td>
-                    {columns.map((field) => (
-                      <td key={field.id} className="hidden max-w-48 truncate px-3 py-2.5 font-normal text-muted-foreground md:table-cell">
-                        {answerText(row.answers[field.id])}
-                      </td>
-                    ))}
-                    <td className="px-3 py-2.5 font-normal whitespace-nowrap text-muted-foreground">
-                      <RelativeTime iso={row.submittedAt} />
-                    </td>
-                    <td className="py-2.5 pr-4 pl-3 text-right">
-                      <Badge variant={STATUS_BADGE[row.status]}>{STATUS_LABEL[row.status]}</Badge>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </div>
+      {query.isPending ? (
+        <ListSkeleton rows={6} label="Loading the responses" />
+      ) : query.isError ? (
+        <ErrorState title="Couldn’t load the responses" onRetry={() => void query.refetch()} />
+      ) : rows.length === 0 ? (
+        <EmptyState
+          icon={q ? Search : ClipboardList}
+          kind={q ? 'search' : 'start'}
+          title={
+            q
+              ? `Nothing matches “${q}”`
+              : filter === 'open'
+                ? 'No responses yet'
+                : `No ${STATUS_LABEL[filter as FormResponseStatus]?.toLowerCase() ?? ''} responses`
+          }
+          description={
+            q
+              ? 'The search looks through every answer.'
+              : filter === 'open'
+                ? form.publishedAt
+                  ? 'Share the form and answers appear here the moment they’re sent.'
+                  : 'Publish the form, then share it — answers appear here the moment they’re sent.'
+                : undefined
+          }
+          action={q ? { label: 'Clear search', onClick: () => setSearch('') } : undefined}
+        />
+      ) : (
+        <ListRowGroup aria-label="Responses" className={cn('transition-opacity', query.isPlaceholderData && 'opacity-60')}>
+          {rows.map((row) => {
+            const picked = chosen.has(row.id);
+            const answers = columns.map((field) => answerText(row.answers[field.id])).filter(Boolean);
+            return (
+              <ListRow
+                key={row.id}
+                icon={selecting ? (picked ? Check : CircleDashed) : row.status === 'new' ? Bell : ListChecks}
+                tone={selecting ? (picked ? 'primary' : 'muted') : row.status === 'new' ? 'success' : 'muted'}
+                title={row.customer?.name ?? responseTitle(fields, row.answers) ?? 'Anonymous'}
+                titleExtra={
+                  row.status !== 'reviewed' && (
+                    <Badge variant={STATUS_BADGE[row.status]} className="shrink-0">
+                      {STATUS_LABEL[row.status]}
+                    </Badge>
+                  )
+                }
+                meta={answers.length > 0 ? answers.join(' · ') : undefined}
+                trailing={
+                  <span className="text-xs whitespace-nowrap tabular-nums text-muted-foreground">
+                    <RelativeTime iso={row.submittedAt} />
+                  </span>
+                }
+                selected={selecting && picked}
+                pressed={selecting ? picked : undefined}
+                chevron={!selecting}
+                onClick={() => (selecting ? toggle(row.id) : openResponse(row))}
+              />
+            );
+          })}
+        </ListRowGroup>
+      )}
 
       {total > PAGE_SIZE && (
         <div className="flex items-center justify-between text-xs text-muted-foreground">
@@ -473,7 +479,7 @@ function ResponseDrawer({
 
         {earlier.length > 0 && (
           <div>
-            <p className="mb-2 text-xs font-semibold tracking-wide text-muted-foreground uppercase">Questions since removed</p>
+            <p className="mb-2 text-label text-muted-foreground uppercase">Questions since removed</p>
             <dl className="space-y-3">
               {earlier.map(([id, value]) => (
                 <div key={id}>
@@ -485,7 +491,7 @@ function ResponseDrawer({
           </div>
         )}
 
-        <div className="space-y-3 rounded-lg border border-border bg-field p-4">
+        <div className="space-y-3">
           <InfoRow icon={UserRound} title="Customer">
             {response.customer ? (
               <Link

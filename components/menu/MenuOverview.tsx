@@ -35,7 +35,6 @@ import { useMenuItemCosts } from '@/lib/hooks/useMenuItemCosts';
 import { getMenuCategories, getMenuItems, getModifierGroups, getModifiers, updateMenuItem } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
-import { cn } from '@/lib/utils/cn';
 import { type AttentionEntry, type OverviewCost, averageMargin, lowestMargins, menuAttention } from '@/lib/utils/menu-overview';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { MenuItem } from '@/types/menu';
@@ -212,8 +211,9 @@ export function MenuOverview() {
             items={attention.map((entry) => attentionRow(entry, words.items, images))}
           />
 
-          <div className={cn('grid gap-5', kitchen && 'lg:grid-cols-2')}>
-            {kitchen && (
+          {/* A kitchen's margins and what's off the menu; a shop gets neither — the Available card already counts what isn't for sale. */}
+          {kitchen && (
+            <div className="grid gap-5 lg:grid-cols-2">
               <Panel title="Lowest margins" note="After VAT">
                 {costing ? (
                   [0, 1, 2].map((index) => <RowSkeleton key={index} index={index} />)
@@ -230,27 +230,27 @@ export function MenuOverview() {
                   })
                 )}
               </Panel>
-            )}
-            {/* No count: the first stat card already says how many are on the menu. */}
-            <Panel title={kitchen ? 'Off the menu' : 'Not for sale'}>
-              {off.length === 0 ? (
-                <PanelEmpty>{kitchen ? 'Everything is on the menu.' : 'Every product is for sale.'}</PanelEmpty>
-              ) : (
-                off.map((item) => (
-                  <ItemLink key={item.id} item={item} image={images.get(item.id)} href={`/menu/items/${item.id}`}>
-                    <span className="relative z-10 inline-flex">
-                      <Switch
-                        label={`${item.name} — ${words.available.toLowerCase()}`}
-                        checked={false}
-                        disabled={availability.isPending && availability.variables?.id === item.id}
-                        onChange={(isAvailable) => availability.mutate({ id: item.id, isAvailable })}
-                      />
-                    </span>
-                  </ItemLink>
-                ))
-              )}
-            </Panel>
-          </div>
+              {/* No count: the first stat card already says how many are on the menu. */}
+              <Panel title="Off the menu">
+                {off.length === 0 ? (
+                  <PanelEmpty>Everything is on the menu.</PanelEmpty>
+                ) : (
+                  off.map((item) => (
+                    <ItemLink key={item.id} item={item} image={images.get(item.id)} href={`/menu/items/${item.id}`}>
+                      <span className="relative z-10 inline-flex">
+                        <Switch
+                          label={`${item.name} — ${words.available.toLowerCase()}`}
+                          checked={false}
+                          disabled={availability.isPending && availability.variables?.id === item.id}
+                          onChange={(isAvailable) => availability.mutate({ id: item.id, isAvailable })}
+                        />
+                      </span>
+                    </ItemLink>
+                  ))
+                )}
+              </Panel>
+            </div>
+          )}
         </motion.div>
       )}
     </EditorShell>

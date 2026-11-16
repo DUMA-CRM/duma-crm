@@ -795,58 +795,37 @@ export const FORM_TEMPLATES: readonly FormTemplate[] = [
   {
     id: 'blank',
     name: 'Blank form',
-    description: 'Start with nothing and add your own questions.',
-    definition: () => definitionFrom([]),
+    description: 'One empty question to start from.',
+    // One question with no words yet: the builder opens with it ready to type into.
+    definition: () => definitionFrom([{ type: 'short_text', label: '' }]),
   },
   {
-    id: 'contact',
-    name: 'Contact us',
-    description: 'Name, email and a message — saved as a customer.',
+    id: 'booking',
+    name: 'Table booking request',
+    description: 'Date, time and party size — saved as a customer.',
     definition: () =>
       linkFrom(
         definitionFrom(
           [
+            { type: 'date', label: 'Which day?', key: 'date', required: true, width: 'half' },
+            { type: 'time', label: 'What time?', key: 'time', required: true, width: 'half' },
+            { type: 'number', label: 'How many guests?', key: 'guests', required: true, min: 1, max: 30 },
             { type: 'short_text', label: 'Your name', key: 'name', required: true, width: 'half' },
-            { type: 'email', label: 'Email', key: 'email', required: true, width: 'half' },
-            { type: 'phone', label: 'Phone number', key: 'phone' },
-            { type: 'long_text', label: 'How can we help?', key: 'message', required: true, placeholder: 'Tell us a little more' },
-          ],
-          { submitLabel: 'Send message', successTitle: 'Message sent', successMessage: 'Thanks — we’ll get back to you soon.' },
-        ),
-        { email: 'email', name: 'name', phone: 'phone' },
-      ),
-  },
-  {
-    id: 'private_event',
-    name: 'Private event enquiry',
-    description: 'Date, party size, occasion and budget — over two steps.',
-    definition: () =>
-      linkFrom(
-        definitionFrom(
-          [
-            { type: 'heading', label: 'Tell us about your event' },
-            { type: 'date', label: 'Date of the event', key: 'event_date', required: true, width: 'half' },
-            { type: 'time', label: 'Start time', key: 'start_time', width: 'half' },
-            { type: 'number', label: 'How many guests?', key: 'guests', required: true, min: 1, max: 500 },
-            { type: 'radio', label: 'What’s the occasion?', key: 'occasion', choices: ['Birthday', 'Wedding', 'Corporate', 'Other'] },
+            { type: 'phone', label: 'Phone number', key: 'phone', required: true, width: 'half' },
+            { type: 'email', label: 'Email', key: 'email', required: true },
             {
-              type: 'checkboxes',
-              label: 'Any dietary needs?',
-              key: 'dietary',
-              choices: ['Vegetarian', 'Vegan', 'Gluten-free', 'Nut allergy', 'Halal'],
+              type: 'select',
+              label: 'Is it a special occasion?',
+              key: 'occasion',
+              choices: ['No', 'Birthday', 'Anniversary', 'Business', 'Other'],
             },
-            { type: 'short_text', label: 'Budget per head', key: 'budget' },
-            { type: 'page_break', label: '' },
-            { type: 'short_text', label: 'Your name', key: 'name', required: true, width: 'half' },
-            { type: 'email', label: 'Email', key: 'email', required: true, width: 'half' },
-            { type: 'phone', label: 'Phone number', key: 'phone', required: true },
-            { type: 'long_text', label: 'Anything else we should know?', key: 'notes' },
-            { type: 'consent', label: 'Send me news and offers', key: 'marketing' },
+            { type: 'long_text', label: 'Any dietary needs or requests?', key: 'requests' },
           ],
           {
-            submitLabel: 'Send enquiry',
-            successTitle: 'Enquiry received',
-            successMessage: 'Our events team will be in touch within a day.',
+            submitLabel: 'Request a table',
+            successTitle: 'Request received',
+            successMessage: 'We’ll confirm your table by phone or email shortly.',
+            showProgress: false,
           },
         ),
         { email: 'email', name: 'name', phone: 'phone' },
@@ -854,8 +833,8 @@ export const FORM_TEMPLATES: readonly FormTemplate[] = [
   },
   {
     id: 'feedback',
-    name: 'Feedback after a visit',
-    description: 'A star rating, how likely they’d recommend, and what to improve.',
+    name: 'Customer feedback',
+    description: 'Stars, would they recommend you, and what to improve.',
     definition: () => {
       const definition = definitionFrom(
         [
@@ -889,6 +868,49 @@ export const FORM_TEMPLATES: readonly FormTemplate[] = [
     },
   },
   {
+    id: 'private_event',
+    name: 'Catering / event enquiry',
+    description: 'Catering or private hire: date, guests, budget — two steps.',
+    definition: () =>
+      linkFrom(
+        definitionFrom(
+          [
+            { type: 'heading', label: 'Tell us about your event' },
+            {
+              type: 'radio',
+              label: 'What do you need?',
+              key: 'service',
+              required: true,
+              choices: ['Catering delivered to you', 'Private hire of our space', 'Not sure yet'],
+            },
+            { type: 'date', label: 'Date of the event', key: 'event_date', required: true, width: 'half' },
+            { type: 'time', label: 'Start time', key: 'start_time', width: 'half' },
+            { type: 'number', label: 'How many guests?', key: 'guests', required: true, min: 1, max: 500 },
+            { type: 'radio', label: 'What’s the occasion?', key: 'occasion', choices: ['Birthday', 'Wedding', 'Corporate', 'Other'] },
+            {
+              type: 'checkboxes',
+              label: 'Any dietary needs?',
+              key: 'dietary',
+              choices: ['Vegetarian', 'Vegan', 'Gluten-free', 'Nut allergy', 'Halal'],
+            },
+            { type: 'short_text', label: 'Budget per head', key: 'budget' },
+            { type: 'page_break', label: '' },
+            { type: 'short_text', label: 'Your name', key: 'name', required: true, width: 'half' },
+            { type: 'email', label: 'Email', key: 'email', required: true, width: 'half' },
+            { type: 'phone', label: 'Phone number', key: 'phone', required: true },
+            { type: 'long_text', label: 'Anything else we should know?', key: 'notes' },
+            { type: 'consent', label: 'Send me news and offers', key: 'marketing' },
+          ],
+          {
+            submitLabel: 'Send enquiry',
+            successTitle: 'Enquiry received',
+            successMessage: 'Our events team will be in touch within a day.',
+          },
+        ),
+        { email: 'email', name: 'name', phone: 'phone' },
+      ),
+  },
+  {
     id: 'job',
     name: 'Job application',
     description: 'Role, availability and experience.',
@@ -917,6 +939,59 @@ export const FORM_TEMPLATES: readonly FormTemplate[] = [
           { type: 'consent', label: 'I agree to my details being kept for this application', key: 'privacy', required: true },
         ],
         { submitLabel: 'Apply', successTitle: 'Application sent', successMessage: 'Thanks for applying — we’ll be in touch.' },
+      ),
+  },
+  {
+    id: 'fridge',
+    name: 'Fridge temperature check',
+    description: 'A daily log for staff — what to do when it’s out of range.',
+    definition: () => {
+      const definition = definitionFrom(
+        [
+          { type: 'short_text', label: 'Checked by', key: 'checked_by', required: true },
+          { type: 'date', label: 'Date', key: 'date', required: true, width: 'half' },
+          { type: 'time', label: 'Time', key: 'time', required: true, width: 'half' },
+          {
+            type: 'select',
+            label: 'Which unit?',
+            key: 'unit',
+            required: true,
+            choices: ['Fridge 1', 'Fridge 2', 'Display chiller', 'Freezer'],
+          },
+          { type: 'number', label: 'Temperature (°C)', key: 'temperature', required: true, min: -30, max: 30 },
+          {
+            type: 'yes_no',
+            label: 'Is it in the safe range?',
+            key: 'in_range',
+            required: true,
+            description: 'Fridges 0–5 °C. Freezers −18 °C or colder.',
+          },
+          { type: 'long_text', label: 'What did you do about it?', key: 'action', required: true },
+        ],
+        { submitLabel: 'Log check', successTitle: 'Logged', successMessage: 'Thanks — the check is recorded.', showProgress: false },
+      );
+      const inRange = definition.fields.find((field) => field.key === 'in_range')!;
+      const action = definition.fields.find((field) => field.key === 'action')!;
+      action.logic = { match: 'all', conditions: [{ fieldId: inRange.id, operator: 'equals', value: 'no' }] };
+      return definition;
+    },
+  },
+  {
+    id: 'contact',
+    name: 'Contact us',
+    description: 'Name, email and a message — saved as a customer.',
+    definition: () =>
+      linkFrom(
+        definitionFrom(
+          [
+            { type: 'short_text', label: 'Your name', key: 'name', required: true, width: 'half' },
+            { type: 'email', label: 'Email', key: 'email', required: true, width: 'half' },
+            { type: 'phone', label: 'Phone number', key: 'phone' },
+            { type: 'long_text', label: 'How can we help?', key: 'message', required: true, placeholder: 'Tell us a little more' },
+          ],
+          { submitLabel: 'Send message', successTitle: 'Message sent', successMessage: 'Thanks — we’ll get back to you soon.' },
+        ),
+        { email: 'email', name: 'name', phone: 'phone' },
       ),
   },
   {

@@ -123,14 +123,14 @@ export function FolderDialog({
     >
       <form
         id="note-folder-form"
-        className="space-y-5"
+        className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault();
           if (ready) save.mutate();
         }}
       >
         {mode.kind !== 'share' && (
-          <Section icon={FolderIcon} title="Name" info="What people look for it by — “Recipes”, “Opening”, “Training”.">
+          <Section icon={FolderIcon} title="Name">
             <Input
               aria-label="Folder name"
               value={name}
@@ -205,15 +205,15 @@ export function FolderDialog({
 }
 
 /** A part of the dialog: icon, title, and what it means behind an ⓘ — the fields sit straight below, with no panel. */
-function Section({ icon: Icon, title, info, children }: { icon: IconComponent; title: string; info: string; children: React.ReactNode }) {
+function Section({ icon: Icon, title, info, children }: { icon: IconComponent; title: string; info?: string; children: React.ReactNode }) {
   return (
-    <section className="space-y-2.5">
+    <section className="space-y-2">
       <div className="flex items-center gap-3">
         <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
           <Icon size={16} aria-hidden="true" />
         </span>
         <h3 className="min-w-0 flex-1 text-sm font-semibold text-heading">{title}</h3>
-        <InfoTip label={info} />
+        {info && <InfoTip label={info} />}
       </div>
       <div className="flex flex-col gap-2">{children}</div>
     </section>

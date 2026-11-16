@@ -19,10 +19,10 @@ import {
   Zap,
 } from '@/components/icons';
 import { useSettingsTenantId } from '@/components/settings/SettingsScope';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -500,7 +500,7 @@ export function TelegramConnectorPage({ onClose, onConnect }: { onClose: () => v
     >
       {connection && (
         <>
-          <SettingsSection title="Destination">
+          <RecordGroup card id="telegram-destination" title="Destination">
             <ChatFields
               tenantId={tenantId}
               token={form.botToken.trim()}
@@ -509,9 +509,9 @@ export function TelegramConnectorPage({ onClose, onConnect }: { onClose: () => v
               onChange={(value) => update('chatId', value)}
               idPrefix="manage"
             />
-          </SettingsSection>
+          </RecordGroup>
 
-          <SettingsSection title="Bot" footnote="Skipped notifications aren’t sent later.">
+          <RecordGroup card id="telegram-bot" title="Bot" footnote="Skipped notifications aren’t sent later.">
             {/* The token never comes back, so it reads as one row until you ask to replace it. */}
             <ChangeRow
               icon={Send}
@@ -536,7 +536,7 @@ export function TelegramConnectorPage({ onClose, onConnect }: { onClose: () => v
                 <Switch label="Allow automation notifications" checked={form.isEnabled} onChange={(value) => update('isEnabled', value)} />
               }
             />
-          </SettingsSection>
+          </RecordGroup>
         </>
       )}
     </ConnectorManagePage>

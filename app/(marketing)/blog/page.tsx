@@ -54,7 +54,7 @@ export default async function BlogPage() {
               <>
                 <div className="grid gap-4 md:grid-cols-2">
                   {posts.map((post) => (
-                    <PostCard key={post.slug} post={post} />
+                    <PostCard key={post.slug} post={post} heading="h2" />
                   ))}
                 </div>
                 <p className="mt-6 text-sm text-[var(--mkt-ink-3)]">

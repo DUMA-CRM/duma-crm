@@ -41,6 +41,7 @@ import { type NoteLength, noteLength } from '@/lib/utils/note-editor';
 import { noteTitleFrom, tagsInText } from '@/lib/utils/notes';
 
 import { MoveToPage } from './MoveToPage';
+import { NoteBacklinks } from './NoteBacklinks';
 import { DriveSyncBar, useNoteDriveSync } from './NoteDriveSync';
 import type { EditorSnapshot } from './RichNoteEditor';
 import { VersionsDrawer } from './VersionsDrawer';
@@ -342,7 +343,7 @@ function LoadedNote({
   return (
     <div ref={paneRef} className="flex min-h-0 max-h-[var(--note-visible-height,none)] flex-1 flex-col">
       {/* The note's own bar, in one row: how to format it, whether it's saved, what you can do with it. */}
-      <div className="flex shrink-0 flex-wrap items-center gap-x-2 border-b border-divider bg-card px-2 py-1 md:h-12 md:flex-nowrap md:px-3 md:py-0">
+      <div className="flex shrink-0 flex-wrap items-center gap-x-1.5 border-b border-border bg-card px-2 py-1 md:h-11 md:flex-nowrap md:py-0">
         <Button variant="ghost" size="icon-sm" className="max-md:size-11 lg:hidden" aria-label="Back to the list" onClick={onBack}>
           <ArrowLeft aria-hidden="true" />
         </Button>
@@ -352,7 +353,7 @@ function LoadedNote({
         {drawing ? (
           <div ref={setDrawingBar} className="flex min-w-0 flex-1 items-center gap-1" />
         ) : editable && editor ? (
-          <div className="order-last flex w-full min-w-0 border-t border-divider pt-1 md:order-none md:w-auto md:flex-1 md:overflow-x-auto md:border-0 md:pt-0">
+          <div className="order-last flex w-full min-w-0 border-t border-border pt-1 md:order-none md:w-auto md:flex-1 md:overflow-x-auto md:border-0 md:pt-0">
             <NoteToolbar editor={editor} onUploadMedia={contentUpload} />
           </div>
         ) : (
@@ -365,11 +366,15 @@ function LoadedNote({
             <Button
               variant="ghost"
               size="icon-sm"
-              className="hidden md:inline-flex"
+              className={cn(
+                'hidden items-center justify-center self-center md:inline-flex',
+                note.pinned ? 'text-primary hover:text-primary' : 'text-muted-foreground hover:text-foreground',
+              )}
               aria-label={note.pinned ? 'Unpin' : 'Pin'}
+              aria-pressed={note.pinned}
               onClick={() => meta.mutate({ pinned: !note.pinned })}
             >
-              {note.pinned ? <PinOff aria-hidden="true" /> : <Pin aria-hidden="true" />}
+              <Pin aria-hidden="true" className={cn('size-4', note.pinned && 'fill-current')} />
             </Button>
           </Tooltip>
         )}
@@ -385,7 +390,7 @@ function LoadedNote({
               <MoreHorizontal aria-hidden="true" />
             </Button>
           </PopoverTrigger>
-          <PopoverContent align="end" className="w-72 p-1.5" role="menu" aria-label="Note actions">
+          <PopoverContent align="end" className="w-72 p-1" role="menu" aria-label="Note actions">
             {menuPage === 'move' ? (
               <MoveToPage
                 folders={folders}
@@ -424,16 +429,16 @@ function LoadedNote({
                     role="menuitem"
                     aria-haspopup="true"
                     onClick={() => setMenuPage('move')}
-                    className="flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm text-foreground transition-colors duration-150 hover:bg-band/60 focus-visible:outline-2 focus-visible:outline-ring"
+                    className="flex min-h-11 w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm text-foreground transition-colors duration-150 hover:bg-band focus-visible:outline-2 focus-visible:outline-ring md:min-h-0"
                   >
-                    <FolderMove size={16} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                    <FolderMove size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
                     <span className="min-w-0 flex-1">Move to…</span>
                     <span className="max-w-[45%] truncate text-xs text-muted-foreground">{hereNow}</span>
                     <ChevronRight size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
                   </button>
                 )}
                 {note.canEdit && (
-                  <div className="mt-1.5 border-t border-border pt-1.5">
+                  <div className="mt-1 border-t border-border pt-1">
                     <MenuItem icon={Trash2} label="Delete" danger onClick={() => act(() => remove.mutate())} />
                   </div>
                 )}
@@ -444,7 +449,7 @@ function LoadedNote({
       </div>
 
       {saveState === 'conflict' && (
-        <div role="alert" className="flex flex-wrap items-center gap-3 border-b border-measured/40 bg-measured/8 px-5 py-2.5 text-sm">
+        <div role="alert" className="flex flex-wrap items-center gap-2.5 border-b border-measured/30 bg-measured/8 px-4 py-2 text-sm">
           <TriangleAlert size={16} className="shrink-0 text-measured" aria-hidden="true" />
           <span className="min-w-0 flex-1">Someone else saved this note while you were writing.</span>
           <Button size="sm" variant="outline" onClick={() => void takeTheirs()}>
@@ -456,7 +461,7 @@ function LoadedNote({
         </div>
       )}
       {trashed && (
-        <div className="flex items-center gap-3 border-b border-border bg-band/60 px-5 py-2.5 text-sm text-muted-foreground">
+        <div className="flex flex-wrap items-center gap-2.5 border-b border-border bg-band/60 px-4 py-2 text-sm text-muted-foreground">
           <span className="min-w-0 flex-1">In Recently Deleted. Restore it to edit.</span>
           {note.canEdit && (
             <>
@@ -475,7 +480,7 @@ function LoadedNote({
       {drawing ? (
         <>
           {!trashed && (
-            <div className="shrink-0 px-4 pb-2 md:px-5 empty:hidden">
+            <div className="shrink-0 px-4 pb-2 empty:hidden">
               <DriveSyncBar drive={drive} part="line" />
             </div>
           )}
@@ -490,8 +495,8 @@ function LoadedNote({
         </>
       ) : (
         <div className="min-h-0 flex-1 overflow-auto">
-          {/* The full width of the pane. */}
-          <div className="w-full px-4 pb-24 md:px-5">
+          {/* A reading column, centred in the pane: long lines are hard to follow. */}
+          <div className="w-full px-4 pb-24 md:px-8">
             {!trashed && <DriveSyncBar drive={drive} part="line" />}
             <RichNoteEditor
               content={note.content}
@@ -507,6 +512,7 @@ function LoadedNote({
               noteId={note.id}
               onOpenNote={onOpenNote}
             />
+            {!trashed && <NoteBacklinks noteId={note.id} onOpen={onOpenNote} />}
           </div>
         </div>
       )}
@@ -584,11 +590,11 @@ function MenuItem({
       role="menuitem"
       onClick={onClick}
       className={cn(
-        'flex w-full items-center gap-2.5 rounded-md px-2 py-2 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring',
-        danger ? 'text-exception hover:bg-exception/6' : 'text-foreground hover:bg-band/60',
+        'flex min-h-11 w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring md:min-h-0',
+        danger ? 'text-exception hover:bg-exception/6' : 'text-foreground hover:bg-band',
       )}
     >
-      <Icon size={15} aria-hidden="true" />
+      <Icon size={15} className={cn('shrink-0', !danger && 'text-muted-foreground')} aria-hidden="true" />
       {label}
     </button>
   );

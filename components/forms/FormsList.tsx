@@ -4,30 +4,32 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { InfoRow, InfoRows, RowTile } from '@/components/cms/rows';
-import { Bell, Braces, ChevronRight, ClipboardList, Code, ListChecks, Plus, QrCode, Search } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { Bell, ClipboardList, Clock, ListChecks, Plus, Search, Send, X } from '@/components/icons';
+import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { Fact } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
+import type { Tone } from '@/components/shared/tone';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { type FormListItem, getForms } from '@/lib/modules/forms/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type FormStanding, STANDING_LABELS, formStanding, responsesLabel } from '@/lib/utils/forms';
+import { FORMS_VIEW_LABELS, type FormsView, filterForms, formsOverview, inFormsView } from '@/lib/utils/forms-overview';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import type { EditorTab } from './FormEditor';
 import { NewFormDialog, TemplateGallery } from './TemplateGallery';
-
-type Filter = 'current' | 'archived';
 
 export const STANDING_BADGE: Record<FormStanding, 'success' | 'reference' | 'warning' | 'muted'> = {
   draft: 'muted',
@@ -39,12 +41,23 @@ export const STANDING_BADGE: Record<FormStanding, 'success' | 'reference' | 'war
   archived: 'muted',
 };
 
+const STANDING_TONE: Record<FormStanding, Tone> = {
+  draft: 'muted',
+  live: 'success',
+  scheduled_close: 'success',
+  full: 'warning',
+  ended: 'muted',
+  closed: 'muted',
+  archived: 'muted',
+};
+
+const VIEWS: readonly FormsView[] = ['current', 'live', 'draft', 'closed', 'archived'];
+
 /**
- * The workspace's forms, laid out like Booking rules: one section of rows —
- * tile, name and where it stands, how many questions, when someone last
- * answered — with new responses called out. The aside counts what's live and
- * waiting, and says the three ways a form collects. With no forms yet, the
- * templates are the page.
+ * The workspace's forms as a list: four figures, a search with the Show and
+ * Responses selects beside it (as Content → Entries) and the count, then one row per form. A
+ * row with new responses opens on them. With no forms yet, the templates are
+ * the page.
  */
 export function FormsList({ onOpen }: { onOpen: (id: string, tab?: EditorTab) => void }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -52,7 +65,8 @@ export function FormsList({ onOpen }: { onOpen: (id: string, tab?: EditorTab) =>
   const canWrite = hasCapability(capabilities, 'forms:write');
   const canReadResponses = hasCapability(capabilities, 'forms.responses:read');
   const reduceMotion = useReducedMotion();
-  const [filter, setFilter] = useState<Filter>('current');
+  const [view, setView] = useState<FormsView>('current');
+  const [onlyNew, setOnlyNew] = useState(false);
   const [search, setSearch] = useState('');
   const [creating, setCreating] = useState(false);
   // Pinned on mount so "Live" doesn't flip under a render.
@@ -64,10 +78,15 @@ export function FormsList({ onOpen }: { onOpen: (id: string, tab?: EditorTab) =>
     enabled: Boolean(tenantId),
   });
   const all = useMemo(() => query.data ?? [], [query.data]);
-  const needle = search.trim().toLowerCase();
-  const shown = all
-    .filter((form) => (filter === 'archived' ? form.status === 'archived' : form.status !== 'archived'))
-    .filter((form) => !needle || form.name.toLowerCase().includes(needle));
+  const overview = useMemo(() => formsOverview(all, now), [all, now]);
+  const shown = filterForms(all, { view, onlyNew, search }, now);
+
+  const filtersActive = Boolean(search.trim()) || view !== 'current' || onlyNew;
+  const clearFilters = () => {
+    setSearch('');
+    setView('current');
+    setOnlyNew(false);
+  };
 
   const header = (body: React.ReactNode) => (
     <EditorShell
@@ -88,97 +107,160 @@ export function FormsList({ onOpen }: { onOpen: (id: string, tab?: EditorTab) =>
     </EditorShell>
   );
 
-  if (query.isSuccess && all.length === 0) {
+  if (query.isPending)
     return header(
-      <div className="mx-auto w-full max-w-5xl py-4">
-        <div className="mb-6 max-w-2xl">
-          <h2 className="text-xl font-semibold tracking-title text-heading">{canWrite ? 'Build your first form' : 'No forms yet'}</h2>
-          <p className="mt-1.5 text-sm leading-relaxed text-muted-foreground">
-            {canWrite
-              ? 'Enquiries, feedback, sign-ups, applications — share it as a link or QR code, put it on your website, or send answers straight to the API. Respondents can become customers.'
-              : 'Forms appear here once someone who can build them makes one.'}
-          </p>
+      <div className="flex flex-col gap-5" aria-busy="true">
+        <FactsSkeleton count={4} label="Loading form figures" className="gap-3 sm:grid-cols-2 xl:grid-cols-4" />
+        <div className="flex flex-wrap items-center gap-2">
+          <Bone className="h-9 min-w-56 flex-1" />
+          <Bone className="h-9 w-40" />
+          <Bone className="h-9 w-40" />
         </div>
-        {canWrite && <TemplateGallery onCreated={(id) => onOpen(id)} />}
+        <ListSkeleton rows={5} label="Loading your forms" />
       </div>,
     );
-  }
+
+  if (query.isError) return header(<ErrorState className="flex-1" title="Couldn’t load your forms" onRetry={() => void query.refetch()} />);
+
+  // No forms yet: making one is the page.
+  if (all.length === 0)
+    return header(
+      canWrite ? (
+        <div className="mx-auto w-full max-w-2xl">
+          <motion.div initial={reduceMotion ? false : 'hidden'} animate="shown">
+            <RecordGroup id="forms-start" title="Start a form" footnote="Change the name and every question afterwards.">
+              <TemplateGallery onCreated={(id) => onOpen(id)} />
+            </RecordGroup>
+          </motion.div>
+        </div>
+      ) : (
+        <EmptyState
+          className="flex-1"
+          icon={ClipboardList}
+          title="No forms yet"
+          description="Forms appear here once someone who can build them makes one."
+        />
+      ),
+    );
+
+  const viewCount = (value: FormsView) => all.filter((form) => inFormsView(form, value, now)).length;
 
   return header(
-    <SettingsTabBody narrowAside aside={<FormsAside forms={all} loaded={query.isSuccess} now={now} />}>
-      <SettingsSection
-        title="Forms"
-        actions={
-          <SegmentedControl<Filter>
-            value={filter}
-            onChange={setFilter}
-            ariaLabel="Which forms"
-            options={[
-              { value: 'current', label: 'Current' },
-              { value: 'archived', label: 'Archived' },
-            ]}
-          />
-        }
-      >
-        {query.isPending ? (
-          <TilesSkeleton count={4} label="Loading forms" />
-        ) : query.isError ? (
-          <ErrorState title="Couldn’t load your forms" onRetry={() => void query.refetch()} />
-        ) : (
-          <div className="space-y-3">
-            {all.length > 6 && (
-              <Input
-                aria-label="Find a form"
-                placeholder="Find by name"
-                value={search}
-                leftIcon={<Search size={14} aria-hidden="true" />}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            )}
-            {shown.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                {needle ? `No form matches “${search.trim()}”.` : filter === 'archived' ? 'Nothing archived.' : 'Everything is archived.'}
-              </p>
-            ) : (
-              <ul className="-mx-2 flex flex-col gap-0.5">
-                {shown.map((form, index) => (
-                  <motion.li
-                    key={form.id}
-                    initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0, transition: { delay: reduceMotion ? 0 : Math.min(index, 8) * 0.03 } }}
+    // Outside the settings shell, so it brings the shell's stagger with it.
+    <motion.div
+      className="flex flex-col gap-5"
+      initial={reduceMotion ? false : 'hidden'}
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+    >
+      <motion.dl variants={SECTION_RISE} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Fact
+          surface="page"
+          icon={Send}
+          label="Live"
+          value={overview.live}
+          hint={`of ${overview.current} ${overview.current === 1 ? 'form' : 'forms'}`}
+          onSelect={() => setView('live')}
+        />
+        <Fact
+          surface="page"
+          icon={Bell}
+          label="New responses"
+          value={overview.fresh.toLocaleString('en-GB')}
+          hint={overview.waiting > 0 ? `on ${overview.waiting} ${overview.waiting === 1 ? 'form' : 'forms'}` : 'All looked at'}
+          onSelect={overview.fresh > 0 ? () => setOnlyNew(true) : undefined}
+        />
+        <Fact surface="page" icon={ListChecks} label="Responses" value={overview.total.toLocaleString('en-GB')} hint="All time" />
+        <Fact
+          surface="page"
+          icon={Clock}
+          label="Last response"
+          value={overview.lastResponseAt ? <RelativeTime iso={overview.lastResponseAt} /> : '—'}
+          hint={overview.lastResponseAt ? undefined : 'None yet'}
+        />
+      </motion.dl>
+
+      <motion.section variants={SECTION_RISE} className="flex flex-col gap-3" aria-label="Forms">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-56 flex-1">
+            <Input
+              type="search"
+              aria-label="Find a form by name"
+              placeholder="Form name…"
+              value={search}
+              leftIcon={<Search size={14} aria-hidden="true" />}
+              onChange={(event) => setSearch(event.target.value)}
+              rightAction={
+                search ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    aria-label="Clear search"
+                    className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
-                    <FormRow
-                      form={form}
-                      now={now}
-                      onOpen={() => onOpen(form.id, canReadResponses && form.newResponses > 0 ? 'responses' : 'build')}
-                    />
-                  </motion.li>
-                ))}
-              </ul>
-            )}
+                    <X size={13} aria-hidden="true" />
+                  </button>
+                ) : undefined
+              }
+            />
           </div>
+          <Select
+            value={view}
+            onValueChange={(value) => setView(value as FormsView)}
+            options={VIEWS.map((value) => ({ value, label: `${FORMS_VIEW_LABELS[value]} · ${viewCount(value)}` }))}
+            ariaLabel="Which forms"
+            className="w-40"
+          />
+          <Select
+            value={onlyNew ? 'new' : 'any'}
+            onValueChange={(value) => setOnlyNew(value === 'new')}
+            options={[
+              { value: 'any', label: 'Any responses' },
+              { value: 'new', label: `New responses · ${overview.waiting}` },
+            ]}
+            ariaLabel="Forms with new responses"
+            className="w-40"
+          />
+          <span className="ml-auto text-xs tabular-nums text-muted-foreground" aria-live="polite">
+            {filtersActive ? `${shown.length} of ${all.length}` : `${overview.current} ${overview.current === 1 ? 'form' : 'forms'}`}
+          </span>
+        </div>
+
+        {shown.length === 0 ? (
+          <EmptyState
+            icon={Search}
+            kind="search"
+            title="No form matches"
+            description="Try a different search or filter."
+            action={{ label: 'Clear filters', onClick: clearFilters }}
+          />
+        ) : (
+          <ListRowGroup aria-label="Forms">
+            {shown.map((form) => (
+              <FormRow
+                key={form.id}
+                form={form}
+                now={now}
+                onOpen={() => onOpen(form.id, canReadResponses && form.newResponses > 0 ? 'responses' : 'build')}
+              />
+            ))}
+          </ListRowGroup>
         )}
-      </SettingsSection>
-    </SettingsTabBody>,
+      </motion.section>
+    </motion.div>,
   );
 }
 
-/** One form: tile, name and standing; its questions and last response; new responses on the right. */
+/** One form: tile and name with where it stands; its questions and last response; new responses on the right. */
 function FormRow({ form, now, onOpen }: { form: FormListItem; now: number; onOpen: () => void }) {
   const standing = formStanding(form, now);
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-    >
-      <RowTile
-        icon={ClipboardList}
-        tone={standing === 'live' || standing === 'scheduled_close' ? 'success' : standing === 'full' ? 'warning' : 'default'}
-      />
-      <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-semibold text-foreground">{form.name}</span>
+    <ListRow
+      icon={ClipboardList}
+      tone={STANDING_TONE[standing]}
+      title={form.name}
+      titleExtra={
+        <>
           <Badge variant={STANDING_BADGE[standing]} className="shrink-0">
             {STANDING_LABELS[standing]}
           </Badge>
@@ -187,8 +269,10 @@ function FormRow({ form, now, onOpen }: { form: FormListItem; now: number; onOpe
               Unpublished changes
             </Badge>
           )}
-        </span>
-        <span className="block truncate text-xs text-muted-foreground">
+        </>
+      }
+      meta={
+        <>
           {form.fieldCount} {form.fieldCount === 1 ? 'question' : 'questions'}
           {form.lastResponseAt ? (
             <>
@@ -198,67 +282,19 @@ function FormRow({ form, now, onOpen }: { form: FormListItem; now: number; onOpe
           ) : (
             ' · no responses yet'
           )}
-        </span>
-      </span>
-      <span className="hidden shrink-0 items-center gap-2 sm:flex">
-        {form.newResponses > 0 && (
-          <span className="rounded-full bg-momentum/12 px-2 py-0.5 text-xs font-semibold tabular-nums text-momentum">
-            {form.newResponses} new
-          </span>
-        )}
-        <span className="text-right text-xs tabular-nums text-muted-foreground">{responsesLabel(form.responseCount)}</span>
-      </span>
-      <ChevronRight
-        size={16}
-        className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-        aria-hidden="true"
-      />
-    </button>
-  );
-}
-
-function FormsAside({ forms, loaded, now }: { forms: FormListItem[]; loaded: boolean; now: number }) {
-  const current = forms.filter((form) => form.status !== 'archived');
-  const live = current.filter((form) => ['live', 'scheduled_close'].includes(formStanding(form, now))).length;
-  const fresh = current.reduce((sum, form) => sum + form.newResponses, 0);
-  const total = current.reduce((sum, form) => sum + form.responseCount, 0);
-  const figure = (value: React.ReactNode) => <span className="text-sm tabular-nums text-muted-foreground">{loaded ? value : '—'}</span>;
-  return (
-    <>
-      <SettingsSection title="Overview">
-        <InfoRows>
-          <InfoRow icon={ClipboardList} title="Live now">
-            {figure(
-              <>
-                <span className="text-foreground">{live}</span> of {current.length}
-              </>,
-            )}
-          </InfoRow>
-          <InfoRow icon={Bell} title="Waiting for a look" tone={fresh > 0 ? 'success' : undefined}>
-            {figure(<span className={fresh > 0 ? 'font-semibold text-momentum' : undefined}>{fresh.toLocaleString('en-GB')}</span>)}
-          </InfoRow>
-          <InfoRow icon={ListChecks} title="Responses">
-            {figure(total.toLocaleString('en-GB'))}
-          </InfoRow>
-        </InfoRows>
-      </SettingsSection>
-      <SettingsSection title="Three ways to collect">
-        <ul className="space-y-3">
-          {[
-            { icon: QrCode, title: 'A link or QR code', text: 'DUMA hosts the page — on a table, a receipt, a social post.' },
-            { icon: Code, title: 'On your website', text: 'Paste one snippet; it fits itself to the form.' },
-            { icon: Braces, title: 'Through the API', text: 'Your own design posts the answers; DUMA checks and keeps them.' },
-          ].map((way) => (
-            <li key={way.title} className="flex gap-3">
-              <RowTile icon={way.icon} />
-              <span className="min-w-0">
-                <span className="block text-sm font-semibold text-foreground">{way.title}</span>
-                <span className="block text-xs leading-relaxed text-muted-foreground">{way.text}</span>
-              </span>
-            </li>
-          ))}
-        </ul>
-      </SettingsSection>
-    </>
+        </>
+      }
+      trailing={
+        <>
+          {form.newResponses > 0 && (
+            <Badge variant="success" className="tabular-nums">
+              {form.newResponses} new
+            </Badge>
+          )}
+          <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">{responsesLabel(form.responseCount)}</span>
+        </>
+      }
+      onClick={onOpen}
+    />
   );
 }

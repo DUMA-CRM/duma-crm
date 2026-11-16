@@ -5,13 +5,13 @@ import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { AlertTriangle, ChevronRight, Database, Download, FileText, Lock, Settings } from '@/components/icons';
+import { Database, Download, Gauge, Lock } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { Switch } from '@/components/settings/controls';
+import { ChangeRow, Switch, ValueMissing } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
-import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 import { exportCmsContent, getCmsSettings, getCmsStorage, updateCmsSettings } from '@/lib/modules/cms/client';
 import { toast } from '@/lib/toast';
@@ -19,14 +19,15 @@ import { formatBytes } from '@/lib/utils/cms';
 import { useCmsTenantId, useContentPaths } from '@/components/cms/ContentScope';
 
 import { uploadTarget } from './StorageUsage';
-import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile } from './rows';
+import { RowWarning } from './rows';
 import { cmsKeys, invalidateCms } from './shared';
 
 /**
- * Content's own settings: file privacy and a full export. Keys and webhooks
+ * Content's own settings: file privacy, a full export, and where the files
+ * live — which decides how far the privacy switch reaches. Keys and webhooks
  * moved to Settings → Developers, with every other public API. Laid out like
- * the settings rules tabs: the two settings in the main column, where the
- * files actually live alongside — that decides how far the privacy switch reaches.
+ * Settings → Account: a bento of short sections, each value a row, every
+ * change saving at once.
  */
 export function ContentSettingsPanel() {
   const reduceMotion = useReducedMotion();
@@ -36,12 +37,29 @@ export function ContentSettingsPanel() {
       initial={reduceMotion ? false : 'hidden'}
       animate="shown"
       variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+      className="grid items-start gap-5 xl:grid-cols-2"
     >
-      <SettingsTabBody narrowAside aside={<StorageSection />}>
+      <div className="flex min-w-0 flex-col gap-5">
         <FilePrivacySection />
         <BackupSection />
-      </SettingsTabBody>
+      </div>
+      <div className="flex min-w-0 flex-col gap-5">
+        <StorageSection />
+      </div>
     </motion.div>
+  );
+}
+
+/** A `ChangeRow`'s shape while its value loads. */
+function RowBone() {
+  return (
+    <div className="flex items-center gap-3" aria-hidden="true">
+      <Bone className="size-10 shrink-0" />
+      <span className="min-w-0 flex-1 space-y-1.5">
+        <Bone className="h-2.5 w-20" />
+        <Bone className="h-3.5 w-40 max-w-full" />
+      </span>
+    </div>
   );
 }
 
@@ -72,33 +90,36 @@ function FilePrivacySection() {
   const on = query.data?.privateUnpublishedAssets ?? false;
 
   return (
-    <SettingsSection
+    <RecordGroup
+      card
+      id="cms-file-privacy"
       title="File privacy"
-      actions={query.data ? <Badge variant={on ? 'success' : 'muted'}>{on ? 'Private' : 'Off'}</Badge> : undefined}
+      footnote="A file’s link stops working until a published entry uses it, so unreleased images can’t be found by guessing."
     >
       {query.isPending ? (
-        <Bone className="h-8 w-full rounded-md" />
+        <div role="status" aria-busy="true" aria-label="Loading file privacy">
+          <RowBone />
+        </div>
       ) : query.isError ? (
         <ErrorState title="Couldn’t load file privacy" onRetry={() => void query.refetch()} />
       ) : (
         <>
-          <InfoRow icon={Lock} title="Keep draft-only files private">
-            <Switch label="Keep draft-only files private" checked={on} disabled={save.isPending} onChange={(value) => save.mutate(value)} />
-          </InfoRow>
-          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-            A file’s link stops working until a published entry uses it, so unreleased images can’t be found by guessing.
-          </p>
+          <ChangeRow
+            icon={Lock}
+            label="Draft-only files"
+            value={on ? 'Private' : <ValueMissing>Reachable by link</ValueMissing>}
+            trailing={
+              <Switch label="Keep draft-only files private" checked={on} disabled={save.isPending} onChange={(value) => save.mutate(value)} />
+            }
+          />
           {on && (
-            <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
-              <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
-              <span>
-                Files linked from outside the CMS — a logo in your site’s code — stop loading until an entry using them is published.
-              </span>
-            </p>
+            <RowWarning className="mt-3">
+              Files linked from outside the CMS — a logo in your site’s code — stop loading until an entry using them is published.
+            </RowWarning>
           )}
         </>
       )}
-    </SettingsSection>
+    </RecordGroup>
   );
 }
 
@@ -125,19 +146,17 @@ function BackupSection() {
     }
   }
   return (
-    <SettingsSection title="Backup">
-      <ActionRows>
-        <ActionRow
-          icon={busy ? FileText : Download}
-          label={busy ? 'Exporting…' : 'Export all content'}
-          disabled={busy}
-          onClick={() => void download()}
-        />
-      </ActionRows>
-      <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-        One JSON file: every model, language and entry (drafts and live), and each media file’s details and link. The files themselves stay
-        where they are.
-      </p>
+    <SettingsSection>
+      <ChangeRow
+        icon={Download}
+        label="Export"
+        value="All content as one JSON file"
+        trailing={
+          <Button variant="outline" size="sm" disabled={busy} onClick={() => void download()} aria-label="Export all content">
+            {busy ? 'Exporting…' : 'Download'}
+          </Button>
+        }
+      />
     </SettingsSection>
   );
 }
@@ -158,50 +177,48 @@ function StorageSection() {
   const connection = active?.kind === 'connection' ? storage.data?.connections.find((row) => row.id === active.connectionId) : undefined;
 
   return (
-    <SettingsSection title="Where files live">
+    <RecordGroup
+      card
+      id="cms-storage"
+      title="Storage"
+      footnote={
+        connection?.configuration.publicBaseUrl
+          ? `Files served from ${connection.displayName}’s own public link are as public as that bucket — the privacy switch covers DUMA’s file links only.`
+          : undefined
+      }
+    >
       {storage.isPending ? (
-        <Bone className="h-20 w-full rounded-md" />
+        <div role="status" aria-busy="true" aria-label="Loading storage" className="space-y-5">
+          <RowBone />
+          <RowBone />
+        </div>
       ) : storage.isError || !target ? (
         <ErrorState title="Couldn’t load storage" onRetry={() => void storage.refetch()} />
       ) : (
-        <>
-          <InfoRows>
-            <InfoRow icon={Database} title="Uploads go to">
-              <span className="truncate text-sm font-semibold text-foreground">{target.name}</span>
-            </InfoRow>
-            <InfoRow icon={FileText} title="Used">
-              <span className="text-sm font-semibold text-foreground">
-                {target.quotaBytes === null
-                  ? `${formatBytes(target.usedBytes)}, no limit`
-                  : `${formatBytes(target.usedBytes)} of ${formatBytes(target.quotaBytes)}`}
-              </span>
-            </InfoRow>
-          </InfoRows>
-          {connection?.configuration.publicBaseUrl && (
-            <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-              Files served from {connection.displayName}’s own public link are as public as that bucket — the privacy switch covers DUMA’s
-              file links only.
-            </p>
-          )}
-          <div className="-mx-2 mt-4 flex flex-col gap-0.5">
-            <Link
-              href={storagePath}
-              className="group flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-band/50"
-            >
-              <RowTile icon={Settings} />
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-foreground">Manage storage</span>
-                <span className="block truncate text-xs text-muted-foreground">Settings → Connections → Media storage</span>
-              </span>
-              <ChevronRight
-                size={14}
-                className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                aria-hidden="true"
-              />
-            </Link>
-          </div>
-        </>
+        <div>
+          <ChangeRow
+            icon={Database}
+            label="Uploads go to"
+            value={<span className="truncate">{target.name}</span>}
+            trailing={
+              <Button variant="outline" size="sm" asChild>
+                <Link href={storagePath} aria-label="Manage storage">
+                  Manage
+                </Link>
+              </Button>
+            }
+          />
+          <ChangeRow
+            icon={Gauge}
+            label="Used"
+            value={
+              target.quotaBytes === null
+                ? `${formatBytes(target.usedBytes)}, no limit`
+                : `${formatBytes(target.usedBytes)} of ${formatBytes(target.quotaBytes)}`
+            }
+          />
+        </div>
       )}
-    </SettingsSection>
+    </RecordGroup>
   );
 }

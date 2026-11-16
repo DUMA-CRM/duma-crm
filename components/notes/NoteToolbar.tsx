@@ -269,7 +269,7 @@ export function NoteToolbar({
                   )
                 }
               />
-              <div className="my-1 h-px bg-rule/50" />
+              <div className="my-1 h-px bg-border" />
               <MenuOption
                 label="2 columns"
                 icon={Columns2}
@@ -351,7 +351,7 @@ export function NoteToolbar({
               selected={state.codeBlock}
               onSelect={() => choose(() => editor.chain().focus().toggleCodeBlock().run())}
             />
-            <div className="my-1 h-px bg-rule/50" />
+            <div className="my-1 h-px bg-border" />
             {ALIGNS.map((entry) => (
               <MenuOption
                 key={entry.key}
@@ -367,7 +367,7 @@ export function NoteToolbar({
                 }
               />
             ))}
-            <div className="my-1 h-px bg-rule/50" />
+            <div className="my-1 h-px bg-border" />
             <MenuOption
               label="Clear formatting"
               icon={TextClear}
@@ -489,7 +489,7 @@ function ToolbarMenu({
 }
 
 function Separator() {
-  return <span className="mx-1 hidden h-5 w-px shrink-0 bg-rule/60 md:block" aria-hidden="true" />;
+  return <span className="mx-1 hidden h-4 w-px shrink-0 bg-border md:block" aria-hidden="true" />;
 }
 
 /** One icon control. Spreads the rest so it can be a popover's trigger. */
@@ -554,15 +554,15 @@ function ColourMenu({ editor, textColour, markColour }: { editor: Editor; textCo
             <TextColor size={15} aria-hidden="true" style={textColour ? { color: noteColourValue('text', textColour) } : undefined} />
             {/* The bar shows the highlight under the caret, as Docs does. */}
             <span
-              className="h-0.75 w-4 rounded-full bg-rule/70"
+              className="h-0.75 w-4 rounded-sm bg-muted-foreground/30"
               style={markColour ? { background: noteColourValue('mark', markColour) } : undefined}
               aria-hidden="true"
             />
           </button>
         </PopoverTrigger>
       </Tooltip>
-      <PopoverContent className="w-72 p-3 md:w-64" onOpenAutoFocus={noAutoFocus} onCloseAutoFocus={noAutoFocus}>
-        <p className="mb-2 text-label uppercase text-muted-foreground">Text</p>
+      <PopoverContent className="w-72 p-2.5 md:w-64" onOpenAutoFocus={noAutoFocus} onCloseAutoFocus={noAutoFocus}>
+        <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Text</p>
         <div className="grid grid-cols-5 gap-1.5">
           <Swatch label="Default" selected={!textColour} onSelect={() => editor.chain().focus().unsetColor().run()}>
             <span className="text-sm font-semibold text-foreground">A</span>
@@ -580,7 +580,7 @@ function ColourMenu({ editor, textColour, markColour }: { editor: Editor; textCo
             </Swatch>
           ))}
         </div>
-        <p className="mb-2 mt-3 text-label uppercase text-muted-foreground">Highlight</p>
+        <p className="mb-1.5 mt-3 text-xs font-semibold text-muted-foreground">Highlight</p>
         <div className="grid grid-cols-5 gap-1.5">
           <Swatch label="No highlight" selected={!markColour} onSelect={() => editor.chain().focus().unsetHighlight().run()}>
             <span className="block h-px w-5 rotate-[-35deg] bg-muted-foreground" />
@@ -629,8 +629,8 @@ function Swatch({
         onClick={onSelect}
         style={style}
         className={cn(
-          'flex size-11 items-center justify-center rounded-md border md:size-9 border-border bg-card transition-[box-shadow,border-color] hover:border-rule focus-visible:outline-2 focus-visible:outline-ring',
-          selected && 'border-primary ring-2 ring-primary/35',
+          'flex size-11 items-center justify-center rounded-md border md:size-9 border-border bg-card transition-[border-color] hover:border-muted-foreground/40 focus-visible:outline-2 focus-visible:outline-ring',
+          selected && 'border-primary/70',
         )}
       >
         {children}

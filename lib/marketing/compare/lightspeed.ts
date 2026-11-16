@@ -13,7 +13,7 @@ export const DUMA_VS_LIGHTSPEED: Comparison = {
   breadcrumb: 'DUMA vs Lightspeed',
   metaTitle: 'Lightspeed Alternative UK: DUMA vs Lightspeed POS | DUMA',
   description:
-    'A free Lightspeed alternative for UK cafés, restaurants and shops: till, stock, recipe margin, rotas and loyalty in one workspace, with your own card machine. Prices as of November 2026.',
+    'Compare DUMA with Lightspeed for UK cafés and shops: till, stock, recipe margins, rotas and loyalty, with your own card machine.',
   checked: '2026-11-03',
   asOf: 'November 2026',
   vatNote: 'Lightspeed’s UK website does not say whether its figures include VAT.',

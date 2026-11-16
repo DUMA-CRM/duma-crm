@@ -17,31 +17,32 @@ export function NoteBacklinks({ noteId, onOpen }: { noteId: string; onOpen: (id:
   if (query.isPending || (query.isSuccess && query.data.length === 0)) return null;
 
   return (
-    <section aria-label="Linked from" className="mt-10 border-t border-divider pt-5">
-      <h2 className="mb-2 flex items-center gap-1.5 text-label uppercase text-muted-foreground">
-        <Link2 size={13} aria-hidden="true" />
-        Linked from{query.isSuccess && <span className="tabular-nums">· {query.data.length}</span>}
+    <section aria-labelledby={`backlinks-${noteId}`} className="mt-10 border-t border-border pt-4">
+      <h2 id={`backlinks-${noteId}`} className="mb-1 flex items-center gap-1.5 px-2 text-sm font-semibold text-heading">
+        <Link2 size={14} className="text-muted-foreground" aria-hidden="true" />
+        Linked from
+        {query.isSuccess && <span className="font-normal tabular-nums text-muted-foreground">{query.data.length}</span>}
       </h2>
       {query.isError ? (
-        <p className="text-sm text-muted-foreground">
+        <p className="px-2 text-sm text-muted-foreground">
           Links to this note couldn’t be loaded.{' '}
           <button type="button" className="font-medium text-primary hover:underline" onClick={() => void query.refetch()}>
             Try again
           </button>
         </p>
       ) : (
-        <ul className="grid gap-1.5 sm:grid-cols-2">
+        <ul className="grid gap-x-4 sm:grid-cols-2">
           {query.data.map((note) => (
-            <li key={note.id}>
+            <li key={note.id} className="min-w-0">
               <button
                 type="button"
                 onClick={() => onOpen(note.id)}
-                className="flex w-full items-start gap-2.5 rounded-lg border border-border px-3 py-2.5 text-left transition-colors duration-150 hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
+                className="flex w-full items-start gap-2 rounded-md px-2 py-1.5 text-left transition-colors duration-150 hover:bg-band/60 focus-visible:outline-2 focus-visible:outline-ring"
               >
                 {note.pinned ? (
-                  <Pin size={15} className="mt-0.5 shrink-0 text-primary" aria-hidden="true" />
+                  <Pin size={14} className="mt-0.5 shrink-0 text-primary" aria-label="Pinned" />
                 ) : (
-                  <StickyNote size={15} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
+                  <StickyNote size={14} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
                 )}
                 <span className="min-w-0 flex-1">
                   <span className="block truncate text-sm font-medium text-foreground">{note.title || 'New note'}</span>

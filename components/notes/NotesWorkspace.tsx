@@ -10,7 +10,6 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { MenuOption } from '@/components/shared/MenuOption';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -26,7 +25,7 @@ import { useAuthStore } from '@/stores/authStore';
 
 import { FolderDialog, type FolderDialogMode } from './FolderDialog';
 import { NoteEditor } from './NoteEditor';
-import { NotesSidebar } from './NotesSidebar';
+import { NotesSidebar, TreeSkeleton } from './NotesSidebar';
 
 type NewNote = { kind?: 'note' | 'drawing'; into?: string | null };
 
@@ -138,18 +137,18 @@ export function NotesWorkspace() {
 
   return (
     <EditorShell
-      eyebrow="Knowledge base"
       title="Notes"
       icon={<NotebookPen size={20} aria-hidden="true" />}
       flush
+      meta={
+        noteId && length && length.words > 0 ? (
+          <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground" aria-live="polite">
+            {length.words.toLocaleString()} {length.words === 1 ? 'word' : 'words'} · {length.minutes} min read
+          </span>
+        ) : undefined
+      }
       actions={
         <div className="flex items-center gap-1.5 md:gap-2">
-          {noteId && length && length.words > 0 && (
-            <span className="mr-1 hidden whitespace-nowrap text-xs tabular-nums text-muted-foreground md:inline" aria-live="polite">
-              {length.words.toLocaleString()} {length.words === 1 ? 'word' : 'words'}
-              <span className="max-xl:hidden"> · {length.characters.toLocaleString()} characters</span> · {length.minutes} min read
-            </span>
-          )}
           <Tooltip side="bottom" label="See how your notes connect">
             <Button variant="outline" className="h-9 gap-1.5" onClick={() => router.push('/notes/graph')} aria-label="Graph">
               <GraphView size={15} aria-hidden="true" />
@@ -202,16 +201,14 @@ export function NotesWorkspace() {
         </div>
       }
     >
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[19rem_minmax(0,1fr)]">
+      <div className="grid min-h-0 flex-1 lg:grid-cols-[17rem_minmax(0,1fr)]">
         {/* ── Folders and their notes, one tree ── */}
         <aside
-          className={cn('min-h-0 flex-col border-r border-divider bg-card', noteId ? 'hidden lg:flex' : 'flex')}
+          className={cn('min-h-0 flex-col bg-background lg:border-r lg:border-border', noteId ? 'hidden lg:flex' : 'flex')}
           aria-label="Notes and folders"
         >
           {folders.isPending ? (
-            <div className="p-3">
-              <TilesSkeleton count={6} label="Loading folders" />
-            </div>
+            <TreeSkeleton />
           ) : folders.isError ? (
             <ErrorState title="Folders couldn’t be loaded" onRetry={() => void folders.refetch()} />
           ) : (
@@ -248,7 +245,7 @@ export function NotesWorkspace() {
         </aside>
 
         {/* ── The note ── */}
-        <main className={cn('min-h-0 flex-col bg-background', noteId ? 'flex' : 'hidden lg:flex')}>
+        <main className={cn('min-h-0 flex-col bg-card', noteId ? 'flex' : 'hidden lg:flex')}>
           {noteId ? (
             <NoteEditor
               noteId={noteId}
@@ -263,7 +260,6 @@ export function NotesWorkspace() {
               className="flex-1"
               icon={NotebookPen}
               title="Pick a note, or start one"
-              description="Recipes, opening and closing checklists, how-tos — written once, found by search, and answered by Ask DUMA from shared folders."
               action={
                 canWrite
                   ? {

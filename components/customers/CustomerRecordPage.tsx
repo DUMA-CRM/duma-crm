@@ -36,6 +36,7 @@ import {
   Send,
   ShieldCheck,
   ShoppingBag,
+  Trash2,
   UserCircle2,
   Wallet,
 } from '@/components/icons';
@@ -59,7 +60,7 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { TIER_CONFIG } from '@/lib/constants/customers';
 import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { getPrivacyRequests } from '@/lib/modules/compliance/client';
-import { getCustomer, getCustomerLedger, getCustomerLoyaltyWallet, unmergeCustomer } from '@/lib/modules/customers/client';
+import { eraseCustomer, getCustomer, getCustomerLedger, getCustomerLoyaltyWallet, unmergeCustomer } from '@/lib/modules/customers/client';
 import { getOrders } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
@@ -110,7 +111,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const qc = useQueryClient();
   const capabilities = useAuthStore((state) => state.capabilities);
   const money = useWorkspaceMoney();
-  const [modal, setModal] = useState<'email' | 'points' | 'edit' | 'unmerge' | null>(null);
+  const [modal, setModal] = useState<'email' | 'points' | 'edit' | 'unmerge' | 'delete' | null>(null);
   const [granting, setGranting] = useState<CustomerLoyaltyProgram | null>(null);
   const [privacyOpen, setPrivacyOpen] = useState<'marketing' | 'requests' | null>(null);
 
@@ -202,6 +203,20 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
     onError: (error) => toast('error', error.message || 'Could not separate these records.'),
   });
 
+  // Delete is the API's erasure: personal details wiped in place, the row kept so
+  // order and payment history still adds up. Same routine as a privacy request.
+  const remove = useMutation({
+    mutationFn: () => eraseCustomer(customerId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer', customerId) });
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customers') });
+      setModal(null);
+      toast('success', 'Customer deleted.');
+      router.push('/customers');
+    },
+    onError: (error) => toast('error', error.message || 'The customer wasn’t deleted.'),
+  });
+
   // `GET /orders` checks a capability some customer roles lack (see the
   // `orders:bulk` note in CLAUDE.md). A refusal is not a failure to retry, so
   // the panel steps aside instead of offering a "Try again" that cannot work.
@@ -224,6 +239,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const canEdit = hasCapability(capabilities, 'customers:write');
   const canAdjustPoints = hasCapability(capabilities, 'customers:points');
   const canMerge = hasCapability(capabilities, 'customers:merge');
+  const canDelete = hasCapability(capabilities, 'customers:erase');
   // Loyalty is on when the workspace runs at least one programme; with none, points and rewards don't apply.
   const loyaltyOn = (loyaltyWallet?.programmes.length ?? 0) > 0;
   // Issued automatically each birthday; this is the by-hand route, for a
@@ -304,6 +320,18 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
               <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setModal('edit')} aria-label="Edit details">
                 <Pencil size={15} aria-hidden="true" />
                 <span className="hidden md:inline">Edit</span>
+              </Button>
+            )}
+            {canDelete && (
+              <Button
+                variant="outline"
+                size="sm"
+                className="gap-1.5 text-exception hover:text-exception"
+                onClick={() => setModal('delete')}
+                aria-label="Delete customer"
+              >
+                <Trash2 size={15} aria-hidden="true" />
+                <span className="hidden md:inline">Delete</span>
               </Button>
             )}
             {startOrder && (
@@ -588,6 +616,18 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
           isPending={unmerge.isPending}
           onClose={() => setModal(null)}
           onConfirm={() => unmerge.mutate()}
+        />
+      )}
+      {modal === 'delete' && customer && (
+        <ConfirmModal
+          title={`Delete ${name}?`}
+          message="Their name, contact details, birthday, notes, allergies and alerts are wiped for good. Their orders stay in your sales and reports, without a name attached. This can’t be undone."
+          confirmLabel="Delete customer"
+          pendingLabel="Deleting…"
+          confirmText="delete"
+          isPending={remove.isPending}
+          onClose={() => setModal(null)}
+          onConfirm={() => remove.mutate()}
         />
       )}
     </EditorShell>

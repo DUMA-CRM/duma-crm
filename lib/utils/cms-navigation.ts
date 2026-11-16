@@ -1,20 +1,20 @@
-export type ContentTab = 'overview' | 'entries' | 'media' | 'configure' | 'updates';
+export type ContentTab = 'entries' | 'media' | 'configure' | 'updates';
 export type ContentSection = 'models' | 'locales' | 'settings';
 
-const tabs: readonly string[] = ['overview', 'entries', 'media', 'configure', 'updates'];
+const tabs: readonly string[] = ['entries', 'media', 'configure', 'updates'];
 const sections: readonly string[] = ['models', 'locales', 'settings'];
 
-/** Old tab links still open the same section, now under Configure. */
+/** Old tab links still open the same section, now under Configure; the retired Overview opens Entries. */
 export function contentLocation(tab: string | null, section: string | null) {
   if (tab && sections.includes(tab)) return { tab: 'configure' as ContentTab, section: tab as ContentSection };
-  const activeTab = tabs.includes(tab ?? '') ? (tab as ContentTab) : 'overview';
+  const activeTab = tabs.includes(tab ?? '') ? (tab as ContentTab) : 'entries';
   return {
     tab: activeTab,
     section: activeTab === 'configure' && sections.includes(section ?? '') ? (section as ContentSection) : null,
   };
 }
 
-/** Overview cards and editor actions may still refer to their original destination. */
+/** Editor actions may still refer to a section's original destination. */
 export function contentNavigation(patch: Record<string, string | null>): Record<string, string | null> {
   if (patch.tab && sections.includes(patch.tab)) return { ...patch, tab: 'configure', section: patch.tab };
   if ('tab' in patch && patch.tab !== 'configure') return { ...patch, section: null };

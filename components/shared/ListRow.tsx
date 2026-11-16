@@ -41,6 +41,7 @@ export function ListRow({
   chevron,
   as: As = 'li',
   className,
+  details,
 }: {
   icon?: IconComponent;
   tone?: Tone;
@@ -69,6 +70,12 @@ export function ListRow({
   chevron?: boolean;
   as?: 'li' | 'div';
   className?: string;
+  /**
+   * What the row opens underneath it (a field's settings), inside the same
+   * list item. Hover and `selected` then tint only the row's own line, and
+   * `selected` is quieter, so the open panel reads as part of the row.
+   */
+  details?: React.ReactNode;
 }) {
   const interactive = Boolean(onClick || href);
   const showChevron = chevron ?? interactive;
@@ -139,6 +146,33 @@ export function ListRow({
     <div className={targetClass}>{content}</div>
   );
 
+  const line = (
+    <>
+      {target}
+      {control && <span className="flex shrink-0 items-center pr-2">{control}</span>}
+      {actions && (
+        <span className="flex shrink-0 items-center gap-0.5 pr-2.5 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100 pointer-coarse:opacity-100">
+          {actions}
+        </span>
+      )}
+    </>
+  );
+
+  if (details !== undefined)
+    return (
+      <As className={cn('border-b border-border last:border-b-0', className)}>
+        <div
+          className={cn(
+            'group/row flex items-center transition-colors',
+            selected ? 'bg-band/40' : interactive ? 'hover:bg-band/40' : actions && 'hover:bg-band/25',
+          )}
+        >
+          {line}
+        </div>
+        {details}
+      </As>
+    );
+
   return (
     <As
       className={cn(
@@ -147,13 +181,7 @@ export function ListRow({
         className,
       )}
     >
-      {target}
-      {control && <span className="flex shrink-0 items-center pr-2">{control}</span>}
-      {actions && (
-        <span className="flex shrink-0 items-center gap-0.5 pr-2.5 opacity-0 transition-opacity group-hover/row:opacity-100 group-focus-within/row:opacity-100 pointer-coarse:opacity-100">
-          {actions}
-        </span>
-      )}
+      {line}
     </As>
   );
 }

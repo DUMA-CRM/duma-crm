@@ -87,7 +87,7 @@ export function ShiftsToAcknowledge({ shifts, onOpen }: { shifts: ScheduledShift
         pending.length > 1 && (
           <Button
             variant="outline"
-            className="h-9"
+            size="sm"
             disabled={acknowledge.isPending}
             onClick={() => acknowledge.mutate(pending.map((shift) => shift.id))}
           >

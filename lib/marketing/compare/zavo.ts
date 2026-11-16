@@ -16,7 +16,7 @@ export const DUMA_VS_ZAVO: Comparison = {
   breadcrumb: 'DUMA vs Zavo',
   metaTitle: 'Zavo Alternative UK: DUMA vs Zavo POS | DUMA',
   description:
-    'Zavo sells POS, payments and bookings to restaurant groups on a quote. DUMA runs the till, stock, recipe margin and rotas for smaller UK businesses, free. November 2026.',
+    'Compare Zavo and DUMA for UK hospitality: POS, payments, bookings, stock, recipe margins and rotas, with pricing and feature differences.',
   checked: '2026-11-03',
   asOf: 'November 2026',
   hero: {

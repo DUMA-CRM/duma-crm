@@ -4,8 +4,8 @@
   --text-sm: 0.875rem; --duration-fast: 150ms; --ease-standard: cubic-bezier(0.22, 1, 0.36, 1);
 }
 .tree { display: block; width: 100%; min-width: 0; box-sizing: border-box; padding: 6px 8px 8px; border: 1px solid var(--border); border-radius: 16px; background: var(--surface); color: var(--foreground); overflow: hidden; }
-.row { position: relative; display: flow-root; min-width: 0; height: 38px; }
-.item { position: relative; display: flex; width: 100%; min-width: 0; height: 36px; margin-top: 2px; align-items: center; gap: 6px; padding: 0 8px; padding-left: calc(8px + (var(--tree-depth) - 1) * 12px); border: 0; border-radius: 10px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--text-sm); line-height: 1; text-align: left; cursor: pointer; outline: none; transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); }
+.row { position: relative; display: flow-root; min-width: 0; height: 33px; }
+.item { position: relative; display: flex; width: 100%; min-width: 0; height: 32px; margin-top: 1px; align-items: center; gap: 6px; padding: 0 8px; padding-left: calc(8px + (var(--tree-depth) - 1) * 12px); border: 0; border-radius: 7px; background: transparent; color: var(--text-secondary); font: inherit; font-size: var(--text-sm); line-height: 1; text-align: left; cursor: pointer; outline: none; transition: color var(--duration-fast) var(--ease-standard), background-color var(--duration-fast) var(--ease-standard); }
 /* Selection is a background, as in the app's sidebar. Color only — a heavier weight would reflow the label. */
 .item[aria-selected="true"] { background: var(--surface-muted); color: var(--foreground); }
 .branch { position: absolute; top: 4px; bottom: 4px; left: calc(14.5px + (var(--tree-depth) - 2) * 12px); z-index: 1; width: 1px; background: var(--border); pointer-events: none; }
@@ -24,7 +24,7 @@
 .meta { position: relative; z-index: 1; margin-left: auto; padding-left: 6px; color: var(--text-muted); font-size: 0.75rem; font-variant-numeric: tabular-nums; }
 /* Room for the controls, which sit over the row's right end and show on hover or focus. */
 .item[data-has-actions] { padding-right: 34px; }
-.actions { position: absolute; top: 2px; right: 4px; z-index: 2; display: flex; height: 36px; align-items: center; opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard); }
+.actions { position: absolute; top: 1px; right: 4px; z-index: 2; display: flex; height: 32px; align-items: center; opacity: 0; transition: opacity var(--duration-fast) var(--ease-standard); }
 .row:hover .actions, .row:focus-within .actions, .actions:has([aria-expanded="true"]) { opacity: 1; }
 @media (hover: none) { .actions { opacity: 1; } }
 /* Its own line height: the row sets 1, and the clipped box (needed for the ellipsis) would cut descenders like g. */
@@ -36,3 +36,5 @@
 /* A row whose right-click menu is open keeps its highlight. */
 .row[data-state="open"] .item { background: var(--surface-muted); color: var(--foreground); }
 @media (prefers-reduced-motion: reduce) { .item, .icon, .disclosure, .actions { transition: none; } }
+/* Touch: the full 44px-class target back (40px rows). */
+@media (pointer: coarse) { .row { height: 41px; } .item { height: 40px; } .actions { height: 40px; } }

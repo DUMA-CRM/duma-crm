@@ -56,11 +56,7 @@ export function VersionsDrawer({
     <Drawer
       icon={History}
       title="History"
-      description={
-        count > 0
-          ? `${count} earlier ${count === 1 ? 'copy' : 'copies'} — one kept at most every ten minutes as you write.`
-          : 'Earlier copies, kept as you write.'
-      }
+      description={count > 0 ? `${count} earlier ${count === 1 ? 'copy' : 'copies'}` : undefined}
       onClose={onClose}
       className="sm:max-w-4xl"
       // Two columns that scroll on their own, so a long note never pushes the list away.
@@ -94,12 +90,12 @@ export function VersionsDrawer({
         <>
           <VersionList versions={versions} shownId={shown?.id ?? null} onPick={setPicked} />
           {shown && (
-            <article className="min-w-0 flex-1 overflow-y-auto px-5 py-5 sm:px-8" aria-label="The copy you picked">
+            <article className="min-w-0 flex-1 overflow-y-auto px-5 py-4 sm:px-8" aria-label="The copy you picked">
               <p className="text-xs text-muted-foreground">
                 Saved {day(shown.createdAt)}, {time(shown.createdAt)}
                 {shown.createdByName && <> · by {shown.createdByName}</>} · <RelativeTime iso={shown.createdAt} />
               </p>
-              <div className="mt-4 text-sm">
+              <div className="mt-3 text-sm">
                 <RichTextPreview markdown={shown.markdown || '_This copy was empty._'} />
               </div>
             </article>
@@ -116,14 +112,12 @@ function VersionList({ versions, shownId, onPick }: { versions: NoteVersion[]; s
   return (
     <nav
       aria-label="Earlier copies"
-      className="max-h-[30dvh] shrink-0 overflow-y-auto border-b border-divider bg-field md:max-h-none md:w-64 md:border-b-0 md:border-r"
+      className="max-h-[30dvh] shrink-0 overflow-y-auto border-b border-border bg-field pb-2 md:max-h-none md:w-60 md:border-b-0 md:border-r"
     >
       {groups.map((group) => (
         <section key={group.group} aria-label={group.group}>
-          <h3 className="sticky top-0 z-1 bg-field/95 px-4 pb-1 pt-3 text-label uppercase text-muted-foreground backdrop-blur">
-            {group.group}
-          </h3>
-          <ul className="space-y-px px-2 pb-1">
+          <h3 className="sticky top-0 z-1 bg-field px-4 pb-0.5 pt-3 text-xs font-semibold text-muted-foreground">{group.group}</h3>
+          <ul className="px-2">
             {group.notes.map((version) => {
               const current = version.id === shownId;
               return (
@@ -133,12 +127,12 @@ function VersionList({ versions, shownId, onPick }: { versions: NoteVersion[]; s
                     onClick={() => onPick(version.id)}
                     aria-current={current ? 'true' : undefined}
                     className={cn(
-                      'w-full rounded-md px-2.5 py-2 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-ring',
-                      current ? 'bg-primary/10' : 'hover:bg-band/60',
+                      'w-full rounded-md px-2 py-1.5 text-left transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-ring',
+                      current ? 'bg-band' : 'hover:bg-band/60',
                     )}
                   >
                     <span className="flex items-baseline justify-between gap-2">
-                      <span className="truncate text-sm font-semibold text-foreground">{version.title || 'Untitled'}</span>
+                      <span className="truncate text-sm font-medium text-foreground">{version.title || 'Untitled'}</span>
                       <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{time(version.createdAt)}</span>
                     </span>
                     {version.createdByName && (

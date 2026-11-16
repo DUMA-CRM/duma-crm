@@ -31,7 +31,7 @@ import {
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { Bone } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import {
   ContextMenuItem,
@@ -430,7 +430,7 @@ export function NotesSidebar({
 
   return (
     <div className="flex min-h-0 flex-1 flex-col">
-      <div className="flex shrink-0 items-center gap-1.5 border-b border-divider p-3">
+      <div className="flex shrink-0 items-center gap-1.5 px-2 pb-1 pt-2">
         <Input
           ref={searchRef}
           aria-label="Search notes, or jump to one"
@@ -497,7 +497,7 @@ export function NotesSidebar({
         ) : filtering ? (
           <Matches tag={tag!} activeId={noteId} onOpen={onOpenNote} onClearTag={() => onShowTag(null)} />
         ) : (
-          <div className="p-2">
+          <div className="px-2 pb-2 pt-1">
             <TreeView
               nodes={nodes}
               variant="plain"
@@ -525,7 +525,7 @@ export function NotesSidebar({
                 kind="start"
                 compact
                 title="No notes yet"
-                description={canWrite ? 'Start one — the first line becomes its title.' : undefined}
+                description={canWrite ? 'The first line becomes its title.' : undefined}
                 action={canWrite ? { label: 'New note', onClick: onNewNote, icon: Plus } : undefined}
               />
             )}
@@ -537,7 +537,7 @@ export function NotesSidebar({
 
       {/* Only when something's in it: an empty Recently deleted is just noise at the foot. */}
       {folders.counts.trash > 0 && (
-        <div className="max-h-[40vh] shrink-0 overflow-auto border-t border-divider p-2">
+        <div className="max-h-[40vh] shrink-0 overflow-auto border-t border-border px-2 py-1.5">
           <TreeView
             nodes={trashNodes}
             variant="plain"
@@ -599,10 +599,10 @@ function FolderMenu({ folder, canManage, onAction }: { folder: NoteFolder; canMa
   const [open, setOpen] = useState(false);
   const { share: canShare, remove: canDelete } = folderRights(folder, canManage);
   const items = [
-    { action: 'subfolder' as const, label: 'New folder inside', show: true },
-    { action: 'rename' as const, label: 'Rename', show: true },
-    { action: 'share' as const, label: 'Who sees it', show: canShare },
-    { action: 'delete' as const, label: 'Delete', show: canDelete },
+    { action: 'subfolder' as const, label: 'New folder inside', icon: FolderPlus, show: true },
+    { action: 'rename' as const, label: 'Rename', icon: Pencil, show: true },
+    { action: 'share' as const, label: 'Who sees it', icon: Users, show: canShare },
+    { action: 'delete' as const, label: 'Delete folder', icon: Trash2, show: canDelete },
   ].filter((item) => item.show);
   return (
     <Popover open={open} onOpenChange={setOpen}>
@@ -626,10 +626,13 @@ function FolderMenu({ folder, canManage, onAction }: { folder: NoteFolder; canMa
               onAction(item.action);
             }}
             className={cn(
-              'flex w-full rounded-md px-2 py-1.5 text-left text-sm',
-              item.action === 'delete' ? 'text-exception hover:bg-exception/6' : 'text-foreground hover:bg-band/60',
+              'flex min-h-11 w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-left text-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring md:min-h-0',
+              item.action === 'delete'
+                ? 'mt-1 text-exception hover:bg-exception/6 [&_svg]:text-exception'
+                : 'text-foreground hover:bg-band',
             )}
           >
+            <item.icon size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
             {item.label}
           </button>
         ))}
@@ -642,19 +645,20 @@ function Tags({ active, onShow }: { active: string | null; onShow: (tag: string 
   const tags = useQuery({ queryKey: moduleQueryKeys.notes.key('tags'), queryFn: getNoteTags });
   if (!tags.data?.length) return null;
   return (
-    <div className="max-h-32 shrink-0 overflow-auto border-t border-divider px-3 py-2.5">
-      <p className="mb-1.5 text-label uppercase text-muted-foreground">Tags</p>
+    <div className="max-h-32 shrink-0 overflow-auto border-t border-border px-3 py-2">
+      <p className="mb-1.5 text-xs font-semibold text-muted-foreground">Tags</p>
       <div className="flex flex-wrap gap-1">
         {tags.data.slice(0, 30).map((entry) => (
           <button
             key={entry.tag}
             type="button"
+            aria-pressed={active === entry.tag}
             onClick={() => onShow(active === entry.tag ? null : entry.tag)}
             className={cn(
-              'rounded-md border px-1.5 py-0.5 text-xs transition-colors',
+              'rounded-md px-1.5 py-0.5 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-ring',
               active === entry.tag
-                ? 'border-primary bg-primary/8 text-primary'
-                : 'border-border bg-control text-muted-foreground hover:text-foreground',
+                ? 'bg-primary/10 font-medium text-primary'
+                : 'bg-band/70 text-muted-foreground hover:bg-band hover:text-foreground',
             )}
           >
             #{entry.tag}
@@ -667,7 +671,7 @@ function Tags({ active, onShow }: { active: string | null; onShow: (tag: string 
 
 function TagHeader({ tag, onClear }: { tag: string; onClear: () => void }) {
   return (
-    <div className="flex items-center justify-between gap-2 px-4 pt-3">
+    <div className="flex items-center justify-between gap-2 px-3 pt-2">
       <span className="text-sm font-semibold text-foreground">#{tag}</span>
       <button type="button" onClick={onClear} className="text-xs font-medium text-primary hover:underline">
         Show all notes
@@ -721,9 +725,7 @@ function SearchResults({
       {found.error ? (
         <ErrorState title="Notes couldn’t be searched" onRetry={found.retry} />
       ) : found.hits.length === 0 && found.pending ? (
-        <div className="p-3">
-          <TilesSkeleton count={6} label="Searching" />
-        </div>
+        <HitsSkeleton label="Searching" />
       ) : found.hits.length === 0 && !found.textError ? (
         <EmptyState
           className="py-12"
@@ -731,17 +733,15 @@ function SearchResults({
           kind="search"
           compact
           title={`Nothing matches “${q}”`}
-          description={tag ? `Only notes tagged #${tag} were searched.` : 'Try fewer letters, or another word.'}
+          description={tag ? `Only notes tagged #${tag} were searched.` : undefined}
         />
       ) : (
-        <ul id="notes-search-results" role="listbox" aria-label="Matching notes" ref={listRef} className="px-2 pt-1">
+        <ul id="notes-search-results" role="listbox" aria-label="Matching notes" ref={listRef} className="px-2">
           {found.hits.map(({ note, inText }, index) => {
             const firstInText = inText && (index === 0 || !found.hits[index - 1]!.inText);
             return (
               <li key={note.id} role="none">
-                {(index === 0 || firstInText) && (
-                  <p className="px-2 pb-1 pt-2.5 text-label uppercase text-muted-foreground">{inText ? 'In the text' : 'Titles'}</p>
-                )}
+                {(index === 0 || firstInText) && <GroupHeading>{inText ? 'In the text' : 'Titles'}</GroupHeading>}
                 <button
                   type="button"
                   id={`notes-search-${note.id}`}
@@ -752,39 +752,24 @@ function SearchResults({
                   tabIndex={-1}
                   onMouseMove={() => onActive(index)}
                   onClick={() => onOpen(note.id)}
-                  className={cn(
-                    'w-full rounded-lg px-2.5 py-2 text-left transition-colors duration-150',
-                    index === active ? 'bg-primary/10' : 'hover:bg-band/50',
-                    openId === note.id && 'ring-1 ring-primary/30',
-                  )}
+                  className={hitClass(index === active || openId === note.id)}
                 >
-                  <span className="flex items-center gap-1.5">
-                    {note.pinned ? (
-                      <Pin size={12} className="shrink-0 text-primary" aria-label="Pinned" />
-                    ) : note.kind === 'drawing' ? (
-                      <PenLine size={12} className="shrink-0 text-muted-foreground" aria-label="Drawing" />
-                    ) : null}
-                    <span className="truncate text-sm font-semibold text-foreground">
-                      {note.title ? inText ? note.title : <Marked parts={titleParts(note.title, q)} /> : untitled(note)}
-                    </span>
-                  </span>
-                  <span className="mt-0.5 flex gap-2 text-xs text-muted-foreground">
-                    <span className="shrink-0 tabular-nums">{formatInstant(note.updatedAt, { day: 'numeric', month: 'short' })}</span>
-                    <span className="min-w-0 truncate">
-                      {inText ? <Marked parts={snippetParts(note.snippet)} /> : noteBodyAfterTitle(note.snippet) || 'No more text'}
-                    </span>
-                  </span>
+                  <HitBody
+                    note={note}
+                    title={note.title && !inText ? <Marked parts={titleParts(note.title, q)} /> : undefined}
+                    snippet={inText ? <Marked parts={snippetParts(note.snippet)} /> : noteBodyAfterTitle(note.snippet) || 'No more text'}
+                  />
                 </button>
               </li>
             );
           })}
           {found.pending && (
-            <li role="none" className="flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground">
+            <li role="none" className="flex items-center gap-2 px-2 py-1.5 text-xs text-muted-foreground">
               <Loader2 size={12} className="animate-spin" aria-hidden="true" /> Searching the text…
             </li>
           )}
           {found.textError && (
-            <li role="none" className="px-2.5 py-2 text-xs text-muted-foreground">
+            <li role="none" className="px-2 py-1.5 text-xs text-muted-foreground">
               The notes’ text couldn’t be searched.{' '}
               <button type="button" className="font-medium text-primary hover:underline" onClick={found.retry}>
                 Try again
@@ -818,9 +803,7 @@ function Matches({
     <div className="pb-4">
       <TagHeader tag={tag} onClear={onClearTag} />
       {list.isPending ? (
-        <div className="p-3">
-          <TilesSkeleton count={6} label="Loading" />
-        </div>
+        <HitsSkeleton label={`Loading notes tagged #${tag}`} />
       ) : list.isError ? (
         <ErrorState title="Notes couldn’t be loaded" onRetry={() => void list.refetch()} />
       ) : list.data.length === 0 ? (
@@ -834,52 +817,105 @@ function Matches({
 
 function NoteList({ notes, activeId, onOpen }: { notes: NoteSummary[]; activeId: string | null; onOpen: (id: string) => void }) {
   return (
-    <>
+    <div className="px-2">
       {groupNotesByDate(notes).map((group) => (
         <section key={group.group} aria-label={group.group}>
-          <h3 className="sticky top-0 z-1 bg-card/95 px-4 pb-1 pt-3 text-label uppercase text-muted-foreground backdrop-blur">
-            {group.group}
-          </h3>
-          <ul className="px-2">
+          <GroupHeading as="h3">{group.group}</GroupHeading>
+          <ul>
             {group.notes.map((note) => (
               <li key={note.id}>
                 <button
                   type="button"
                   onClick={() => onOpen(note.id)}
                   aria-current={activeId === note.id ? 'true' : undefined}
-                  className={cn(
-                    'w-full rounded-lg px-2.5 py-2 text-left transition-colors focus-visible:outline-2 focus-visible:outline-ring',
-                    activeId === note.id ? 'bg-primary/10' : 'hover:bg-band/50',
-                  )}
+                  className={cn(hitClass(activeId === note.id), 'focus-visible:outline-2 focus-visible:outline-ring')}
                 >
-                  <span className="flex items-center gap-1.5">
-                    {note.pinned ? (
-                      <Pin size={12} className="shrink-0 text-primary" aria-label="Pinned" />
-                    ) : note.kind === 'drawing' ? (
-                      <PenLine size={12} className="shrink-0 text-muted-foreground" aria-label="Drawing" />
-                    ) : null}
-                    <span className="truncate text-sm font-semibold text-foreground">{note.title || untitled(note)}</span>
-                  </span>
-                  <span className="mt-0.5 flex gap-2 text-xs text-muted-foreground">
-                    <span className="shrink-0 tabular-nums">{formatInstant(note.updatedAt, { day: 'numeric', month: 'short' })}</span>
-                    <span className="min-w-0 truncate">{noteBodyAfterTitle(note.snippet) || note.snippet || 'No more text'}</span>
-                  </span>
-                  {note.tags.length > 0 && (
-                    <span className="mt-1 flex flex-wrap gap-1">
-                      {note.tags.slice(0, 3).map((entry) => (
-                        <span key={entry} className="inline-flex items-center gap-0.5 text-micro text-muted-foreground">
-                          <Hash size={10} aria-hidden="true" />
-                          {entry}
-                        </span>
-                      ))}
-                    </span>
-                  )}
+                  <HitBody note={note} snippet={noteBodyAfterTitle(note.snippet) || note.snippet || 'No more text'} tags={note.tags} />
                 </button>
               </li>
             ))}
           </ul>
         </section>
       ))}
+    </div>
+  );
+}
+
+/** The small heading over a run of results: "Titles", "In the text", "Today". */
+function GroupHeading({ as: As = 'p', children }: { as?: 'p' | 'h3'; children: React.ReactNode }) {
+  return <As className="px-2 pb-0.5 pt-3 text-xs font-semibold text-muted-foreground">{children}</As>;
+}
+
+/** A result row: no card and no line between rows — the highlight is the only edge. */
+const hitClass = (on: boolean) =>
+  cn('w-full rounded-md px-2 py-1.5 text-left transition-colors duration-150', on ? 'bg-band' : 'hover:bg-band/60');
+
+/** A note in a result list: its title (with the kind's glyph), then the date and a line of its text. */
+function HitBody({
+  note,
+  title,
+  snippet,
+  tags = [],
+}: {
+  note: NoteSummary;
+  /** The title with the match marked; the plain title (or "New note") otherwise. */
+  title?: React.ReactNode;
+  snippet: React.ReactNode;
+  tags?: string[];
+}) {
+  return (
+    <>
+      <span className="flex items-center gap-1.5">
+        {note.pinned ? (
+          <Pin size={12} className="shrink-0 text-primary" aria-label="Pinned" />
+        ) : note.kind === 'drawing' ? (
+          <PenLine size={12} className="shrink-0 text-muted-foreground" aria-label="Drawing" />
+        ) : null}
+        <span className="truncate text-sm font-medium text-foreground">{title ?? (note.title || untitled(note))}</span>
+      </span>
+      <span className="mt-0.5 flex gap-2 text-xs text-muted-foreground">
+        <span className="shrink-0 tabular-nums">{formatInstant(note.updatedAt, { day: 'numeric', month: 'short' })}</span>
+        <span className="min-w-0 truncate">{snippet}</span>
+      </span>
+      {tags.length > 0 && (
+        <span className="mt-0.5 flex flex-wrap gap-1.5">
+          {tags.slice(0, 3).map((entry) => (
+            <span key={entry} className="inline-flex items-center gap-0.5 text-micro text-muted-foreground">
+              <Hash size={10} aria-hidden="true" />
+              {entry}
+            </span>
+          ))}
+        </span>
+      )}
     </>
+  );
+}
+
+/** Result rows loading: the same two lines, without their words. */
+function HitsSkeleton({ label }: { label: string }) {
+  return (
+    <div role="status" aria-busy="true" aria-label={label} className="space-y-1 px-4 pt-3">
+      {[40, 28, 36, 44, 32].map((width, index) => (
+        <div key={index} className="space-y-1.5 py-1.5" aria-hidden="true">
+          <Bone className="h-3.5" style={{ width: `${width * 4}px`, maxWidth: '100%' }} />
+          <Bone className="h-3 w-full max-w-56" />
+        </div>
+      ))}
+    </div>
+  );
+}
+
+/** The sidebar loading: the search box, then rows shaped like the tree's. */
+export function TreeSkeleton() {
+  return (
+    <div role="status" aria-busy="true" aria-label="Loading folders" className="flex flex-col gap-1 px-2 pt-2">
+      <Bone className="mb-1.5 h-9 w-full" />
+      {[28, 22, 32, 18, 26, 24].map((width, index) => (
+        <div key={index} className="flex h-8 items-center gap-2 px-2" aria-hidden="true">
+          <Bone className="size-4 shrink-0" />
+          <Bone className="h-3" style={{ width: `${width * 4}px`, maxWidth: '100%' }} />
+        </div>
+      ))}
+    </div>
   );
 }

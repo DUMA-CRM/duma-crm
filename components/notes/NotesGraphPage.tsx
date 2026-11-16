@@ -5,7 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { Popover } from 'radix-ui';
 import { useDeferredValue, useMemo, useState } from 'react';
 
-import { GraphView, Search, SlidersHorizontal } from '@/components/icons';
+import { Check, GraphView, Search, SlidersHorizontal } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -93,7 +93,7 @@ export function NotesGraphPage() {
       onClose={() => router.push(focusId ? noteHref(focusId) : '/notes')}
       meta={
         model && (
-          <span className="hidden whitespace-nowrap text-xs tabular-nums text-muted-foreground 2xl:inline">
+          <span className="whitespace-nowrap text-xs tabular-nums text-muted-foreground">
             {model.nodes.length} notes · {linkCount} {linkCount === 1 ? 'link' : 'links'}
           </span>
         )
@@ -134,9 +134,7 @@ export function NotesGraphPage() {
             icon={GraphView}
             title={graph.data.nodes.length === 0 ? 'No notes yet' : 'Nothing here with these filters'}
             description={
-              graph.data.nodes.length === 0
-                ? 'Write a few notes and link them with [[ — they’ll show up here, joined.'
-                : 'Try another folder, or show unlinked notes.'
+              graph.data.nodes.length === 0 ? 'Link notes with [[ and they show up here.' : 'Try another folder, or show unlinked notes.'
             }
           />
         ) : (
@@ -150,12 +148,12 @@ export function NotesGraphPage() {
               }}
             />
             {graph.data.links.length === 0 && (
-              <p className="pointer-events-none absolute inset-x-0 top-3 mx-auto w-fit rounded-md border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
+              <p className="pointer-events-none absolute inset-x-0 top-3 mx-auto w-fit rounded-md border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground shadow-sm">
                 No links yet — type <kbd className="font-semibold text-foreground">[[</kbd> in a note to link another.
               </p>
             )}
             {graph.data.truncated && (
-              <p className="pointer-events-none absolute bottom-9 left-3 rounded-md border border-border bg-card/95 px-3 py-1.5 text-xs text-muted-foreground">
+              <p className="pointer-events-none absolute bottom-9 left-3 rounded-md border border-border bg-card px-3 py-1.5 text-xs text-muted-foreground">
                 Showing the 1,000 most recently edited notes.
               </p>
             )}
@@ -176,10 +174,12 @@ function Toggle({ on, onChange, label }: { on: boolean; onChange: (on: boolean) 
       aria-pressed={on}
       onClick={() => onChange(!on)}
       className={cn(
-        'h-9 shrink-0 whitespace-nowrap rounded-md border px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-ring',
-        on ? 'border-primary bg-primary/8 text-foreground' : 'border-border bg-background text-muted-foreground hover:text-foreground',
+        'flex h-9 shrink-0 items-center gap-1.5 whitespace-nowrap rounded-md border border-border px-3 text-sm font-medium transition-colors duration-150 focus-visible:outline-2 focus-visible:outline-ring',
+        on ? 'bg-band text-foreground' : 'bg-card text-muted-foreground hover:bg-band/60 hover:text-foreground',
       )}
     >
+      {/* Pressed shows twice: the fill, and the tick. */}
+      <Check size={14} className={cn('shrink-0', on ? 'text-primary' : 'invisible')} aria-hidden="true" />
       {label}
     </button>
   );

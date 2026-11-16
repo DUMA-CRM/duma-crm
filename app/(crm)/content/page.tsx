@@ -4,7 +4,6 @@ import Link from 'next/link';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 
-import { CmsOverviewPanel } from '@/components/cms/CmsOverviewPanel';
 import { ContentConfiguration } from '@/components/cms/ContentConfiguration';
 import { useCmsTenantId } from '@/components/cms/ContentScope';
 import { ContentSettingsPanel } from '@/components/cms/ContentSettingsPanel';
@@ -17,9 +16,8 @@ import { MediaPanel } from '@/components/cms/MediaPanel';
 import { ModelEditor } from '@/components/cms/ModelEditor';
 import { ModelsPanel } from '@/components/cms/ModelsPanel';
 import { NewEntryDialog } from '@/components/cms/NewEntryDialog';
-import { ContentStorageUsage } from '@/components/cms/StorageUsage';
 import { useCmsAccess } from '@/components/cms/useCmsAccess';
-import { Languages, Layers, Plus, SlidersHorizontal, UploadCloud } from '@/components/icons';
+import { Languages, Layers, Lock, Plus, UploadCloud } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
@@ -32,7 +30,6 @@ import { type ContentTab, contentLocation, contentNavigation } from '@/lib/utils
 import { useAuthStore } from '@/stores/authStore';
 
 const CONTENT_TABS: SectionTab<ContentTab>[] = [
-  { value: 'overview', label: 'Overview' },
   { value: 'entries', label: 'Entries' },
   { value: 'media', label: 'Media' },
   { value: 'configure', label: 'Configure' },
@@ -74,7 +71,7 @@ function ContentView() {
 
   const requestedTab = searchParams.get('tab');
   const { tab: requestedContentTab, section: requestedSection } = contentLocation(requestedTab, searchParams.get('section'));
-  const tab = requestedContentTab === 'updates' && !(isSuperadmin && isInternal) ? 'overview' : requestedContentTab;
+  const tab = requestedContentTab === 'updates' && !(isSuperadmin && isInternal) ? 'entries' : requestedContentTab;
   const section = requestedSection === 'settings' && !access.canManageKeys ? null : requestedSection;
   const entryParam = searchParams.get('entry');
   const modelParam = searchParams.get('model');
@@ -176,7 +173,7 @@ function ContentView() {
   }
 
   const action =
-    (tab === 'overview' || tab === 'entries') && access.canWrite
+    tab === 'entries' && access.canWrite
       ? { label: 'New entry', onClick: () => setCreating({}) }
       : tab === 'configure' && section === 'models' && access.canModel
         ? { label: 'New model', onClick: () => navigate({ model: 'new' }) }
@@ -184,7 +181,7 @@ function ContentView() {
 
   const sectionTitle =
     section === 'models' ? 'Models' : section === 'locales' ? 'Locales' : section === 'settings' ? 'Privacy & export' : null;
-  const HeaderIcon = section === 'locales' ? Languages : section === 'settings' ? SlidersHorizontal : Layers;
+  const HeaderIcon = section === 'locales' ? Languages : section === 'settings' ? Lock : Layers;
 
   return (
     <EditorShell
@@ -196,7 +193,7 @@ function ContentView() {
       actions={
         tab === 'media' ? (
           <div ref={setMediaActions} className="flex items-center gap-1.5 md:gap-2" />
-        ) : tab === 'overview' || action ? (
+        ) : action ? (
           <div className="flex items-center gap-1.5 md:gap-2">
             {isInternal && (
               <>
@@ -208,7 +205,6 @@ function ContentView() {
                 </Link>
               </>
             )}
-            {tab === 'overview' && <ContentStorageUsage />}
             {tab === 'entries' && access.canWrite && (
               <Button variant="outline" className="h-9 gap-1.5" aria-label="Import entries" onClick={() => setImporting({})}>
                 <UploadCloud size={15} aria-hidden="true" />
@@ -234,14 +230,7 @@ function ContentView() {
       }
     >
       <div className="flex flex-1 flex-col gap-5">
-        {isInternal && tab === 'overview' && access.canModel && <InternalBlogSetup />}
-        {tab === 'overview' && (
-          <CmsOverviewPanel
-            onOpenEntry={openEntry}
-            onOpenTab={(value) => (value === 'developers' ? router.push('/settings/developers') : navigate({ tab: value }, 'replace'))}
-            onNewModel={access.canModel ? () => navigate({ model: 'new' }) : undefined}
-          />
-        )}
+        {isInternal && tab === 'entries' && access.canModel && <InternalBlogSetup />}
         {tab === 'entries' && (
           <EntriesPanel
             typeId={searchParams.get('type') ?? ''}

@@ -3,9 +3,9 @@
 import { RowTile } from '@/components/cms/rows';
 import { copyText } from '@/components/cms/shared';
 import { BookOpen, ChevronRight, Download, ExternalLink, FileText, type IconComponent, Sparkles } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ChangeRow } from '@/components/settings/controls';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Button } from '@/components/ui/button';
 
 import { PUBLIC_APIS, apiBase, isContentApi, mcpUrl } from '@/lib/developers/api-reference';
@@ -39,7 +39,9 @@ export function DevelopersPanel() {
           {access.canManageContent && <WebhooksSection />}
         </div>
         <div className="flex min-w-0 flex-col gap-5">
-          <SettingsSection
+          <RecordGroup
+            card
+            id="developers-connection-details"
             title="Connection details"
             actions={
               <Button
@@ -65,9 +67,9 @@ export function DevelopersPanel() {
               ))}
               <AddressRow icon={Sparkles} label="MCP server" value={mcpUrl(API_ORIGIN)} />
             </div>
-          </SettingsSection>
+          </RecordGroup>
 
-          <SettingsSection title="Documentation">
+          <RecordGroup card id="developers-documentation" title="Documentation">
             <div className="-mx-2 flex flex-col gap-0.5">
               <DocLink href="/developers" icon={BookOpen} title="API reference" subtitle="Endpoints, examples and errors" />
               <DocLink
@@ -84,7 +86,7 @@ export function DevelopersPanel() {
                 subtitle="For Postman or generating a client"
               />
             </div>
-          </SettingsSection>
+          </RecordGroup>
         </div>
       </div>
     </SettingsTabBody>

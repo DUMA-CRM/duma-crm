@@ -16,7 +16,7 @@ export const DUMA_VS_SUNDAY: Comparison = {
   breadcrumb: 'DUMA vs Sunday',
   metaTitle: 'DUMA vs Sunday: Pay at Table App or All-in-One EPOS? | DUMA',
   description:
-    'Sunday adds QR pay at the table on top of your POS, from £149 a month. DUMA is the till and everything around it, free. What each does, honestly. Prices as of November 2026.',
+    'Compare Sunday and DUMA for QR ordering and pay at the table. See how an add-on payment service differs from a complete till and business workspace.',
   checked: '2026-11-03',
   asOf: 'November 2026',
   hero: {

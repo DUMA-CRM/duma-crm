@@ -14,12 +14,15 @@ export function RecordGroup({
   title,
   actions,
   footnote,
+  card = false,
   children,
 }: {
   id: string;
   title: string;
   actions?: React.ReactNode;
   footnote?: React.ReactNode;
+  /** Wrap rows that aren't a list (settings rows) in the one card, padded like a settings section. */
+  card?: boolean;
   children: React.ReactNode;
 }) {
   return (
@@ -30,7 +33,7 @@ export function RecordGroup({
         </h2>
         {actions}
       </div>
-      {children}
+      {card ? <div className="rounded-lg border border-border bg-card px-5 py-4 shadow-sm">{children}</div> : children}
       {footnote && <p className="mt-2 px-1 text-xs leading-relaxed text-muted-foreground">{footnote}</p>}
     </motion.section>
   );

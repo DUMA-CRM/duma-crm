@@ -29,9 +29,10 @@ export function CategoryLabel({ post, className }: { post: Pick<BlogPost, 'categ
 }
 
 /** A post in the grid, after seline.com/blog: category, title, excerpt and date — no author, no image. */
-export function PostCard({ post }: { post: BlogPost }) {
+export function PostCard({ post, heading = 'h3' }: { post: BlogPost; heading?: 'h2' | 'h3' }) {
   return (
     <IndexCard
+      heading={heading}
       href={`/blog/${post.slug}`}
       label={<CategoryLabel post={post} />}
       title={post.title}
