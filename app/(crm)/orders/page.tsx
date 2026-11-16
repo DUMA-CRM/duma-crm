@@ -27,11 +27,13 @@ import {
   Search,
   ShoppingBag,
   SlidersHorizontal,
+  Trash2,
   User,
   Wallet,
   X,
   XCircle,
 } from '@/components/icons';
+import { DeleteOrdersModal, useMayDeleteOrder } from '@/components/orders/DeleteOrderModal';
 import { NewOrderModal } from '@/components/orders/NewOrderModal';
 import { OrderDrawer } from '@/components/orders/OrderDrawer';
 import { OrderRowMenu } from '@/components/orders/OrderRowMenu';
@@ -331,6 +333,7 @@ function BulkBar({
   complete,
   busy,
   onAction,
+  onDelete,
   onClear,
 }: {
   count: number;
@@ -338,10 +341,12 @@ function BulkBar({
   complete: number;
   busy: boolean;
   onAction: (action: BulkAction) => void;
+  /** Present only when every picked order is cancelled and the workspace allows deleting. */
+  onDelete?: () => void;
   onClear: () => void;
 }) {
   const skipped = count - Math.max(ready, complete);
-  const none = ready === 0 && complete === 0;
+  const none = ready === 0 && complete === 0 && !onDelete;
   return (
     <div role="region" aria-label="Bulk actions" className="pointer-events-none fixed inset-x-0 bottom-5 z-40 flex justify-center px-4">
       <div className="pointer-events-auto flex flex-wrap items-center gap-2 rounded-lg border border-border bg-card py-2 pr-2 pl-4 shadow-lg">
@@ -352,7 +357,7 @@ function BulkBar({
             {count === 1 ? 'This order is' : 'These orders are'} finished or unpaid — nothing to move on
           </span>
         ) : (
-          skipped > 0 && <span className="text-xs text-muted-foreground">Unpaid or finished ones are left out</span>
+          skipped > 0 && !onDelete && <span className="text-xs text-muted-foreground">Unpaid or finished ones are left out</span>
         )}
         {ready > 0 && (
           <Button variant="outline" disabled={busy} onClick={() => onAction('ready')}>
@@ -368,6 +373,12 @@ function BulkBar({
               <CheckCircle2 data-icon="inline-start" />
             )}
             Complete{complete !== count ? ` (${complete})` : ''}
+          </Button>
+        )}
+        {onDelete && (
+          <Button variant="destructive" disabled={busy} onClick={onDelete}>
+            <Trash2 data-icon="inline-start" />
+            Delete
           </Button>
         )}
         <Button variant="ghost" size="icon" onClick={onClear} aria-label="Clear the selection">
@@ -688,6 +699,10 @@ function OrdersPageContent() {
 
   // Bulk: only orders the action can take are sent — the API refuses a batch with a completed one in it.
   const pickedOrders = useMemo(() => orders.filter((order) => picked.has(order.id)), [orders, picked]);
+  // Delete is offered only when every picked order is cancelled — a mixed pick shows the usual steps instead.
+  const mayDeleteCancelled = useMayDeleteOrder('cancelled');
+  const allCancelled = pickedOrders.length > 0 && pickedOrders.length === picked.size && pickedOrders.every((order) => order.status === 'cancelled');
+  const [deletingPicked, setDeletingPicked] = useState(false);
   const bulk = useMutation({
     mutationFn: ({ action }: { action: BulkAction }) =>
       bulkUpdateOrderStatus(
@@ -1333,7 +1348,18 @@ function OrdersPageContent() {
           complete={bulkEligible(pickedOrders, 'done').length}
           busy={bulk.isPending}
           onAction={(action) => bulk.mutate({ action })}
+          onDelete={mayDeleteCancelled && allCancelled ? () => setDeletingPicked(true) : undefined}
           onClear={() => setPicked(new Set())}
+        />
+      )}
+      {deletingPicked && (
+        <DeleteOrdersModal
+          ids={[...picked]}
+          onClose={() => setDeletingPicked(false)}
+          onDeleted={() => {
+            if (selectedId && picked.has(selectedId)) setSelectedId(null);
+            setPicked(new Set());
+          }}
         />
       )}
 

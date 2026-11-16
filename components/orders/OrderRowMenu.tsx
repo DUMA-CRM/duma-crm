@@ -3,7 +3,7 @@
 import { useRouter } from 'next/navigation';
 import { type ReactNode, useState } from 'react';
 
-import { Copy, ExternalLink, ListChecks, User } from '@/components/icons';
+import { Copy, ExternalLink, ListChecks, Trash2, User } from '@/components/icons';
 import {
   ContextMenu,
   ContextMenuContent,
@@ -17,6 +17,7 @@ import type { Order, OrderStatus } from '@/lib/modules/ordering/client';
 import { toast } from '@/lib/toast';
 import { orderCode } from '@/lib/utils/orders-list';
 
+import { DeleteOrderModal, useMayDeleteOrder } from './DeleteOrderModal';
 import { VoidModal, nextStatuses, useStatusChange } from './StatusMenu';
 import { STATUS_META } from './orderMeta';
 
@@ -41,6 +42,8 @@ export function OrderRowMenu({
 }) {
   const router = useRouter();
   const [voiding, setVoiding] = useState(false);
+  const [deleting, setDeleting] = useState(false);
+  const mayDelete = useMayDeleteOrder(order.status);
   const change = useStatusChange(order);
   const nexts = nextStatuses(order);
   const code = orderCode(order.id);
@@ -99,9 +102,18 @@ export function OrderRowMenu({
               Select
             </ContextMenuItem>
           )}
+          {mayDelete && (
+            <>
+              <ContextMenuSeparator />
+              <ContextMenuItem icon={Trash2} danger onSelect={() => setDeleting(true)}>
+                Delete order…
+              </ContextMenuItem>
+            </>
+          )}
         </ContextMenuContent>
       </ContextMenu>
       {voiding && <VoidModal order={order} onClose={() => setVoiding(false)} />}
+      {deleting && <DeleteOrderModal order={order} onClose={() => setDeleting(false)} />}
     </>
   );
 }

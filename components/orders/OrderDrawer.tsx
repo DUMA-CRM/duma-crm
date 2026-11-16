@@ -31,6 +31,7 @@ import {
   RotateCcw,
   ShoppingBag,
   Timer,
+  Trash2,
   Truck,
   User,
   UtensilsCrossed,
@@ -77,6 +78,7 @@ import { OrderDeliveryEditor } from './OrderDeliveryEditor';
 import { OrderNote } from './OrderNote';
 import { PaymentDueCard } from './PaymentDueCard';
 import { RefundBody, RefundFooter, useRefundDraft } from './RefundPanel';
+import { DeleteOrderModal, useMayDeleteOrder } from './DeleteOrderModal';
 import { StatusPill, VoidModal, nextStatuses, useStatusChange } from './StatusMenu';
 import { FULFILMENT_LABEL, REFUND_REASON_OPTIONS, SOURCE_META, STATUS_META, VOID_REASON_OPTIONS, optionLabel } from './orderMeta';
 
@@ -150,6 +152,8 @@ export function OrderDrawer({
     enabled: !!data?.customerId,
   });
   const advance = useStatusChange({ id: orderId });
+  const mayDelete = useMayDeleteOrder(data?.status);
+  const [deleting, setDeleting] = useState(false);
 
   // ↑/↓ step through the list, the way a mail client does — unless a field or
   // another dialog has the keyboard.
@@ -205,8 +209,7 @@ export function OrderDrawer({
   const refundable = refundableNow;
   const refundedFull = refunded > 0 && refundable === 0;
   const step = nextStep(data);
-  const canCancel = nextStatuses(data).includes('cancelled');
-  const mayRefund = canRefund && data.status === 'done' && refundable > 0;
+  const canCancel = nextStatuses(data).includes('cancelled');  const mayRefund = canRefund && data.status === 'done' && refundable > 0;
   // Refund mode: the same drawer, its body and footer swapped for the refund.
   const refunding = mayRefund && showRefund;
   const discount = Number(data.discountAmount ?? 0);
@@ -275,6 +278,19 @@ export function OrderDrawer({
           >
             <XCircle size={16} aria-hidden="true" />
             Cancel order…
+          </button>
+        )}
+        {mayDelete && (
+          <button
+            type="button"
+            className={cn(MENU_ITEM, 'text-exception hover:bg-exception/8')}
+            onClick={() => {
+              setMoreOpen(false);
+              setDeleting(true);
+            }}
+          >
+            <Trash2 size={16} aria-hidden="true" />
+            Delete order…
           </button>
         )}
       </PopoverContent>
@@ -647,6 +663,7 @@ export function OrderDrawer({
       {showReceipt && <ReceiptModal orderId={data.id} onClose={() => setShowReceipt(false)} />}
       {editingDelivery && <OrderDeliveryEditor order={data} onClose={() => setEditingDelivery(false)} />}
       {voiding && <VoidModal order={data} onClose={() => setVoiding(false)} />}
+      {deleting && <DeleteOrderModal order={data} onClose={() => setDeleting(false)} onDeleted={onClose} />}
       {showEmail && data.customerId && (
         <SendEmailModal
           customerId={data.customerId}
@@ -911,6 +928,7 @@ function OrderProgress({
  * tile with the label over the value, so the two lines fill the tile's height.
  * `copy` adds a copy button on the right, for values staff paste elsewhere.
  */
+
 function DetailRow({
   icon: Icon,
   label,

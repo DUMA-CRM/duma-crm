@@ -325,6 +325,9 @@ export const createOrder = (data: CreateOrderPayload, idempotencyKey?: string, w
 export const updateOrderStatus = (id: string, status: OrderStatus, voidDetails?: { voidReason: VoidReason; voidNotes?: string }) =>
   apiFetch<Order>(`/orders/${id}/status`, { method: 'PATCH', body: JSON.stringify({ status, ...voidDetails }) });
 
+/** Permanently deletes a cancelled order, with its payments, refunds and receipts — only where the workspace allows it. */
+export const deleteOrder = (id: string) => apiFetch<void>(`/orders/${id}`, { method: 'DELETE' });
+
 export const getRefundOptions = (id: string) => apiFetch<RefundOptions>(`/orders/${id}/refund-options`);
 
 export const createRefund = (

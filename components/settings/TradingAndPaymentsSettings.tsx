@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { Calculator, Coins, Hash, type IconComponent, Landmark, MapPin, StickyNote, Store, Tags } from '@/components/icons';
+import { Calculator, Coins, Hash, type IconComponent, Landmark, MapPin, StickyNote, Store, Tags, Trash2 } from '@/components/icons';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
@@ -35,9 +35,11 @@ interface Form {
   vatNumber: string;
   defaultVatRate: string;
   pricesIncludeTax: boolean;
+  allowOrderDeletion: boolean;
 }
 
 const formFrom = (settings: TradingSettings): Form => ({
+  allowOrderDeletion: settings.allowOrderDeletion ?? false,
   legalName: settings.legalName ?? '',
   tradingAddress: settings.tradingAddress ?? '',
   receiptFooter: settings.receiptFooter ?? '',
@@ -48,7 +50,7 @@ const formFrom = (settings: TradingSettings): Form => ({
   pricesIncludeTax: settings.pricesIncludeTax,
 });
 
-type Row = Exclude<keyof Form, 'vatRegistered'>;
+type Row = Exclude<keyof Form, 'vatRegistered' | 'allowOrderDeletion'>;
 
 const same = (a: Form, b: Form) => (Object.keys(a) as (keyof Form)[]).every((key) => a[key] === b[key]);
 
@@ -140,6 +142,7 @@ function TradingForm({
         legalName: form.legalName.trim() || null,
         tradingAddress: form.tradingAddress.trim() || null,
         receiptFooter: form.receiptFooter.trim() || null,
+        allowOrderDeletion: form.allowOrderDeletion,
       }),
     onSuccess: () => {
       // The till and every margin calculation read this same key.
@@ -289,6 +292,29 @@ function TradingForm({
           </div>
         </SettingsSection>
       </div>
+
+      <SettingsSection title="Orders">
+        <div>
+          <ChangeRow
+            icon={Trash2}
+            label="Delete cancelled orders"
+            value={
+              form.allowOrderDeletion ? (
+                'Staff who can refund can delete them for good'
+              ) : (
+                <ValueMissing>Off — cancelled orders are kept</ValueMissing>
+              )
+            }
+            trailing={
+              <Switch
+                checked={form.allowOrderDeletion}
+                onChange={(next) => set('allowOrderDeletion', next)}
+                label="Delete cancelled orders"
+              />
+            }
+          />
+        </div>
+      </SettingsSection>
 
       <SaveBar
         dirty={dirty}

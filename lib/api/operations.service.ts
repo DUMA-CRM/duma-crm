@@ -28,6 +28,11 @@ export interface TradingSettings {
    * because a caller who could would be able to make the job re-run a period.
    */
   payrollLastAutoPeriodEnd?: string | null;
+  /**
+   * Whether holders of `orders:refund` may permanently delete a cancelled order.
+   * Absent from an API that predates it — treat as off.
+   */
+  allowOrderDeletion?: boolean;
 }
 export const getTradingSettings = (tenantId: string) => apiFetch<TradingSettings>(`/trading-settings?tenantId=${tenantId}`);
 export const saveTradingSettings = (data: Omit<TradingSettings, 'defaultVatRate'> & { defaultVatRate: number }) =>
