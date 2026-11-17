@@ -6,9 +6,9 @@ import { type ReactNode, useEffect, useMemo, useState, useSyncExternalStore } fr
 
 import { ArrowUpRight, CalendarClock, ChevronDown, Clock, LogOut, Send } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { ListRow } from '@/components/shared/ListRow';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { StatusDot } from '@/components/shared/StatusDot';
-import { Tooltip } from '@/components/shared/Tooltip';
 import { TONE_TINT } from '@/components/shared/tone';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
 import { SlideToClockIn } from '@/components/shifts/SlideToClockIn';
@@ -62,7 +62,7 @@ function startOfWeek(): Date {
 }
 
 const inp =
-  'w-full h-9 bg-control border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
+  'w-full h-9 bg-control border border-input rounded-md px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 
 /** Weekday over day number — the rota row's leading tile. */
 function DateTile({ iso }: { iso: string }) {
@@ -131,7 +131,7 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
 
   return (
     <>
-      <div className="space-y-5 pb-8">
+      <div className="flex flex-col gap-5 pb-8">
         {toolbar}
         {/* Greeting + live clock */}
         <div className="flex flex-wrap items-end justify-between gap-4">
@@ -151,19 +151,18 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
               {formatInstant(now, { weekday: 'long' })}, {formatDate(workspaceDateKey(now))}
             </p>
           </div>
-          <div className="flex items-center gap-3 rounded-sm border border-rule bg-card px-4 py-2.5 shadow-sm">
+          <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-2.5 shadow-sm">
             <Clock size={15} className="text-muted-foreground" aria-hidden="true" />
             <p className="text-xl font-bold tabular-nums tracking-figure text-foreground">{mounted ? fmtClock(now) : ' '}</p>
           </div>
         </div>
 
         {/* Clock in / out card */}
-        <div className="relative overflow-hidden rounded-sm border border-rule bg-card p-5 shadow-[0_1px_2px_color-mix(in_oklab,var(--foreground)_5%,transparent),0_10px_32px_color-mix(in_oklab,var(--foreground)_3%,transparent)] md:p-6">
-          <div className="pointer-events-none absolute -right-12 -top-20 size-56 rounded-full bg-primary/8 blur-3xl" aria-hidden="true" />
+        <div className="rounded-lg border border-border bg-card p-5 shadow-sm">
           <div className="flex flex-wrap items-center justify-between gap-4">
-            <div className="relative flex min-w-0 items-center gap-4">
+            <div className="flex min-w-0 items-center gap-4">
               <div
-                className={`flex size-12 shrink-0 items-center justify-center rounded-sm ${active ? 'bg-success/6 text-success' : 'bg-muted text-muted-foreground'}`}
+                className={`flex size-12 shrink-0 items-center justify-center rounded-md ${active ? 'bg-success/10 text-success' : 'bg-band text-muted-foreground'}`}
               >
                 <Clock size={21} aria-hidden="true" />
               </div>
@@ -190,43 +189,37 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
             </div>
 
             {active ? (
-              <button
-                onClick={() => setClockOutOpen(true)}
-                disabled={busy}
-                className="relative flex h-11 items-center gap-2 rounded-sm bg-destructive px-5 text-sm font-bold text-on-fill shadow-sm transition-colors hover:bg-destructive/90 active:translate-y-px disabled:opacity-60"
-              >
-                <LogOut size={20} />
-                Clock Out
-              </button>
+              <Button variant="destructive" size="touch" onClick={() => setClockOutOpen(true)} disabled={busy}>
+                <LogOut aria-hidden="true" />
+                Clock out
+              </Button>
             ) : (
               <SlideToClockIn
                 onClockIn={() => clockInM.mutateAsync()}
                 pending={clockInM.isPending}
                 disabled={!locationId}
-                className="relative w-full sm:w-64"
+                className="w-full sm:w-64"
               />
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+        <div className="grid items-start gap-5 lg:grid-cols-2">
           {/* My rota this week */}
-          <section className="flex flex-col overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
-            <div className="flex items-center justify-between border-b border-rule px-5 py-2.5">
-              <div className="flex items-center gap-2">
-                <CalendarClock size={15} className="text-muted-foreground" />
-                <p className="text-sm font-semibold text-foreground">My rota this week</p>
-              </div>
-              <Tooltip label="Full rota" side="top">
-                <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground">
-                  <Link href="/scheduling" aria-label="Open the full rota">
-                    <ArrowUpRight size={15} aria-hidden="true" />
-                  </Link>
-                </Button>
-              </Tooltip>
-            </div>
+          <RecordGroup
+            id="my-day-rota"
+            title="My rota this week"
+            actions={
+              <Button asChild variant="outline" size="sm">
+                <Link href="/scheduling" aria-label="Open the full rota">
+                  Rota
+                  <ArrowUpRight aria-hidden="true" />
+                </Link>
+              </Button>
+            }
+          >
             {upcoming.length === 0 ? (
-              <div className="flex-1 px-5 py-2">
+              <div className="rounded-lg border border-border bg-card px-5 py-2 shadow-sm">
                 <EmptyState
                   icon={CalendarClock}
                   title="No shifts this week"
@@ -235,7 +228,7 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
                 />
               </div>
             ) : (
-              <ul className="flex-1">
+              <ListRowGroup>
                 {upcoming.map((s) => {
                   const started = new Date(s.startsAt).getTime() <= now.getTime();
                   const meta = [showRotaLocation ? (s.location?.name ?? '—') : null, s.role].filter(Boolean).join(' · ');
@@ -269,9 +262,9 @@ export function MyDashboard({ toolbar, supplemental }: { toolbar?: ReactNode; su
                     />
                   );
                 })}
-              </ul>
+              </ListRowGroup>
             )}
-          </section>
+          </RecordGroup>
 
           {/* Suggest a shift */}
           <SuggestShiftCard locationId={locationId} onDone={(msg) => toast('success', msg)} onError={(msg) => toast('error', msg)} />
@@ -330,10 +323,10 @@ function SuggestShiftCard({
   const valid = !!(locationId && date && start && end && durationMins > 0);
 
   return (
-    <details className="group flex flex-col overflow-hidden rounded-sm border border-rule bg-card shadow-sm">
-      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 hover:bg-muted/40">
+    <details className="group flex flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm lg:mt-10">
+      <summary className="flex cursor-pointer list-none items-center justify-between gap-3 px-5 py-4 hover:bg-band/40">
         <div className="flex items-center gap-3">
-          <div className="flex size-9 items-center justify-center rounded-sm bg-muted text-muted-foreground">
+          <div className="flex size-9 items-center justify-center rounded-md bg-primary/8 text-primary">
             <Send size={15} aria-hidden="true" />
           </div>
           <div>
@@ -344,7 +337,7 @@ function SuggestShiftCard({
         <ChevronDown size={16} className="text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
       </summary>
       <form
-        className="border-t border-rule px-5 py-4 space-y-3.5"
+        className="space-y-3.5 border-t border-border px-5 py-4"
         onSubmit={(e) => {
           e.preventDefault();
           if (valid) mutate();
@@ -382,7 +375,7 @@ function SuggestShiftCard({
           done={sent}
           doneLabel="Suggestion sent"
           icon={<Send size={15} aria-hidden="true" />}
-          className="h-10 w-full rounded-sm"
+          className="h-10 w-full"
         >
           Send suggestion
         </ActionButton>

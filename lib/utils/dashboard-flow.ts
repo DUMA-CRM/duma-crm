@@ -1,29 +1,52 @@
 /**
- * The dashboard as a gallery, not a table. Half-width cards (6 of 12) that
- * follow one another flow into columns, each card as tall as its content, so
- * a short card never leaves a hole beside a tall one. Every other width — the
- * full-width strips, the 8 + 4 chart row, quarters and thirds — stays a row.
+ * The dashboard as a bento with no empty gaps. Full-width widgets (12 of 12 —
+ * the needs-attention strip, the figures, a launch strip) lead in their saved
+ * order. Everything narrower stacks into two columns, each card placed in
+ * whichever column is shorter so far, so a short card never leaves a hole
+ * beside a tall one. On one column the saved order is kept as it is.
  */
-export type FlowSegment<T> = { kind: 'row'; items: T[] } | { kind: 'columns'; items: T[] };
 
-export function flowSegments<T extends { width: number }>(placements: readonly T[]): FlowSegment<T>[] {
-  const segments: FlowSegment<T>[] = [];
-  for (const placement of placements) {
-    const kind = placement.width === 6 ? 'columns' : 'row';
-    const last = segments.at(-1);
-    if (last && last.kind === kind) last.items.push(placement);
-    else segments.push({ kind, items: [placement] } as FlowSegment<T>);
-  }
-  return segments;
+/** Rough rendered height of each widget, in 40px steps — only used to balance the two columns. */
+export const WIDGET_HEIGHT: Readonly<Record<string, number>> = {
+  'analytics.trading': 10,
+  'analytics.live': 5,
+  'analytics.orders-hourly': 8,
+  'analytics.top-items': 7,
+  // Module cards: title, headline and status, then up to three 44px "needs you" lines.
+  'inventory.stock-health': 7,
+  'workforce.team-today': 5,
+  'purchasing.overview': 5,
+  'payments.tenders': 5,
+  'customers.overview': 6,
+  'cms.content': 6,
+};
+
+/** Launch cards and anything unlisted: about a strip's height. */
+const DEFAULT_HEIGHT = 2;
+
+export const isFullWidth = (width: number) => width >= 12;
+
+export interface BoardLayout<T> {
+  full: T[];
+  columns: T[][];
 }
 
-/**
- * Cards dealt into columns left, right, left… so the configured order still
- * reads across, the way it did in the grid, while each column stacks on its own.
- */
-export function dealColumns<T>(items: readonly T[], columns: number): T[][] {
-  const count = Math.max(1, Math.floor(columns));
-  const out: T[][] = Array.from({ length: count }, () => []);
-  items.forEach((item, index) => out[index % count]!.push(item));
-  return out;
+export function boardLayout<T extends { widgetKey: string; width: number }>(
+  placements: readonly T[],
+  columnCount: 1 | 2,
+  heightOf: (item: T) => number = (item) => WIDGET_HEIGHT[item.widgetKey] ?? DEFAULT_HEIGHT,
+): BoardLayout<T> {
+  const full = placements.filter((item) => isFullWidth(item.width));
+  const rest = placements.filter((item) => !isFullWidth(item.width));
+  if (columnCount === 1) return { full, columns: [rest] };
+
+  const columns: [T[], T[]] = [[], []];
+  const heights: [number, number] = [0, 0];
+  for (const item of rest) {
+    // Ties go left, so the first card leads the left column and the order still reads across.
+    const target: 0 | 1 = heights[1] < heights[0] ? 1 : 0;
+    columns[target].push(item);
+    heights[target] += Math.max(1, heightOf(item));
+  }
+  return { full, columns };
 }

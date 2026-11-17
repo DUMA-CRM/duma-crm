@@ -5,6 +5,7 @@ import { useState } from 'react';
 
 import { Target } from '@/components/icons';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
+import { Button } from '@/components/ui/button';
 
 import { setLocationDailyTarget } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -32,18 +33,18 @@ export function DailyTargetControl({ locationId, target }: { locationId: string;
 
   if (!editing) {
     return (
-      <button
+      <Button
         type="button"
+        variant="outline"
+        size="sm"
         onClick={() => {
           setValue(target != null ? String(target) : '');
           setEditing(true);
         }}
-        // The height of the icon buttons beside it (`size="icon-sm"`), so their hovers line up.
-        className="inline-flex h-8 items-center gap-1.5 rounded-md px-2.5 text-xs font-semibold text-muted-foreground transition-colors hover:bg-band hover:text-foreground"
       >
-        <Target size={15} aria-hidden="true" />
+        <Target aria-hidden="true" />
         {target != null ? `Target ${formatMoney(target)}` : 'Set a target'}
-      </button>
+      </Button>
     );
   }
 

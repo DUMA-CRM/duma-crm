@@ -127,15 +127,6 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDefinition[] = [
     deepLink: '/kds',
   }),
   widget({
-    key: 'people.team-launch',
-    moduleId: 'people',
-    label: 'People workspace',
-    requiredCapabilities: ['hr.people:read'],
-    sensitive: 'people',
-    audiences: ['owner', 'hr_manager'],
-    deepLink: '/staff',
-  }),
-  widget({
     key: 'customers.relationships-launch',
     moduleId: 'customers',
     label: 'Customer relationships',

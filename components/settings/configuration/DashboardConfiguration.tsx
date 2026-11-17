@@ -10,6 +10,7 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import { widgetDefinition } from '@/lib/dashboard/widget-registry';
 import { type ResolvedDashboardLayout, getResolvedDashboardLayout } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { boardLayout } from '@/lib/utils/dashboard-flow';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { ConfigurationBodySkeleton, PreviewFrame } from './shared';
@@ -48,79 +49,76 @@ export function DashboardConfiguration() {
 
 function DashboardEditor({ layout }: { layout: ResolvedDashboardLayout }) {
   const [previewKeys, setPreviewKeys] = useState(() => visibleDashboardKeys(layout));
+  const widths = new Map(layout.availableWidgets.map((widget) => [widget.widgetKey, widget.width]));
+  const panels = previewKeys.map((widgetKey) => ({ widgetKey, width: widths.get(widgetKey) ?? 6 }));
 
   return (
-    <SettingsTabBody narrowAside stickyAside aside={<DashboardPreview panelKeys={previewKeys} />}>
+    <SettingsTabBody narrowAside stickyAside aside={<DashboardPreview panels={panels} />}>
       <PersonalDashboardControls layout={layout} onPreviewChange={setPreviewKeys} />
     </SettingsTabBody>
   );
 }
 
-function DashboardPreview({ panelKeys }: { panelKeys: string[] }) {
-  const lowerPanelCount = panelKeys.filter((key) => key === 'analytics.orders-hourly' || key === 'analytics.top-items').length;
+/** The board in miniature, laid out by the same rule: full-width panels first, then the two-column bento. */
+function DashboardPreview({ panels }: { panels: Array<{ widgetKey: string; width: number }> }) {
+  const board = boardLayout(panels, 2);
 
   return (
     <PreviewFrame>
       <div aria-hidden="true" className="overflow-hidden rounded-lg border border-border bg-background shadow-sm">
-        {panelKeys.length === 0 ? (
+        {panels.length === 0 ? (
           <div className="flex aspect-[16/10] items-center justify-center px-6 text-center text-xs text-muted-foreground">
             Choose at least one panel to build your dashboard.
           </div>
         ) : (
-          <div className="grid grid-cols-4 gap-2 p-2.5">
-            {panelKeys.map((key) => {
-              if (key === 'analytics.exceptions') {
-                return (
-                  <div key={key} className="col-span-4 flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2">
-                    <span className="size-2.5 rounded-full border border-momentum/70" />
-                    <span className="h-1.5 w-20 rounded-full bg-foreground/20" />
-                    <span className="h-1.5 min-w-0 flex-1 rounded-full bg-foreground/8" />
+          <div className="flex flex-col gap-2 p-2.5">
+            {board.full.map((panel) => (
+              <PanelPreview key={panel.widgetKey} widgetKey={panel.widgetKey} />
+            ))}
+            {board.columns.some((column) => column.length > 0) && (
+              <div className="grid grid-cols-2 items-start gap-2">
+                {board.columns.map((column, index) => (
+                  <div key={index} className="flex min-w-0 flex-col gap-2">
+                    {column.map((panel) => (
+                      <PanelPreview key={panel.widgetKey} widgetKey={panel.widgetKey} />
+                    ))}
                   </div>
-                );
-              }
-              if (key === 'analytics.trading')
-                return (
-                  <div key={key} className={panelKeys.includes('analytics.live') ? 'col-span-3' : 'col-span-4'}>
-                    <TradingPreview />
-                  </div>
-                );
-              if (key === 'analytics.live')
-                return (
-                  <div key={key} className={panelKeys.includes('analytics.trading') ? 'col-span-1' : 'col-span-4'}>
-                    <LivePreview />
-                  </div>
-                );
-              if (key === 'analytics.kpis')
-                return (
-                  <div key={key} className="col-span-4">
-                    <KpiPreview />
-                  </div>
-                );
-              if (key === 'analytics.orders-hourly' || key === 'analytics.top-items') {
-                return (
-                  <div key={key} className={lowerPanelCount === 2 ? 'col-span-2' : 'col-span-4'}>
-                    <LowerPanelPreview kind={key === 'analytics.orders-hourly' ? 'chart' : 'list'} />
-                  </div>
-                );
-              }
-              // A module card or a launch card: half width, as on the board; "My workday" is full.
-              return (
-                <div
-                  key={key}
-                  className={`${key === 'workforce.my-day' ? 'col-span-4 h-20' : 'col-span-2 h-14'} flex flex-col justify-center gap-1.5 rounded-md border border-border bg-card px-2.5`}
-                >
-                  <span className="truncate text-[0.625rem] font-semibold text-muted-foreground">
-                    {widgetDefinition(key)?.label ?? key}
-                  </span>
-                  <span className="h-1.5 w-3/4 rounded-full bg-foreground/10" />
-                  <span className="h-1.5 w-1/2 rounded-full bg-foreground/8" />
-                </div>
-              );
-            })}
+                ))}
+              </div>
+            )}
           </div>
         )}
       </div>
     </PreviewFrame>
+  );
+}
+
+function PanelPreview({ widgetKey }: { widgetKey: string }) {
+  if (widgetKey === 'analytics.exceptions') {
+    return (
+      <div className="flex items-center gap-2 rounded-md border border-border bg-card px-2.5 py-2">
+        <span className="size-2.5 rounded-sm bg-exception/30" />
+        <span className="h-1.5 w-20 rounded-full bg-foreground/20" />
+        <span className="h-1.5 min-w-0 flex-1 rounded-full bg-foreground/8" />
+      </div>
+    );
+  }
+  if (widgetKey === 'analytics.kpis') return <KpiPreview />;
+  if (widgetKey === 'analytics.trading') return <TradingPreview />;
+  if (widgetKey === 'analytics.live') return <LivePreview />;
+  if (widgetKey === 'analytics.orders-hourly') return <LowerPanelPreview kind="chart" />;
+  if (widgetKey === 'analytics.top-items') return <LowerPanelPreview kind="list" />;
+  // A module card or a launch card, as on the board; "My workday" is the tallest.
+  return (
+    <div
+      className={`${widgetKey === 'workforce.my-day' ? 'h-20' : 'h-14'} flex flex-col justify-center gap-1.5 rounded-md border border-border bg-card px-2.5`}
+    >
+      <span className="truncate text-[0.625rem] font-semibold text-muted-foreground">
+        {widgetDefinition(widgetKey)?.label ?? widgetKey}
+      </span>
+      <span className="h-1.5 w-3/4 rounded-full bg-foreground/10" />
+      <span className="h-1.5 w-1/2 rounded-full bg-foreground/8" />
+    </div>
   );
 }
 
@@ -154,20 +152,20 @@ function TradingPreview() {
 
 function LivePreview() {
   return (
-    <div className="rounded-md border border-border bg-band/45 p-2.5">
+    <div className="rounded-md border border-border bg-card p-2.5">
       <div className="flex items-center justify-between gap-1">
         <span className="h-1.5 w-10 rounded-full bg-foreground/20" />
         <span className="h-1 w-6 rounded-full bg-foreground/10" />
       </div>
       <div className="mt-2 space-y-1">
         {[68, 54, 73, 46].map((width) => (
-          <div key={width} className="flex items-center justify-between rounded-sm bg-card px-2 py-2 shadow-sm">
+          <div key={width} className="flex items-center justify-between px-0.5 py-1.5">
             <span className="h-1 rounded-full bg-foreground/15" style={{ width: `${width}%` }} />
             <span className="size-1 rounded-full bg-foreground/15" />
           </div>
         ))}
       </div>
-      <div className="mt-2 flex items-center gap-1.5 border-t border-border pt-2">
+      <div className="mt-1.5 flex items-center gap-1.5">
         <span className="size-2 rounded-full bg-momentum/40" />
         <span className="h-1 w-12 rounded-full bg-foreground/12" />
       </div>
@@ -177,14 +175,14 @@ function LivePreview() {
 
 function KpiPreview() {
   return (
-    <div className="grid grid-cols-4 gap-2">
-      {['bg-reference/55', 'bg-muted-foreground/45', 'bg-momentum/55', 'bg-muted-foreground/45'].map((tone, index) => (
-        <div key={index} className="min-w-0 rounded-md border border-border bg-card p-2">
+    <div className="grid grid-cols-5 gap-1.5">
+      {[0, 1, 2, 3, 4].map((index) => (
+        <div key={index} className="min-w-0 rounded-md border border-border bg-card p-1.5">
           <div className="flex min-w-0 items-center gap-1.5">
-            <span className={`size-3.5 shrink-0 rounded-sm ${tone}`} />
+            <span className="size-3.5 shrink-0 rounded-sm bg-primary/20" />
             <span className="h-1 min-w-0 flex-1 rounded-full bg-foreground/15" />
           </div>
-          <div className="mt-2 h-2.5 w-9 rounded-sm bg-foreground/20" />
+          <div className="mt-2 h-2.5 w-3/4 rounded-sm bg-foreground/20" />
           <div className="mt-1.5 h-1 w-4/5 rounded-full bg-foreground/8" />
         </div>
       ))}

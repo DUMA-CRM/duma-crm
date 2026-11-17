@@ -10,6 +10,7 @@ import { TakenTodayPanel } from '@/components/dashboard/TakenTodayPanel';
 import { TodayKpiRow } from '@/components/dashboard/TodayKpiRow';
 import { TopItemsToday } from '@/components/dashboard/TopItemsToday';
 import { AlertTriangle, ArrowRight } from '@/components/icons';
+import { ErrorState } from '@/components/shared/ErrorState';
 
 import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { type TodayDashboard, useTodayDashboard } from '@/lib/hooks/useTodayDashboard';
@@ -57,14 +58,16 @@ export function TodayMeta({ chartShowsNow }: { chartShowsNow: boolean }) {
 }
 
 /** Notes that change how the figures read: no site picked, or a site with no trading hours. */
-export function TodayBanners({ canCompare }: { canCompare: boolean }) {
-  const { selectedLocation, tradingDay } = useToday();
+export function TodayBanners() {
+  const { locations, selectedLocation, tradingDay } = useToday();
+  // Sales by location is the report for this, and it only means something with more than one site.
+  const canCompare = locations.length > 1;
   return (
     <>
       {!selectedLocation && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
           <p className="text-sm text-foreground">
-            <span className="font-semibold">Showing every location you can access.</span> Pick one to see its trading hours, pace and target.
+            <span className="font-semibold">Every location you can access.</span> Pick one to see its hours, pace and target.
           </p>
           {canCompare && (
             <Link
@@ -77,11 +80,10 @@ export function TodayBanners({ canCompare }: { canCompare: boolean }) {
         </div>
       )}
       {tradingDay.state === 'no-hours' && selectedLocation && (
-        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-measured/40 bg-card px-4 py-3">
+        <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm">
           <AlertTriangle size={15} className="shrink-0 text-measured" aria-hidden="true" />
           <p className="text-sm text-foreground">
-            No trading hours set for {selectedLocation.name}, so the day&rsquo;s shape is a guess. Set them — or mark it open 24/7 if it never
-            closes.
+            No trading hours for {selectedLocation.name}, so the day&rsquo;s shape is a guess.
           </p>
           <Link
             href="/settings/workspaces"
@@ -98,15 +100,8 @@ export function TodayBanners({ canCompare }: { canCompare: boolean }) {
 /** Today's figures failed as a whole: one notice in place of the trading panels, with a retry. */
 function TodayError({ onRetry }: { onRetry: () => void }) {
   return (
-    <div className="flex min-h-40 flex-col items-center justify-center gap-3 rounded-lg border border-border bg-card text-center" role="alert">
-      <AlertTriangle size={22} className="text-exception" aria-hidden="true" />
-      <div>
-        <p className="text-sm font-semibold text-foreground">Today&rsquo;s figures could not be loaded</p>
-        <p className="mt-1 text-xs text-muted-foreground">Check your connection, then try again.</p>
-      </div>
-      <button onClick={onRetry} className="rounded-sm border border-rule px-3 py-1.5 text-xs font-semibold hover:bg-band">
-        Try again
-      </button>
+    <div className="rounded-lg border border-border bg-card shadow-sm">
+      <ErrorState title="Today’s figures couldn’t be loaded" onRetry={onRetry} className="py-10" />
     </div>
   );
 }
@@ -115,7 +110,16 @@ function TodayError({ onRetry }: { onRetry: () => void }) {
  * One trading panel by its widget key. When today's core figures fail, the
  * first panel says so and the rest stand down, rather than six copies of it.
  */
-export function TodayWidget({ widgetKey, first }: { widgetKey: string; first: boolean }) {
+export function TodayWidget({
+  widgetKey,
+  first,
+  kpisOnBoard = false,
+}: {
+  widgetKey: string;
+  first: boolean;
+  /** The figures row is on the board, so the takings panel needn't repeat net sales. */
+  kpisOnBoard?: boolean;
+}) {
   const dashboard = useToday();
   const kitchenScreen = useModuleEnabled('kds');
   const { tradingDay, metrics, pace, target, baseline, labour, hourly, topItems, yesterdayMetrics, loading, errors, refresh } = dashboard;
@@ -152,6 +156,8 @@ export function TodayWidget({ widgetKey, first }: { widgetKey: string; first: bo
           target={target}
           loading={loading.core}
           yesterdayRevenue={yesterdayMetrics ? yesterdayMetrics.revenue : null}
+          lastWeekRevenue={dashboard.lastWeekMetrics ? dashboard.lastWeekMetrics.revenue : null}
+          showHeadline={!kpisOnBoard}
           locationId={dashboard.activeLocationId}
           dailyTarget={dashboard.dailyTarget}
         />
@@ -167,6 +173,8 @@ export function TodayWidget({ widgetKey, first }: { widgetKey: string; first: bo
           clockedIn={dashboard.clockedIn.length}
           labourOpenShifts={labour?.openShifts ?? 0}
           loading={loading.operations}
+          error={errors.operations}
+          onRetry={() => void refresh()}
           showStaff={dashboard.workforce}
           kitchenScreen={kitchenScreen}
           showLate={dashboard.lateness !== null}
@@ -190,9 +198,18 @@ export function TodayWidget({ widgetKey, first }: { widgetKey: string; first: bo
         />
       );
     case 'analytics.orders-hourly':
-      return <OrdersByHour day={tradingDay} hourly={hourly} baseline={baseline} loading={loading.hourly} />;
+      return (
+        <OrdersByHour
+          day={tradingDay}
+          hourly={hourly}
+          baseline={baseline}
+          loading={loading.hourly}
+          error={errors.hourly}
+          onRetry={() => void refresh()}
+        />
+      );
     case 'analytics.top-items':
-      return <TopItemsToday rows={topItems} loading={loading.topItems} />;
+      return <TopItemsToday rows={topItems} loading={loading.topItems} error={errors.topItems} onRetry={() => void refresh()} />;
     default:
       return null;
   }

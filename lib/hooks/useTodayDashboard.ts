@@ -25,7 +25,9 @@ import { findAttendanceIssues, findCoverGaps } from '@/lib/utils/attendance';
 import { getDateWindow, orderMetrics } from '@/lib/utils/dashboard';
 import { isLate, stageSince } from '@/lib/utils/kitchen-age';
 import { computePace, computeTargetProgress } from '@/lib/utils/pace';
+import { sameTimeLastWeek } from '@/lib/utils/today-figures';
 import { resolveTradingDay } from '@/lib/utils/trading-day';
+import { zonedParts } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -159,6 +161,21 @@ export function useTodayDashboard() {
     enabled: ready && tradingDay.state === 'closed-today',
   });
 
+  // The same weekday last week up to this wall-clock time — the comparison Square and Toast lead with.
+  // A coarse key like the others; each request reads the clock afresh for its `to`.
+  const comparesLastWeek = tradingDay.state !== 'before-open' && tradingDay.state !== 'closed-today';
+  const lastWeek = useQuery({
+    queryKey: moduleQueryKeys.analytics.key('today-last-week', dateKey, scopeKey, timeZone),
+    queryFn: () => {
+      const window = sameTimeLastWeek(dateKey, zonedParts(new Date(), timeZone).time, timeZone);
+      if (!window) throw new Error('No comparable window last week');
+      return getOrderAnalytics({ ...window, ...(activeLocationId ? { locationId: activeLocationId } : {}) });
+    },
+    ...serverCache('orders'),
+    enabled: ready && secondaryEnabled && comparesLastWeek,
+    refetchInterval: 60_000,
+  });
+
   const forecast = useQuery({
     queryKey: moduleQueryKeys.analytics.key('today-forecast', scopeKey),
     queryFn: () => getInventoryForecast(activeLocationId ?? undefined),
@@ -282,6 +299,8 @@ export function useTodayDashboard() {
     hourly: hourly.data ?? [],
     topItems: topItems.data ?? [],
     yesterdayMetrics: tradingDay.state === 'closed-today' ? orderMetrics(yesterday.data) : null,
+    /** Taken by this time on the same weekday last week; null until known (or before open). */
+    lastWeekMetrics: comparesLastWeek && lastWeek.data ? orderMetrics(lastWeek.data) : null,
 
     // Two different questions: what was paid out today, and how much of today's
     // own takings came back. Both matter, and they are rarely the same number.

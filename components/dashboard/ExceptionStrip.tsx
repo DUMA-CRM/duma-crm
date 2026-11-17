@@ -151,7 +151,7 @@ export function ExceptionStrip({
 }) {
   if (error)
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-field px-4 py-3" role="alert">
+      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm" role="alert">
         <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-exception/8 text-exception">
           <AlertTriangle size={18} aria-hidden="true" />
         </span>
@@ -168,7 +168,7 @@ export function ExceptionStrip({
   if (loading)
     return (
       <div
-        className="flex items-center gap-3 rounded-lg border border-border bg-field px-4 py-3.5"
+        className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3.5 shadow-sm"
         role="status"
         aria-busy="true"
         aria-label="Checking what needs you"

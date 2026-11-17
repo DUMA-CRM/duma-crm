@@ -137,3 +137,126 @@ export function tenderSegments<T extends { method: string; revenue: number }>(
   }
   return segments;
 }
+
+// ---------------------------------------------------------------------------
+// Every module card says the same three things: one headline figure, the few
+// things that need someone, and how many more are behind the link. The
+// selection lives here so "which three" is tested, not eyeballed.
+// ---------------------------------------------------------------------------
+
+/** How many "needs you" lines a card shows before "and N more". */
+export const NEEDS_SHOWN = 3;
+
+/** The first `limit` items and how many are left behind the link. */
+export function topNeeds<T>(items: readonly T[], limit = NEEDS_SHOWN): { shown: T[]; more: number } {
+  const shown = items.slice(0, Math.max(0, limit));
+  return { shown, more: items.length - shown.length };
+}
+
+/** Someone rostered whose shift has started with nobody clocked in against it. */
+export interface MissingShift {
+  id: string;
+  name: string | null;
+  startsAt: string;
+}
+
+/**
+ * The rota's missing people by name, earliest start first — the same reading
+ * as `teamTodaySummary().missing`, so the list and the count agree.
+ */
+export function missingShifts(input: {
+  rota: ReadonlyArray<{
+    id: string;
+    userId?: string | null;
+    startsAt: string;
+    endsAt: string;
+    staff?: { user?: { name?: string | null } | null } | null;
+  }>;
+  active: ReadonlyArray<{ userId: string; scheduledShiftId?: string | null }>;
+  now: Date;
+  graceMinutes?: number;
+}): MissingShift[] {
+  const grace = (input.graceMinutes ?? 10) * 60_000;
+  const now = input.now.getTime();
+  const onShiftUsers = new Set(input.active.map((shift) => shift.userId));
+  const coveredShifts = new Set(input.active.map((shift) => shift.scheduledShiftId).filter(Boolean));
+  return input.rota
+    .filter(
+      (shift) =>
+        !!shift.userId &&
+        new Date(shift.startsAt).getTime() + grace <= now &&
+        new Date(shift.endsAt).getTime() > now &&
+        !coveredShifts.has(shift.id) &&
+        !onShiftUsers.has(shift.userId),
+    )
+    .map((shift) => ({ id: shift.id, name: shift.staff?.user?.name ?? null, startsAt: shift.startsAt }))
+    .sort((a, b) => a.startsAt.localeCompare(b.startsAt));
+}
+
+/**
+ * Whole percentages that add up to exactly 100 (largest remainder), so a
+ * legend under a split bar never reads 33% · 33% · 33%. All zero stays zero.
+ */
+export function wholePercents(values: readonly number[]): number[] {
+  const positive = values.map((value) => (value > 0 ? value : 0));
+  const total = positive.reduce((sum, value) => sum + value, 0);
+  if (total <= 0) return values.map(() => 0);
+  const exact = positive.map((value) => (value / total) * 100);
+  const floors = exact.map(Math.floor);
+  let left = 100 - floors.reduce((sum, value) => sum + value, 0);
+  const order = exact.map((value, index) => ({ index, rest: value - floors[index]! })).sort((a, b) => b.rest - a.rest || a.index - b.index);
+  for (const { index } of order) {
+    if (left <= 0) break;
+    floors[index]! += 1;
+    left -= 1;
+  }
+  return floors;
+}
+
+/** One "needs you" line that is a count, not a named record. */
+export interface CountNeed {
+  key: string;
+  label: string;
+  value: number;
+}
+
+/** Only the lines with something in them, in the order given. */
+export const countNeeds = (lines: readonly CountNeed[]): CountNeed[] => lines.filter((line) => line.value > 0);
+
+/**
+ * Purchasing as one reading: what's still to arrive leads; a part delivery
+ * to chase and a draft never sent are what need someone.
+ */
+export function purchasingSummary(counts: { drafts: number; sent: number; partial: number }): {
+  awaiting: number;
+  needs: CountNeed[];
+} {
+  return {
+    awaiting: counts.sent + counts.partial,
+    needs: countNeeds([
+      { key: 'partial', label: 'Part delivered', value: counts.partial },
+      { key: 'drafts', label: 'Drafts not sent', value: counts.drafts },
+    ]),
+  };
+}
+
+/**
+ * Website content as one reading: what's live leads; review, live edits not
+ * yet published and drafts are what wait on someone. Scheduled entries go
+ * live by themselves, so they are a status, not a need.
+ */
+export function contentSummary(entries: { live: number; scheduled: number; review: number; changed: number; draft: number }): {
+  live: number;
+  scheduled: number;
+  needs: CountNeed[];
+} {
+  return {
+    live: entries.live,
+    scheduled: entries.scheduled,
+    needs: countNeeds([
+      { key: 'review', label: 'Waiting for review', value: entries.review },
+      { key: 'changed', label: 'Unpublished changes', value: entries.changed },
+      { key: 'draft', label: 'Drafts', value: entries.draft },
+    ]),
+  };
+}

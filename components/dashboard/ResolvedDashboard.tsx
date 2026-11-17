@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import type { ReactNode } from 'react';
 
 import {
@@ -15,36 +16,27 @@ import {
 } from '@/components/dashboard/ModuleCards';
 import { MyDashboard } from '@/components/dashboard/MyDashboard';
 import { TodayBanners, TodayMeta, TodayProvider, TodayWidget } from '@/components/dashboard/today';
-import { AlertTriangle, LayoutDashboard } from '@/components/icons';
+import { LayoutDashboard } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { LoadingState } from '@/components/shared/Skeleton';
-import { Button } from '@/components/ui/button';
 
 import { ANALYTICS_WIDGET_KEYS } from '@/lib/dashboard/widget-registry';
 import { useMinWidth } from '@/lib/hooks/useMinWidth';
-import type { StaffRole } from '@/lib/modules/identity/client';
 import { getResolvedDashboardLayout } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { dealColumns, flowSegments } from '@/lib/utils/dashboard-flow';
+import { boardLayout } from '@/lib/utils/dashboard-flow';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /* The dashboard builds itself. The API resolves which widgets this viewer gets
  * — their role's template, then any saved arrangement — keeping only widgets
  * whose module is enabled and whose capability they hold. This page lays out
- * whatever comes back, in that order and at that width. So a workspace without
+ * whatever comes back: full-width widgets first, in order, then the rest as a
+ * two-column bento (lib/utils/dashboard-flow). So a workspace without
  * Workforce has no Team card and no labour figure; one without Analytics has
  * no trading panels and its module cards carry the page; and a new module's
  * card appears here once it is registered, with no change to this file's flow.
  */
-
-/** Static classes for each placement width — Tailwind can't see a computed `lg:col-span-${n}`. */
-const SPAN: Record<number, string> = {
-  3: 'lg:col-span-6 xl:col-span-3',
-  4: 'lg:col-span-4',
-  6: 'lg:col-span-12 xl:col-span-6',
-  8: 'lg:col-span-8',
-  12: 'lg:col-span-12',
-};
 
 /** Module cards by widget key. A key with no renderer here is skipped, never a crash. */
 const MODULE_CARDS: Record<string, () => ReactNode> = {
@@ -64,9 +56,10 @@ function Shell({ children, meta }: { children: ReactNode; meta?: ReactNode }) {
   );
 }
 
-export function ResolvedDashboard({ role }: { role: StaffRole }) {
-  // Half-width cards sit side by side from `xl` — the breakpoint their old `xl:col-span-6` used.
+export function ResolvedDashboard() {
+  // The bento's two columns open at `xl`; below it the saved order runs in one.
   const twoColumns = useMinWidth(1280);
+  const reduceMotion = useReducedMotion();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const layout = useQuery({
     queryKey: moduleQueryKeys.organization.key('dashboard-layout', 'resolved', tenantId),
@@ -93,16 +86,7 @@ export function ResolvedDashboard({ role }: { role: StaffRole }) {
   if (layout.isError) {
     return (
       <Shell>
-        <div className="flex flex-1 flex-col items-center justify-center gap-3 text-center" role="alert">
-          <AlertTriangle size={22} className="text-exception" aria-hidden="true" />
-          <div>
-            <p className="text-sm font-semibold text-foreground">Your dashboard could not be prepared</p>
-            <p className="mt-1 text-xs text-muted-foreground">Check your connection, then try again.</p>
-          </div>
-          <Button size="sm" variant="outline" onClick={() => void layout.refetch()}>
-            Try again
-          </Button>
-        </div>
+        <ErrorState className="flex-1" title="Your dashboard couldn’t be prepared" onRetry={() => void layout.refetch()} />
       </Shell>
     );
   }
@@ -111,12 +95,12 @@ export function ResolvedDashboard({ role }: { role: StaffRole }) {
   const keys = placements.map((widget) => widget.widgetKey);
   const trading = keys.filter((key) => ANALYTICS_WIDGET_KEYS.has(key));
   const firstTrading = trading[0];
-  const isOwner = role === 'franchise_owner' || role === 'super_admin';
 
+  const kpisOnBoard = keys.includes('analytics.kpis');
   const render = (placement: (typeof placements)[number]) => {
     const key = placement.widgetKey;
     const content = ANALYTICS_WIDGET_KEYS.has(key) ? (
-      <TodayWidget widgetKey={key} first={key === firstTrading} />
+      <TodayWidget widgetKey={key} first={key === firstTrading} kpisOnBoard={kpisOnBoard} />
     ) : key === 'workforce.my-day' ? (
       <MyDashboard />
     ) : isLaunchWidget(key) ? (
@@ -124,46 +108,35 @@ export function ResolvedDashboard({ role }: { role: StaffRole }) {
     ) : (
       MODULE_CARDS[key]?.()
     );
-    return content ? { key, content } : null;
+    // empty:hidden: a widget with nothing to say takes no space and no gap.
+    return content ? (
+      <div key={key} className="min-w-0 empty:hidden">
+        {content}
+      </div>
+    ) : null;
   };
 
-  // A gallery, not a table: every card is as tall as its content. Wide placements stay rows;
-  // runs of half-width cards stack in two columns of their own, dealt left, right, left.
+  // Full-width widgets lead (what needs you, then the day's figures); everything else is a bento of
+  // two stacked columns, each card in the shorter one, so a short card never leaves a hole.
+  const board = boardLayout(placements, twoColumns ? 2 : 1);
   const grid = (
-    <div className="space-y-4">
-      {flowSegments(placements).map((segment, index) => {
-        const cards = segment.items.flatMap((placement) => {
-          const card = render(placement);
-          return card ? [{ ...card, width: placement.width }] : [];
-        });
-        if (cards.length === 0) return null;
-        if (segment.kind === 'columns') {
-          return (
-            <div key={`columns-${index}`} className="flex items-start gap-4">
-              {dealColumns(cards, twoColumns ? 2 : 1).map((column, columnIndex) => (
-                <div key={columnIndex} className="flex min-w-0 flex-1 flex-col gap-4">
-                  {column.map((card) => (
-                    // empty:hidden: a widget with nothing to say takes no space and no gap.
-                    <div key={card.key} className="min-w-0 empty:hidden">
-                      {card.content}
-                    </div>
-                  ))}
-                </div>
-              ))}
+    <motion.div
+      className="flex flex-col gap-5"
+      initial={reduceMotion ? false : 'hidden'}
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+    >
+      {board.full.map(render)}
+      {board.columns.some((column) => column.length > 0) && (
+        <div className="grid items-start gap-5 xl:grid-cols-2">
+          {board.columns.map((column, index) => (
+            <div key={index} className="flex min-w-0 flex-col gap-5">
+              {column.map(render)}
             </div>
-          );
-        }
-        return (
-          <div key={`row-${index}`} className="grid grid-cols-1 items-start gap-4 lg:grid-cols-12">
-            {cards.map((card) => (
-              <div key={card.key} className={`min-w-0 empty:hidden ${SPAN[card.width] ?? SPAN[12]}`}>
-                {card.content}
-              </div>
-            ))}
-          </div>
-        );
-      })}
-    </div>
+          ))}
+        </div>
+      )}
+    </motion.div>
   );
 
   if (placements.length === 0) {
@@ -188,8 +161,8 @@ export function ResolvedDashboard({ role }: { role: StaffRole }) {
   return (
     <TodayProvider>
       <Shell meta={<TodayMeta chartShowsNow={keys.includes('analytics.trading')} />}>
-        <div className="space-y-4">
-          <TodayBanners canCompare={isOwner} />
+        <div className="flex flex-col gap-5">
+          <TodayBanners />
           {grid}
         </div>
       </Shell>

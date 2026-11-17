@@ -4,6 +4,8 @@ import { useQuery } from '@tanstack/react-query';
 
 import { ModuleCard } from '@/components/dashboard/ModuleCards';
 import { Award, Coffee, Tag } from '@/components/icons';
+import { MiniBar } from '@/components/shared/MiniBar';
+import { Bone } from '@/components/shared/Skeleton';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 
 import { proxiedImage } from '@/lib/api/client';
@@ -14,11 +16,21 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-/* What is actually selling today, ranked by quantity net of refunds — the
-   Stock health card's frame: every item with its photo, its name and the
-   count large, the first marked as the best seller. */
+/* What is actually selling today, ranked by quantity net of refunds: each
+   item's photo, name and a bar against the best seller, the count and what
+   it took on the right. */
 
-export function TopItemsToday({ rows, loading }: { rows: TopItemAnalytics[]; loading: boolean }) {
+export function TopItemsToday({
+  rows,
+  loading,
+  error = false,
+  onRetry = () => undefined,
+}: {
+  rows: TopItemAnalytics[];
+  loading: boolean;
+  error?: boolean;
+  onRetry?: () => void;
+}) {
   const formatMoney = useFormatMoney();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const { tools, section } = useCatalogWords();
@@ -30,57 +42,71 @@ export function TopItemsToday({ rows, loading }: { rows: TopItemAnalytics[]; loa
   });
   const photo = new Map((items.data ?? []).map((item) => [item.id, proxiedImage(item.imageUrl)]));
   const quantity = (row: TopItemAnalytics) => Number(row.totalQuantity ?? 0);
-  const best = rows[0];
+  const best = Math.max(1, ...rows.map(quantity));
   const Fallback = tools.kitchen ? Coffee : Tag;
 
   return (
     <ModuleCard
+      id="dashboard-top-items"
       title="Selling today"
-      subtitle="Ranked by quantity, net of refunds"
       href="/menu/items"
+      linkLabel={section}
       hrefLabel={`Open ${section.toLowerCase()}`}
       loading={loading}
-      error={false}
-      onRetry={() => undefined}
+      skeleton={
+        <div className="space-y-3" role="status" aria-busy="true" aria-label="Loading today’s best sellers">
+          {['w-28', 'w-36', 'w-24', 'w-32', 'w-20'].map((width) => (
+            <div key={width} className="flex items-center gap-3" aria-hidden="true">
+              <Bone className="size-10 shrink-0" />
+              <span className="min-w-0 flex-1 space-y-1.5">
+                <Bone className={`h-3.5 ${width}`} />
+                <Bone className="h-1 w-full rounded-full" />
+              </span>
+              <Bone className="h-4 w-10 shrink-0" />
+            </div>
+          ))}
+        </div>
+      }
+      error={error}
+      onRetry={onRetry}
       empty={
         rows.length === 0
           ? { icon: Coffee, title: 'Nothing sold yet today', description: 'Your best sellers appear here as orders come in.' }
           : undefined
       }
     >
-      {best && (
-        // Every item drawn the same way — photo, name, the count large and what it took;
-        // only the first carries the Best seller mark.
-        <ol className="space-y-4">
-          {rows.map((row, index) => (
-            <li key={`${row.menuItemId}-${row.name}`} className="flex items-center gap-3">
-              <Thumb src={photo.get(row.menuItemId)} fallback={Fallback} className="size-12 rounded-lg" />
-              <div className="min-w-0 flex-1">
+      <ol className="space-y-3">
+        {rows.map((row, index) => (
+          <li key={`${row.menuItemId}-${row.name}`} className="flex items-center gap-3">
+            <Thumb src={photo.get(row.menuItemId)} fallback={Fallback} className="size-10 rounded-md" />
+            <div className="min-w-0 flex-1">
+              <p className="flex items-center gap-1.5 text-sm text-foreground">
+                <span className="truncate font-medium">{row.name}</span>
                 {index === 0 && (
-                  <p className="flex items-center gap-1 text-xs text-muted-foreground">
+                  <span className="inline-flex shrink-0 items-center gap-0.5 text-xs text-muted-foreground">
                     <Award size={12} className="text-measured" aria-hidden="true" />
                     Best seller
-                  </p>
+                  </span>
                 )}
-                <p className="truncate text-base font-semibold text-foreground">{row.name}</p>
-              </div>
-              <p className="shrink-0 text-right">
-                <span data-figure className="block text-2xl font-semibold leading-none tracking-figure text-foreground">
-                  {quantity(row)}
-                </span>
-                <span data-figure className="text-xs text-muted-foreground">
-                  sold · {formatMoney(Number(row.totalRevenue ?? 0))}
-                </span>
               </p>
-            </li>
-          ))}
-        </ol>
-      )}
+              <MiniBar value={quantity(row)} max={best} tone="warning" label={`${quantity(row)} sold`} className="mt-1.5 h-1" />
+            </div>
+            <p className="shrink-0 text-right">
+              <span data-figure className="block text-sm font-semibold text-foreground">
+                {quantity(row)}
+              </span>
+              <span data-figure className="text-xs text-muted-foreground">
+                {formatMoney(Number(row.totalRevenue ?? 0))}
+              </span>
+            </p>
+          </li>
+        ))}
+      </ol>
     </ModuleCard>
   );
 }
 
-/** The item's photo, or a quiet tile when it has none (or can't be read). */
+/** The item's photo, or a quiet tile when it has none. */
 function Thumb({ src, fallback: Fallback, className }: { src: string | null | undefined; fallback: typeof Coffee; className: string }) {
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element
