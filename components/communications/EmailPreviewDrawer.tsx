@@ -45,7 +45,7 @@ export function EmailPreviewDrawer({
         {meta}
 
         {/* The white frame is the email itself — it keeps light colours in either theme. */}
-        <div className="overflow-hidden rounded-md border border-rule bg-white shadow-sm">
+        <div className="overflow-hidden rounded-md border border-border bg-white shadow-sm">
           <div className="border-b border-gray-200 bg-gray-50 px-5 py-4 text-black">
             <p className="text-base font-semibold">{subject || 'Email subject'}</p>
             <p className="mt-1 text-xs text-gray-500">{recipient}</p>

@@ -1,55 +1,59 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
-import Link from 'next/link';
-import { useMemo } from 'react';
+import { useQuery } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
+import { useMemo, useState } from 'react';
 
 import {
   ChefHat,
   CircleDollarSign,
+  EyeOff,
   type IconComponent,
   ImageIcon,
   Layers3,
-  LayoutDashboard,
   LayoutGrid,
   Tag,
   TrendingDown,
   UtensilsCrossed,
 } from '@/components/icons';
-import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
+import { CatalogImportDialog } from '@/components/menu/CatalogImportDialog';
+import { MenuSectionTabs, MenuShellIcon } from '@/components/menu/MenuSectionTabs';
+import { MenuSetupChecklist } from '@/components/menu/MenuSetupChecklist';
+import { ShopSetupChecklist } from '@/components/menu/ShopSetupChecklist';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
-import { Switch } from '@/components/settings/controls';
+import { Fact } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
 import { Pill } from '@/components/shared/Pill';
-import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
-import { StatCard, StatCardGrid } from '@/components/shared/StatCard';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 
 import { proxiedImage } from '@/lib/api/client';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { useMenuItemCosts } from '@/lib/hooks/useMenuItemCosts';
-import { getMenuCategories, getMenuItems, getModifierGroups, getModifiers, updateMenuItem } from '@/lib/modules/catalog/client';
+import { getMenuCategories, getMenuItems, getModifierGroups, getModifiers } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { toast } from '@/lib/toast';
+import { countMenuShow } from '@/lib/utils/menu-list';
 import { type AttentionEntry, type OverviewCost, averageMargin, lowestMargins, menuAttention } from '@/lib/utils/menu-overview';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-import type { MenuItem } from '@/types/menu';
 
 /*
- * The menu's landing page, as Square's and Toast's item libraries open on a
- * summary: how much is on the menu, what needs fixing (losses first), where it
- * makes the least, and what's switched off. Every figure links to the tab that
- * fixes it — this page edits nothing but the on/off switch.
+ * The menu's landing page — what no other tab shows: how to build a menu from
+ * nothing (the setup steps), then, once there is one, four figures someone
+ * acts on (each opens the Items list filtered to those rows), what needs
+ * fixing across items, sections and modifier groups, and where it makes the
+ * least. It edits nothing.
  */
 export function MenuOverview() {
-  const qc = useQueryClient();
   const { tenantId } = useWorkspaceStore();
+  const reduceMotion = useReducedMotion();
   const words = useCatalogWords();
   const kitchen = words.tools.kitchen;
+  const [importing, setImporting] = useState(false);
 
   const itemsQuery = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
@@ -103,157 +107,203 @@ export function MenuOverview() {
   });
   const average = averageMargin(items, costs);
   const lowest = lowestMargins(items, costs);
-  const off = items.filter((item) => !item.isAvailable).sort((a, b) => a.name.localeCompare(b.name));
   const images = new Map(items.map((item) => [item.id, proxiedImage(item.imageUrl)]));
-
-  const availability = useMutation({
-    mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateMenuItem(id, { isAvailable }),
-    onSuccess: (_, { isAvailable }) => {
-      void qc.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('menu-items') });
-      toast('success', isAvailable ? 'Back on the menu.' : 'Taken off the menu — it won’t show at the till.');
-    },
-    onError: (err) => toast('error', err.message || 'Availability wasn’t updated. Try again.'),
-  });
+  // The same rule the Items list's Show filter uses, so a figure matches the rows its link opens.
+  const count = (show: Parameters<typeof countMenuShow>[2]) => countMenuShow(items, costs, show);
+  const off = count('off');
+  const hiddenSections = sections.filter((section) => !section.isActive).length;
 
   return (
-    <EditorShell title={words.section} icon={<LayoutDashboard size={20} aria-hidden="true" />} subheader={<MenuSectionTabs />}>
+    <EditorShell title={words.section} icon={<MenuShellIcon />} subheader={<MenuSectionTabs />}>
+      {importing && tenantId && <CatalogImportDialog tenantId={tenantId} onClose={() => setImporting(false)} />}
       {!tenantId ? (
         <EmptyState icon={UtensilsCrossed} title="No workspace selected" description="Choose a workspace to see its menu." />
       ) : itemsQuery.isError ? (
-        <ErrorState title="Couldn’t load the menu" onRetry={() => void itemsQuery.refetch()} />
+        <ErrorState className="flex-1" title="Couldn’t load the menu" onRetry={() => void itemsQuery.refetch()} />
       ) : itemsQuery.isPending ? (
-        <div role="status" aria-busy="true" aria-label="Loading the overview" className="space-y-5">
-          <div className="grid grid-cols-2 gap-3 lg:grid-cols-4" aria-hidden="true">
-            {[0, 1, 2, 3].map((index) => (
-              <Bone key={index} className="h-24 rounded-lg" />
-            ))}
-          </div>
-          <div className="overflow-hidden rounded-lg border border-border bg-card" aria-hidden="true">
-            {[0, 1, 2].map((index) => (
-              <RowSkeleton key={index} index={index} />
-            ))}
-          </div>
+        <div aria-busy="true" className="flex flex-col gap-5">
+          <FactsSkeleton count={4} label="Loading the overview" className="gap-3 sm:grid-cols-2 xl:grid-cols-4" />
+          <ListSkeleton rows={3} label="Loading what needs fixing" />
         </div>
-      ) : items.length === 0 ? (
-        <EmptyState
-          icon={kitchen ? UtensilsCrossed : Tag}
-          kind="start"
-          title={`No ${words.items} yet`}
-          description={`Add your first ${words.item}, or import a whole catalogue from the ${kitchen ? 'Items' : 'Products'} tab.`}
-          action={{ label: words.newItem, href: '/menu/items/new' }}
-        />
       ) : (
-        <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-          <motion.div variants={SECTION_RISE}>
-            <StatCardGrid columns={kitchen ? 4 : 3}>
-              <StatCard
-                size="sm"
-                icon={kitchen ? UtensilsCrossed : Tag}
-                label={words.available}
-                value={items.length - off.length}
-                unit={`of ${items.length}`}
-                href="/menu/items"
+        <motion.div
+          className="flex flex-col gap-5"
+          initial={reduceMotion ? false : 'hidden'}
+          animate="shown"
+          variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+        >
+          {items.length === 0 ? (
+            // A new workspace: the steps, in the order they depend on each other.
+            kitchen ? (
+              <MenuSetupChecklist />
+            ) : (
+              <ShopSetupChecklist onImport={() => setImporting(true)} />
+            )
+          ) : (
+            <>
+              <motion.dl variants={SECTION_RISE} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+                {kitchen ? (
+                  <>
+                    <Fact
+                      surface="page"
+                      icon={EyeOff}
+                      label="Off the menu"
+                      value={off}
+                      hint={`of ${items.length} ${items.length === 1 ? words.item : words.items}`}
+                      href={off > 0 ? '/menu/items?show=off' : undefined}
+                    />
+                    <CostFact
+                      icon={ChefHat}
+                      label="Not costed"
+                      value={count('not-costed')}
+                      costing={costing}
+                      tone="warning"
+                      hint={(n) => (n > 0 ? 'No recipe, or costs missing' : 'Every item costed')}
+                      href="/menu/items?show=not-costed"
+                    />
+                    <CostFact
+                      icon={TrendingDown}
+                      label="At a loss"
+                      value={count('loss')}
+                      costing={costing}
+                      tone="danger"
+                      hint={(n) => (n > 0 ? 'Costs more than it takes after VAT' : 'None after VAT')}
+                      href="/menu/items?show=loss"
+                    />
+                    <Fact
+                      surface="page"
+                      icon={CircleDollarSign}
+                      label="Average margin"
+                      value={costing ? <Bone className="mt-1 h-5 w-14" /> : average ? `${average.pct.toFixed(0)}%` : '—'}
+                      hint={
+                        costing
+                          ? 'Costing…'
+                          : average
+                            ? `After VAT · ${average.costed} costed ${average.costed === 1 ? words.item : words.items}`
+                            : 'Nothing is costed yet'
+                      }
+                    />
+                  </>
+                ) : (
+                  <>
+                    <Fact
+                      surface="page"
+                      icon={Tag}
+                      label={words.available}
+                      value={items.length - off}
+                      hint={`of ${items.length} ${items.length === 1 ? words.item : words.items}`}
+                      href="/menu/items?show=on"
+                    />
+                    <Fact
+                      surface="page"
+                      icon={EyeOff}
+                      label="Not for sale"
+                      value={off}
+                      href={off > 0 ? '/menu/items?show=off' : undefined}
+                    />
+                    <Fact
+                      surface="page"
+                      icon={ImageIcon}
+                      label="No photo"
+                      value={count('no-photo')}
+                      tone={count('no-photo') > 0 ? 'warning' : 'default'}
+                      hint={count('no-photo') > 0 ? 'Shoppers see a placeholder' : 'Every product has one'}
+                      href={count('no-photo') > 0 ? '/menu/items?show=no-photo' : undefined}
+                    />
+                    <Fact
+                      surface="page"
+                      icon={LayoutGrid}
+                      label="Hidden categories"
+                      value={
+                        categoriesQuery.isPending ? <Bone className="mt-1 h-5 w-10" /> : categoriesQuery.isError ? '—' : hiddenSections
+                      }
+                      hint={categoriesQuery.isError ? 'Couldn’t load categories' : `of ${sections.length}`}
+                      href="/menu/categories"
+                    />
+                  </>
+                )}
+              </motion.dl>
+
+              {/* Only when there's something to fix — a healthy menu goes straight to the lists. */}
+              <NeedsAttention
+                label="What needs fixing on the menu"
+                items={attention.map((entry) => attentionRow(entry, words.items, images))}
               />
-              <StatCard
-                size="sm"
-                icon={LayoutGrid}
-                accent="info"
-                label={kitchen ? 'Sections' : 'Categories'}
-                value={categoriesQuery.isError ? '—' : sections.length}
-                error={categoriesQuery.isError}
-                loading={categoriesQuery.isPending}
-                caption={sections.some((s) => !s.isActive) ? `${sections.filter((s) => !s.isActive).length} hidden` : undefined}
-                href="/menu/categories"
-              />
-              {kitchen ? (
-                <>
-                  <StatCard
-                    size="sm"
-                    icon={Layers3}
-                    accent="purple"
-                    label="Modifier groups"
-                    value={groups.length}
-                    caption={`${modifiers.length} ${modifiers.length === 1 ? 'modifier' : 'modifiers'}`}
-                    loading={groupsQuery.isPending || modifiersQuery.isPending}
-                    error={groupsQuery.isError || modifiersQuery.isError}
-                    href="/menu/modifiers"
-                  />
-                  <StatCard
-                    size="sm"
-                    icon={CircleDollarSign}
-                    accent="success"
-                    label="Average margin"
-                    value={average ? `${average.pct.toFixed(0)}%` : '—'}
-                    caption={
-                      average
-                        ? `across ${average.costed} costed ${average.costed === 1 ? words.item : words.items}`
-                        : 'Nothing is costed yet'
-                    }
-                    loading={costing}
-                  />
-                </>
-              ) : (
-                <StatCard
-                  size="sm"
-                  icon={ImageIcon}
-                  accent="warning"
-                  label="Without a photo"
-                  value={items.filter((item) => !item.imageUrl).length}
-                  href="/menu/items"
-                />
+
+              {/* Margins come from recipes, so a shop has none. */}
+              {kitchen && (
+                <RecordGroup id="menu-lowest-margins" title="Lowest margins" footnote="After VAT, for what’s on the menu.">
+                  {costing ? (
+                    <ListSkeleton rows={3} label="Costing the menu" />
+                  ) : lowest.length === 0 ? (
+                    <EmptyState
+                      compact
+                      icon={CircleDollarSign}
+                      title="No margins yet"
+                      description="Add recipes with ingredient costs to see them here."
+                    />
+                  ) : (
+                    <ListRowGroup aria-label="Lowest margins">
+                      {lowest.map(({ item }) => {
+                        const row = fullCosts.get(item.id)?.costing;
+                        const image = images.get(item.id);
+                        return (
+                          <ListRow
+                            key={item.id}
+                            href={`/menu/items/${item.id}?tab=recipe`}
+                            leading={
+                              image ? (
+                                // eslint-disable-next-line @next/next/no-img-element
+                                <img src={image} alt="" className="size-9 shrink-0 rounded-md bg-band object-cover" />
+                              ) : undefined
+                            }
+                            icon={UtensilsCrossed}
+                            tone="muted"
+                            title={item.name}
+                            trailing={row && <MarginPill margin={row.margin} pct={row.marginPct} cogs={row.cogs} />}
+                          />
+                        );
+                      })}
+                    </ListRowGroup>
+                  )}
+                </RecordGroup>
               )}
-            </StatCardGrid>
-          </motion.div>
-
-          {/* Only when there's something to fix — a healthy menu goes straight to the lists. */}
-          <NeedsAttention
-            label="What needs fixing on the menu"
-            items={attention.map((entry) => attentionRow(entry, words.items, images))}
-          />
-
-          {/* A kitchen's margins and what's off the menu; a shop gets neither — the Available card already counts what isn't for sale. */}
-          {kitchen && (
-            <div className="grid gap-5 lg:grid-cols-2">
-              <Panel title="Lowest margins" note="After VAT">
-                {costing ? (
-                  [0, 1, 2].map((index) => <RowSkeleton key={index} index={index} />)
-                ) : lowest.length === 0 ? (
-                  <PanelEmpty>Add recipes with ingredient costs to see margins here.</PanelEmpty>
-                ) : (
-                  lowest.map(({ item }) => {
-                    const costingRow = fullCosts.get(item.id)?.costing;
-                    return (
-                      <ItemLink key={item.id} item={item} image={images.get(item.id)} href={`/menu/items/${item.id}?tab=recipe`}>
-                        {costingRow && <MarginPill margin={costingRow.margin} pct={costingRow.marginPct} />}
-                      </ItemLink>
-                    );
-                  })
-                )}
-              </Panel>
-              {/* No count: the first stat card already says how many are on the menu. */}
-              <Panel title="Off the menu">
-                {off.length === 0 ? (
-                  <PanelEmpty>Everything is on the menu.</PanelEmpty>
-                ) : (
-                  off.map((item) => (
-                    <ItemLink key={item.id} item={item} image={images.get(item.id)} href={`/menu/items/${item.id}`}>
-                      <span className="relative z-10 inline-flex">
-                        <Switch
-                          label={`${item.name} — ${words.available.toLowerCase()}`}
-                          checked={false}
-                          disabled={availability.isPending && availability.variables?.id === item.id}
-                          onChange={(isAvailable) => availability.mutate({ id: item.id, isAvailable })}
-                        />
-                      </span>
-                    </ItemLink>
-                  ))
-                )}
-              </Panel>
-            </div>
+            </>
           )}
         </motion.div>
       )}
     </EditorShell>
+  );
+}
+
+/** A count that waits for the recipes: a bone while costing, then a link to the matching rows only when there are any. */
+function CostFact({
+  icon,
+  label,
+  value,
+  costing,
+  tone,
+  hint,
+  href,
+}: {
+  icon: IconComponent;
+  label: string;
+  value: number;
+  costing: boolean;
+  tone: 'warning' | 'danger';
+  hint: (value: number) => string;
+  href: string;
+}) {
+  return (
+    <Fact
+      surface="page"
+      icon={icon}
+      label={label}
+      value={costing ? <Bone className="mt-1 h-5 w-10" /> : value}
+      hint={costing ? 'Costing…' : hint(value)}
+      tone={!costing && value > 0 ? tone : 'default'}
+      href={!costing && value > 0 ? href : undefined}
+    />
   );
 }
 
@@ -293,50 +343,14 @@ function attentionRow(entry: AttentionEntry, itemsWord: string, images: Map<stri
   };
 }
 
-function Panel({ title, note, children }: { title: string; note?: string; children: React.ReactNode }) {
-  return (
-    <motion.section variants={SECTION_RISE} aria-label={title} className="min-w-0">
-      <div className="mb-2 flex items-baseline justify-between gap-3">
-        <h2 className="text-base font-semibold tracking-title text-heading">{title}</h2>
-        {note && <span className="text-xs text-muted-foreground">{note}</span>}
-      </div>
-      <ul className="overflow-hidden rounded-lg border border-border bg-card">{children}</ul>
-    </motion.section>
-  );
-}
-
-function PanelEmpty({ children }: { children: React.ReactNode }) {
-  return <li className="px-4 py-6 text-center text-sm text-muted-foreground">{children}</li>;
-}
-
-/** An item as a row that opens it — the link stretches over the row; `children` (a pill, a switch) sits on the right. */
-function ItemLink({ item, image, href, children }: { item: MenuItem; image?: string | null; href: string; children: React.ReactNode }) {
-  return (
-    <li className="relative flex items-center gap-3 border-b border-border px-3.5 py-2.5 transition-colors last:border-b-0 hover:bg-band/40 has-[a:focus-visible]:bg-band/40">
-      <Link
-        href={href}
-        className="flex min-w-0 flex-1 items-center gap-3 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring"
-      >
-        {image ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img src={image} alt="" className="size-9 shrink-0 rounded-md bg-band object-cover" />
-        ) : (
-          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground" aria-hidden="true">
-            <UtensilsCrossed size={16} />
-          </span>
-        )}
-        <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{item.name}</span>
-      </Link>
-      {children}
-    </li>
-  );
-}
-
-function MarginPill({ margin, pct }: { margin: number; pct: number }) {
+function MarginPill({ margin, pct, cogs }: { margin: number; pct: number; cogs: number }) {
   const formatMoney = useFormatMoney();
   return (
-    <Pill tone={margin >= 0 ? 'success' : 'exception'} className="shrink-0 tabular-nums">
-      {formatMoney(margin, 2)} · {pct.toFixed(0)}%
-    </Pill>
+    <span className="flex flex-col items-end gap-0.5 tabular-nums">
+      <Pill tone={margin >= 0 ? 'success' : 'exception'} className="tabular-nums">
+        {formatMoney(margin, 2)} · {pct.toFixed(0)}%
+      </Pill>
+      <span className="text-xs text-muted-foreground">cost {formatMoney(cogs, 2)}</span>
+    </span>
   );
 }

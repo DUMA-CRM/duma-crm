@@ -1,61 +1,59 @@
 'use client';
 
-import { Search } from '@/components/icons';
-import { FilterChip } from '@/components/shared/FilterChip';
-import { Button } from '@/components/ui/button';
+import { Search, X } from '@/components/icons';
 import { Input } from '@/components/ui/input';
 
-/** One filter layout across Communications; selected filters get their own row. */
+/**
+ * One filter row across Communications, as Forms and Promotions draw theirs:
+ * the search, then the inline `Select`s (`w-40`), then the count on the right.
+ * With two or three filters the selects already show what's picked, so there
+ * is no row of active-filter chips.
+ */
 export function CommunicationsToolbar({
   search,
   onSearch,
   placeholder,
+  label,
   filters,
-  chips = [],
-  onClear,
   count,
 }: {
   search: string;
   onSearch: (value: string) => void;
   placeholder: string;
+  /** The search field's accessible name; defaults to the placeholder. */
+  label?: string;
   filters?: React.ReactNode;
-  chips?: { label: string; onRemove: () => void }[];
-  onClear?: () => void;
   count?: React.ReactNode;
 }) {
-  const active = search.trim() || chips.length > 0;
   return (
-    <div className="space-y-3">
-      <div className="grid grid-cols-2 items-center gap-2 sm:flex sm:flex-wrap">
-        <div className="col-span-2 min-w-0 sm:min-w-56 sm:flex-1">
-          <Input
-            type="search"
-            value={search}
-            onChange={(event) => onSearch(event.target.value)}
-            aria-label={placeholder}
-            placeholder={placeholder}
-            leftIcon={<Search size={16} aria-hidden="true" />}
-          />
-        </div>
-        {filters}
-        {count && (
-          <span className="col-span-2 text-xs tabular-nums text-muted-foreground sm:ml-auto" role="status">
-            {count}
-          </span>
-        )}
+    <div className="flex flex-wrap items-center gap-2">
+      <div className="min-w-56 flex-1">
+        <Input
+          type="search"
+          value={search}
+          onChange={(event) => onSearch(event.target.value)}
+          aria-label={label ?? placeholder}
+          placeholder={placeholder}
+          leftIcon={<Search size={14} aria-hidden="true" />}
+          rightAction={
+            search ? (
+              <button
+                type="button"
+                onClick={() => onSearch('')}
+                aria-label="Clear search"
+                className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
+              >
+                <X size={13} aria-hidden="true" />
+              </button>
+            ) : undefined
+          }
+        />
       </div>
-      {active && (
-        <div className="flex flex-wrap items-center gap-2" aria-label="Active filters">
-          {search.trim() && <FilterChip variant="tag" label={`Search: ${search.trim()}`} onRemove={() => onSearch('')} />}
-          {chips.map((chip) => (
-            <FilterChip key={chip.label} variant="tag" {...chip} />
-          ))}
-          {onClear && (
-            <Button variant="ghost" size="sm" onClick={onClear}>
-              Clear filters
-            </Button>
-          )}
-        </div>
+      {filters}
+      {count && (
+        <span className="ml-auto text-xs tabular-nums text-muted-foreground" aria-live="polite">
+          {count}
+        </span>
       )}
     </div>
   );

@@ -17,7 +17,6 @@ import {
   UserRound,
   Zap,
 } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
@@ -95,7 +94,7 @@ export function WorkflowRunDrawer({
         <ErrorState title="Couldn’t load this run" onRetry={() => void query.refetch()} />
       ) : (
         <div className="space-y-5">
-          <SettingsSection title="This run" actions={<Badge variant={RUN_STATUS_BADGE[run.status]}>{RUN_STATUS_LABELS[run.status]}</Badge>}>
+          <DrawerSection title="This run" actions={<Badge variant={RUN_STATUS_BADGE[run.status]}>{RUN_STATUS_LABELS[run.status]}</Badge>}>
             <InfoRows>
               <InfoRow icon={Zap} title="Started by">
                 <span className="truncate text-sm font-semibold text-foreground">{triggerLabel(runTrigger(run.eventKey))}</span>
@@ -138,9 +137,9 @@ export function WorkflowRunDrawer({
                 </ActionRows>
               </div>
             )}
-          </SettingsSection>
+          </DrawerSection>
 
-          <SettingsSection title="Steps">
+          <DrawerSection title="Steps">
             {!run.steps.length ? (
               <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">No steps have started yet.</p>
             ) : (
@@ -184,9 +183,22 @@ export function WorkflowRunDrawer({
                 })}
               </ol>
             )}
-          </SettingsSection>
+          </DrawerSection>
         </div>
       )}
     </Drawer>
+  );
+}
+
+/** A drawer section as Orders draws one: a plain heading 8px above its rows — no card inside the drawer. */
+function DrawerSection({ title, actions, children }: { title: string; actions?: React.ReactNode; children: React.ReactNode }) {
+  return (
+    <section aria-label={title}>
+      <div className="mb-2 flex items-center justify-between gap-3">
+        <h3 className="text-sm font-semibold text-foreground">{title}</h3>
+        {actions}
+      </div>
+      {children}
+    </section>
   );
 }

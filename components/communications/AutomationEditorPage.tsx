@@ -1,12 +1,14 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
-import { FileText, Loader2, PlugZap, TriangleAlert } from '@/components/icons';
+import { FileText, Loader2, PlugZap, TriangleAlert, Zap } from '@/components/icons';
 import { SaveBar } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Button } from '@/components/ui/button';
 
 import {
@@ -28,7 +30,6 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { AutomationSidebar } from './AutomationSidebar';
 import { EmailPreviewDrawer } from './EmailPreviewDrawer';
-import { PanCanvas } from './PanCanvas';
 import { PublishDialog } from './PublishDialog';
 import { type InsertType, WorkflowTree } from './WorkflowTree';
 import { useEmailAccess } from './useEmailAccess';
@@ -58,6 +59,7 @@ export function AutomationEditorPage({
   onOpenConnection?: () => void;
 }) {
   const access = useEmailAccess();
+  const reduceMotion = useReducedMotion();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
   const [name, setName] = useState(automation?.name ?? '');
@@ -186,7 +188,7 @@ export function AutomationEditorPage({
             tone: 'measured' as const,
             icon: TriangleAlert,
             title: 'Choose what starts this workflow',
-            detail: 'Pick an event in the panel on the right.',
+            detail: 'Pick an event under Starts when.',
             fix: { label: 'Choose', run: () => setSelectedId(triggerNode.id) },
           },
         ]
@@ -243,41 +245,38 @@ export function AutomationEditorPage({
 
   return (
     <EditorShell
+      eyebrow="Workflow"
       title={name || 'New workflow'}
+      icon={<Zap size={20} aria-hidden="true" />}
       onClose={onClose}
       dirty={dirty && !save.isPending}
-      flush
       actions={
-        <>
-          {/* Publishing goes through the blast-radius dialog rather than firing
-              straight from the button — see PublishDialog. */}
-          {/* Publishing saves first, so it needs both. */}
-          {access.canWrite && access.canPublish && (
-            <Button
-              className="h-9 gap-2 px-3 sm:px-5"
-              disabled={!name.trim() || !!errors.length || save.isPending}
-              onClick={() => setConfirmingPublish(true)}
-            >
-              {save.isPending && <Loader2 size={14} className="animate-spin" />}Publish
-            </Button>
-          )}
-        </>
+        // Publishing saves first, so it needs both; it goes through the blast-radius dialog (PublishDialog).
+        access.canWrite && access.canPublish ? (
+          <Button className="gap-2" disabled={!name.trim() || !!errors.length || save.isPending} onClick={() => setConfirmingPublish(true)}>
+            {save.isPending && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+            Publish
+          </Button>
+        ) : undefined
       }
     >
-      <div className="grid min-h-0 flex-1 lg:grid-cols-[minmax(36rem,1fr)_22rem]">
-        {/* The canvas takes the whole main area; the "needs you" card above it, the SaveBar below. */}
-        <main className="relative flex min-h-0 flex-col bg-band p-4 md:p-6">
-          <div className="flex min-h-0 flex-1 flex-col">
-            {/* What stands between this workflow and publishing — the shared "needs you" card, each item with its fix. */}
-            {!readOnly && (
-              <NeedsAttention
-                items={attention}
-                summary={`${attention.length} ${attention.length === 1 ? 'thing' : 'things'} to fix before publishing`}
-                className="mb-4"
-              />
-            )}
-            <PanCanvas>
-              <div className="p-5">
+      <motion.div
+        initial={reduceMotion ? false : 'hidden'}
+        animate="shown"
+        variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+      >
+        {/* The flow is the work, so it takes the main column; the workflow and the chosen step stack in the sidebar. */}
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
+          <div className="flex min-w-0 flex-col gap-5">
+            {/* What stands between this workflow and publishing, each item with its fix. */}
+            {!readOnly && <NeedsAttention items={attention} label="To fix before publishing" />}
+            <RecordGroup
+              id="workflow-steps"
+              title="Steps"
+              footnote={readOnly ? undefined : 'Drag an email, message, task or wait to move it. Conditions stay where they are.'}
+            >
+              {/* A wide branching flow scrolls sideways here rather than squeezing its cards. */}
+              <div className="overflow-x-auto px-6 pt-1 pb-3">
                 <WorkflowTree
                   definition={definition}
                   selectedId={selectedId}
@@ -296,60 +295,54 @@ export function AutomationEditorPage({
                   readOnly={readOnly}
                 />
               </div>
-            </PanCanvas>
-            {/* Floats over the foot of the canvas, clear of the zoom controls — the canvas keeps its full height. */}
-            {access.canWrite && (
-              <div className="pointer-events-none absolute inset-x-4 bottom-4 flex justify-center md:inset-x-6 md:bottom-6">
-                <div className="pointer-events-auto w-full max-w-xl sm:mr-40">
-                  <SaveBar
-                    dirty={dirty || !savedId}
-                    saving={save.isPending}
-                    saveLabel="Save draft"
-                    disabled={!name.trim()}
-                    message={
-                      !name.trim() ? 'Give the workflow a name' : savedId ? 'Unsaved changes — not live until you publish' : 'Not saved yet'
-                    }
-                    onSave={() => save.mutate(false)}
-                    onDiscard={discard}
-                  />
-                </div>
-              </div>
-            )}
+            </RecordGroup>
           </div>
-        </main>
 
-        <AutomationSidebar
-          node={selected}
-          automation={automation}
-          name={name}
-          onName={setName}
-          templates={usableTemplates}
-          locations={locations}
-          segments={segments}
-          staffAudience={staffAudience}
-          bookingAudience={bookingAudience}
-          triggerEvent={triggerNode?.type === 'trigger' ? triggerNode.config.event : ''}
-          now={now}
-          readOnly={readOnly}
-          templateName={templateNameFor}
-          onChange={updateNode}
-          onDuplicate={duplicateNode}
-          onRemove={removeNode}
-          onPreview={() => setPreviewing(true)}
-          unpublished={unpublished}
-          stepIssues={selected && !readOnly ? stepIssues.get(selected.id) : undefined}
-          chooseTrigger={!hasChosenTrigger}
-          onTriggerChosen={() => {
-            if (hasChosenTrigger) return;
-            setHasChosenTrigger(true);
-            // As the old flow did, go on to the first action: what should happen.
-            const firstAction = definition.nodes.find(
-              (node) => node.type === 'send_email' || node.type === 'send_telegram' || node.type === 'create_task',
-            );
-            if (firstAction) setSelectedId(firstAction.id);
-          }}
-        />
-      </div>
+          <AutomationSidebar
+            node={selected}
+            automation={automation}
+            name={name}
+            onName={setName}
+            templates={usableTemplates}
+            locations={locations}
+            segments={segments}
+            staffAudience={staffAudience}
+            bookingAudience={bookingAudience}
+            triggerEvent={triggerNode?.type === 'trigger' ? triggerNode.config.event : ''}
+            now={now}
+            readOnly={readOnly}
+            templateName={templateNameFor}
+            onChange={updateNode}
+            onDuplicate={duplicateNode}
+            onRemove={removeNode}
+            onPreview={() => setPreviewing(true)}
+            unpublished={unpublished}
+            stepIssues={selected && !readOnly ? stepIssues.get(selected.id) : undefined}
+            chooseTrigger={!hasChosenTrigger}
+            onTriggerChosen={() => {
+              if (hasChosenTrigger) return;
+              setHasChosenTrigger(true);
+              // As the old flow did, go on to the first action: what should happen.
+              const firstAction = definition.nodes.find(
+                (node) => node.type === 'send_email' || node.type === 'send_telegram' || node.type === 'create_task',
+              );
+              if (firstAction) setSelectedId(firstAction.id);
+            }}
+          />
+        </div>
+
+        {access.canWrite && (
+          <SaveBar
+            dirty={dirty || !savedId}
+            saving={save.isPending}
+            saveLabel="Save draft"
+            disabled={!name.trim()}
+            message={!name.trim() ? 'Give the workflow a name' : savedId ? 'Unsaved changes — not live until you publish' : 'Not saved yet'}
+            onSave={() => save.mutate(false)}
+            onDiscard={discard}
+          />
+        )}
+      </motion.div>
       {previewing && selectedTemplate && (
         <EmailPreviewDrawer
           description="Workflow email"

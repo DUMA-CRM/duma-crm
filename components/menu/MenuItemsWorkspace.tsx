@@ -1,24 +1,24 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { ChefHat, CircleDollarSign, Plus, Search, Tag, UploadCloud, UtensilsCrossed, X } from '@/components/icons';
+import { ChefHat, CircleDollarSign, ImageIcon, Plus, Search, Tag, UploadCloud, UtensilsCrossed, X } from '@/components/icons';
 import { CatalogImportDialog } from '@/components/menu/CatalogImportDialog';
-import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
-import { MenuSetupChecklist } from '@/components/menu/MenuSetupChecklist';
-import { ShopSetupChecklist } from '@/components/menu/ShopSetupChecklist';
+import { MenuSectionTabs, MenuShellIcon } from '@/components/menu/MenuSectionTabs';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Switch } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { IconTag } from '@/components/shared/IconTag';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { Pill } from '@/components/shared/Pill';
-import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -31,24 +31,41 @@ import { getMenuCategories, getMenuItems, updateMenuItem } from '@/lib/modules/c
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { filterMenuItems, groupByCategory, setupGaps } from '@/lib/utils/menu-list';
+import {
+  type MenuShow,
+  type ShowCost,
+  countMenuShow,
+  filterMenuItems,
+  groupByCategory,
+  inMenuShow,
+  menuShows,
+  parseMenuShow,
+  setupGaps,
+} from '@/lib/utils/menu-list';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { MenuCategory, MenuItem } from '@/types/menu';
 
 /**
- * The menu items list in the settings vocabulary: what needs a recipe first,
- * then a search and category, then items under their category as audit rows —
- * one row carrying what used to be three views: setup gaps, margin, price and
- * whether it's on the menu. Each opens the full item record.
+ * The menu items list, like Promotions: a search with the Category and Show
+ * selects and the count, then items under their section in menu order — each
+ * row its setup gaps, margin, price and the on-the-menu switch. `?show=` (the
+ * Overview's figures link here) picks the Show filter on arrival.
  */
 export function MenuItemsWorkspace() {
   const qc = useQueryClient();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const reduceMotion = useReducedMotion();
   const { tenantId } = useWorkspaceStore();
   const [search, setSearch] = useState('');
   const [importing, setImporting] = useState(false);
   const words = useCatalogWords();
+  const kitchen = words.tools.kitchen;
   const [categoryFilter, setCategoryFilter] = useState<'all' | MenuCategory>('all');
+  // Read once: the workspace's vocabulary can arrive after the first render, so a
+  // kitchen-only value is checked against it when used, not here.
+  const [showChoice, setShow] = useState<string>(() => searchParams.get('show') ?? 'all');
+  const show = parseMenuShow(showChoice, kitchen);
 
   const itemsQuery = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
@@ -62,12 +79,32 @@ export function MenuItemsWorkspace() {
   });
   const items = useMemo(() => itemsQuery.data ?? [], [itemsQuery.data]);
   const filtered = useMemo(() => filterMenuItems(items, search, categoryFilter), [items, search, categoryFilter]);
-  const groups = groupByCategory(filtered, categories);
 
   // A request per item (cached, and shared with the item page) — fine for a café
   // menu, and the price of showing margin on every row.
   // Margins come from recipes — a shop's products have none, so nothing is costed.
-  const costs = useMenuItemCosts(words.tools.kitchen ? filtered : []);
+  const costs = useMenuItemCosts(kitchen ? filtered : []);
+  const showCosts = useMemo(
+    () => new Map<string, ShowCost>([...costs].map(([id, cost]) => [id, { ...cost, marginPct: cost.costing?.marginPct ?? null }])),
+    [costs],
+  );
+  const shown = filtered.filter((item) => inMenuShow(item, showCosts.get(item.id), show));
+  const groups = groupByCategory(shown, categories);
+
+  const filtersActive = Boolean(search.trim()) || categoryFilter !== 'all' || show !== 'all';
+  const clearFilters = () => {
+    setSearch('');
+    setCategoryFilter('all');
+    setShow('all');
+  };
+  const showLabel: Record<MenuShow, string> = {
+    all: `All ${words.items}`,
+    on: words.available,
+    off: kitchen ? 'Off the menu' : 'Not for sale',
+    'not-costed': 'Not costed',
+    loss: 'At a loss',
+    'no-photo': 'No photo',
+  };
 
   const availability = useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateMenuItem(id, { isAvailable }),
@@ -81,17 +118,17 @@ export function MenuItemsWorkspace() {
   return (
     <EditorShell
       title={words.section}
-      icon={words.vocabulary === 'retail' ? <Tag size={20} aria-hidden="true" /> : <UtensilsCrossed size={20} aria-hidden="true" />}
+      icon={<MenuShellIcon />}
       subheader={<MenuSectionTabs />}
       actions={
         tenantId ? (
-          <div className="flex items-center gap-1.5 md:gap-2">
+          <div className="flex items-center gap-2">
             {/* A whole catalogue — sizes and stock — from a sheet or a Shopify export. */}
-            <Button variant="outline" className="gap-1.5" onClick={() => setImporting(true)} aria-label="Import products">
+            <Button variant="outline" onClick={() => setImporting(true)} aria-label="Import products">
               <UploadCloud size={15} aria-hidden="true" />
               <span className="hidden md:inline">Import</span>
             </Button>
-            <Button className="gap-1.5" onClick={() => router.push('/menu/items/new')} aria-label={words.newItem}>
+            <Button onClick={() => router.push('/menu/items/new')} aria-label={words.newItem}>
               <Plus size={15} aria-hidden="true" />
               <span className="hidden md:inline">{words.newItem}</span>
             </Button>
@@ -103,49 +140,58 @@ export function MenuItemsWorkspace() {
       {!tenantId ? (
         <EmptyState icon={UtensilsCrossed} title="No workspace selected" description="Choose a workspace to manage its menu." />
       ) : itemsQuery.isError ? (
-        <ErrorState title="Couldn’t load the menu" onRetry={() => void itemsQuery.refetch()} />
+        <ErrorState className="flex-1" title="Couldn’t load the menu" onRetry={() => void itemsQuery.refetch()} />
       ) : itemsQuery.isPending ? (
-        // The search and category row, then a category: its label and the card of items.
-        <div role="status" aria-busy="true" aria-label={`Loading ${words.section.toLowerCase()}`} className="space-y-5">
+        // The toolbar, then a section: its title and the card of items.
+        <div aria-busy="true" className="flex flex-col gap-5">
           <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
-            <Bone className="h-9 min-w-56 flex-1 lg:max-w-xs" />
-            <Bone className="h-9 w-48" />
+            <Bone className="h-9 min-w-56 flex-1" />
+            <Bone className="h-9 w-40" />
+            <Bone className="h-9 w-40" />
           </div>
           <div>
-            <Bone className="mb-2 h-3 w-24" />
-            <div className="overflow-hidden rounded-lg border border-border bg-card">
-              {Array.from({ length: 5 }, (_, index) => (
-                <RowSkeleton key={index} index={index} />
-              ))}
-            </div>
+            <Bone className="mb-3 ml-1 h-4 w-24" />
+            <ListSkeleton rows={5} label={`Loading ${words.section.toLowerCase()}`} />
           </div>
         </div>
       ) : items.length === 0 ? (
-        words.vocabulary === 'retail' ? (
-          <ShopSetupChecklist onImport={() => setImporting(true)} />
-        ) : (
-          <MenuSetupChecklist />
-        )
+        // The step-by-step setup lives on the Overview; this list just offers the first item.
+        <EmptyState
+          className="flex-1"
+          icon={kitchen ? UtensilsCrossed : Tag}
+          title={`No ${words.items} yet`}
+          description={
+            kitchen
+              ? 'Name it and price it, then add modifiers and a recipe from the same screen.'
+              : 'Add products one by one, or import your catalogue from a sheet — your own or a Shopify export.'
+          }
+          action={{ label: words.newItem, href: '/menu/items/new', icon: Plus }}
+        />
       ) : (
-        <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
+        <motion.div
+          className="flex flex-col gap-5"
+          initial={reduceMotion ? false : 'hidden'}
+          animate="shown"
+          variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.05 } } }}
+        >
           <motion.div variants={SECTION_RISE} className="flex flex-wrap items-center gap-2">
-            <div className="min-w-56 flex-1 lg:max-w-xs">
+            <div className="min-w-56 flex-1">
               <Input
+                type="search"
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
-                leftIcon={<Search size={14} />}
-                placeholder={`Find a ${words.item}`}
+                leftIcon={<Search size={14} aria-hidden="true" />}
+                placeholder="Name or description…"
                 aria-label={`Find a ${words.item}`}
-                className="border-rule"
                 rightAction={
                   search ? (
                     <button
                       type="button"
                       onClick={() => setSearch('')}
                       aria-label="Clear search"
-                      className="text-muted-foreground hover:text-foreground"
+                      className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                     >
-                      <X size={14} />
+                      <X size={13} aria-hidden="true" />
                     </button>
                   ) : undefined
                 }
@@ -155,27 +201,26 @@ export function MenuItemsWorkspace() {
               value={categoryFilter}
               onValueChange={(value) => setCategoryFilter(value as 'all' | MenuCategory)}
               options={[
-                { value: 'all', label: 'All categories' },
+                { value: 'all', label: kitchen ? 'All sections' : 'All categories' },
                 ...categories.map((category) => ({ value: category.id, label: category.name })),
               ]}
-              ariaLabel="Category"
-              className="w-48"
+              ariaLabel={kitchen ? 'Section' : 'Category'}
+              className="w-40"
             />
-            <span className="ml-auto text-xs text-muted-foreground">
-              {filtered.length !== items.length && `${filtered.length} of `}
-              {items.length} {items.length === 1 ? words.item : words.items} · {items.filter((i) => i.isAvailable).length}{' '}
-              {words.available.toLowerCase()}
+            <Select
+              value={show}
+              onValueChange={setShow}
+              options={menuShows(kitchen).map((value) => ({
+                value,
+                label: value === 'all' ? showLabel.all : `${showLabel[value]} · ${countMenuShow(filtered, showCosts, value)}`,
+              }))}
+              ariaLabel="Show"
+              className="w-40"
+            />
+            <span className="ml-auto text-xs tabular-nums text-muted-foreground" aria-live="polite">
+              {filtersActive ? `${shown.length} of ${items.length}` : `${items.length} ${items.length === 1 ? words.item : words.items}`}
             </span>
           </motion.div>
-
-          {groups.length > 0 && (
-            <div className="-mb-3 hidden items-center gap-3 px-3.5 text-label uppercase text-muted-foreground sm:flex" aria-hidden="true">
-              <span className="flex-1" />
-              {words.tools.kitchen && <span className="w-32 text-right">Margin</span>}
-              <span className="w-20 text-right">Price</span>
-              <span className="w-24 text-right">{words.available}</span>
-            </div>
-          )}
 
           {groups.length === 0 ? (
             <motion.div variants={SECTION_RISE}>
@@ -183,37 +228,28 @@ export function MenuItemsWorkspace() {
                 icon={Search}
                 kind="search"
                 title="Nothing matches"
-                description="Try another search or category."
-                action={{
-                  label: 'Clear filters',
-                  onClick: () => {
-                    setSearch('');
-                    setCategoryFilter('all');
-                  },
-                }}
+                description="Try a different search or filter."
+                action={{ label: 'Clear filters', onClick: clearFilters }}
               />
             </motion.div>
           ) : (
-            groups.map((group) => {
-              return (
-                <motion.section key={group.id} variants={SECTION_RISE} aria-label={group.name}>
-                  <h2 className="mb-2 text-label uppercase text-muted-foreground">{group.name}</h2>
-                  <ul className="overflow-hidden rounded-lg border border-border bg-card">
-                    {group.items.map((item) => (
-                      <ItemRow
-                        key={item.id}
-                        item={item}
-                        cost={costs.get(item.id)}
-                        kitchen={words.tools.kitchen}
-                        availableLabel={words.available}
-                        togglePending={availability.isPending && availability.variables?.id === item.id}
-                        onToggle={(isAvailable) => availability.mutate({ id: item.id, isAvailable })}
-                      />
-                    ))}
-                  </ul>
-                </motion.section>
-              );
-            })
+            groups.map((group) => (
+              <RecordGroup key={group.id} id={`menu-items-${group.id}`} title={group.name}>
+                <ListRowGroup aria-label={group.name}>
+                  {group.items.map((item) => (
+                    <ItemRow
+                      key={item.id}
+                      item={item}
+                      cost={costs.get(item.id)}
+                      kitchen={kitchen}
+                      availableLabel={words.available}
+                      togglePending={availability.isPending && availability.variables?.id === item.id}
+                      onToggle={(isAvailable) => availability.mutate({ id: item.id, isAvailable })}
+                    />
+                  ))}
+                </ListRowGroup>
+              </RecordGroup>
+            ))
           )}
         </motion.div>
       )}
@@ -221,7 +257,7 @@ export function MenuItemsWorkspace() {
   );
 }
 
-/** One item as an audit row: what it is and what's missing, then margin, price and the on/off switch. */
+/** One item: thumbnail, name and what's missing; margin and price; the on/off switch; Recipe or Photos on hover. */
 function ItemRow({
   item,
   cost,
@@ -239,68 +275,70 @@ function ItemRow({
   onToggle: (isAvailable: boolean) => void;
 }) {
   const formatMoney = useFormatMoney();
-  const gaps = kitchen && cost && !cost.loading ? setupGaps(item, cost) : [];
+  // Only what's missing — a complete item says nothing extra. A missing image is
+  // already the placeholder thumbnail, so it isn't said twice.
+  const gaps = (kitchen && cost && !cost.loading ? setupGaps(item, cost) : []).filter((gap) => gap !== 'No image');
+  const image = proxiedImage(item.imageUrl);
 
   return (
-    // The link stretches over the whole row (its ::after), so the padding,
-    // margin and price open the item too — the row highlights as one target.
-    // Only the switch sits above it, as its own control.
-    <li className="group relative flex items-center gap-3 border-b border-border px-3.5 py-3 transition-colors last:border-b-0 hover:bg-band/40 has-[a:focus-visible]:bg-band/40">
-      <Link
-        href={`/menu/items/${item.id}`}
-        className="flex min-w-0 flex-1 items-center gap-3 outline-none after:absolute after:inset-0 after:content-[''] focus-visible:after:outline-2 focus-visible:after:-outline-offset-2 focus-visible:after:outline-ring"
-      >
-        {item.imageUrl ? (
+    <ListRow
+      href={`/menu/items/${item.id}`}
+      muted={!item.isAvailable}
+      leading={
+        image ? (
           // eslint-disable-next-line @next/next/no-img-element
           <img
-            src={proxiedImage(item.imageUrl) ?? undefined}
+            src={image}
             alt=""
-            className={cn('size-10 shrink-0 rounded-md bg-band object-cover', !item.isAvailable && 'opacity-50 grayscale')}
+            className={cn('size-9 shrink-0 rounded-md bg-band object-cover', !item.isAvailable && 'opacity-50 grayscale')}
           />
         ) : (
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground" aria-hidden="true">
+          <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-band text-muted-foreground" aria-hidden="true">
             {kitchen ? <UtensilsCrossed size={16} /> : <Tag size={16} />}
           </span>
-        )}
-        <span className="min-w-0 flex-1">
-          <span className="flex min-w-0 items-center gap-2">
-            <span className={cn('truncate text-sm font-semibold', item.isAvailable ? 'text-foreground' : 'text-muted-foreground')}>
-              {item.name}
-            </span>
-            {/* Only what's missing — a complete item says nothing extra. A missing
-                image is already the placeholder thumbnail, so it isn't said twice. */}
-            {gaps
-              .filter((gap) => gap !== 'No image')
-              .map((gap) => (
-                <IconTag
-                  key={gap}
-                  icon={gap === 'No recipe' ? ChefHat : CircleDollarSign}
-                  label={gap}
-                  tone="warning"
-                  className="hidden md:inline-flex"
-                />
-              ))}
+        )
+      }
+      title={item.name}
+      titleExtra={gaps.map((gap) => (
+        <IconTag
+          key={gap}
+          icon={gap === 'No recipe' ? ChefHat : CircleDollarSign}
+          label={gap}
+          tone="warning"
+          className="hidden md:inline-flex"
+        />
+      ))}
+      meta={item.description || undefined}
+      trailing={
+        <>
+          {kitchen && <Margin cost={cost} />}
+          <span className="w-20 text-right text-sm font-semibold tabular-nums text-foreground">
+            {formatMoney(Number(item.price) || 0, 2)}
           </span>
-          {item.description && <span className="block truncate text-xs text-muted-foreground">{item.description}</span>}
-        </span>
-      </Link>
-
-      {kitchen && <Margin cost={cost} />}
-      <span className="w-20 shrink-0 text-right text-sm font-semibold tabular-nums text-foreground">
-        {formatMoney(Number(item.price) || 0, 2)}
-      </span>
-      <span className="flex w-24 shrink-0 items-center justify-end">
-        {/* Raised above the stretched link — just the switch, so the space around it still opens the item. */}
-        <span className="relative z-10 inline-flex">
-          <Switch
-            label={`${item.name} — ${availableLabel.toLowerCase()}`}
-            checked={item.isAvailable}
-            disabled={togglePending}
-            onChange={onToggle}
-          />
-        </span>
-      </span>
-    </li>
+        </>
+      }
+      control={
+        <Switch
+          label={`${item.name} — ${availableLabel.toLowerCase()}`}
+          checked={item.isAvailable}
+          disabled={togglePending}
+          onChange={onToggle}
+        />
+      }
+      actions={
+        <Button asChild variant="ghost" size="icon-sm" className="text-muted-foreground">
+          {kitchen ? (
+            <Link href={`/menu/items/${item.id}?tab=recipe`} aria-label={`Recipe for ${item.name}`} title="Recipe">
+              <ChefHat aria-hidden="true" />
+            </Link>
+          ) : (
+            <Link href={`/menu/items/${item.id}?tab=photos`} aria-label={`Photos of ${item.name}`} title="Photos">
+              <ImageIcon aria-hidden="true" />
+            </Link>
+          )}
+        </Button>
+      }
+    />
   );
 }
 
@@ -308,17 +346,17 @@ function ItemRow({
     The chip's tone uses the same line the recipe screen does: in the red is a loss. */
 function Margin({ cost }: { cost?: MenuItemCost }) {
   const formatMoney = useFormatMoney();
-  if (!cost || cost.loading) return <Bone className="hidden h-8 w-32 shrink-0 rounded-sm sm:block" />;
+  if (!cost || cost.loading) return <Bone className="hidden h-8 w-32 rounded-sm sm:block" />;
   if (!cost.costComplete)
     return (
-      <span className="hidden w-32 shrink-0 text-right sm:block">
+      <span className="hidden w-32 text-right sm:block">
         <span className="block text-sm text-muted-foreground">—</span>
         <span className="block text-xs text-muted-foreground">{cost.hasRecipe ? 'costs missing' : 'not costed'}</span>
       </span>
     );
   const { cogs, margin, marginPct } = cost.costing!;
   return (
-    <span className="hidden w-32 shrink-0 flex-col items-end gap-0.5 tabular-nums sm:flex">
+    <span className="hidden w-32 flex-col items-end gap-0.5 tabular-nums sm:flex">
       <Pill tone={margin >= 0 ? 'success' : 'exception'} className="tabular-nums">
         {formatMoney(margin, 2)} · {marginPct.toFixed(0)}%
       </Pill>

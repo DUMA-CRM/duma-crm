@@ -29,14 +29,16 @@ export function DeleteMenuItemButton({ item, onDeleted }: { item: MenuItem; onDe
 
   return (
     <>
+      {/* A header button: 36px and outlined like its neighbours, red only on hover. */}
       <Button
-        variant="ghost"
+        variant="outline"
         size="icon"
         onClick={() => setConfirming(true)}
         aria-label={`Delete ${item.name}`}
-        className="size-9 text-muted-foreground/70 hover:text-destructive"
+        title={`Delete ${item.name}`}
+        className="size-9 text-muted-foreground hover:border-exception/40 hover:bg-exception/6 hover:text-exception"
       >
-        <Trash2 size={16} />
+        <Trash2 size={16} aria-hidden="true" />
       </Button>
 
       {confirming && (

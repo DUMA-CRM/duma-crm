@@ -40,7 +40,7 @@ const TILE: Record<NeedsAttentionTone, string> = {
 const VISIBLE = 4;
 
 const fixClass =
-  'inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
+  'inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-2.5 text-sm font-semibold text-primary pointer-coarse:h-11 pointer-coarse:px-3 transition-colors hover:bg-primary/8 focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring';
 
 /**
  * A compact stack of strips, one per thing that needs someone: the icon on a

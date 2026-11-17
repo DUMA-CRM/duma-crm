@@ -4,11 +4,21 @@
 // reservations module, /v1/reservations). Every call names one location. The
 // API is the one place a clash is decided: it locks the tables and refuses a
 // second live booking over the same one with a 409 that names them.
-import type { BookingSource, FloorTable, ReservationStatus, WaitlistStatus } from '@/lib/utils/reservations';
+import type { BookingSource, FixtureKind, FloorFixture, FloorTable, ReservationStatus, WaitlistStatus } from '@/lib/utils/reservations';
 
 import { apiFetch } from './client';
 
-export type { BookingSource, DiningTableShape, FloorTable, ReservationStatus, WaitlistStatus } from '@/lib/utils/reservations';
+export type {
+  BookingSource,
+  DiningTableShape,
+  FixtureKind,
+  FloorChairs,
+  FloorSeat,
+  FloorFixture,
+  FloorTable,
+  ReservationStatus,
+  WaitlistStatus,
+} from '@/lib/utils/reservations';
 
 export interface DiningArea {
   id: string;
@@ -16,6 +26,8 @@ export interface DiningArea {
   name: string;
   sortOrder: number;
   tables: FloorTable[];
+  /** Windows, the entrance, the bar… — absent from older API versions. */
+  fixtures?: FloorFixture[];
 }
 
 export interface Booking {
@@ -91,10 +103,15 @@ export interface WaitlistInput {
   notes?: string | null;
 }
 
-export type TableInput = Pick<FloorTable, 'label' | 'minCovers' | 'maxCovers' | 'shape' | 'x' | 'y' | 'width' | 'height' | 'rotation'> & {
+export type TableInput = Pick<
+  FloorTable,
+  'label' | 'minCovers' | 'maxCovers' | 'shape' | 'x' | 'y' | 'width' | 'height' | 'rotation' | 'chairs'
+> & {
   areaId: string;
 };
 export type TablePosition = Pick<FloorTable, 'id' | 'x' | 'y' | 'width' | 'height' | 'rotation'>;
+export type FixtureInput = Pick<FloorFixture, 'areaId' | 'label' | 'x' | 'y' | 'width' | 'height' | 'rotation'> & { kind: FixtureKind };
+export type FixturePosition = Pick<FloorFixture, 'id' | 'x' | 'y' | 'width' | 'height' | 'rotation'>;
 
 /** A write that went through, with what's worth a word — too few seats, outside the opening hours. */
 type Saved<T> = { data: T; warnings: string[] };
@@ -126,8 +143,24 @@ export const updateTable = (id: string, patch: Partial<TableInput>) =>
 
 export const removeTable = (id: string) => apiFetch<{ data: { id: string } }>(`/reservations/tables/${id}`, { method: 'DELETE' });
 
-export const saveLayout = (locationId: string, tables: TablePosition[]) =>
-  apiFetch<{ data: { saved: number } }>('/reservations/floor/layout', { method: 'PUT', body: JSON.stringify({ locationId, tables }) });
+/** Every moved table and fixture, in one write. Either list may be empty, not both. */
+export const saveLayout = (locationId: string, tables: TablePosition[], fixtures: FixturePosition[] = []) =>
+  apiFetch<{ data: { saved: number } }>('/reservations/floor/layout', {
+    method: 'PUT',
+    body: JSON.stringify({ locationId, ...(tables.length ? { tables } : {}), ...(fixtures.length ? { fixtures } : {}) }),
+  });
+
+export const createFixture = (input: FixtureInput) =>
+  apiFetch<{ data: FloorFixture }>('/reservations/fixtures', { method: 'POST', body: JSON.stringify(input) }).then(
+    (response) => response.data,
+  );
+
+export const updateFixture = (id: string, patch: Partial<Omit<FixtureInput, 'areaId'>>) =>
+  apiFetch<{ data: FloorFixture }>(`/reservations/fixtures/${id}`, { method: 'PATCH', body: JSON.stringify(patch) }).then(
+    (response) => response.data,
+  );
+
+export const removeFixture = (id: string) => apiFetch<{ data: { id: string } }>(`/reservations/fixtures/${id}`, { method: 'DELETE' });
 
 // ─── Bookings ─────────────────────────────────────────────────────────────────
 

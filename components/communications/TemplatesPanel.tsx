@@ -1,15 +1,16 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { Copy, Eye, Mail, Plus, Search, Trash2, Zap } from '@/components/icons';
+import { Copy, Eye, Mail, Plus, Search, Trash2 } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { Bone } from '@/components/shared/Skeleton';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
@@ -22,7 +23,6 @@ import {
 } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
-import { cn } from '@/lib/utils/cn';
 import { groupTemplates, templateUsage } from '@/lib/utils/communications';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -33,11 +33,13 @@ import { workflowForAutomation } from './workflowModel';
 
 const CATEGORY_ORDER = TEMPLATE_CATEGORIES.map((category) => category.value);
 
+type Usage = 'any' | 'used' | 'unused';
+
 /**
- * Templates as the Menu lists its items — a heading per category, then the
- * things in it — but as cards, because what a template looks like is the
- * reason to open this tab. A card opens the editor (or the preview, for
- * someone who can only read); the thumbnail always previews.
+ * Templates as Forms lists its forms: a search with the Category and Use
+ * selects and the count, then one row per template — category order, then
+ * name. A row opens the editor (the preview, for someone who can only read);
+ * Preview, Duplicate and Delete sit on the row's hover.
  */
 export function TemplatesPanel({
   onEdit,
@@ -48,9 +50,11 @@ export function TemplatesPanel({
 }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
+  const reduceMotion = useReducedMotion();
   const { canWrite } = useEmailAccess();
   const [search, setSearch] = useState('');
   const [category, setCategory] = useState('all');
+  const [inUse, setInUse] = useState<Usage>('any');
   const [deleteTarget, setDeleteTarget] = useState<EmailTemplate | null>(null);
 
   const templatesQuery = useQuery({
@@ -98,49 +102,45 @@ export function TemplatesPanel({
     () => templateUsage(automations.map((automation) => ({ definition: workflowForAutomation(automation) }))),
     [automations],
   );
-  const groups = useMemo(() => groupTemplates(templatesQuery.data ?? [], CATEGORY_ORDER, usage), [templatesQuery.data, usage]);
-  const shownGroups = groups
-    .map((group) => ({
-      ...group,
-      items: group.items.filter(
-        (template) =>
-          (category === 'all' || template.category === category) &&
-          `${template.name} ${template.subject}`.toLowerCase().includes(search.trim().toLowerCase()),
-      ),
-    }))
-    .filter((group) => group.items.length > 0);
+  // groupTemplates keeps the live ones in category order; the list is one run of rows.
+  const all = useMemo(
+    () => groupTemplates(templatesQuery.data ?? [], CATEGORY_ORDER, usage).flatMap((group) => group.items),
+    [templatesQuery.data, usage],
+  );
+  const needle = search.trim().toLowerCase();
+  const shown = all.filter((template) => {
+    const uses = usage.get(template.id) ?? 0;
+    return (
+      (category === 'all' || template.category === category) &&
+      (inUse === 'any' || (inUse === 'used' ? uses > 0 : uses === 0)) &&
+      `${template.name} ${template.subject}`.toLowerCase().includes(needle)
+    );
+  });
+  const unused = all.filter((template) => (usage.get(template.id) ?? 0) === 0).length;
+  const filtersActive = Boolean(needle) || category !== 'all' || inUse !== 'any';
   const reset = () => {
     setSearch('');
     setCategory('all');
+    setInUse('any');
   };
   const deleteUses = deleteTarget ? (usage.get(deleteTarget.id) ?? 0) : 0;
 
   if (templatesQuery.isError)
-    return (
-      <div className="overflow-hidden rounded-lg border border-border bg-field">
-        <ErrorState title="Templates couldn’t be loaded" onRetry={() => void templatesQuery.refetch()} />
-      </div>
-    );
+    return <ErrorState className="flex-1" title="Templates couldn’t be loaded" onRetry={() => void templatesQuery.refetch()} />;
 
   if (templatesQuery.isPending)
     return (
-      <div role="status" aria-busy="true" aria-label="Loading templates">
-        <Bone className="mb-2 h-3 w-40" />
-        <TemplateGrid>
-          {Array.from({ length: 4 }, (_, index) => (
-            <div key={index} className="flex flex-col overflow-hidden rounded-lg border border-border bg-field" aria-hidden="true">
-              <Bone className="aspect-16/9 sm:aspect-2/1 w-full rounded-none border-b border-border" />
-              <span className="space-y-1.5 px-3.5 py-3">
-                <Bone className={cn('h-3.5', index % 2 ? 'w-28' : 'w-36')} />
-                <Bone className="h-3 w-44 max-w-full" />
-              </span>
-            </div>
-          ))}
-        </TemplateGrid>
+      <div className="flex flex-col gap-3" aria-busy="true">
+        <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
+          <Bone className="h-9 min-w-56 flex-1" />
+          <Bone className="h-9 w-40" />
+          <Bone className="h-9 w-40" />
+        </div>
+        <ListSkeleton rows={5} label="Loading templates" />
       </div>
     );
 
-  if (groups.length === 0)
+  if (all.length === 0)
     return (
       <EmptyState
         className="flex-1"
@@ -152,44 +152,57 @@ export function TemplatesPanel({
     );
 
   return (
-    <motion.div className="space-y-5" initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.05 } } }}>
-      <CommunicationsToolbar
-        search={search}
-        onSearch={setSearch}
-        placeholder="Search templates…"
-        onClear={reset}
-        count={`${shownGroups.reduce((total, group) => total + group.items.length, 0)} templates`}
-        filters={
-          <Select
-            value={category}
-            onValueChange={setCategory}
-            options={[{ value: 'all', label: 'All categories' }, ...TEMPLATE_CATEGORIES.map(({ value, label }) => ({ value, label }))]}
-            ariaLabel="Template category"
-            className="w-full sm:w-44"
-          />
-        }
-        chips={category === 'all' ? [] : [{ label: templateCategoryLabel(category), onRemove: () => setCategory('all') }]}
-      />
-      {shownGroups.length === 0 && (
-        <EmptyState
-          icon={Search}
-          kind="search"
-          title="Nothing matches"
-          description="Try another search or category."
-          action={{ label: 'Clear filters', onClick: reset }}
+    <motion.div
+      className="flex flex-col gap-3"
+      initial={reduceMotion ? false : 'hidden'}
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+    >
+      <motion.div variants={SECTION_RISE}>
+        <CommunicationsToolbar
+          search={search}
+          onSearch={setSearch}
+          placeholder="Name or subject…"
+          label="Find a template by name or subject"
+          count={filtersActive ? `${shown.length} of ${all.length}` : `${all.length} ${all.length === 1 ? 'template' : 'templates'}`}
+          filters={
+            <>
+              <Select
+                value={category}
+                onValueChange={setCategory}
+                options={[{ value: 'all', label: 'All categories' }, ...TEMPLATE_CATEGORIES.map(({ value, label }) => ({ value, label }))]}
+                ariaLabel="Template category"
+                className="w-40"
+              />
+              <Select
+                value={inUse}
+                onValueChange={(value) => setInUse(value as Usage)}
+                options={[
+                  { value: 'any', label: 'Any use' },
+                  { value: 'used', label: `In use · ${all.length - unused}` },
+                  { value: 'unused', label: `Not in use · ${unused}` },
+                ]}
+                ariaLabel="Whether an automation sends it"
+                className="w-40"
+              />
+            </>
+          }
         />
-      )}
-      {shownGroups.map((group) => (
-        <motion.section key={group.category} variants={SECTION_RISE} aria-label={templateCategoryLabel(group.category)}>
-          <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-heading">
-            {templateCategoryLabel(group.category)}
-            <span className="text-xs font-normal text-muted-foreground tabular-nums">
-              {group.items.length} {group.items.length === 1 ? 'template' : 'templates'} · {group.inUse} in use
-            </span>
-          </h2>
-          <TemplateGrid>
-            {group.items.map((template) => (
-              <TemplateCard
+      </motion.div>
+
+      <motion.div variants={SECTION_RISE}>
+        {shown.length === 0 ? (
+          <EmptyState
+            icon={Search}
+            kind="search"
+            title="No template matches"
+            description="Try a different search or filter."
+            action={{ label: 'Clear filters', onClick: reset }}
+          />
+        ) : (
+          <ListRowGroup aria-label="Templates">
+            {shown.map((template) => (
+              <TemplateRow
                 key={template.id}
                 template={template}
                 uses={usage.get(template.id) ?? 0}
@@ -201,9 +214,9 @@ export function TemplatesPanel({
                 onDelete={() => setDeleteTarget(template)}
               />
             ))}
-          </TemplateGrid>
-        </motion.section>
-      ))}
+          </ListRowGroup>
+        )}
+      </motion.div>
 
       {deleteTarget && (
         <ConfirmModal
@@ -229,11 +242,8 @@ export function TemplatesPanel({
   );
 }
 
-function TemplateGrid({ children }: { children: React.ReactNode }) {
-  return <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-3 2xl:grid-cols-4">{children}</div>;
-}
-
-function TemplateCard({
+/** One template: tile and name; its category and subject; how many automations send it; Preview, Duplicate, Delete on hover. */
+function TemplateRow({
   template,
   uses,
   canWrite,
@@ -253,78 +263,53 @@ function TemplateCard({
   onDelete: () => void;
 }) {
   return (
-    <article className="group flex flex-col overflow-hidden rounded-lg border border-border bg-field transition-colors hover:border-rule">
-      {/* The thumbnail is the preview — the whole plate is the button. */}
-      <button
-        type="button"
-        onClick={onPreview}
-        aria-label={`Preview ${template.name}`}
-        className="relative block aspect-16/9 sm:aspect-2/1 w-full overflow-hidden border-b border-border bg-white focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-      >
-        <iframe
-          title=""
-          sandbox=""
-          tabIndex={-1}
-          srcDoc={template.htmlBody}
-          className="pointer-events-none h-175 w-[200%] origin-top-left scale-50 border-0 bg-white"
-        />
-        {/* Rendered emails are white in both themes, so the scrim is fixed dark. */}
-        <span className="absolute inset-0 flex items-center justify-center bg-black/25 opacity-0 transition-opacity group-hover:opacity-100">
-          <span className="inline-flex items-center gap-1.5 rounded-md bg-field px-3 py-1.5 text-xs font-semibold text-foreground shadow-md">
-            <Eye size={14} aria-hidden="true" /> Preview
-          </span>
+    <ListRow
+      icon={Mail}
+      tone={uses > 0 ? 'success' : 'muted'}
+      title={template.name}
+      meta={
+        <>
+          {templateCategoryLabel(template.category)} · {template.subject}
+        </>
+      }
+      trailing={
+        <span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">
+          {uses > 0 ? `${uses} automation${uses === 1 ? '' : 's'}` : 'Not in use'}
         </span>
-      </button>
-
-      <div className="flex min-w-0 flex-1 items-center gap-2 px-3.5 py-3 transition-colors hover:bg-band/40">
-        <button
-          type="button"
-          onClick={onOpen}
-          aria-label={canWrite ? `Edit ${template.name}` : `Preview ${template.name}`}
-          className="min-w-0 flex-1 rounded-md text-left focus-visible:outline-2 focus-visible:outline-ring"
-        >
-          <span className="block truncate text-sm font-semibold text-foreground" title={template.name}>
-            {template.name}
-          </span>
-          <span className="block truncate text-xs text-muted-foreground" title={template.subject}>
-            {template.subject}
-          </span>
-          <span
-            className={cn(
-              'mt-1 inline-flex items-center gap-1 text-micro font-semibold tabular-nums',
-              uses > 0 ? 'text-momentum' : 'text-muted-foreground',
-            )}
-            title={uses > 0 ? `In ${uses} automation${uses === 1 ? '' : 's'}` : 'Not in an automation'}
-          >
-            <Zap size={11} aria-hidden="true" />
-            {uses > 0 ? `${uses} automation${uses === 1 ? '' : 's'}` : 'Not in use'}
-          </span>
-        </button>
-        {canWrite && (
-          <span className="flex shrink-0 items-center opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 focus-within:opacity-100">
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              disabled={duplicating}
-              onClick={onDuplicate}
-              aria-label={`Duplicate ${template.name}`}
-              title="Make an editable copy"
-            >
-              <Copy />
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              onClick={onDelete}
-              aria-label={`Delete ${template.name}`}
-              title="Delete"
-              className="text-muted-foreground/60 hover:text-destructive"
-            >
-              <Trash2 />
-            </Button>
-          </span>
-        )}
-      </div>
-    </article>
+      }
+      targetLabel={canWrite ? `Edit ${template.name}` : `Preview ${template.name}`}
+      onClick={onOpen}
+      actions={
+        <>
+          <Button variant="ghost" size="icon-sm" onClick={onPreview} aria-label={`Preview ${template.name}`} title="Preview">
+            <Eye />
+          </Button>
+          {canWrite && (
+            <>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                disabled={duplicating}
+                onClick={onDuplicate}
+                aria-label={`Duplicate ${template.name}`}
+                title="Make an editable copy"
+              >
+                <Copy />
+              </Button>
+              <Button
+                variant="ghost"
+                size="icon-sm"
+                onClick={onDelete}
+                aria-label={`Delete ${template.name}`}
+                title="Delete"
+                className="text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 />
+              </Button>
+            </>
+          )}
+        </>
+      }
+    />
   );
 }

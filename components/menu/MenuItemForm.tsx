@@ -1,22 +1,35 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { RowTile } from '@/components/cms/rows';
-import { ArrowRight, Boxes, ChevronDown, ImageIcon, Layers, Link2, Tag, UtensilsCrossed } from '@/components/icons';
+import { SectionInfo } from '@/components/cms/rows';
+import {
+  AlignLeft,
+  Boxes,
+  Coins,
+  Eye,
+  EyeOff,
+  ImageIcon,
+  Layers,
+  Link2,
+  Receipt,
+  Scale,
+  SlidersHorizontal,
+  Type,
+} from '@/components/icons';
 import { ItemImageField } from '@/components/menu/ItemImageField';
-import { categoryTone } from '@/components/menu/shared';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
+import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { Bone } from '@/components/shared/Skeleton';
 import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
-import { proxiedImage } from '@/lib/api/client';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { useVatContext } from '@/lib/hooks/useVatContext';
 import {
@@ -35,16 +48,18 @@ import {
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { groupByCategory, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
+import { RULE_OPTIONS, displayPrice, formatPriceChange, menuItemErrors, offeredSummary, ruleKey, ruleWords } from '@/lib/utils/menu-editor';
+import { groupByCategory, isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import type { MenuItem } from '@/types/menu';
-
-const adjust = (raw: string | undefined, symbol: string) => {
-  const n = Number.parseFloat(raw ?? '0');
-  return n ? `${n > 0 ? '+' : '−'}${symbol}${Math.abs(n).toFixed(2)}` : '';
-};
 
 // ── Attached-modifiers editor (edit mode only) ────────────────────────────────
 
+/**
+ * One row per modifier group: what the item offers from it and the group's
+ * rule. Change opens the group in place — tick what's offered, pick the till's
+ * default. Each tick saves at once (its own API call), so the row closes with
+ * Done rather than Cancel: there is nothing to put back.
+ */
 function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; tenantId: string }) {
   const symbol = useCurrencySymbol();
   const qc = useQueryClient();
@@ -52,10 +67,11 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
     queryKey: moduleQueryKeys.catalog.key('menu-item-modifiers', menuItemId),
     queryFn: () => getMenuItemModifiers(menuItemId),
   });
-  const { data: all = [] } = useQuery({
+  const allQuery = useQuery({
     queryKey: moduleQueryKeys.catalog.key('modifiers', tenantId),
     queryFn: () => getModifiers(tenantId),
   });
+  const all = allQuery.data ?? [];
   const { data: rules = [] } = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-item-modifier-groups', menuItemId),
     queryFn: () => getMenuItemModifierGroups(menuItemId),
@@ -113,8 +129,23 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
   });
 
   const groups = groupByCategory(all, (m) => modifierCategory(m));
-  const [opened, setOpened] = useState<Set<string>>(() => new Set());
+  const [open, setOpen] = useState<string | null>(null);
 
+  if (allQuery.isPending)
+    return (
+      <div role="status" aria-busy="true" aria-label="Loading modifiers" className="space-y-5">
+        {[0, 1].map((index) => (
+          <div key={index} className="flex items-center gap-3">
+            <Bone className="size-10 shrink-0" />
+            <div className="min-w-0 flex-1 space-y-1.5">
+              <Bone className="h-3 w-20" />
+              <Bone className="h-4 w-40" />
+            </div>
+          </div>
+        ))}
+      </div>
+    );
+  if (allQuery.isError) return <ErrorState className="py-6" title="Couldn’t load the modifiers" onRetry={() => void allQuery.refetch()} />;
   if (all.length === 0)
     return (
       <p className="text-sm text-muted-foreground">
@@ -127,70 +158,50 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
     );
 
   return (
-    <div className="space-y-3">
+    <div>
       {groups.map((group) => {
         const groupId = group.items.find((modifier) => modifier.groupId)?.groupId;
         const rule = rules.find((entry) => entry.id === groupId);
-        const attachedHere = group.items.filter((m) => attachedIds.has(m.id)).length;
-        // A group the item doesn't use folds to its heading — open it to offer something.
-        const open = attachedHere > 0 || opened.has(group.category);
+        const offered = group.items.filter((m) => attachedIds.has(m.id));
+        const rulePhrase = rule && offered.length > 0 ? ruleWords(rule) : null;
         return (
-          <section key={group.category} aria-label={group.category} className="overflow-hidden rounded-lg border border-border bg-card">
-            <div className={cn('flex flex-wrap items-center gap-x-3 gap-y-2 px-3.5 py-2.5', open && 'border-b border-border')}>
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-sm font-semibold text-heading">{group.category}</span>
-                <span className="block text-xs text-muted-foreground tabular-nums">
-                  {attachedHere === 0 ? 'Not offered' : `${attachedHere} of ${group.items.length} offered`}
-                </span>
-              </span>
-              {groupId && rule && attachedHere > 0 ? (
-                <Select
-                  value={`${rule.minSelections}:${rule.maxSelections ?? 'many'}`}
-                  onValueChange={(next) => updateRule.mutate({ groupId, value: next })}
-                  options={[
-                    { value: '0:1', label: 'Optional · choose one' },
-                    { value: '1:1', label: 'Required · choose one' },
-                    { value: '0:many', label: 'Optional · choose many' },
-                    { value: '1:many', label: 'Required · choose many' },
-                  ]}
-                  ariaLabel={`${group.category} selection rule`}
-                  className="h-8 w-auto min-w-48 shrink-0 whitespace-nowrap text-xs"
-                />
+          <ChangeRow
+            key={group.category}
+            icon={group.items.some(isSizeModifier) ? Scale : SlidersHorizontal}
+            label={group.category}
+            value={
+              offered.length === 0 ? (
+                <ValueMissing>Not offered</ValueMissing>
               ) : (
-                attachedHere === 0 && (
-                  <button
-                    type="button"
-                    onClick={() =>
-                      setOpened((current) => {
-                        const next = new Set(current);
-                        if (next.has(group.category)) next.delete(group.category);
-                        else next.add(group.category);
-                        return next;
-                      })
-                    }
-                    aria-expanded={open}
-                    className="inline-flex h-8 shrink-0 items-center gap-1 rounded-md px-2.5 text-sm font-semibold text-primary transition-colors hover:bg-primary/8 focus-visible:outline-2 focus-visible:outline-ring"
-                  >
-                    {open ? 'Hide' : 'Offer'}
-                    <ChevronDown size={14} className={cn('transition-transform', open && 'rotate-180')} aria-hidden="true" />
-                  </button>
-                )
+                <>
+                  <span className="truncate">{offeredSummary(offered.map(modifierLabel))}</span>
+                  {rulePhrase && <ValueAside>· {rulePhrase}</ValueAside>}
+                </>
+              )
+            }
+            verbs={['Change', 'Done']}
+            open={open === group.category}
+            onToggle={() => setOpen(open === group.category ? null : group.category)}
+          >
+            <div className="space-y-3">
+              {groupId && rule && offered.length > 0 && (
+                <Select
+                  value={ruleKey(rule)}
+                  onValueChange={(next) => updateRule.mutate({ groupId, value: next })}
+                  options={RULE_OPTIONS.map((option) => ({ ...option }))}
+                  ariaLabel={`${group.category} selection rule`}
+                  className="w-full sm:w-64"
+                />
               )}
-            </div>
-            {open && (
-              <ul>
+              <ul className="-mx-2">
                 {group.items.map((m) => {
                   const isAttached = attachedIds.has(m.id);
+                  const isDefault = defaultIds.has(m.id);
+                  const change = formatPriceChange(m.priceAdjust, symbol);
                   return (
-                    <li
-                      key={m.id}
-                      className={cn(
-                        'flex items-center border-b border-border transition-colors last:border-b-0 hover:bg-band/40',
-                        isAttached && 'bg-primary/4',
-                      )}
-                    >
+                    <li key={m.id} className="flex items-center gap-2 rounded-md pr-1 transition-colors hover:bg-band/40">
                       {/* The label carries the padding, so the whole row — not just the text — toggles it. */}
-                      <label className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-3 px-3.5 py-2.5">
+                      <label className="flex min-w-0 flex-1 cursor-pointer select-none items-center gap-3 px-2 py-2">
                         <input
                           type="checkbox"
                           checked={isAttached}
@@ -198,38 +209,34 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
                           onChange={(e) => toggle.mutate({ modifierId: m.id, on: e.target.checked })}
                           className="size-4 shrink-0 rounded accent-primary"
                         />
-                        <span className={cn('truncate text-sm', isAttached ? 'font-semibold text-foreground' : 'text-muted-foreground')}>
+                        <span
+                          className={cn('min-w-0 flex-1 text-sm', isAttached ? 'font-semibold text-foreground' : 'text-muted-foreground')}
+                        >
                           {modifierLabel(m)}
                         </span>
-                        {adjust(m.priceAdjust, symbol) && (
-                          <span className="ml-auto shrink-0 text-xs tabular-nums text-muted-foreground">
-                            {adjust(m.priceAdjust, symbol)}
-                          </span>
-                        )}
+                        {change && <span className="shrink-0 text-xs tabular-nums text-muted-foreground">{change}</span>}
                       </label>
                       {isAttached && (
                         <button
                           type="button"
                           disabled={toggleDefault.isPending}
-                          onClick={() => toggleDefault.mutate({ modifierId: m.id, isDefault: !defaultIds.has(m.id) })}
-                          aria-pressed={defaultIds.has(m.id)}
+                          onClick={() => toggleDefault.mutate({ modifierId: m.id, isDefault: !isDefault })}
+                          aria-pressed={isDefault}
                           title="Pre-select this at the till"
                           className={cn(
-                            'mr-3.5 shrink-0 rounded-sm px-1.5 py-0.5 text-micro font-semibold transition-colors',
-                            defaultIds.has(m.id)
-                              ? 'bg-primary text-primary-foreground'
-                              : 'bg-band text-muted-foreground hover:text-foreground',
+                            'shrink-0 rounded-sm px-1.5 py-0.5 text-xs font-semibold transition-colors focus-visible:outline-2 focus-visible:outline-ring',
+                            isDefault ? 'bg-primary/10 text-primary' : 'text-muted-foreground hover:bg-band hover:text-foreground',
                           )}
                         >
-                          {defaultIds.has(m.id) ? 'Default' : 'Set default'}
+                          {isDefault ? 'Default' : 'Set default'}
                         </button>
                       )}
                     </li>
                   );
                 })}
               </ul>
-            )}
-          </section>
+            </div>
+          </ChangeRow>
         );
       })}
     </div>
@@ -239,100 +246,73 @@ function ItemModifiersEditor({ menuItemId, tenantId }: { menuItemId: string; ten
 // ── A product at a glance (retail) ──────────────────────────────────────────
 
 function ProductSummary({
-  item,
   catalog,
   loading,
   onOpenTab,
 }: {
-  item?: MenuItem;
   catalog?: Awaited<ReturnType<typeof getItemCatalog>>;
   loading: boolean;
   onOpenTab?: (tab: 'sizes' | 'photos') => void;
 }) {
-  if (!item) {
-    return (
-      <SettingsSection title="After you create it">
-        <ol className="space-y-3 text-sm">
-          {[
-            { icon: Layers, title: 'Sizes & stock', body: 'S M L XL × colours — each with its own SKU and count.' },
-            { icon: ImageIcon, title: 'Photos', body: 'Upload them, or pick from Media. The first is the main one.' },
-          ].map((step) => (
-            <li key={step.title} className="flex items-start gap-3">
-              <RowTile icon={step.icon} />
-              <span className="min-w-0">
-                <span className="block font-semibold text-foreground">{step.title}</span>
-                <span className="block text-xs leading-relaxed text-muted-foreground">{step.body}</span>
-              </span>
-            </li>
-          ))}
-        </ol>
-      </SettingsSection>
-    );
-  }
   const variants = catalog?.variants ?? [];
   const onHand = variants.reduce((sum, variant) => sum + (variant.stock ?? []).reduce((total, row) => total + row.quantity, 0), 0);
   const tracked = variants.some((variant) => variant.stock);
   const soldOut = variants.filter((variant) => variant.stock && variant.stock.every((row) => row.quantity === 0)).length;
-  const rows: Array<{ icon: typeof Layers; title: string; value: string; tone?: 'warning'; tab?: 'sizes' | 'photos' }> = [
-    { icon: Layers, title: 'Sizes', value: loading ? '…' : variants.length === 0 ? 'One size' : `${variants.length}`, tab: 'sizes' },
-    {
-      icon: Boxes,
-      title: 'In stock',
-      value: loading ? '…' : tracked ? `${onHand}${soldOut > 0 ? ` · ${soldOut} sold out` : ''}` : 'Not tracked',
-      tone: soldOut > 0 ? 'warning' : undefined,
-      tab: 'sizes',
-    },
-    {
-      icon: ImageIcon,
-      title: 'Photos',
-      value: loading ? '…' : `${catalog?.images.length ?? 0}`,
-      tone: !loading && (catalog?.images.length ?? 0) === 0 ? 'warning' : undefined,
-      tab: 'photos',
-    },
-    { icon: Link2, title: 'Web address', value: item.slug ? `/${item.slug}` : 'Set on save' },
-  ];
+  const photos = catalog?.images.length ?? 0;
+  const open = (tab: 'sizes' | 'photos', label: string) =>
+    onOpenTab ? (
+      <Button variant="outline" size="sm" onClick={() => onOpenTab(tab)} aria-label={`Open ${label}`}>
+        Open
+      </Button>
+    ) : undefined;
+  const pending = <Bone className="h-4 w-16" />;
   return (
-    <SettingsSection title="At a glance">
-      <ul className="-mx-2 space-y-0.5">
-        {rows.map((row) => {
-          const content = (
+    <RecordGroup card id="item-glance" title="At a glance">
+      <ChangeRow
+        icon={Layers}
+        label="Sizes"
+        value={loading ? pending : variants.length === 0 ? 'One size' : variants.length}
+        trailing={open('sizes', 'sizes')}
+      />
+      <ChangeRow
+        icon={Boxes}
+        label="In stock"
+        tone={soldOut > 0 ? 'warning' : undefined}
+        value={
+          loading ? (
+            pending
+          ) : tracked ? (
             <>
-              <RowTile icon={row.icon} tone={row.tone} />
-              <span className="min-w-0 flex-1 truncate text-sm font-semibold text-foreground">{row.title}</span>
-              <span
-                className={cn(
-                  'max-w-[50%] truncate text-sm tabular-nums',
-                  row.tone === 'warning' ? 'font-medium text-measured' : 'text-muted-foreground',
-                )}
-              >
-                {row.value}
-              </span>
-              {row.tab && onOpenTab && <ArrowRight size={13} className="shrink-0 text-muted-foreground" aria-hidden="true" />}
+              <span className="tabular-nums">{onHand}</span>
+              {soldOut > 0 && <ValueAside>· {soldOut} sold out</ValueAside>}
             </>
-          );
-          return (
-            <li key={row.title}>
-              {row.tab && onOpenTab ? (
-                <button
-                  type="button"
-                  onClick={() => onOpenTab(row.tab!)}
-                  className="flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-band/50"
-                >
-                  {content}
-                </button>
-              ) : (
-                <div className="flex items-center gap-3 px-2 py-1.5">{content}</div>
-              )}
-            </li>
-          );
-        })}
-      </ul>
-    </SettingsSection>
+          ) : (
+            <ValueMissing>Not tracked</ValueMissing>
+          )
+        }
+        trailing={open('sizes', 'stock')}
+      />
+      <ChangeRow
+        icon={ImageIcon}
+        label="Photos"
+        tone={!loading && photos === 0 ? 'warning' : undefined}
+        value={loading ? pending : photos === 0 ? <ValueMissing>None yet</ValueMissing> : photos}
+        trailing={open('photos', 'photos')}
+      />
+    </RecordGroup>
   );
 }
 
 // ── Create / edit form ──────────────────────────────────────────────────────
 
+type Row = 'name' | 'category' | 'price' | 'vat' | 'description' | 'slug';
+
+/**
+ * A menu item (or product) in the editor layout: Details — and, on a menu,
+ * Modifiers — in the main column as rows that open in place; the photo and a
+ * product's sizes, stock and photo counts in the sidebar, first when stacked.
+ * One draft, saved through the SaveBar.
+ */
 export function MenuItemForm({
   tenantId,
   item,
@@ -351,25 +331,25 @@ export function MenuItemForm({
   onCreated?: (created: MenuItem) => void;
   /** Called after an update to an existing item. */
   onSaved?: (saved: MenuItem) => void;
-  /** The <form> gets this id so a Save button in the pane header can submit it. */
+  /** The <form> gets this id, so a button outside it can still submit it. */
   formId?: string;
-  /** Reports the mutation's pending state so the header Save button can reflect it. */
+  /** Reports the mutation's pending state, for the pane's leave guard. */
   onPendingChange?: (pending: boolean) => void;
   /** Reports unsaved edits so the pane can flag them. */
   onDirtyChange?: (dirty: boolean) => void;
 }) {
   const symbol = useCurrencySymbol();
   const qc = useQueryClient();
+  const reduceMotion = useReducedMotion();
   const { ctx: vat } = useVatContext();
   const words = useCatalogWords();
   const { tools } = words;
-  // A product's sizes, stock and photos, for its summary and its preview tile.
+  // A product's sizes, stock and photos, for its summary.
   const catalogQuery = useQuery({
     queryKey: moduleQueryKeys.catalog.key('item-catalog', tenantId, item?.id ?? ''),
     queryFn: () => getItemCatalog(item!.id, tenantId),
     enabled: Boolean(item && tools.retail),
   });
-  const mainPhoto = proxiedImage(catalogQuery.data?.images[0]?.apiUrl ?? catalogQuery.data?.images[0]?.url);
   const [name, setName] = useState(item?.name ?? '');
   const [categoryId, setCategoryId] = useState(item?.categoryId ?? '');
   const [price, setPrice] = useState(item?.price ?? '');
@@ -380,7 +360,6 @@ export function MenuItemForm({
   const [isAvailable, setIsAvailable] = useState(item?.isAvailable ?? true);
   // Its address on a storefront. Blank on a new item: the API makes one from the name.
   const [slug, setSlug] = useState(item?.slug ?? '');
-  const [imageBroken, setImageBroken] = useState(false);
   const [submitted, setSubmitted] = useState(false);
   const { data: categories = [] } = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-categories', tenantId),
@@ -388,6 +367,32 @@ export function MenuItemForm({
     enabled: Boolean(tenantId),
   });
   const currentCategory = categories.find((entry) => entry.id === categoryId);
+
+  // One row open at a time; a new item starts with its name open.
+  const [open, setOpen] = useState<Row | null>(item ? null : 'name');
+  const [before, setBefore] = useState({ name, categoryId, price, vatRate, description, slug });
+  const openRow = (row: Row) => {
+    setBefore({ name, categoryId, price, vatRate, description, slug });
+    setOpen(row);
+  };
+  /** Change opens a row; Cancel closes it and puts its value back as it was when it opened. */
+  const toggle = (row: Row) => {
+    if (open !== row) return openRow(row);
+    if (row === 'name') setName(before.name);
+    if (row === 'category') setCategoryId(before.categoryId);
+    if (row === 'price') setPrice(before.price);
+    if (row === 'vat') setVatRate(before.vatRate);
+    if (row === 'description') setDescription(before.description);
+    if (row === 'slug') setSlug(before.slug);
+    setOpen(null);
+  };
+  /** Enter in a row's field closes it, keeping what was typed. */
+  const closeOnEnter = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      setOpen(null);
+    }
+  };
 
   const { mutate, isPending } = useMutation({
     mutationFn: () => {
@@ -430,24 +435,239 @@ export function MenuItemForm({
     isAvailable !== (item?.isAvailable ?? true);
   useEffect(() => onDirtyChange?.(dirty), [dirty, onDirtyChange]);
 
-  const nameError = name.trim().length < 2 ? 'At least two characters.' : null;
-  const categoryError = !categoryId ? `${words.groupPlaceholder}.` : null;
-  const priceError = !/^\d+(\.\d{1,2})?$/.test(price.trim()) ? 'A price like 3.20.' : null;
-  // The API takes any string; links and inline data images are what's actually used.
-  const imageError =
-    imageUrl.trim() && !/^(https?:\/\/\S+|data:image\/|\/v1\/(cms\/delivery|menu-items\/images)\/)/.test(imageUrl.trim())
-      ? 'A full web address, starting https://'
-      : null;
-  const slugError =
-    slug.trim() && !/^[a-z0-9]+(?:-[a-z0-9]+)*$/.test(slug.trim())
-      ? 'Lower-case letters, numbers and dashes, like oversized-hoodie.'
-      : null;
-  const valid = !nameError && !categoryError && !priceError && !imageError && !slugError;
-  const show = (error: string | null) => (submitted ? (error ?? undefined) : undefined);
-  const priceText = /^\d+(\.\d{1,2})?$/.test(price.trim()) ? `${symbol}${Number(price).toFixed(2)}` : `${symbol}—`;
-  // A product shows its main photo; a menu item (or a mixed catalogue's) its image link.
-  const preview =
-    tools.retail && !tools.kitchen ? mainPhoto : imageUrl.trim() && !imageBroken && !imageError ? proxiedImage(imageUrl) : mainPhoto;
+  const errors = menuItemErrors({ name, categoryId, price, imageUrl, slug }, words.groupPlaceholder);
+  const valid = Object.keys(errors).length === 0;
+  const show = (field: keyof typeof errors) => (submitted ? errors[field] : undefined);
+  const tone = (field: keyof typeof errors) => (show(field) ? ('warning' as const) : undefined);
+
+  const submit = () => {
+    setSubmitted(true);
+    if (valid) {
+      setOpen(null);
+      mutate();
+      return;
+    }
+    // Open the first row that stops the save, so its message is in view.
+    const first = (['name', 'category', 'price', 'slug'] as const).find((field) => errors[field]);
+    if (first) openRow(first);
+  };
+  const discard = () => {
+    setName(item?.name ?? '');
+    setCategoryId(item?.categoryId ?? '');
+    setPrice(item?.price ?? '');
+    setVatRate(item?.vatRate ?? '');
+    setDescription(item?.description ?? '');
+    setImageUrl(item?.imageUrl ?? '');
+    setIsAvailable(item?.isAvailable ?? true);
+    setSlug(item?.slug ?? '');
+    setSubmitted(false);
+    setOpen(item ? null : 'name');
+  };
+
+  const shownPrice = displayPrice(price);
+  const vatOptions = [
+    { value: '', label: `Use default (${vat.defaultVatRate}%)` },
+    { value: '20', label: 'Standard — 20%' },
+    { value: '5', label: 'Reduced — 5%' },
+    { value: '0', label: 'Zero-rated — 0%' },
+  ];
+
+  const details = (
+    <RecordGroup
+      card
+      id="item-details"
+      title="Details"
+      footnote={tools.retail && !item ? 'Sizes, stock and photos come next, once it’s created.' : undefined}
+    >
+      <ChangeRow
+        icon={Type}
+        label="Name"
+        tone={tone('name')}
+        value={name.trim() ? <span className="truncate">{name.trim()}</span> : <ValueMissing>Not named</ValueMissing>}
+        open={open === 'name'}
+        onToggle={() => toggle('name')}
+      >
+        <Input
+          aria-label="Name"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          onKeyDown={closeOnEnter}
+          maxLength={255}
+          placeholder={words.namePlaceholder}
+          autoFocus
+          error={show('name')}
+        />
+      </ChangeRow>
+      <ChangeRow
+        icon={Layers}
+        label={words.group}
+        tone={tone('category')}
+        value={currentCategory ? <span className="truncate">{currentCategory.name}</span> : <ValueMissing>Not chosen</ValueMissing>}
+        open={open === 'category'}
+        onToggle={() => toggle('category')}
+      >
+        <div className="flex flex-col gap-1.5">
+          <Select
+            value={categoryId}
+            onValueChange={setCategoryId}
+            options={[
+              ...(categoryId ? [] : [{ value: '', label: words.groupPlaceholder }]),
+              ...categories
+                .filter((entry) => entry.isActive || entry.id === item?.categoryId)
+                .map((entry) => ({ value: entry.id, label: entry.name })),
+            ]}
+            ariaLabel={words.group}
+            ariaInvalid={Boolean(show('category'))}
+            className="w-full"
+          />
+          {show('category') && <p className="text-xs text-destructive">{show('category')}</p>}
+        </div>
+      </ChangeRow>
+      <ChangeRow
+        icon={Coins}
+        label="Price"
+        tone={tone('price')}
+        value={
+          shownPrice ? (
+            <>
+              <span className="tabular-nums">
+                {symbol}
+                {shownPrice}
+              </span>
+              {vat.vatRegistered && <ValueAside>· {vat.pricesIncludeTax ? 'including VAT' : 'before VAT'}</ValueAside>}
+            </>
+          ) : (
+            <ValueMissing>Not set</ValueMissing>
+          )
+        }
+        open={open === 'price'}
+        onToggle={() => toggle('price')}
+      >
+        <Input
+          aria-label="Price"
+          value={price}
+          onChange={(e) => setPrice(e.target.value)}
+          onKeyDown={closeOnEnter}
+          inputMode="decimal"
+          autoFocus
+          placeholder={tools.retail && !tools.kitchen ? '25.00' : '3.20'}
+          leftIcon={<span className="text-sm">{symbol}</span>}
+          className="tabular-nums sm:max-w-48"
+          hint={vat.vatRegistered ? (vat.pricesIncludeTax ? 'Including VAT' : 'Before VAT') : undefined}
+          error={show('price')}
+        />
+      </ChangeRow>
+      {/* Only meaningful for a VAT-registered tenant — otherwise no rate
+          applies to anything and the row is pure noise. */}
+      {vat.vatRegistered && (
+        <ChangeRow
+          icon={Receipt}
+          label="VAT rate"
+          value={vatOptions.find((option) => option.value === vatRate)?.label ?? `${vatRate}%`}
+          open={open === 'vat'}
+          onToggle={() => toggle('vat')}
+        >
+          <div className="flex flex-col gap-1.5">
+            <Select
+              value={vatRate}
+              onValueChange={setVatRate}
+              options={vatOptions}
+              ariaLabel={`VAT rate for this ${words.item}`}
+              className="w-full sm:w-64"
+            />
+            <p className="text-xs leading-relaxed text-muted-foreground">
+              {tools.kitchen
+                ? 'Hot food and drink are standard-rated; most cold takeaway food is zero-rated. This changes the margin shown, not the price.'
+                : 'Most goods are standard-rated; children’s clothing and shoes are zero-rated. This changes the VAT recorded, not the price.'}
+            </p>
+          </div>
+        </ChangeRow>
+      )}
+      <ChangeRow
+        icon={AlignLeft}
+        label="Description"
+        value={description.trim() ? <span className="truncate font-normal">{description.trim()}</span> : <ValueMissing>None</ValueMissing>}
+        open={open === 'description'}
+        onToggle={() => toggle('description')}
+      >
+        <textarea
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          rows={tools.retail && !tools.kitchen ? 4 : 3}
+          placeholder={words.descriptionPlaceholder}
+          aria-label="Description"
+          autoFocus
+          className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30 sm:text-sm"
+        />
+      </ChangeRow>
+      {tools.retail && (
+        <ChangeRow
+          icon={Link2}
+          label="Web address"
+          tone={tone('slug')}
+          value={
+            slug.trim() ? (
+              <span className="truncate font-mono text-[13px] font-medium">/{slug.trim()}</span>
+            ) : (
+              <ValueAside>Made from the name</ValueAside>
+            )
+          }
+          open={open === 'slug'}
+          onToggle={() => toggle('slug')}
+        >
+          <Input
+            aria-label="Web address"
+            value={slug}
+            onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
+            onKeyDown={closeOnEnter}
+            maxLength={160}
+            autoFocus
+            placeholder={item ? 'Made from the name when you save' : 'Made from the name'}
+            hint="Its address in your online shop, like /products/oversized-hoodie"
+            error={errors.slug}
+            className="font-mono"
+          />
+        </ChangeRow>
+      )}
+      {/* A switch among the Change rows: on or off is the whole edit. */}
+      <ChangeRow
+        icon={isAvailable ? Eye : EyeOff}
+        label={words.available}
+        value={
+          isAvailable ? (
+            tools.kitchen ? (
+              'Shown at the till and online'
+            ) : (
+              'Shown to shoppers'
+            )
+          ) : (
+            <ValueMissing>{tools.kitchen ? 'Hidden at the till and online' : 'Hidden from shoppers'}</ValueMissing>
+          )
+        }
+        trailing={<Switch label={words.available} checked={isAvailable} onChange={setIsAvailable} />}
+      />
+    </RecordGroup>
+  );
+
+  const modifiers = tools.kitchen && (
+    <RecordGroup card id="item-modifiers" title="Modifiers" footnote="What can be chosen with it, and what the till pre-selects.">
+      {item ? (
+        <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
+      ) : (
+        <p className="text-sm text-muted-foreground">Create the item first — sizes, milks and syrups can be attached straight after.</p>
+      )}
+    </RecordGroup>
+  );
+
+  const photo = tools.kitchen && (
+    <RecordGroup card id="item-photo" title="Photo" actions={<SectionInfo label="Shown on the till tile, the QR menu and online." />}>
+      <ItemImageField value={imageUrl} onChange={setImageUrl} itemName={name} error={show('image')} layout="stacked" />
+    </RecordGroup>
+  );
+  const glance = tools.retail && item && (
+    <ProductSummary catalog={catalogQuery.data} loading={catalogQuery.isPending} onOpenTab={onOpenTab} />
+  );
+  const sidebar = photo || glance;
 
   return (
     <form
@@ -455,207 +675,42 @@ export function MenuItemForm({
       noValidate
       onSubmit={(e) => {
         e.preventDefault();
-        setSubmitted(true);
-        if (valid) mutate();
+        submit();
       }}
     >
-      <SettingsTabBody
-        stickyAside
-        aside={
-          <>
-            {/* How it reads where it's sold — the till tile, as Square's item preview. */}
-            <SettingsSection title={tools.kitchen ? 'At the till' : 'In your shop'}>
-              <div className="overflow-hidden rounded-lg border border-border bg-card">
-                <div className="relative aspect-4/3 bg-band">
-                  {preview ? (
-                    // eslint-disable-next-line @next/next/no-img-element
-                    <img
-                      src={preview}
-                      alt=""
-                      onError={() => setImageBroken(true)}
-                      className={cn('absolute inset-0 size-full object-cover', !isAvailable && 'opacity-60 grayscale')}
-                    />
-                  ) : tools.retail && item && onOpenTab ? (
-                    <button
-                      type="button"
-                      onClick={() => onOpenTab('photos')}
-                      className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground transition-colors hover:text-foreground"
-                    >
-                      <ImageIcon size={24} aria-hidden="true" />
-                      <span className="text-xs font-semibold">Add photos</span>
-                    </button>
-                  ) : (
-                    <div className="absolute inset-0 flex flex-col items-center justify-center gap-1 text-muted-foreground/60 select-none">
-                      {tools.retail && !tools.kitchen ? (
-                        <Tag size={26} aria-hidden="true" />
-                      ) : (
-                        <UtensilsCrossed size={26} aria-hidden="true" />
-                      )}
-                      <span className="text-xs font-semibold">
-                        {imageBroken ? 'Didn’t load' : tools.retail && !item ? 'Photos next' : 'No image'}
-                      </span>
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-1.5 px-3.5 py-3">
-                  <div className="flex items-baseline justify-between gap-3">
-                    <p className={cn('truncate text-base font-semibold', name.trim() ? 'text-heading' : 'text-muted-foreground/60')}>
-                      {name.trim() || words.newItem}
-                    </p>
-                    <p className="shrink-0 text-base font-semibold tabular-nums text-foreground">{priceText}</p>
-                  </div>
-                  <span
-                    className={cn(
-                      'inline-block rounded-sm px-1.5 py-0.5 text-micro font-semibold uppercase tracking-micro',
-                      categoryTone(currentCategory?.slug ?? '', currentCategory),
-                    )}
-                  >
-                    {currentCategory?.name ?? `No ${words.group.toLowerCase()}`}
-                  </span>
-                  {description.trim() && <p className="line-clamp-2 text-xs text-muted-foreground">{description.trim()}</p>}
-                </div>
-              </div>
-              <div className="mt-4">
-                <SettingRows>
-                  <SettingRow
-                    icon={tools.retail && !tools.kitchen ? Tag : UtensilsCrossed}
-                    title={words.available}
-                    description={isAvailable ? undefined : tools.kitchen ? 'Hidden at the till and online.' : 'Hidden from shoppers.'}
-                  >
-                    <Switch label={words.available} checked={isAvailable} onChange={setIsAvailable} />
-                  </SettingRow>
-                </SettingRows>
-              </div>
-            </SettingsSection>
-            {tools.retail && (
-              <ProductSummary
-                item={item}
-                catalog={catalogQuery.data}
-                loading={catalogQuery.isPending && Boolean(item)}
-                onOpenTab={onOpenTab}
-              />
-            )}
-          </>
-        }
+      <motion.div
+        initial={reduceMotion ? false : 'hidden'}
+        animate="shown"
+        variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
       >
-        <SettingsSection title="Details">
-          <div className="space-y-4">
-            <Input
-              label="Name"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-              maxLength={255}
-              placeholder={words.namePlaceholder}
-              autoFocus={!item}
-              error={show(nameError)}
-            />
-            {/* Section and price side by side, as Square's item sheet has them — price isn't a card of its own. */}
-            <div className="grid gap-4 sm:grid-cols-2">
-              <div className="flex flex-col gap-1.5">
-                <FieldLabel as="span">{words.group}</FieldLabel>
-                <Select
-                  value={categoryId}
-                  onValueChange={setCategoryId}
-                  options={[
-                    ...(categoryId ? [] : [{ value: '', label: words.groupPlaceholder }]),
-                    ...categories
-                      .filter((entry) => entry.isActive || entry.id === item?.categoryId)
-                      .map((entry) => ({ value: entry.id, label: entry.name })),
-                  ]}
-                  ariaLabel={words.group}
-                  ariaInvalid={submitted && !!categoryError}
-                  className="w-full"
-                />
-                {submitted && categoryError && <p className="text-xs text-destructive">{categoryError}</p>}
-              </div>
-              <Input
-                label="Price"
-                value={price}
-                onChange={(e) => setPrice(e.target.value)}
-                inputMode="decimal"
-                placeholder={tools.retail && !tools.kitchen ? '25.00' : '3.20'}
-                leftIcon={<span className="text-sm">{symbol}</span>}
-                className="tabular-nums"
-                hint={vat.vatRegistered ? (vat.pricesIncludeTax ? 'Including VAT' : 'Before VAT') : undefined}
-                error={show(priceError)}
-              />
+        {sidebar ? (
+          <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
+            <div className="flex min-w-0 flex-col gap-5">
+              {details}
+              {modifiers}
             </div>
-            {/* Only meaningful for a VAT-registered tenant — otherwise no rate
-                applies to anything and the field is pure noise. */}
-            {vat.vatRegistered && (
-              <div className="flex flex-col gap-1.5">
-                <FieldLabel as="span">VAT rate</FieldLabel>
-                <Select
-                  value={vatRate}
-                  onValueChange={setVatRate}
-                  options={[
-                    { value: '', label: `Use default (${vat.defaultVatRate}%)` },
-                    { value: '20', label: 'Standard — 20%' },
-                    { value: '5', label: 'Reduced — 5%' },
-                    { value: '0', label: 'Zero-rated — 0%' },
-                  ]}
-                  ariaLabel={`VAT rate for this ${words.item}`}
-                  className="w-full"
-                />
-                <p className="text-xs leading-relaxed text-muted-foreground">
-                  {tools.kitchen
-                    ? 'Hot food and drink are standard-rated; most cold takeaway food is zero-rated. This changes the margin shown, not the price.'
-                    : 'Most goods are standard-rated; children’s clothing and shoes are zero-rated. This changes the VAT recorded, not the price.'}
-                </p>
-              </div>
-            )}
-            <div className="flex flex-col gap-1.5">
-              <FieldLabel as="span">Description</FieldLabel>
-              <textarea
-                value={description}
-                onChange={(e) => setDescription(e.target.value)}
-                rows={tools.retail && !tools.kitchen ? 4 : 3}
-                placeholder={words.descriptionPlaceholder}
-                aria-label="Description"
-                className="w-full resize-none rounded-md border border-input bg-control px-3 py-2 text-base text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30 sm:text-sm"
-              />
+            {/* Stacked (below lg) the sidebar comes first: the photo is what a menu item is recognised by. */}
+            <div className="flex min-w-0 flex-col gap-5 max-lg:order-first">
+              {photo}
+              {glance}
             </div>
-            {tools.retail && (
-              <Input
-                label="Web address"
-                value={slug}
-                onChange={(e) => setSlug(e.target.value.toLowerCase().replace(/\s+/g, '-'))}
-                maxLength={160}
-                placeholder={item ? 'Made from the name when you save' : 'Made from the name'}
-                hint="Its address in your online shop, like /products/oversized-hoodie"
-                error={slugError ?? undefined}
-                className="font-mono"
-              />
-            )}
           </div>
-        </SettingsSection>
-
-        {tools.kitchen && (
-          <SettingsSection title="Photo" description="Shown on the till tile, the QR menu and online.">
-            <ItemImageField
-              value={imageUrl}
-              onChange={(url) => {
-                setImageUrl(url);
-                setImageBroken(false);
-              }}
-              itemName={name}
-              error={show(imageError)}
-            />
-          </SettingsSection>
+        ) : (
+          <div className="flex min-w-0 flex-col gap-5">
+            {details}
+            {modifiers}
+          </div>
         )}
+      </motion.div>
 
-        {tools.kitchen && (
-          <SettingsSection title="Modifiers" description="What can be chosen with it, and what the till pre-selects.">
-            {item ? (
-              <ItemModifiersEditor menuItemId={item.id} tenantId={item.tenantId} />
-            ) : (
-              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">
-                Create the item first — sizes, milks and syrups can be attached straight after.
-              </p>
-            )}
-          </SettingsSection>
-        )}
-      </SettingsTabBody>
+      <SaveBar
+        dirty={dirty || !item}
+        saving={isPending}
+        saveLabel={item ? 'Save changes' : `Create ${words.item}`}
+        message={item ? undefined : 'Not created yet'}
+        onSave={submit}
+        onDiscard={discard}
+      />
     </form>
   );
 }

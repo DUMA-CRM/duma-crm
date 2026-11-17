@@ -1,16 +1,16 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
 import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile, SectionInfo } from '@/components/cms/rows';
 import { AlertTriangle, Boxes, ChevronDown, EyeOff, Layers, MapPin, Package, Palette, Plus, Tag, Trash2, X } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { useCurrencySymbol, useFormatMoney } from '@/components/shared/useWorkspaceMoney';
@@ -72,6 +72,7 @@ export function VariantsEditor({
   const refresh = () => queryClient.invalidateQueries({ queryKey: moduleQueryKeys.catalog.key('item-catalog', tenantId, menuItemId) });
   const symbol = useCurrencySymbol();
   const formatMoney = useFormatMoney();
+  const reduceMotion = useReducedMotion();
 
   if (catalogQuery.isPending) return <LoadingState label="Loading sizes and stock" />;
   if (catalogQuery.isError) return <ErrorState title="Couldn’t load this product’s sizes" onRetry={() => void catalogQuery.refetch()} />;
@@ -81,140 +82,140 @@ export function VariantsEditor({
   const tracked = variants.filter((variant) => variant.stock);
   const onHand = tracked.reduce((sum, variant) => sum + (variant.stock?.find((row) => row.locationId === locationId)?.quantity ?? 0), 0);
   const soldOut = tracked.filter((variant) => (variant.stock?.find((row) => row.locationId === locationId)?.quantity ?? 0) === 0).length;
-  const locationName = locations.find((location) => location.id === locationId)?.name;
 
   const notTracked = variants.length - tracked.length;
 
-  return (
-    <SettingsTabBody
-      narrowAside
-      aside={
-        <>
-          <OptionsCard
-            key={catalog.options.map((option) => `${option.id}:${option.values.length}`).join(',')}
-            menuItemId={menuItemId}
-            productName={productName}
-            tenantId={tenantId}
-            initial={catalog.options.map((option) => ({ name: option.name, values: option.values.map((value) => value.label) }))}
-            stored={catalog.options}
-            variants={variants}
-            existing={variants.map((variant) =>
-              Object.fromEntries(variant.values.map((value) => [optionName(catalog, value.optionValue.optionId), value.optionValue.label])),
-            )}
-            onGenerated={refresh}
-          />
-          {variants.length > 0 && (
-            <SettingsSection title="Stock">
-              <InfoRows>
-                {locations.length > 1 && (
-                  <InfoRow icon={MapPin} title="Where">
-                    <Select
-                      ariaLabel="Stock at"
-                      className="w-40"
-                      value={locationId}
-                      onValueChange={setLocationId}
-                      options={locations.map((location) => ({ value: location.id, label: location.name }))}
-                    />
-                  </InfoRow>
-                )}
-                <InfoRow icon={Boxes} title="In stock">
-                  <span className="text-sm font-semibold tabular-nums text-foreground">{tracked.length > 0 ? onHand : '—'}</span>
-                </InfoRow>
-                <InfoRow icon={AlertTriangle} title="Sold out">
-                  <span className={cn('text-sm tabular-nums', soldOut > 0 ? 'font-semibold text-exception' : 'text-muted-foreground')}>
-                    {soldOut > 0 ? `${soldOut} ${soldOut === 1 ? noun.one : noun.many}` : 'None'}
-                  </span>
-                </InfoRow>
-                {notTracked > 0 && (
-                  <InfoRow icon={EyeOff} title="Not tracked">
-                    <Tooltip side="top" align="end" wrap label="Type a count in its In stock cell to start tracking it.">
-                      <span className="text-sm tabular-nums text-muted-foreground">{notTracked}</span>
-                    </Tooltip>
-                  </InfoRow>
-                )}
-              </InfoRows>
-            </SettingsSection>
-          )}
-        </>
-      }
-    >
-      {/* One card, no section around it: the header is the card's own. */}
-      <section aria-labelledby="variants-title" className="overflow-hidden rounded-lg border border-border bg-control">
-        <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3.5">
-          <h2 id="variants-title" className="text-base font-semibold tracking-title text-heading">
-            {noun.many.charAt(0).toUpperCase() + noun.many.slice(1)}
-          </h2>
-          {variants.length > 0 && (
-            <span className="rounded-full bg-band px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">
-              {variants.length}
-            </span>
-          )}
-          <span className="ml-auto flex items-center gap-3 text-sm">
-            {tracked.length > 0 && (
-              <span className="text-muted-foreground">
-                <span className="font-semibold tabular-nums text-foreground">{onHand}</span> in stock
-                {locationName && locations.length > 1 ? ` at ${locationName}` : ''}
-              </span>
-            )}
-            {soldOut > 0 && (
-              <span className="inline-flex items-center gap-1.5 font-medium text-exception">
-                <span className="size-1.5 rounded-full bg-exception" aria-hidden="true" />
-                {soldOut} sold out
-              </span>
-            )}
-            <SectionInfo label="Each is sold and stocked on its own. A blank price uses the product’s; a “was” price shows it on sale." />
-          </span>
-        </header>
-
-        {variants.length === 0 ? (
-          <div className="flex flex-col items-center gap-3 border-t border-border px-6 py-12 text-center">
-            <RowTile icon={Layers} />
-            <div>
-              <p className="text-sm font-semibold text-foreground">Sold as one item</p>
-              <p className="mt-1 max-w-sm text-sm text-muted-foreground">
-                Add an option on the right — a size, a colour — and each combination gets its own SKU, price and stock.
-              </p>
-            </div>
-          </div>
-        ) : (
-          <>
-            <div className="overflow-x-auto border-t border-border">
-              <table className="w-full min-w-[40rem] text-sm">
-                <thead>
-                  <tr className="border-b border-border bg-band/30 text-left text-micro font-semibold uppercase tracking-micro text-muted-foreground">
-                    <th className="px-4 py-2">{noun.column}</th>
-                    <th className="px-2 py-2">SKU</th>
-                    <th className="w-28 px-2 py-2">Price</th>
-                    <th className="w-28 px-2 py-2">Was</th>
-                    <th className="w-28 px-2 py-2">In stock</th>
-                    <th className="w-20 px-2 py-2 text-center">On sale</th>
-                    <th className="w-12 px-2 py-2" aria-label="Actions" />
-                  </tr>
-                </thead>
-                <tbody className="divide-y divide-border">
-                  {variants.map((variant) => (
-                    <VariantRow
-                      key={variant.id}
-                      variant={variant}
-                      noun={noun.one}
-                      symbol={symbol}
-                      productPrice={productPrice}
-                      locationId={locationId}
-                      tenantId={tenantId}
-                      onChanged={refresh}
-                    />
-                  ))}
-                </tbody>
-              </table>
-            </div>
-            <footer className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground">
-              A blank price uses {productPrice ? formatMoney(Number(productPrice), 2) : 'the product’s'}. Click any cell to change it — it
-              saves when you leave it.
-            </footer>
-          </>
+  const stockCard = variants.length > 0 && (
+    <RecordGroup card id="sizes-stock" title="Stock">
+      <InfoRows>
+        {locations.length > 1 && (
+          <InfoRow icon={MapPin} title="Where">
+            <Select
+              ariaLabel="Stock at"
+              className="w-auto min-w-40"
+              value={locationId}
+              onValueChange={setLocationId}
+              options={locations.map((location) => ({ value: location.id, label: location.name }))}
+            />
+          </InfoRow>
         )}
-      </section>
-    </SettingsTabBody>
+        <InfoRow icon={Boxes} title="In stock">
+          <span className="text-sm font-semibold tabular-nums text-foreground">{tracked.length > 0 ? onHand : '—'}</span>
+        </InfoRow>
+        <InfoRow icon={AlertTriangle} title="Sold out" tone={soldOut > 0 ? 'danger' : undefined}>
+          <span className={cn('text-sm tabular-nums', soldOut > 0 ? 'font-semibold text-exception' : 'text-muted-foreground')}>
+            {soldOut > 0 ? `${soldOut} ${soldOut === 1 ? noun.one : noun.many}` : 'None'}
+          </span>
+        </InfoRow>
+        {notTracked > 0 && (
+          <InfoRow icon={EyeOff} title="Not tracked">
+            <Tooltip side="top" align="end" wrap label="Type a count in its In stock cell to start tracking it.">
+              <span className="text-sm tabular-nums text-muted-foreground">{notTracked}</span>
+            </Tooltip>
+          </InfoRow>
+        )}
+      </InfoRows>
+    </RecordGroup>
+  );
+
+  return (
+    <motion.div
+      initial={reduceMotion ? false : 'hidden'}
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+      className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]"
+    >
+      {/* The variants are the work, so they take the main column; the list is its own card, titled above. */}
+      <div className="min-w-0">
+        <RecordGroup
+          id="sizes-variants"
+          title={noun.many.charAt(0).toUpperCase() + noun.many.slice(1)}
+          actions={
+            variants.length > 0 ? (
+              <span className="flex items-center gap-3 text-sm text-muted-foreground">
+                <span className="tabular-nums">{variants.length}</span>
+                {soldOut > 0 && (
+                  <span className="inline-flex items-center gap-1.5 font-medium text-exception">
+                    <span className="size-1.5 rounded-full bg-exception" aria-hidden="true" />
+                    {soldOut} sold out
+                  </span>
+                )}
+              </span>
+            ) : undefined
+          }
+          footnote={
+            variants.length > 0 ? (
+              <>
+                Each is sold and stocked on its own. A blank price uses{' '}
+                {productPrice ? formatMoney(Number(productPrice), 2) : 'the product’s'}; a “was” price shows it on sale. Click any cell to
+                change it — it saves when you leave it.
+              </>
+            ) : undefined
+          }
+        >
+          <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+            {variants.length === 0 ? (
+              <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
+                <RowTile icon={Layers} />
+                <div>
+                  <p className="text-sm font-semibold text-foreground">Sold as one item</p>
+                  <p className="mt-1 max-w-sm text-sm text-muted-foreground">
+                    Add an option — a size, a colour — and each combination gets its own SKU, price and stock.
+                  </p>
+                </div>
+              </div>
+            ) : (
+              <div className="overflow-x-auto">
+                <table className="w-full min-w-[40rem] text-sm">
+                  <thead>
+                    <tr className="border-b border-border bg-band/30 text-left text-micro font-semibold uppercase tracking-micro text-muted-foreground">
+                      <th className="px-4 py-2">{noun.column}</th>
+                      <th className="px-2 py-2">SKU</th>
+                      <th className="w-28 px-2 py-2">Price</th>
+                      <th className="w-28 px-2 py-2">Was</th>
+                      <th className="w-28 px-2 py-2">In stock</th>
+                      <th className="w-20 px-2 py-2 text-center">On sale</th>
+                      <th className="w-12 px-2 py-2" aria-label="Actions" />
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-border">
+                    {variants.map((variant) => (
+                      <VariantRow
+                        key={variant.id}
+                        variant={variant}
+                        noun={noun.one}
+                        symbol={symbol}
+                        productPrice={productPrice}
+                        locationId={locationId}
+                        tenantId={tenantId}
+                        onChanged={refresh}
+                      />
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </div>
+        </RecordGroup>
+      </div>
+      {/* Stacked (below lg) the options come first: they are what makes the list. */}
+      <div className="flex min-w-0 flex-col gap-5 max-lg:order-first">
+        <OptionsCard
+          key={catalog.options.map((option) => `${option.id}:${option.values.length}`).join(',')}
+          menuItemId={menuItemId}
+          productName={productName}
+          tenantId={tenantId}
+          initial={catalog.options.map((option) => ({ name: option.name, values: option.values.map((value) => value.label) }))}
+          stored={catalog.options}
+          variants={variants}
+          existing={variants.map((variant) =>
+            Object.fromEntries(variant.values.map((value) => [optionName(catalog, value.optionValue.optionId), value.optionValue.label])),
+          )}
+          onGenerated={refresh}
+        />
+        {stockCard}
+      </div>
+    </motion.div>
   );
 }
 
@@ -277,7 +278,9 @@ function OptionsCard({
   const presets = options.length < 3 ? OPTION_PRESETS.filter((preset) => !usedNames.has(preset.option.name.toLowerCase())) : [];
 
   return (
-    <SettingsSection
+    <RecordGroup
+      card
+      id="sizes-options"
       title="Options"
       actions={
         <SectionInfo label="What a shopper chooses — Size, Colour, Fit. Each combination becomes its own SKU, with its own price and stock." />
@@ -316,7 +319,7 @@ function OptionsCard({
                       key={preset.label}
                       type="button"
                       onClick={() => setOptions((current) => [...current, { ...preset.option, values: [...preset.option.values] }])}
-                      className="rounded-md border border-border bg-control px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-rule hover:text-foreground"
+                      className="rounded-md border border-border bg-control px-2.5 py-1 text-xs font-medium text-muted-foreground transition-colors hover:border-edge hover:text-foreground"
                     >
                       {preset.option.name} · {preset.label}
                     </button>
@@ -366,7 +369,7 @@ function OptionsCard({
           </div>
         )}
       </div>
-    </SettingsSection>
+    </RecordGroup>
   );
 }
 
@@ -483,7 +486,7 @@ function OptionRow({
               placeholder="Name it — Size, Colour, Fit…"
               autoFocus={!option.name}
               onChange={(event) => onChange({ ...option, name: event.target.value })}
-              className="h-8 w-full rounded-md border border-rule bg-control px-2.5 text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground/70 focus:border-ring focus:outline-none"
+              className="h-8 w-full rounded-md border border-input bg-control px-2.5 text-sm font-semibold text-foreground placeholder:font-normal placeholder:text-muted-foreground/70 focus:border-ring focus:outline-none"
             />
           )}
           {/* Its values: stored ones fixed, new ones tinted and removable, then a field to add more. */}
@@ -523,7 +526,7 @@ function OptionRow({
             <input
               aria-label={`Add a ${option.name.trim().toLowerCase() || 'value'}`}
               autoFocus={Boolean(saved)}
-              className="h-7 min-w-32 flex-1 rounded-md border border-dashed border-rule/80 bg-control px-2.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-solid focus:border-ring"
+              className="h-7 min-w-32 flex-1 rounded-md border border-dashed border-border bg-control px-2.5 text-xs text-foreground outline-none placeholder:text-muted-foreground/70 focus:border-solid focus:border-ring"
               placeholder={optionPlaceholder(option.name, option.values.length > 0)}
               value={draft}
               onChange={(event) => {
@@ -682,7 +685,7 @@ function VariantRow({
               aria-hidden="true"
               className={cn(
                 'size-2 shrink-0 rounded-full',
-                onHand === null ? 'bg-rule' : onHand === 0 ? 'bg-exception' : low ? 'bg-measured' : 'bg-momentum',
+                onHand === null ? 'bg-border' : onHand === 0 ? 'bg-exception' : low ? 'bg-measured' : 'bg-momentum',
               )}
             />
             <CommitInput

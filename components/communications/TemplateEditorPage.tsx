@@ -1,36 +1,23 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
 import { Mascot } from '@/components/ai/Mascot';
 import { MediaPicker } from '@/components/cms/MediaPicker';
 import { createRenditions } from '@/components/cms/renditions';
-import { RowTile } from '@/components/cms/rows';
+import { RowMenu } from '@/components/cms/rows';
 import { invalidateCms } from '@/components/cms/shared';
-import {
-  ArrowDown,
-  Code,
-  Eye,
-  FileText,
-  Globe,
-  ImagePlus,
-  Link2,
-  ListView,
-  Mail,
-  Minus,
-  PlugZap,
-  Send,
-  TriangleAlert,
-} from '@/components/icons';
-import type { IconComponent } from '@/components/icons';
+import { Eye, Mail, PlugZap, Send, Trash2, TriangleAlert } from '@/components/icons';
+import { SaveBar } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Modal } from '@/components/shared/Modal';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Tooltip } from '@/components/shared/Tooltip';
-import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/label';
@@ -59,19 +46,16 @@ import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { EmailPreviewDrawer } from './EmailPreviewDrawer';
-import { type CanvasDnd, type DragPayload, TemplateCanvas, blockFromPayload } from './TemplateCanvas';
+import { type CanvasDnd, type DragPayload, TemplateCanvas } from './TemplateCanvas';
 import { TemplateSettingsPanel } from './TemplateSettingsPanel';
 import { TokenTextarea } from './TokenTextarea';
 import { DEFAULT_TEMPLATE_CATEGORY, TEMPLATE_CATEGORIES } from './shared';
 import {
-  COLUMN_LAYOUTS,
   type TemplateBlock,
   type TemplateDesign,
-  type TemplateLeafBlock,
   defaultTemplateDesign,
   findTemplateBlock,
   htmlToDesign,
-  insertTemplateBlock,
   isTemplateDesign,
   normalizeTemplateDesign,
   readHtmlPreheader,
@@ -84,21 +68,9 @@ import {
 import { useEmailAccess } from './useEmailAccess';
 import { workflowForAutomation } from './workflowModel';
 
-const FORM_ID = 'email-template-form';
 const MODES = [
   { value: 'visual' as const, label: 'Design' },
   { value: 'html' as const, label: 'HTML' },
-];
-
-const BLOCKS: Array<{ type: TemplateLeafBlock['type']; label: string; icon: IconComponent }> = [
-  { type: 'heading', label: 'Heading', icon: FileText },
-  { type: 'text', label: 'Text', icon: ListView },
-  { type: 'button', label: 'Button', icon: Link2 },
-  { type: 'image', label: 'Image', icon: ImagePlus },
-  { type: 'divider', label: 'Divider', icon: Minus },
-  { type: 'spacer', label: 'Spacer', icon: ArrowDown },
-  { type: 'social', label: 'Social', icon: Globe },
-  { type: 'html', label: 'HTML', icon: Code },
 ];
 
 export function TemplateEditorPage({
@@ -113,6 +85,7 @@ export function TemplateEditorPage({
   onOpenConnection?: () => void;
 }) {
   const access = useEmailAccess();
+  const reduceMotion = useReducedMotion();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const user = useAuthStore((state) => state.user);
   const capabilities = useAuthStore((state) => state.capabilities);
@@ -148,7 +121,7 @@ export function TemplateEditorPage({
   // Which image block the file picker is filling — the picker outlives selection.
   const imageTargetRef = useRef<string | null>(null);
 
-  // Drag state lives here because a drag starts in the palette and ends on the canvas.
+  // Drag state (moving a block by its grip) lives here, beside the rest of the draft.
   const dragPayload = useRef<DragPayload | null>(null);
   const [dragging, setDragging] = useState(false);
   const dnd: CanvasDnd = {
@@ -248,7 +221,6 @@ export function TemplateEditorPage({
     return saved;
   };
 
-  const [justSaved, flashSaved] = useDoneBeat();
   const save = useMutation({
     mutationFn: persist,
     // Stays in the editor, as every builder does — Close is one click away.
@@ -319,12 +291,6 @@ export function TemplateEditorPage({
     onError: (error) => toast('error', error.message),
   });
 
-  /** Palette click — same result as dragging it to the very end of the email. */
-  const addBlock = (payload: Extract<DragPayload, { kind: 'new' }>) => {
-    const block = blockFromPayload(payload);
-    setDesign((current) => insertTemplateBlock(current, block, { kind: 'root' }, current.blocks.length));
-    setSelectedId(block.id);
-  };
   const updateBlock = (next: TemplateBlock) => setDesign((current) => updateTemplateBlock(current, next));
 
   /** Puts an image in a block, and its description too if the block has none yet. */
@@ -409,7 +375,6 @@ export function TemplateEditorPage({
     })),
   ];
   const blocking = checks.filter((check) => check.tone === 'exception').length;
-  const categoryLabel = categoryOptions.find((option) => option.value === category)?.label ?? category;
 
   /** Back to the last save — the snapshot holds every field the editor owns. */
   const discard = () => {
@@ -439,12 +404,28 @@ export function TemplateEditorPage({
     const onKey = (event: KeyboardEvent) => {
       if ((event.metaKey || event.ctrlKey) && !event.shiftKey && !event.altKey && event.key.toLowerCase() === 's') {
         event.preventDefault();
-        if (canSubmit) save.mutate(undefined, { onSuccess: flashSaved });
+        if (canSubmit) save.mutate();
       }
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [canSubmit, save, flashSaved]);
+  }, [canSubmit, save]);
+
+  /** Design ⇄ HTML, carrying edits across: an edited HTML body comes back as an HTML block. */
+  const switchMode = (next: 'visual' | 'html') => {
+    if (next === 'html') {
+      setHtmlBody(renderTemplateDesign(design));
+      setTextBody(templateDesignToPlainText(design));
+    } else if (setHtmlPreheader(htmlBody, '') !== renderTemplateDesign({ ...design, preheader: '' })) {
+      // The HTML was edited: bring it back rather than redraw the old blocks over it.
+      setDesign(htmlToDesign(htmlBody, design));
+      setSelectedId('');
+    } else {
+      // Only the preview text changed — keep the blocks, take the text.
+      setDesign((current) => ({ ...current, preheader: readHtmlPreheader(htmlBody) ?? '' }));
+    }
+    setMode(next);
+  };
 
   return (
     <EditorShell
@@ -453,296 +434,199 @@ export function TemplateEditorPage({
       icon={<Mail size={20} aria-hidden="true" />}
       onClose={onClose}
       dirty={dirty && !save.isPending}
-      flush
-      meta={
-        <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-          <span>{categoryLabel}</span>
-          {(dirty || !savedId) && access.canWrite && (
-            <span className="inline-flex items-center gap-1 font-medium text-measured">
-              <span className="size-1.5 rounded-full bg-measured" aria-hidden="true" />
-              {savedId ? 'Unsaved changes' : 'Not created yet'}
-            </span>
-          )}
-        </span>
-      }
       actions={
-        <div className="flex items-center gap-2">
-          <Button variant="ghost" size="sm" className="h-9 gap-1.5" onClick={() => setPreviewing(true)}>
+        <>
+          <Button variant="outline" className="gap-1.5" onClick={() => setPreviewing(true)} aria-label="Preview in an inbox">
             <Eye aria-hidden="true" /> <span className="hidden md:inline">Preview</span>
           </Button>
           {access.canSend && (
             <Tooltip side="top" label={blocking ? 'Fix the problems first' : 'Saves, then sends it to you'}>
-              <Button variant="outline" className="h-9 gap-1.5" onClick={() => setTestOpen(true)} disabled={!canSave || blocking > 0}>
+              <Button
+                variant="outline"
+                className="gap-1.5"
+                onClick={() => setTestOpen(true)}
+                disabled={!canSave || blocking > 0}
+                aria-label="Send a test email"
+              >
                 <Send aria-hidden="true" />
                 <span className="hidden md:inline">Send test</span>
               </Button>
             </Tooltip>
           )}
-          {access.canWrite && dirty && (
-            <Button variant="ghost" className="h-9" disabled={save.isPending} onClick={savedId ? discard : onClose}>
-              Discard
-            </Button>
+          {Boolean(savedId) && access.canWrite && (
+            <RowMenu
+              label="Template actions"
+              items={[{ icon: Trash2, label: 'Delete template', danger: true, onClick: () => setDeleting(true) }]}
+            />
           )}
-          {access.canWrite && (
-            <Tooltip side="top" align="end" label={`${savedId ? 'Save' : 'Create'} (${saveShortcut})`}>
-              <ActionButton
-                type="submit"
-                form={FORM_ID}
-                disabled={!canSave || (!dirty && Boolean(savedId))}
-                pending={save.isPending}
-                done={justSaved}
-                className="h-9 min-w-24 px-5"
-              >
-                {!dirty && savedId ? 'Saved' : savedId ? 'Save' : 'Create template'}
-              </ActionButton>
-            </Tooltip>
-          )}
-        </div>
+        </>
       }
     >
-      <form
-        id={FORM_ID}
-        onSubmit={(event) => {
-          event.preventDefault();
-          save.mutate(undefined, { onSuccess: flashSaved });
-        }}
-        className={cn('grid min-h-0 flex-1', readOnly ? 'lg:grid-cols-[minmax(0,1fr)_24rem]' : 'lg:grid-cols-[13rem_minmax(0,1fr)_24rem]')}
+      <motion.div
+        initial={reduceMotion ? false : 'hidden'}
+        animate="shown"
+        variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
       >
-        {!readOnly && (
-          <aside className="overflow-auto border-b border-divider bg-card p-4 lg:border-b-0 lg:border-r">
-            <h2 className="text-base font-semibold tracking-title text-heading">Content</h2>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Drag onto the email, or click to add at the end.</p>
-            <div className="-mx-2 mt-3 flex flex-col gap-0.5">
-              {BLOCKS.map(({ type, label, icon: Icon }) => (
-                <button
-                  key={type}
-                  type="button"
-                  draggable={mode === 'visual'}
-                  disabled={mode !== 'visual'}
-                  onDragStart={(event) => {
-                    dnd.start({ kind: 'new', type });
-                    event.dataTransfer.effectAllowed = 'copy';
-                    event.dataTransfer.setData('text/plain', type);
-                  }}
-                  onDragEnd={dnd.end}
-                  onClick={() => addBlock({ kind: 'new', type })}
-                  className="flex w-full cursor-grab items-center gap-3 rounded-md px-2 py-1.5 text-left text-sm font-semibold text-foreground transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  <RowTile icon={Icon} />
-                  {label}
-                </button>
-              ))}
-            </div>
+        {/* The email is the work, so it takes the main column; its settings stack in the sidebar. */}
+        <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]">
+          <div className="flex min-w-0 flex-col gap-5">
+            {!readOnly && <NeedsAttention items={attention} label="Before you send" />}
 
-            {/* Layouts come second: pick the shape of a row, then fill its cells. */}
-            <h2 className="mt-6 border-t border-border pt-5 text-base font-semibold tracking-title text-heading">Columns</h2>
-            <p className="mt-1 text-xs leading-relaxed text-muted-foreground">Pick a row’s shape, then fill each cell.</p>
-            <div className="mt-3 grid grid-cols-2 gap-2">
-              {COLUMN_LAYOUTS.map(({ value, label, widths }) => (
-                <button
-                  key={value}
-                  type="button"
-                  draggable={mode === 'visual'}
-                  disabled={mode !== 'visual'}
-                  onDragStart={(event) => {
-                    dnd.start({ kind: 'new', type: 'columns', layout: value });
-                    event.dataTransfer.effectAllowed = 'copy';
-                    event.dataTransfer.setData('text/plain', value);
-                  }}
-                  onDragEnd={dnd.end}
-                  onClick={() => addBlock({ kind: 'new', type: 'columns', layout: value })}
-                  title={label}
-                  aria-label={`Add a ${label} row`}
-                  className="flex h-11 cursor-grab items-stretch gap-1 rounded-md border border-border bg-field p-2 transition-colors hover:border-primary/50 hover:bg-primary/6 focus-visible:outline-2 focus-visible:outline-ring active:cursor-grabbing disabled:cursor-not-allowed disabled:opacity-50"
-                >
-                  {widths.map((width, index) => (
-                    <span key={index} style={{ width: `${width}%` }} className="rounded-sm bg-band" aria-hidden="true" />
-                  ))}
-                </button>
-              ))}
-            </div>
-          </aside>
-        )}
-
-        <main className="min-h-0 overflow-auto bg-band/60 p-4 md:p-6">
-          <div className="mx-auto max-w-3xl space-y-4">
-            {!readOnly && (
-              <NeedsAttention
-                items={attention}
-                summary={
-                  blocking
-                    ? `${attention.length} to fix before sending`
-                    : `${attention.length} ${attention.length === 1 ? 'suggestion' : 'suggestions'}`
-                }
-              />
-            )}
-
-            {/* How it lands in the inbox — the subject and preview text are the first thing anyone reads. */}
-            <div className="flex items-center justify-between gap-3 rounded-lg border border-border bg-field px-4 py-3">
-              <div className="flex min-w-0 items-center gap-3">
-                <RowTile icon={Mail} />
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-semibold text-foreground">
-                    {subject || <span className="text-muted-foreground">No subject yet</span>}
-                  </p>
-                  <p className="truncate text-xs text-muted-foreground">
-                    {design.preheader?.trim() || 'No preview text — the inbox shows the first words of the email'}
-                  </p>
+            <RecordGroup
+              id="template-email"
+              title="Email"
+              actions={
+                readOnly ? undefined : (
+                  <SegmentedControl options={MODES} value={mode} onChange={switchMode} ariaLabel="Editor" className="shrink-0" />
+                )
+              }
+            >
+              {readOnly ? (
+                // Reading, not building: the email as it renders.
+                <div className="overflow-hidden rounded-lg border border-border bg-white">
+                  <iframe title="Email" sandbox="" srcDoc={previewHtml} className="h-[calc(100dvh-16rem)] min-h-96 w-full border-0" />
                 </div>
-              </div>
-              <div className="flex shrink-0 items-center gap-2">
-                {!readOnly && (
-                  <SegmentedControl
-                    options={MODES}
-                    value={mode}
-                    onChange={(next) => {
-                      if (next === 'html') {
-                        setHtmlBody(renderTemplateDesign(design));
-                        setTextBody(templateDesignToPlainText(design));
-                      } else if (setHtmlPreheader(htmlBody, '') !== renderTemplateDesign({ ...design, preheader: '' })) {
-                        // The HTML was edited: bring it back rather than redraw the old blocks over it.
-                        setDesign(htmlToDesign(htmlBody, design));
-                        setSelectedId('');
-                      } else {
-                        // Only the preview text changed — keep the blocks, take the text.
-                        setDesign((current) => ({ ...current, preheader: readHtmlPreheader(htmlBody) ?? '' }));
-                      }
-                      setMode(next);
-                    }}
-                    ariaLabel="Editor"
-                    className="shrink-0"
-                  />
-                )}
-              </div>
-            </div>
-
-            {readOnly ? (
-              // Reading, not building: the email as it renders.
-              <div className="overflow-hidden rounded-lg border border-border bg-white">
-                <iframe title="Email" sandbox="" srcDoc={previewHtml} className="h-[calc(100dvh-16rem)] min-h-96 w-full border-0" />
-              </div>
-            ) : mode === 'html' ? (
-              <div className="space-y-4 rounded-lg border border-border bg-field p-5">
-                <div className="space-y-1.5">
-                  <FieldLabel as="span">HTML</FieldLabel>
-                  <TokenTextarea
-                    ref={htmlRef}
-                    value={htmlBody}
-                    onChange={(next) => {
-                      setHtmlBody(next);
-                      // Edited in the HTML itself: the Preview text field follows.
-                      const read = readHtmlPreheader(next) ?? '';
-                      if (read !== (design.preheader ?? '').trim()) setDesign((current) => ({ ...current, preheader: read }));
-                    }}
-                    variables={variables}
-                    aria-label="HTML body"
-                    className="min-h-96 font-mono text-xs"
-                  />
-                </div>
-                <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-3">
-                    <FieldLabel as="span">Plain-text version</FieldLabel>
-                    <Tooltip
-                      side="top"
-                      align="end"
-                      label={
-                        textBody.trim() ? 'Replaces what’s here with a plain-text copy of the HTML above' : 'Writes it from the HTML above'
-                      }
-                    >
-                      {/* A standard outline button, with the mascot as its icon: it thinks while it writes and cheers when it's done. */}
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={!htmlBody.trim() || writePlainText.isPending}
-                        onClick={() => writePlainText.mutate()}
-                        className="h-9 gap-2 pl-1.5"
-                      >
-                        <Mascot
-                          size={28}
-                          state={writePlainText.isPending ? 'thinking' : undefined}
-                          feeling={writePlainText.isError ? 'sad' : plainTextCheer ? 'happy' : 'curious'}
-                          gesture={plainTextCheer ? 'celebrate' : undefined}
-                          gestureKey={plainTextCheer}
-                          fps={24}
-                          className="shrink-0"
-                        />
-                        <span aria-live="polite">
-                          {writePlainText.isPending ? 'Writing it…' : textBody.trim() ? 'Ask DUMA to rewrite it' : 'Ask DUMA to write it'}
-                        </span>
-                      </Button>
-                    </Tooltip>
-                  </div>
-                  <div className={cn('transition-opacity', writePlainText.isPending && 'opacity-50')}>
+              ) : mode === 'html' ? (
+                <div className="space-y-4 rounded-lg border border-border bg-card px-5 py-4 shadow-sm">
+                  <div className="space-y-1.5">
+                    <FieldLabel as="span">HTML</FieldLabel>
                     <TokenTextarea
-                      ref={textRef}
-                      value={textBody}
-                      onChange={setTextBody}
+                      ref={htmlRef}
+                      value={htmlBody}
+                      onChange={(next) => {
+                        setHtmlBody(next);
+                        // Edited in the HTML itself: the Preview text field follows.
+                        const read = readHtmlPreheader(next) ?? '';
+                        if (read !== (design.preheader ?? '').trim()) setDesign((current) => ({ ...current, preheader: read }));
+                      }}
                       variables={variables}
-                      readOnly={writePlainText.isPending}
-                      aria-busy={writePlainText.isPending}
-                      aria-label="Plain-text fallback"
-                      className="min-h-32 text-sm"
+                      aria-label="HTML body"
+                      className="min-h-96 font-mono text-xs"
                     />
                   </div>
+                  <div className="space-y-1.5">
+                    <div className="flex items-center justify-between gap-3">
+                      <FieldLabel as="span">Plain-text version</FieldLabel>
+                      <Tooltip
+                        side="top"
+                        align="end"
+                        label={
+                          textBody.trim()
+                            ? 'Replaces what’s here with a plain-text copy of the HTML above'
+                            : 'Writes it from the HTML above'
+                        }
+                      >
+                        {/* A small outline button, with the mascot as its icon: it thinks while it writes and cheers when it's done. */}
+                        <Button
+                          type="button"
+                          variant="outline"
+                          size="sm"
+                          disabled={!htmlBody.trim() || writePlainText.isPending}
+                          onClick={() => writePlainText.mutate()}
+                          className="gap-1.5 pl-1"
+                        >
+                          <Mascot
+                            size={24}
+                            state={writePlainText.isPending ? 'thinking' : undefined}
+                            feeling={writePlainText.isError ? 'sad' : plainTextCheer ? 'happy' : 'curious'}
+                            gesture={plainTextCheer ? 'celebrate' : undefined}
+                            gestureKey={plainTextCheer}
+                            fps={24}
+                            className="shrink-0"
+                          />
+                          <span aria-live="polite">
+                            {writePlainText.isPending ? 'Writing it…' : textBody.trim() ? 'Ask DUMA to rewrite it' : 'Ask DUMA to write it'}
+                          </span>
+                        </Button>
+                      </Tooltip>
+                    </div>
+                    <div className={cn('transition-opacity', writePlainText.isPending && 'opacity-50')}>
+                      <TokenTextarea
+                        ref={textRef}
+                        value={textBody}
+                        onChange={setTextBody}
+                        variables={variables}
+                        readOnly={writePlainText.isPending}
+                        aria-busy={writePlainText.isPending}
+                        aria-label="Plain-text fallback"
+                        className="min-h-32 text-sm"
+                      />
+                    </div>
+                  </div>
                 </div>
-              </div>
-            ) : (
-              <TemplateCanvas
-                design={design}
-                selectedId={selectedId}
-                onSelect={setSelectedId}
-                onChange={setDesign}
-                dnd={dnd}
-                onRequestImage={requestImage}
-              />
-            )}
+              ) : (
+                <TemplateCanvas
+                  design={design}
+                  selectedId={selectedId}
+                  onSelect={setSelectedId}
+                  onChange={setDesign}
+                  dnd={dnd}
+                  onRequestImage={requestImage}
+                />
+              )}
+            </RecordGroup>
           </div>
-        </main>
 
-        <aside className="min-h-0 overflow-auto border-t border-divider bg-background lg:border-l lg:border-t-0">
-          <TemplateSettingsPanel
-            selected={readOnly ? undefined : selected}
-            onDeselect={() => setSelectedId('')}
-            onBlockChange={updateBlock}
-            onChooseImage={uploadFor}
-            onBrowseMedia={canBrowseMedia ? setPickingFor : undefined}
-            name={name}
-            onName={setName}
-            category={category}
-            onCategory={setCategory}
-            categoryOptions={categoryOptions}
-            categoryHint={categoryHint}
-            subject={subject}
-            onSubject={setSubject}
-            preheader={design.preheader ?? ''}
-            onPreheader={changePreheader}
-            onSuggestPreheader={readOnly ? undefined : () => writePreheader.mutate()}
-            preheaderAsk={{ busy: writePreheader.isPending, failed: writePreheader.isError, cheer: preheaderCheer }}
-            design={design}
-            onStyles={(patch) => setDesign((current) => ({ ...current, styles: { ...current.styles, ...patch } }))}
-            variables={variables}
-            usedBy={usedBy}
-            canDelete={Boolean(savedId) && access.canWrite}
-            onDelete={() => setDeleting(true)}
-            onPreview={() => setPreviewing(true)}
-            onSendTest={access.canSend ? () => setTestOpen(true) : undefined}
-            sendTestBlocked={!canSave || blocking > 0}
-            readOnly={readOnly}
-            htmlMode={mode === 'html'}
+          {/* Stacked (below lg) the settings come first, so a new template starts on its subject.
+              Beside the email they stay in view, scrolling on their own. */}
+          <div className="-m-1 flex min-w-0 flex-col p-1 max-lg:order-first lg:sticky lg:top-0 lg:max-h-[calc(100dvh-var(--header-height))] lg:overflow-y-auto">
+            <TemplateSettingsPanel
+              selected={readOnly ? undefined : selected}
+              onDeselect={() => setSelectedId('')}
+              onBlockChange={updateBlock}
+              onChooseImage={uploadFor}
+              onBrowseMedia={canBrowseMedia ? setPickingFor : undefined}
+              name={name}
+              onName={setName}
+              category={category}
+              onCategory={setCategory}
+              categoryOptions={categoryOptions}
+              categoryHint={categoryHint}
+              subject={subject}
+              onSubject={setSubject}
+              preheader={design.preheader ?? ''}
+              onPreheader={changePreheader}
+              onSuggestPreheader={readOnly ? undefined : () => writePreheader.mutate()}
+              preheaderAsk={{ busy: writePreheader.isPending, failed: writePreheader.isError, cheer: preheaderCheer }}
+              design={design}
+              onStyles={(patch) => setDesign((current) => ({ ...current, styles: { ...current.styles, ...patch } }))}
+              variables={variables}
+              usedBy={usedBy}
+              readOnly={readOnly}
+              htmlMode={mode === 'html'}
+            />
+            <input
+              ref={fileRef}
+              type="file"
+              accept="image/png,image/jpeg,image/webp,image/gif"
+              className="hidden"
+              onChange={(event) => {
+                const file = event.target.files?.[0];
+                if (file) void uploadImage(file);
+                event.currentTarget.value = '';
+              }}
+            />
+          </div>
+        </div>
+
+        {access.canWrite && (
+          <SaveBar
+            dirty={dirty || !savedId}
+            saving={save.isPending}
+            saveLabel={savedId ? 'Save' : 'Create template'}
+            disabled={!canSave}
+            message={
+              !canSave
+                ? 'Add a name and subject to save'
+                : savedId
+                  ? `Unsaved changes · ${saveShortcut} saves`
+                  : `Not created yet · ${saveShortcut} creates`
+            }
+            onSave={() => save.mutate()}
+            onDiscard={savedId ? discard : onClose}
           />
-          <input
-            ref={fileRef}
-            type="file"
-            accept="image/png,image/jpeg,image/webp,image/gif"
-            className="hidden"
-            onChange={(event) => {
-              const file = event.target.files?.[0];
-              if (file) void uploadImage(file);
-              event.currentTarget.value = '';
-            }}
-          />
-        </aside>
-      </form>
+        )}
+      </motion.div>
 
       {pickingFor && (
         <MediaPicker

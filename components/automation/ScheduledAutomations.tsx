@@ -1,13 +1,13 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import Link from 'next/link';
 
-import { RowTile } from '@/components/cms/rows';
-import { CalendarClock, ChevronRight, FileText, type IconComponent, Wallet } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
+import { CalendarClock, FileText, RefreshCw, TriangleAlert, Wallet } from '@/components/icons';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
+import { Button } from '@/components/ui/button';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
@@ -24,9 +24,9 @@ const ENTRY_LIMIT = 4;
 
 /**
  * The jobs that run on a timer outside workflows: payroll's automatic
- * finalisation and content publishing. A rail card on the Workflows tab, read
- * only. Each row opens the feature that owns the schedule. Nothing renders for
- * a role that can see neither.
+ * finalisation and content publishing. A titled list under the workflows,
+ * read only; each row opens the feature that owns the schedule. Nothing
+ * renders for a role that can see neither.
  */
 export function ScheduledAutomations() {
   const capabilities = useAuthStore((state) => state.capabilities);
@@ -48,24 +48,29 @@ export function ScheduledAutomations() {
   if (!canPayroll && !canContent) return null;
 
   return (
-    <SettingsSection title="Scheduled jobs">
-      <div className="-mx-2 flex flex-col gap-0.5">
+    <RecordGroup
+      id="automation-scheduled"
+      title="Scheduled jobs"
+      footnote={canPayroll && payroll.data?.payrollAutoFinalise ? 'Payslips still need issuing after a run is finalised.' : undefined}
+    >
+      <ListRowGroup aria-label="Scheduled jobs">
         {canPayroll &&
           (payroll.isPending ? (
-            <Bone className="mx-2 h-11 rounded-md" />
+            <RowLoading />
           ) : payroll.isError ? (
             <LoadFailed what="the payroll schedule" onRetry={() => void payroll.refetch()} />
           ) : (
-            <JobRow
+            <ListRow
               href="/staff/payroll"
               icon={Wallet}
+              tone={payroll.data.payrollAutoFinalise ? 'success' : 'muted'}
               title="Payroll auto-finalisation"
-              subtitle={
+              meta={
                 payroll.data.payrollAutoFinalise
                   ? `${PERIOD_LABEL[payroll.data.payrollPeriod].name} · ${payDayInWords(payroll.data)}`
                   : 'Runs are finalised by hand'
               }
-              badge={
+              trailing={
                 <Badge variant={payroll.data.payrollAutoFinalise ? 'success' : 'muted'}>
                   {payroll.data.payrollAutoFinalise ? 'On' : 'Off'}
                 </Badge>
@@ -74,20 +79,27 @@ export function ScheduledAutomations() {
           ))}
         {canContent &&
           (content.isPending ? (
-            <Bone className="mx-2 h-11 rounded-md" />
+            <RowLoading />
           ) : content.isError ? (
             <LoadFailed what="scheduled content" onRetry={() => void content.refetch()} />
           ) : !content.data.data.length ? (
-            <JobRow href="/content" icon={FileText} title="Content publishing" subtitle="Nothing scheduled to publish or unpublish" />
+            <ListRow
+              href="/content"
+              icon={FileText}
+              tone="muted"
+              title="Content publishing"
+              meta="Nothing scheduled to publish or unpublish"
+            />
           ) : (
             <>
               {content.data.data.slice(0, ENTRY_LIMIT).map((entry) => (
-                <JobRow
+                <ListRow
                   key={entry.id}
                   href={`/content?entry=${encodeURIComponent(entry.id)}`}
                   icon={CalendarClock}
+                  tone="info"
                   title={entry.title || entry.slug || 'Untitled entry'}
-                  subtitle={[
+                  meta={[
                     entry.scheduledPublishAt && `Publishes ${fmtDateTime(entry.scheduledPublishAt)}`,
                     entry.scheduledUnpublishAt && `Unpublishes ${fmtDateTime(entry.scheduledUnpublishAt)}`,
                   ]
@@ -96,62 +108,45 @@ export function ScheduledAutomations() {
                 />
               ))}
               {content.data.total > ENTRY_LIMIT && (
-                <JobRow href="/content" icon={FileText} title={`All ${content.data.total} scheduled entries`} subtitle="Open Content" />
+                <ListRow
+                  href="/content"
+                  icon={FileText}
+                  tone="muted"
+                  title={`All ${content.data.total} scheduled entries`}
+                  meta="Open Content"
+                />
               )}
             </>
           ))}
-      </div>
-      {canPayroll && payroll.data?.payrollAutoFinalise && (
-        <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-          Payslips still need issuing after a run is finalised.
-        </p>
-      )}
-    </SettingsSection>
+      </ListRowGroup>
+    </RecordGroup>
   );
 }
 
-/** One scheduled thing: the whole row opens where its schedule is changed. */
-function JobRow({
-  href,
-  icon,
-  title,
-  subtitle,
-  badge,
-}: {
-  href: string;
-  icon: IconComponent;
-  title: string;
-  subtitle: string;
-  badge?: React.ReactNode;
-}) {
+function RowLoading() {
   return (
-    <Link
-      href={href}
-      className="group flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
-    >
-      <RowTile icon={icon} />
-      <span className="min-w-0 flex-1">
-        <span className="block truncate text-sm font-semibold text-foreground">{title}</span>
-        <span className="block truncate text-xs text-muted-foreground">{subtitle}</span>
+    <li className="flex items-center gap-3 px-3.5 py-3" aria-busy="true">
+      <Bone className="size-9 rounded-md" />
+      <span className="flex-1 space-y-1.5">
+        <Bone className="h-3.5 w-1/3" />
+        <Bone className="h-3 w-1/2" />
       </span>
-      {badge}
-      <ChevronRight
-        size={14}
-        className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-        aria-hidden="true"
-      />
-    </Link>
+    </li>
   );
 }
 
-/** A row-sized error with a retry, so one failed query doesn't take the card down. */
+/** A row-sized error with a retry, so one failed query doesn't take the list down. */
 function LoadFailed({ what, onRetry }: { what: string; onRetry: () => void }) {
   return (
-    <p className="flex items-center justify-between gap-3 px-2 py-1.5 text-xs text-muted-foreground">
-      <span>Couldn’t load {what}.</span>
-      <button type="button" onClick={onRetry} className="shrink-0 font-semibold text-foreground underline underline-offset-2">
-        Try again
-      </button>
-    </p>
+    <ListRow
+      icon={TriangleAlert}
+      tone="exception"
+      title={`Couldn’t load ${what}`}
+      control={
+        <Button variant="outline" size="sm" onClick={onRetry} className="gap-1.5">
+          <RefreshCw aria-hidden="true" /> Try again
+        </Button>
+      }
+    />
   );
 }

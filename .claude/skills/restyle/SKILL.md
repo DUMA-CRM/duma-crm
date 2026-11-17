@@ -5,6 +5,12 @@ description: Use when the user asks to redesign, restyle or build a duma-crm pag
 
 # Restyle a page in the Booking rules layout
 
+> **Superseded (2026-11-16).** Booking rules itself was rebuilt in the
+> account layout, so its file no longer shows this pattern. For any settings or
+> record page, use the `account-layout` skill instead (titles above the card,
+> `ChangeRow`s, small title-row buttons, visible footnotes). Keep this skill
+> only for reference to the older layout.
+
 The reference screen is **Reservations → Booking rules**
 (`components/reservations/BookingRules.tsx`, mounted from
 `components/reservations/ReservationsWorkspace.tsx` at `/reservations?tab=rules`).

@@ -172,15 +172,12 @@ export function FormBuilder({
     setMode('edit');
     focusLabel(field.id);
   };
-  /** A new step: a page break, then the step's first question — a form can't end on a break. */
+  /** A new step: just the divider. Until a question follows it, Publish lists it as a thing to fix; drafts still save. */
   const insertPageAt = (index: number) => {
     const pageBreak = newField('page_break', fields);
-    const field = blankQuestion([...fields, pageBreak]);
-    setFields([...fields.slice(0, index), pageBreak, field, ...fields.slice(index)]);
-    setFollowing((current) => new Map(current).set(field.id, true));
-    setSelectedId(field.id);
+    setFields([...fields.slice(0, index), pageBreak, ...fields.slice(index)]);
+    setSelectedId(pageBreak.id);
     setMode('edit');
-    focusLabel(field.id);
   };
   const move = (id: string, by: number) => {
     const from = fields.findIndex((field) => field.id === id);
@@ -642,7 +639,20 @@ function QuestionCard({
   return (
     <div id={`card-${field.id}`} onClick={onSelect} onFocus={onSelect} className={frame}>
       {grip}
-      {label}
+      {/* ⋯ sits on the question's own line, top right — shown on the open card, on hover elsewhere. */}
+      <div className="flex min-w-0 items-start gap-2">
+        <div className="min-w-0 flex-1">{label}</div>
+        {menu && (
+          <div
+            className={cn(
+              '-mt-1 -mr-2 shrink-0 transition-opacity',
+              !selected && 'opacity-0 group-hover:opacity-100 focus-within:opacity-100 pointer-coarse:opacity-100',
+            )}
+          >
+            {menu}
+          </div>
+        )}
+      </div>
       {field.type === 'hidden' ? (
         <p className="mt-1 truncate font-mono text-xs text-muted-foreground">
           Filled from ?{field.key}=… on the link{field.defaultValue && ` · else “${field.defaultValue}”`}
@@ -691,7 +701,6 @@ function QuestionCard({
                 <Switch checked={Boolean(field.required)} onChange={(required) => onChange({ required })} label="Required" />
               </label>
             )}
-            {menu}
           </div>
           <FieldSettings field={field} fields={fields} readOnly={readOnly} problems={allProblems} onChange={onChange} />
         </>

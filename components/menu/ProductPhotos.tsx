@@ -159,7 +159,7 @@ export function ProductPhotos({ menuItemId, productName, tenantId }: { menuItemI
         {filterChoices.length > 0 && (
           <Select
             ariaLabel="Shows"
-            className="w-48"
+            className="w-auto min-w-48"
             value={shows}
             onValueChange={setShows}
             options={[{ value: '', label: 'All photos' }, { value: 'all-only', label: 'For every option' }, ...filterChoices]}
@@ -222,7 +222,7 @@ export function ProductPhotos({ menuItemId, productName, tenantId }: { menuItemI
                   onClick={() => setOpenId(image.id)}
                   className={cn(
                     'block w-full overflow-hidden rounded-lg border bg-background text-left transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
-                    main ? 'border-primary/50 ring-2 ring-primary/15' : 'border-border hover:border-rule',
+                    main ? 'border-primary/50 ring-2 ring-primary/15' : 'border-border hover:border-edge',
                   )}
                 >
                   {image.apiUrl || image.url ? (
@@ -401,7 +401,7 @@ function OnThisProduct({
       <h3 id="on-this-product" className="text-sm font-semibold text-heading">
         On this product
       </h3>
-      <div className="space-y-3 rounded-lg border border-border bg-control p-4">
+      <div className="space-y-3">
         <InfoRows>
           <InfoRow icon={Star} title="Main photo">
             {index === 0 ? (
@@ -416,7 +416,7 @@ function OnThisProduct({
             <InfoRow icon={Palette} title="Shows">
               <Select
                 ariaLabel="Shows"
-                className="w-44"
+                className="w-auto min-w-44"
                 value={image.optionValueId ?? ''}
                 onValueChange={(value) => update.mutate({ optionValueId: value || null })}
                 options={[{ value: '', label: 'Every option' }, ...choices]}

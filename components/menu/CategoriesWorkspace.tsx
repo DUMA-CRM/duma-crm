@@ -1,22 +1,22 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
-import { ArrowDown, ArrowUp, EyeOff, type IconComponent, LayoutGrid, Loader2, Palette, Pencil, Plus, Trash2 } from '@/components/icons';
-import { MenuSectionTabs } from '@/components/menu/MenuSectionTabs';
+import { ArrowDown, ArrowUp, EyeOff, LayoutGrid, Loader2, Palette, Plus, Trash2 } from '@/components/icons';
+import { MenuSectionTabs, MenuShellIcon } from '@/components/menu/MenuSectionTabs';
 import { MenuDrawerFooter } from '@/components/menu/ModifierGroupDrawer';
 import { categoryTone } from '@/components/menu/shared';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
-import { EmptyState, type EmptyStateAction } from '@/components/shared/EmptyState';
+import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards, FormSection } from '@/components/shared/FormParts';
 import { IconTag } from '@/components/shared/IconTag';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -45,7 +45,8 @@ import type { MenuCategoryRecord } from '@/types/menu';
  * each shown or hidden, created and edited in a drawer. Modifier groups were
  * managed here too until the 2026-11 menu restructure moved them to the
  * Modifiers tab, where each group is a card holding its options — as Square
- * and Toast manage them.
+ * and Toast manage them. A row opens its drawer; the switch shows or hides it;
+ * move up and down sit with the row's hover actions.
  */
 
 const COLOURS: { value: NonNullable<MenuCategoryRecord['colour']>; label: string }[] = [
@@ -63,6 +64,7 @@ export function CategoriesWorkspace() {
   const capabilities = useAuthStore((state) => state.capabilities);
   const canWrite = hasCapability(capabilities, 'menu:write');
   const words = useCatalogWords();
+  const reduceMotion = useReducedMotion();
   const shop = !words.tools.kitchen;
   const [categoryDrawer, setCategoryDrawer] = useState<MenuCategoryRecord | 'new' | null>(null);
 
@@ -105,16 +107,17 @@ export function CategoriesWorkspace() {
     [ids[index], ids[to]] = [ids[to], ids[index]];
     reorderCategories.mutate(ids);
   };
+  const sectionWord = shop ? 'category' : 'section';
   return (
     <EditorShell
       title={words.section}
-      icon={<LayoutGrid size={20} aria-hidden="true" />}
+      icon={<MenuShellIcon />}
       subheader={<MenuSectionTabs />}
       // The page's one primary action, so it lives in the header rather than over the list.
       actions={
         tenantId &&
         canWrite && (
-          <Button className="h-9 gap-1.5" onClick={() => setCategoryDrawer('new')} aria-label={shop ? 'New category' : 'New section'}>
+          <Button onClick={() => setCategoryDrawer('new')} aria-label={shop ? 'New category' : 'New section'}>
             <Plus size={15} aria-hidden="true" />
             <span className="hidden md:inline">{shop ? 'New category' : 'New section'}</span>
           </Button>
@@ -123,71 +126,106 @@ export function CategoriesWorkspace() {
     >
       {!tenantId ? (
         <EmptyState icon={LayoutGrid} title="No workspace selected" description={`Choose a workspace to organise its ${words.items}.`} />
+      ) : categories.isError ? (
+        <ErrorState
+          className="flex-1"
+          title={shop ? 'Couldn’t load categories' : 'Couldn’t load menu sections'}
+          onRetry={() => void categories.refetch()}
+        />
+      ) : categories.isPending ? (
+        <ListSkeleton rows={4} label={shop ? 'Loading categories' : 'Loading menu sections'} />
+      ) : orderedCategories.length === 0 ? (
+        <EmptyState
+          className="flex-1"
+          icon={LayoutGrid}
+          title={shop ? 'No categories yet' : 'No sections yet'}
+          description={
+            shop
+              ? 'Start with how a shopper browses — T-shirts, Hoodies, Accessories.'
+              : 'Start with how your board reads — Coffee, Tea, Bakery.'
+          }
+          action={
+            canWrite ? { label: shop ? 'New category' : 'New section', icon: Plus, onClick: () => setCategoryDrawer('new') } : undefined
+          }
+        />
       ) : (
-        <motion.div initial="hidden" animate="shown" variants={{ shown: { transition: { staggerChildren: 0.06 } } }}>
-          <SettingsTabBody>
-            <ListSection
-              id="menu-sections"
-              title={shop ? 'Categories' : 'Menu sections'}
-              // The header already names the page and holds the add button.
-              hideTitle
-              note={shop ? 'Shoppers see them in this order.' : 'The till and the QR menu show them in this order.'}
-              loading={categories.isPending}
-              error={categories.isError}
-              onRetry={() => void categories.refetch()}
-              empty={
-                orderedCategories.length === 0
-                  ? {
-                      icon: LayoutGrid,
-                      title: shop ? 'No categories yet' : 'No sections yet',
-                      description: shop
-                        ? 'Start with how a shopper browses — T-shirts, Hoodies, Accessories.'
-                        : 'Start with how your board reads — Coffee, Tea, Bakery.',
-                      action: canWrite
-                        ? { label: shop ? 'New category' : 'New section', icon: Plus, onClick: () => setCategoryDrawer('new') }
-                        : undefined,
-                    }
-                  : null
-              }
-            >
-              {orderedCategories.map((category, index) => (
-                <OrderedRow
-                  key={category.id}
-                  icon={LayoutGrid}
-                  tile={categoryTone(category.slug, category)}
-                  title={category.name}
-                  muted={!category.isActive}
-                  detail={[category.description, `${category.itemCount} ${category.itemCount === 1 ? words.item : words.items}`]
-                    .filter(Boolean)
-                    .join(' · ')}
-                  // The switch and the greyed name already say it; only a reader without
-                  // the switch needs the mark.
-                  titleExtra={
-                    !category.isActive && !canWrite ? (
-                      <IconTag icon={EyeOff} label={shop ? 'Hidden from shoppers' : 'Hidden from the menu'} />
-                    ) : undefined
-                  }
-                  canWrite={canWrite}
-                  first={index === 0}
-                  last={index === orderedCategories.length - 1}
-                  busy={reorderCategories.isPending}
-                  onMove={(direction) => moveCategory(index, direction)}
-                  onEdit={() => setCategoryDrawer(category)}
-                  trailing={
-                    canWrite ? (
-                      <Switch
-                        label={`${category.name} shown ${shop ? 'to shoppers' : 'on the menu'}`}
-                        checked={category.isActive}
-                        disabled={toggleCategory.isPending && toggleCategory.variables?.id === category.id}
-                        onChange={(isActive) => toggleCategory.mutate({ id: category.id, isActive })}
-                      />
-                    ) : undefined
-                  }
-                />
-              ))}
-            </ListSection>
-          </SettingsTabBody>
-        </motion.div>
+        <motion.section
+          initial={reduceMotion ? false : 'hidden'}
+          animate="shown"
+          variants={SECTION_RISE}
+          aria-label={shop ? 'Categories' : 'Menu sections'}
+          className="min-w-0"
+        >
+          <ListRowGroup aria-label={shop ? 'Categories' : 'Menu sections'}>
+            {orderedCategories.map((category, index) => (
+              <ListRow
+                key={category.id}
+                leading={
+                  <span
+                    className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', categoryTone(category.slug, category))}
+                    aria-hidden="true"
+                  >
+                    <LayoutGrid size={16} />
+                  </span>
+                }
+                title={category.name}
+                muted={!category.isActive}
+                meta={[category.description, `${category.itemCount} ${category.itemCount === 1 ? words.item : words.items}`]
+                  .filter(Boolean)
+                  .join(' · ')}
+                // The switch and the greyed name already say it; only a reader without
+                // the switch needs the mark.
+                titleExtra={
+                  !category.isActive && !canWrite ? (
+                    <IconTag icon={EyeOff} label={shop ? 'Hidden from shoppers' : 'Hidden from the menu'} />
+                  ) : undefined
+                }
+                onClick={canWrite ? () => setCategoryDrawer(category) : undefined}
+                targetLabel={canWrite ? `Edit ${category.name}` : undefined}
+                control={
+                  canWrite ? (
+                    // Always visible: reordering is what this list is for.
+                    <span className="flex items-center gap-0.5">
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-muted-foreground"
+                        disabled={index === 0 || reorderCategories.isPending}
+                        onClick={() => moveCategory(index, -1)}
+                        aria-label={`Move ${category.name} up`}
+                        title={`Move ${sectionWord} up`}
+                      >
+                        <ArrowUp aria-hidden="true" />
+                      </Button>
+                      <Button
+                        variant="ghost"
+                        size="icon-sm"
+                        className="text-muted-foreground"
+                        disabled={index === orderedCategories.length - 1 || reorderCategories.isPending}
+                        onClick={() => moveCategory(index, 1)}
+                        aria-label={`Move ${category.name} down`}
+                        title={`Move ${sectionWord} down`}
+                      >
+                        <ArrowDown aria-hidden="true" />
+                      </Button>
+                      <span className="ml-1.5">
+                        <Switch
+                          label={`${category.name} shown ${shop ? 'to shoppers' : 'on the menu'}`}
+                          checked={category.isActive}
+                          disabled={toggleCategory.isPending && toggleCategory.variables?.id === category.id}
+                          onChange={(isActive) => toggleCategory.mutate({ id: category.id, isActive })}
+                        />
+                      </span>
+                    </span>
+                  ) : undefined
+                }
+              />
+            ))}
+          </ListRowGroup>
+          <p className="mt-2 px-1 text-xs leading-relaxed text-muted-foreground">
+            {shop ? 'Shoppers see them in this order.' : 'The till and the QR menu show them in this order.'}
+          </p>
+        </motion.section>
       )}
 
       {categoryDrawer && tenantId && (
@@ -211,145 +249,6 @@ function countBy<T>(rows: T[] | undefined, key: (row: T) => string | null): Map<
     if (k) counts.set(k, (counts.get(k) ?? 0) + 1);
   }
   return counts;
-}
-
-function ListSection({
-  id,
-  title,
-  hideTitle = false,
-  note,
-  action,
-  loading,
-  error,
-  onRetry,
-  empty,
-  children,
-}: {
-  id: string;
-  title: string;
-  /** Keep the heading for screen readers only — the section stays labelled. */
-  hideTitle?: boolean;
-  note?: string;
-  action?: React.ReactNode;
-  loading: boolean;
-  error: boolean;
-  onRetry: () => void;
-  empty: { icon: IconComponent; title: string; description: string; action?: EmptyStateAction } | null;
-  children: React.ReactNode;
-}) {
-  return (
-    <motion.section variants={SECTION_RISE} aria-labelledby={`${id}-title`} className="space-y-3">
-      {hideTitle ? (
-        <h2 id={`${id}-title`} className="sr-only">
-          {title}
-        </h2>
-      ) : (
-        <div className="flex min-h-9 items-center gap-3">
-          <h2 id={`${id}-title`} className="flex-1 text-base font-semibold tracking-title text-heading">
-            {title}
-          </h2>
-          {action}
-        </div>
-      )}
-      {error ? (
-        <ErrorState title={`Couldn’t load ${title.toLowerCase()}`} onRetry={onRetry} />
-      ) : loading ? (
-        <ListSkeleton rows={3} label={`Loading ${title.toLowerCase()}`} />
-      ) : empty ? (
-        <EmptyState icon={empty.icon} compact title={empty.title} description={empty.description} action={empty.action} />
-      ) : (
-        <ul className="overflow-hidden rounded-lg border border-border bg-card">{children}</ul>
-      )}
-      {note && <p className="px-1 text-xs leading-relaxed text-muted-foreground">{note}</p>}
-    </motion.section>
-  );
-}
-
-/** One entry in an ordered list: move up/down, a tile, name and detail, then a status and edit. */
-function OrderedRow({
-  icon: Icon,
-  tile,
-  title,
-  detail,
-  iconLabel,
-  titleExtra,
-  muted,
-  trailing,
-  canWrite,
-  first,
-  last,
-  busy,
-  onMove,
-  onEdit,
-}: {
-  icon: IconComponent;
-  tile: string;
-  title: string;
-  detail: React.ReactNode;
-  /** What the tile's glyph means, when it carries information (a size group). */
-  iconLabel?: string;
-  titleExtra?: React.ReactNode;
-  muted?: boolean;
-  trailing?: React.ReactNode;
-  canWrite: boolean;
-  first: boolean;
-  last: boolean;
-  busy: boolean;
-  onMove: (direction: -1 | 1) => void;
-  onEdit: () => void;
-}) {
-  return (
-    <li className="flex items-center gap-3 border-b border-border px-3 py-2.5 last:border-b-0">
-      {canWrite && (
-        <span className="flex shrink-0 flex-col">
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            disabled={first || busy}
-            onClick={() => onMove(-1)}
-            aria-label={`Move ${title} up`}
-          >
-            <ArrowUp size={13} />
-          </Button>
-          <Button
-            type="button"
-            variant="ghost"
-            size="icon"
-            className="size-6"
-            disabled={last || busy}
-            onClick={() => onMove(1)}
-            aria-label={`Move ${title} down`}
-          >
-            <ArrowDown size={13} />
-          </Button>
-        </span>
-      )}
-      <span
-        className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', tile)}
-        title={iconLabel}
-        role={iconLabel ? 'img' : undefined}
-        aria-label={iconLabel}
-        aria-hidden={iconLabel ? undefined : true}
-      >
-        <Icon size={16} aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="flex items-center gap-2">
-          <span className={cn('truncate text-sm font-semibold', muted ? 'text-muted-foreground' : 'text-foreground')}>{title}</span>
-          {titleExtra}
-        </span>
-        <span className="block truncate text-xs text-muted-foreground">{detail}</span>
-      </span>
-      {trailing}
-      {canWrite && (
-        <Button variant="ghost" size="icon" className="size-8 shrink-0 text-muted-foreground" onClick={onEdit} aria-label={`Edit ${title}`}>
-          <Pencil size={14} />
-        </Button>
-      )}
-    </li>
-  );
 }
 
 // ── Drawers ──────────────────────────────────────────────────────────────────

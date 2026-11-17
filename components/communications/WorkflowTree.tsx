@@ -2,9 +2,10 @@
 
 import { useState } from 'react';
 
-import { Copy, Menu, Plus, Trash2, TriangleAlert } from '@/components/icons';
+import { ActionRow, RowMenu } from '@/components/cms/rows';
+import { Copy, GripVertical, Plus, Trash2, TriangleAlert } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';
-import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import type { EmailWorkflowDefinition, EmailWorkflowNode } from '@/lib/modules/communications/client';
 import { cn } from '@/lib/utils/cn';
@@ -13,7 +14,9 @@ import { isMovableNode } from './workflowModel';
 import { NODE_META, type TriggerNames, nodeDetail } from './workflowNodes';
 
 /**
- * The workflow, drawn as the tree it actually is.
+ * The workflow, drawn as the tree it actually is: one vertical flow of step
+ * cards from the trigger down, a "+" on every connection, a condition splitting
+ * into its Yes and No columns. A step's settings open in the editor's sidebar.
  *
  * Layout is derived, never stored: a step's position comes entirely from the
  * edges, so the tree cannot drift out of agreement with the graph and a flow can
@@ -107,8 +110,16 @@ export function WorkflowTree({
       </>
     );
 
+    // An end is where a branch stops, not a step to configure: a quiet marker, still selectable.
+    if (node.type === 'end')
+      return (
+        <div className="flex flex-col items-center">
+          <EndMarker selected={node.id === selectedId} onSelect={() => onSelect(node.id)} />
+        </div>
+      );
+
     return (
-      <div className="flex min-w-60 flex-col items-center">
+      <div className="flex min-w-64 flex-col items-center">
         <StepCard
           node={node}
           templateName={templateName}
@@ -140,7 +151,7 @@ export function WorkflowTree({
                     <span
                       className={cn(
                         'rounded-sm px-2 py-0.5 text-micro font-semibold uppercase tracking-micro',
-                        branch === 'yes' ? 'bg-momentum/8 text-momentum' : 'bg-band text-muted-foreground',
+                        branch === 'yes' ? 'bg-momentum/10 text-momentum' : 'bg-band text-muted-foreground',
                       )}
                     >
                       {branch}
@@ -166,10 +177,17 @@ export function WorkflowTree({
 
 // ── The connection between two steps ──────────────────────────────────────
 
+const INSERT_OPTIONS: ReadonlyArray<readonly [InsertType, string]> = [
+  ['send_email', 'Send email'],
+  ['send_telegram', 'Send Telegram message'],
+  ['create_task', 'Create helpdesk task'],
+  ['delay', 'Wait'],
+  ['condition', 'Condition'],
+];
+
 /**
- * A connection is three things at once: the line, the insert button, and — while
- * something is being dragged — the drop zone. It grows and lights up during a
- * drag so the places a step can land are obvious rather than discovered.
+ * A connection is three things at once: the line, the "+" that inserts a step
+ * on it, and — while a step is being dragged — the place it can land.
  */
 function Connection({
   readOnly,
@@ -193,11 +211,11 @@ function Connection({
   const [open, setOpen] = useState(false);
 
   // Nothing to insert or drop onto — just the line between two steps.
-  if (readOnly) return <span className="h-10 w-px bg-rule" aria-hidden="true" />;
+  if (readOnly) return <span className="h-8 w-px bg-border" aria-hidden="true" />;
 
   return (
     <div
-      className={cn('relative flex flex-col items-center transition-[height] duration-150', isDragging ? 'h-16' : 'h-15')}
+      className="relative flex h-14 flex-col items-center"
       onDragOver={(event) => {
         if (!isDragging) return;
         event.preventDefault();
@@ -212,50 +230,47 @@ function Connection({
       {isDragging ? (
         <div
           className={cn(
-            'flex h-full w-56 items-center justify-center rounded-sm border-2 border-dashed transition-colors',
-            isOver ? 'border-primary bg-primary/8 text-primary' : 'border-rule text-muted-foreground',
+            'my-1.5 flex w-56 flex-1 items-center justify-center rounded-md border border-dashed text-xs font-semibold transition-colors',
+            isOver ? 'border-primary bg-primary/6 text-primary' : 'border-border text-muted-foreground',
           )}
         >
-          <span className="text-xs font-semibold">{isOver ? 'Drop here' : 'Drop'}</span>
+          {isOver ? 'Drop here' : 'Move here'}
         </div>
       ) : (
         <>
-          <span className="h-5 w-px bg-rule" aria-hidden="true" />
-          <button
-            type="button"
-            onClick={() => setOpen((value) => !value)}
-            aria-expanded={open}
-            aria-label="Insert a step on this connection"
-            className="flex size-6 items-center justify-center rounded-full border border-rule bg-card text-primary shadow-sm transition-colors hover:border-primary hover:bg-band focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/30"
-          >
-            <Plus size={13} aria-hidden="true" />
-          </button>
-          <span className="h-4 w-px bg-rule" aria-hidden="true" />
-          {open && (
-            <div className="absolute left-8 top-3 z-20 flex w-44 flex-col rounded-sm border border-rule bg-surface p-1 shadow-lg">
-              {(
-                [
-                  ['send_email', 'Send email'],
-                  ['send_telegram', 'Send Telegram message'],
-                  ['create_task', 'Create helpdesk task'],
-                  ['delay', 'Wait'],
-                  ['condition', 'Condition'],
-                ] as const
-              ).map(([type, label]) => (
-                <button
-                  key={type}
-                  type="button"
-                  onClick={() => {
-                    onInsert(type);
-                    setOpen(false);
-                  }}
-                  className="rounded-sm px-3 py-2 text-left text-xs font-semibold text-foreground hover:bg-band"
-                >
-                  {label}
-                </button>
-              ))}
-            </div>
-          )}
+          <span className="w-px flex-1 bg-border" aria-hidden="true" />
+          <Popover open={open} onOpenChange={setOpen}>
+            <PopoverTrigger asChild>
+              <button
+                type="button"
+                aria-label="Add a step here"
+                className={cn(
+                  'flex size-6 shrink-0 items-center justify-center rounded-full border bg-card shadow-sm transition-colors focus-visible:outline-2 focus-visible:outline-ring',
+                  open
+                    ? 'border-primary/50 text-primary'
+                    : 'border-border text-muted-foreground hover:border-primary/40 hover:text-primary',
+                )}
+              >
+                <Plus size={13} aria-hidden="true" />
+              </button>
+            </PopoverTrigger>
+            <PopoverContent align="center" className="w-60 p-2">
+              <div className="flex flex-col gap-0.5">
+                {INSERT_OPTIONS.map(([type, label]) => (
+                  <ActionRow
+                    key={type}
+                    icon={NODE_META[type].icon}
+                    label={label}
+                    onClick={() => {
+                      setOpen(false);
+                      onInsert(type);
+                    }}
+                  />
+                ))}
+              </div>
+            </PopoverContent>
+          </Popover>
+          <span className="w-px flex-1 bg-border" aria-hidden="true" />
         </>
       )}
     </div>
@@ -272,16 +287,33 @@ function Connection({
 function BranchConnector() {
   return (
     <div className="flex w-full flex-col items-center" aria-hidden="true">
-      <span className="h-4 w-px bg-rule" />
+      <span className="h-4 w-px bg-border" />
       <div className={BRANCH_GRID}>
         {(['left', 'right'] as const).map((side) => (
           <div key={side} className="relative h-4">
-            <span className={cn('absolute top-0 h-px bg-rule', side === 'left' ? 'left-1/2 -right-4' : '-left-4 right-1/2')} />
-            <span className="absolute left-1/2 top-0 h-full w-px bg-rule" />
+            <span className={cn('absolute top-0 h-px bg-border', side === 'left' ? 'left-1/2 -right-4' : '-left-4 right-1/2')} />
+            <span className="absolute left-1/2 top-0 h-full w-px bg-border" />
           </div>
         ))}
       </div>
     </div>
+  );
+}
+
+/** Where a branch stops. */
+function EndMarker({ selected, onSelect }: { selected: boolean; onSelect: () => void }) {
+  return (
+    <button
+      type="button"
+      onClick={onSelect}
+      aria-pressed={selected}
+      className={cn(
+        'rounded-full border px-3 py-1 text-label font-semibold uppercase transition-colors focus-visible:outline-2 focus-visible:outline-ring',
+        selected ? 'border-primary/50 bg-primary/6 text-primary' : 'border-border bg-card text-muted-foreground hover:text-foreground',
+      )}
+    >
+      End
+    </button>
   );
 }
 
@@ -334,28 +366,33 @@ function StepCard({
       }}
       onDragEnd={onDragEnd}
       className={cn(
-        'group/step relative flex w-64 items-center gap-2 rounded-lg border bg-card p-3 text-left',
+        'group/step relative flex w-64 items-center gap-1 rounded-lg border bg-card py-2.5 pr-1.5 pl-3 shadow-sm',
         'transition-[border-color,box-shadow,opacity] duration-150',
-        issues?.length
-          ? cn('border-exception/70', selected && 'ring-2 ring-exception/15')
-          : selected
-            ? 'border-primary ring-2 ring-primary/15'
-            : 'border-border hover:border-primary/40',
+        selected
+          ? cn('ring-2', issues?.length ? 'border-exception/50 ring-exception/10' : 'border-primary/50 ring-primary/10')
+          : issues?.length
+            ? 'border-exception/40'
+            : 'border-border hover:border-primary/30',
+        movable && 'cursor-grab active:cursor-grabbing',
         dragging && 'opacity-40',
       )}
     >
-      {movable ? (
+      {/* The whole card drags; the grip only says so, on hover. */}
+      {movable && (
         <span
-          className="-ml-1 shrink-0 cursor-grab text-muted-foreground/60 transition-colors group-hover/step:text-muted-foreground active:cursor-grabbing"
           aria-hidden="true"
+          className="absolute top-1/2 -left-6 hidden -translate-y-1/2 text-muted-foreground opacity-0 transition-opacity group-hover/step:opacity-100 pointer-fine:block"
         >
-          <Menu size={14} />
+          <GripVertical size={14} />
         </span>
-      ) : (
-        <span className="-ml-1 w-3.5 shrink-0" aria-hidden="true" />
       )}
 
-      <button type="button" onClick={onSelect} className="flex min-w-0 flex-1 items-center gap-3 text-left outline-none">
+      <button
+        type="button"
+        onClick={onSelect}
+        aria-pressed={selected}
+        className="flex min-w-0 flex-1 items-center gap-3 rounded-md text-left focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+      >
         <span className={cn('flex size-9 shrink-0 items-center justify-center rounded-md', chip)}>
           <Icon size={17} aria-hidden="true" />
         </span>
@@ -370,34 +407,20 @@ function StepCard({
               </Tooltip>
             ) : null}
           </span>
-          <span className="block truncate text-label text-muted-foreground">
+          <span className="block truncate text-xs text-muted-foreground">
             {node.type === 'trigger' && triggerPending ? 'Choose an event' : nodeDetail(node, templateName, triggerNames)}
           </span>
         </span>
       </button>
 
-      {/* Row actions appear on hover or keyboard focus — always-visible icons on
-          every card turn a readable flow into a control panel. */}
       {(movable || removable) && (
-        <span className="absolute right-1.5 top-1.5 flex gap-0.5 opacity-0 transition-opacity focus-within:opacity-100 group-hover/step:opacity-100">
-          {movable && (
-            <Button variant="ghost" size="icon-xs" onClick={onDuplicate} aria-label={`Duplicate ${node.name}`} title="Duplicate">
-              <Copy />
-            </Button>
-          )}
-          {removable && (
-            <Button
-              variant="ghost"
-              size="icon-xs"
-              onClick={onRemove}
-              aria-label={`Remove ${node.name}`}
-              title="Remove"
-              className="text-muted-foreground hover:text-exception"
-            >
-              <Trash2 />
-            </Button>
-          )}
-        </span>
+        <RowMenu
+          label={`${node.name} actions`}
+          items={[
+            ...(movable ? [{ icon: Copy, label: 'Duplicate', onClick: onDuplicate }] : []),
+            ...(removable ? [{ icon: Trash2, label: 'Remove', danger: true, onClick: onRemove }] : []),
+          ]}
+        />
       )}
     </div>
   );

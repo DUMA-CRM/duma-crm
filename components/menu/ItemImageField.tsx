@@ -35,11 +35,14 @@ export function ItemImageField({
   onChange,
   itemName,
   error,
+  layout = 'row',
 }: {
   value: string;
   onChange: (url: string) => void;
   itemName: string;
   error?: string;
+  /** `stacked` for a sidebar card: the photo full width, its buttons under it. */
+  layout?: 'row' | 'stacked';
 }) {
   const qc = useQueryClient();
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -82,85 +85,127 @@ export function ItemImageField({
   };
   const src = value.trim() && !broken ? proxiedImage(value.trim()) : null;
 
+  const stacked = layout === 'stacked';
+  const dropProps = {
+    onDragOver: (event: React.DragEvent) => {
+      if (!canUpload) return;
+      event.preventDefault();
+      setDragging(true);
+    },
+    onDragLeave: () => setDragging(false),
+    onDrop: (event: React.DragEvent) => {
+      if (!canUpload) return;
+      event.preventDefault();
+      setDragging(false);
+      pick(event.dataTransfer.files);
+    },
+  };
+  const picture = upload.isPending ? (
+    <Loader2 size={20} className="animate-spin" aria-label="Uploading" />
+  ) : src ? (
+    // eslint-disable-next-line @next/next/no-img-element -- tenant media or a merchant's own image host
+    <img src={src} alt="" onError={() => setBroken(true)} className={cn('size-full object-cover', stacked && 'absolute inset-0')} />
+  ) : (
+    <ImageIcon size={22} aria-hidden="true" />
+  );
+  const buttons = (
+    <div className={cn('flex flex-wrap gap-2', !stacked && 'mt-2')}>
+      {canUpload && (
+        <Button type="button" size="sm" variant="outline" disabled={upload.isPending} onClick={() => fileInput.current?.click()}>
+          <UploadCloud aria-hidden="true" /> {value ? 'Replace' : 'Upload'}
+        </Button>
+      )}
+      {canUpload && !showLink && (
+        <Button type="button" size="sm" variant="ghost" onClick={() => setLinking(true)}>
+          <Link2 aria-hidden="true" /> Use a link
+        </Button>
+      )}
+      {value && (
+        <Button
+          type="button"
+          size="sm"
+          variant="ghost"
+          className="text-muted-foreground hover:text-exception"
+          disabled={upload.isPending}
+          onClick={() => {
+            onChange('');
+            setBroken(false);
+          }}
+        >
+          <Trash2 aria-hidden="true" /> Remove
+        </Button>
+      )}
+    </div>
+  );
+  // The section is already titled Photo — only a state worth saying gets a line.
+  const state = (upload.isPending || !value || broken) && (
+    <p className="text-sm font-semibold text-foreground">
+      {upload.isPending ? 'Uploading…' : broken ? 'That image didn’t load' : 'No photo yet'}
+    </p>
+  );
+  const hint = (
+    <p className="text-xs leading-relaxed text-muted-foreground">
+      {canUpload ? 'Drag a photo here, or upload one.' : 'Paste a link to a photo hosted elsewhere.'}
+    </p>
+  );
+  const fileField = (
+    <input
+      ref={fileInput}
+      type="file"
+      accept="image/*"
+      className="hidden"
+      onChange={(event) => {
+        pick(event.target.files);
+        event.target.value = '';
+      }}
+    />
+  );
+
   return (
     <div className="space-y-3">
-      <div
-        className={cn(
-          'flex items-center gap-4 rounded-lg border border-dashed p-3 transition-colors',
-          dragging ? 'border-primary bg-primary/5' : 'border-edge',
-        )}
-        onDragOver={(event) => {
-          if (!canUpload) return;
-          event.preventDefault();
-          setDragging(true);
-        }}
-        onDragLeave={() => setDragging(false)}
-        onDrop={(event) => {
-          if (!canUpload) return;
-          event.preventDefault();
-          setDragging(false);
-          pick(event.dataTransfer.files);
-        }}
-      >
-        <span className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-band text-muted-foreground">
-          {upload.isPending ? (
-            <Loader2 size={20} className="animate-spin" aria-label="Uploading" />
-          ) : src ? (
-            // eslint-disable-next-line @next/next/no-img-element -- tenant media or a merchant's own image host
-            <img src={src} alt="" onError={() => setBroken(true)} className="size-full object-cover" />
-          ) : (
-            <ImageIcon size={22} aria-hidden="true" />
-          )}
-        </span>
-        <div className="min-w-0 flex-1">
-          {/* The section is already titled Photo — only a state worth saying gets a line. */}
-          {(upload.isPending || !value || broken) && (
-            <p className="text-sm font-semibold text-foreground">
-              {upload.isPending ? 'Uploading…' : broken ? 'That image didn’t load' : 'No photo yet'}
-            </p>
-          )}
-          <p className="text-xs leading-relaxed text-muted-foreground">
-            {canUpload ? 'Drag a photo here, or upload one.' : 'Paste a link to a photo hosted elsewhere.'}
-          </p>
-          <div className="mt-2 flex flex-wrap gap-2">
-            {canUpload && (
-              <Button type="button" size="sm" variant="outline" disabled={upload.isPending} onClick={() => fileInput.current?.click()}>
-                <UploadCloud aria-hidden="true" /> {value ? 'Replace' : 'Upload'}
-              </Button>
+      {stacked ? (
+        <>
+          <div
+            className={cn(
+              'relative flex aspect-4/3 flex-col items-center justify-center gap-1 overflow-hidden rounded-md border text-center text-muted-foreground transition-colors',
+              dragging
+                ? 'border-dashed border-primary bg-primary/5'
+                : src
+                  ? 'border-border bg-band'
+                  : 'border-dashed border-edge bg-band/40',
             )}
-            {canUpload && !showLink && (
-              <Button type="button" size="sm" variant="ghost" onClick={() => setLinking(true)}>
-                <Link2 aria-hidden="true" /> Use a link
-              </Button>
-            )}
-            {value && (
-              <Button
-                type="button"
-                size="sm"
-                variant="ghost"
-                className="text-muted-foreground hover:text-exception"
-                disabled={upload.isPending}
-                onClick={() => {
-                  onChange('');
-                  setBroken(false);
-                }}
-              >
-                <Trash2 aria-hidden="true" /> Remove
-              </Button>
+            {...dropProps}
+          >
+            {picture}
+            {!src && !upload.isPending && (
+              <div className="px-4">
+                {state}
+                {hint}
+              </div>
             )}
           </div>
+          {buttons}
+          {fileField}
+        </>
+      ) : (
+        <div
+          className={cn(
+            'flex items-center gap-4 rounded-lg border border-dashed p-3 transition-colors',
+            dragging ? 'border-primary bg-primary/5' : 'border-edge',
+          )}
+          {...dropProps}
+        >
+          <span className="relative flex size-20 shrink-0 items-center justify-center overflow-hidden rounded-md bg-band text-muted-foreground">
+            {picture}
+          </span>
+          <div className="min-w-0 flex-1">
+            {state}
+            {hint}
+            {buttons}
+          </div>
+          {fileField}
         </div>
-        <input
-          ref={fileInput}
-          type="file"
-          accept="image/*"
-          className="hidden"
-          onChange={(event) => {
-            pick(event.target.files);
-            event.target.value = '';
-          }}
-        />
-      </div>
+      )}
       {showLink && (
         <Input
           value={isUploaded ? '' : value}

@@ -59,14 +59,14 @@ export function RecipeIngredientEditor({
     // full width on the recipe tab and in a narrow drawer for a modifier.
     <div className="@container space-y-3">
       {rows.length === 0 ? (
-        <div className="rounded-lg border border-dashed border-rule/70 px-4 py-5 text-center">
+        <div className="rounded-lg border border-dashed border-border px-4 py-5 text-center">
           <p className="text-xs leading-relaxed text-muted-foreground">{emptyHint}</p>
         </div>
       ) : (
-        <div className="overflow-hidden rounded-lg border border-border bg-card">
+        <div className="rounded-lg border border-border bg-card shadow-sm">
           {/* Column heads once, when the row is one line; narrower, each field carries its own label. */}
           <div
-            className="hidden items-center gap-3 border-b border-border bg-band/40 px-3.5 py-2 text-label uppercase text-muted-foreground @2xl:flex"
+            className="hidden items-center gap-3 rounded-t-lg border-b border-border bg-band/40 px-3.5 py-2 text-label uppercase text-muted-foreground @2xl:flex"
             aria-hidden="true"
           >
             <span className="min-w-0 flex-1">Ingredient</span>
@@ -157,7 +157,7 @@ export function RecipeIngredientEditor({
             })}
           </ul>
           {total > 0 && (
-            <div className="flex items-center gap-3 border-t border-border bg-band/30 px-3.5 py-2.5 text-sm">
+            <div className="flex items-center gap-3 rounded-b-lg border-t border-border bg-band/30 px-3.5 py-2.5 text-sm">
               <span className="min-w-0 flex-1 font-semibold text-foreground">
                 Total{columns.length > 1 ? ` · ${columns[0]?.label ?? 'Default'}` : ''}
               </span>

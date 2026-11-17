@@ -1,18 +1,17 @@
 'use client';
 
 import { motion } from 'motion/react';
+import { useState } from 'react';
 
 import { Mascot } from '@/components/ai/Mascot';
-import { ActionRow, ActionRows, FieldRow, InfoRow, InfoRows, RowTile, SectionInfo } from '@/components/cms/rows';
+import { SectionInfo } from '@/components/cms/rows';
 import {
   AlignLeft,
   ArrowLeft,
-  Braces,
   Code,
   ExternalLink,
   Eye,
   FileText,
-  Globe,
   Heading,
   ImageIcon,
   ImagePlus,
@@ -21,7 +20,6 @@ import {
   Mail,
   Maximize,
   Plus,
-  Send,
   Share2,
   Tag,
   Trash2,
@@ -29,9 +27,9 @@ import {
   Zap,
 } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
+import { ChangeRow, ValueMissing } from '@/components/settings/controls';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { StatusDot } from '@/components/shared/StatusDot';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -39,9 +37,9 @@ import { Select } from '@/components/ui/select';
 import { Slider } from '@/components/ui/slider';
 
 import { cn } from '@/lib/utils/cn';
+import { imageHost } from '@/lib/utils/email-images';
 
 import { EmailImage } from './EmailImage';
-import { ExpandRow } from './ExpandRow';
 import { VariablePalette } from './VariablePalette';
 import { COLUMN_LAYOUTS, type TemplateBlock, type TemplateDesign, isColumnsBlock, relayoutColumns } from './templateDesign';
 
@@ -80,7 +78,7 @@ const BLOCK_META: Record<TemplateBlock['type'], { label: string; icon: IconCompo
   columns: {
     label: 'Column row',
     icon: LayoutGrid,
-    about: 'Drag content from the left into each column. Changing the split keeps what is in them.',
+    about: 'Add content to each column with its +. Changing the split keeps what is in them.',
   },
 };
 
@@ -93,11 +91,16 @@ const ALIGN_OPTIONS = [
 const TEXTAREA_CLASS =
   'w-full rounded-md border border-border bg-background p-3 font-mono text-xs outline-none focus:border-primary disabled:opacity-60';
 
+/** A row's value, cut to one line, or a quiet "not set". */
+const shown = (value: string, missing: string) =>
+  value.trim() ? <span className="truncate">{value}</span> : <ValueMissing>{missing}</ValueMissing>;
+
+type EmailRow = 'subject' | 'preheader' | 'name' | 'category' | 'font';
+
 /**
- * The editor's right rail, in the Content editors' vocabulary: compact titled
- * cards whose explanation sits behind an ⓘ, rows led by an outlined icon tile,
- * and an Actions list at the foot. With nothing selected it holds the email's
- * own settings; with a block selected, that block's — and a way back.
+ * The editor's sidebar: titled cards of rows whose Change opens the control in
+ * place, one at a time. With nothing selected it holds the email's own
+ * settings; with a block selected, that block's — and a way back.
  */
 export function TemplateSettingsPanel({
   selected,
@@ -119,13 +122,8 @@ export function TemplateSettingsPanel({
   onStyles,
   variables,
   usedBy,
-  canDelete,
-  onDelete,
-  onPreview,
-  onSendTest,
   onSuggestPreheader,
   preheaderAsk,
-  sendTestBlocked,
   readOnly,
   htmlMode,
 }: {
@@ -150,238 +148,275 @@ export function TemplateSettingsPanel({
   onStyles: (patch: Partial<TemplateDesign['styles']>) => void;
   variables: string[];
   usedBy: { id: string; name: string; isEnabled: boolean }[];
-  canDelete: boolean;
-  onDelete: () => void;
-  onPreview: () => void;
   /** Ask DUMA for the preview line; absent for read-only viewers. */
   onSuggestPreheader?: () => void;
   /** Where that request stands, for the mascot. */
   preheaderAsk: { busy: boolean; failed: boolean; cheer: number };
-  /** Absent without email.send. */
-  onSendTest?: () => void;
-  sendTestBlocked: boolean;
   readOnly: boolean;
   htmlMode: boolean;
 }) {
+  // One row open at a time across the email's cards; a new template opens on what it still needs.
+  const [open, setOpen] = useState<EmailRow | null>(() => (readOnly ? null : !subject.trim() ? 'subject' : !name.trim() ? 'name' : null));
+  const toggle = (row: EmailRow) => setOpen((current) => (current === row ? null : row));
+
   if (selected && !htmlMode) {
     return (
-      // Keyed by block, so picking another one replays the rise.
-      <motion.div key={selected.id} initial="hidden" animate="shown" variants={STAGGER} className="flex flex-col gap-4 p-4">
-        <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-4">
-          <BlockSettings
-            block={selected}
-            onChange={onBlockChange}
-            onChooseImage={() => onChooseImage(selected.id)}
-            onBrowseMedia={onBrowseMedia ? () => onBrowseMedia(selected.id) : undefined}
-            onDeselect={onDeselect}
-          />
-        </fieldset>
+      // Keyed by block, so picking another one replays the rise and folds its rows.
+      <motion.div key={selected.id} initial="hidden" animate="shown" variants={STAGGER} className="flex flex-col gap-5">
+        <BlockSettings
+          block={selected}
+          readOnly={readOnly}
+          onChange={onBlockChange}
+          onChooseImage={() => onChooseImage(selected.id)}
+          onBrowseMedia={onBrowseMedia ? () => onBrowseMedia(selected.id) : undefined}
+          onDeselect={onDeselect}
+        />
       </motion.div>
     );
   }
 
   const preheaderLong = preheader.length > PREHEADER_LIMIT;
+  const categoryLabel = categoryOptions.find((option) => option.value === category)?.label ?? category;
 
   return (
-    <motion.div initial="hidden" animate="shown" variants={STAGGER} className="flex flex-col gap-4 p-4">
-      <fieldset disabled={readOnly} className="flex min-w-0 flex-col gap-4">
-        <SettingsSection title="Inbox" actions={<SectionInfo label="What people see in their inbox before they open the email." />}>
-          <div className="space-y-4">
-            <ExpandRow icon={Mail} title="Subject line" htmlFor="template-subject" value={subject}>
-              <Input
-                id="template-subject"
-                value={subject}
-                onChange={(event) => onSubject(event.target.value)}
-                required
-                placeholder="Your order is ready"
-              />
-            </ExpandRow>
-            <ExpandRow icon={Eye} title="Preview text" htmlFor="template-preheader" value={preheader} warn={preheaderLong}>
-              <Input
-                id="template-preheader"
-                value={preheader}
-                onChange={(event) => onPreheader(event.target.value)}
-                placeholder="The line shown after the subject"
-                rightAction={
-                  onSuggestPreheader ? (
-                    <Tooltip
-                      side="top"
-                      align="end"
-                      label={preheader.trim() ? 'Ask DUMA to rewrite it from the email' : 'Ask DUMA to write it from the email'}
+    <motion.div initial="hidden" animate="shown" variants={STAGGER} className="flex flex-col gap-5">
+      <RecordGroup
+        card
+        id="template-inbox"
+        title="Inbox"
+        actions={<SectionInfo label="What people see in their inbox before they open the email." />}
+      >
+        <fieldset disabled={readOnly} className="min-w-0">
+          <ChangeRow
+            icon={Mail}
+            label="Subject line"
+            value={shown(subject, 'No subject yet')}
+            tone={!subject.trim() && !readOnly ? 'warning' : undefined}
+            open={open === 'subject'}
+            onToggle={() => toggle('subject')}
+            verbs={['Change', 'Done']}
+          >
+            <Input
+              id="template-subject"
+              aria-label="Subject line"
+              value={subject}
+              onChange={(event) => onSubject(event.target.value)}
+              required
+              autoFocus
+              placeholder="Your order is ready"
+            />
+          </ChangeRow>
+          <ChangeRow
+            icon={Eye}
+            label="Preview text"
+            value={shown(preheader, 'None — the inbox shows the first words')}
+            tone={preheaderLong ? 'warning' : undefined}
+            open={open === 'preheader'}
+            onToggle={() => toggle('preheader')}
+            verbs={['Change', 'Done']}
+          >
+            <Input
+              id="template-preheader"
+              aria-label="Preview text"
+              value={preheader}
+              onChange={(event) => onPreheader(event.target.value)}
+              autoFocus
+              placeholder="The line shown after the subject"
+              rightAction={
+                onSuggestPreheader ? (
+                  <Tooltip
+                    side="top"
+                    align="end"
+                    label={preheader.trim() ? 'Ask DUMA to rewrite it from the email' : 'Ask DUMA to write it from the email'}
+                  >
+                    <button
+                      type="button"
+                      onClick={onSuggestPreheader}
+                      disabled={preheaderAsk.busy}
+                      aria-label={preheaderAsk.busy ? 'Writing the preview text…' : 'Ask DUMA to write the preview text'}
+                      className="-mr-1 flex size-7 items-center justify-center rounded-md transition-colors hover:bg-band/60 focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-wait"
                     >
-                      <button
-                        type="button"
-                        onClick={onSuggestPreheader}
-                        disabled={preheaderAsk.busy}
-                        aria-label={preheaderAsk.busy ? 'Writing the preview text…' : 'Ask DUMA to write the preview text'}
-                        className="-mr-1 flex size-7 items-center justify-center rounded-md transition-colors hover:bg-band/60 focus-visible:outline-2 focus-visible:outline-ring disabled:cursor-wait"
-                      >
-                        <Mascot
-                          size={22}
-                          state={preheaderAsk.busy ? 'thinking' : undefined}
-                          feeling={preheaderAsk.failed ? 'sad' : preheaderAsk.cheer ? 'happy' : 'curious'}
-                          gesture={preheaderAsk.cheer ? 'celebrate' : undefined}
-                          gestureKey={preheaderAsk.cheer}
-                          fps={24}
-                        />
-                      </button>
-                    </Tooltip>
-                  ) : undefined
-                }
-              />
-              <p className={cn('text-right text-xs tabular-nums text-muted-foreground', preheaderLong && 'font-medium text-measured')}>
-                {preheaderLong
-                  ? `${preheader.length}/${PREHEADER_LIMIT} — most inboxes cut it here`
-                  : `${preheader.length}/${PREHEADER_LIMIT}`}
-              </p>
-            </ExpandRow>
-          </div>
-        </SettingsSection>
+                      <Mascot
+                        size={22}
+                        state={preheaderAsk.busy ? 'thinking' : undefined}
+                        feeling={preheaderAsk.failed ? 'sad' : preheaderAsk.cheer ? 'happy' : 'curious'}
+                        gesture={preheaderAsk.cheer ? 'celebrate' : undefined}
+                        gestureKey={preheaderAsk.cheer}
+                        fps={24}
+                      />
+                    </button>
+                  </Tooltip>
+                ) : undefined
+              }
+            />
+            <p className={cn('mt-1.5 text-right text-xs tabular-nums text-muted-foreground', preheaderLong && 'font-medium text-measured')}>
+              {preheaderLong
+                ? `${preheader.length}/${PREHEADER_LIMIT} — most inboxes cut it here`
+                : `${preheader.length}/${PREHEADER_LIMIT}`}
+            </p>
+          </ChangeRow>
+        </fieldset>
+      </RecordGroup>
 
-        <SettingsSection title="Template" actions={<SectionInfo label="Only your team sees these." />}>
-          <div className="space-y-4">
-            <ExpandRow icon={Type} title="Name" htmlFor="template-name" value={name}>
-              <Input id="template-name" value={name} onChange={(event) => onName(event.target.value)} required placeholder="Order ready" />
-            </ExpandRow>
-            <ExpandRow icon={Tag} title="Category" value={categoryOptions.find((option) => option.value === category)?.label ?? category}>
+      <RecordGroup card id="template-details" title="Template" actions={<SectionInfo label="Only your team sees these." />}>
+        <fieldset disabled={readOnly} className="min-w-0">
+          <ChangeRow
+            icon={Type}
+            label="Name"
+            value={shown(name, 'Not named')}
+            tone={!name.trim() && !readOnly ? 'warning' : undefined}
+            open={open === 'name'}
+            onToggle={() => toggle('name')}
+            verbs={['Change', 'Done']}
+          >
+            <Input
+              id="template-name"
+              aria-label="Template name"
+              value={name}
+              onChange={(event) => onName(event.target.value)}
+              required
+              autoFocus
+              placeholder="Order ready"
+            />
+          </ChangeRow>
+          <ChangeRow
+            icon={Tag}
+            label="Category"
+            value={categoryLabel}
+            open={open === 'category'}
+            onToggle={() => toggle('category')}
+            verbs={['Change', 'Done']}
+          >
+            <Select
+              value={category}
+              onValueChange={onCategory}
+              options={categoryOptions}
+              ariaLabel="Template category"
+              className="w-full"
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">{categoryHint}</p>
+          </ChangeRow>
+        </fieldset>
+      </RecordGroup>
+
+      {!htmlMode && (
+        <RecordGroup card id="template-brand" title="Brand" actions={<SectionInfo label="Applies to the whole email." />}>
+          <fieldset disabled={readOnly} className="min-w-0">
+            {COLOURS.map((colour) => (
+              <ColourRow
+                key={colour.key}
+                title={colour.title}
+                value={design.styles[colour.key]}
+                onChange={(value) => onStyles({ [colour.key]: value })}
+              />
+            ))}
+            <ChangeRow
+              icon={Type}
+              label="Font"
+              value={design.styles.fontFamily}
+              open={open === 'font'}
+              onToggle={() => toggle('font')}
+              verbs={['Change', 'Done']}
+            >
               <Select
-                value={category}
-                onValueChange={onCategory}
-                options={categoryOptions}
-                ariaLabel="Template category"
+                value={design.styles.fontFamily}
+                onValueChange={(value) => onStyles({ fontFamily: value as TemplateDesign['styles']['fontFamily'] })}
+                options={FONTS}
+                ariaLabel="Font"
                 className="w-full"
               />
-              <p className="text-xs text-muted-foreground">{categoryHint}</p>
-            </ExpandRow>
-          </div>
-        </SettingsSection>
-
-        {!htmlMode && (
-          <SettingsSection title="Brand" actions={<SectionInfo label="Applies to the whole email." />}>
-            <div className="space-y-4">
-              <InfoRows>
-                {COLOURS.map((colour) => (
-                  <ColourRow
-                    key={colour.key}
-                    title={colour.title}
-                    value={design.styles[colour.key]}
-                    onChange={(value) => onStyles({ [colour.key]: value })}
-                  />
-                ))}
-              </InfoRows>
-              <div className="border-t border-border pt-4">
-                <FieldRow icon={Type} title="Font" note="Safe in every inbox">
-                  <Select
-                    value={design.styles.fontFamily}
-                    onValueChange={(value) => onStyles({ fontFamily: value as TemplateDesign['styles']['fontFamily'] })}
-                    options={FONTS}
-                    ariaLabel="Font"
-                    className="w-full"
-                  />
-                </FieldRow>
-              </div>
-            </div>
-          </SettingsSection>
-        )}
-      </fieldset>
+              <p className="mt-1.5 text-xs text-muted-foreground">Safe in every inbox.</p>
+            </ChangeRow>
+          </fieldset>
+        </RecordGroup>
+      )}
 
       {!readOnly && variables.length > 0 && (
-        <SettingsSection
+        <RecordGroup
+          card
+          id="template-personalise"
           title="Personalise"
-          actions={
-            <SectionInfo label="Click one to copy it, then paste it into the subject, preview text or the email. Each is replaced with real details when the email is sent." />
-          }
+          actions={<SectionInfo label="Each one is replaced with the real details when the email is sent." />}
         >
           <VariablePalette variables={variables} />
-        </SettingsSection>
+        </RecordGroup>
       )}
 
       {usedBy.length > 0 && (
-        <SettingsSection title="Used by" actions={<SectionInfo label="Automations that send this email." />}>
-          <InfoRows>
-            {usedBy.map((item) => (
-              // Not a link: leaving from here would skip the editor's unsaved-changes guard.
-              <InfoRow key={item.id} icon={Zap} title={item.name}>
-                <StatusDot tone={item.isEnabled ? 'success' : 'muted'} label={item.isEnabled ? 'Sending' : 'Switched off'} />
-                <span className="text-xs text-muted-foreground" aria-hidden="true">
-                  {item.isEnabled ? 'Sending' : 'Off'}
-                </span>
-              </InfoRow>
-            ))}
-          </InfoRows>
-        </SettingsSection>
+        <RecordGroup card id="template-used-by" title="Used by" actions={<SectionInfo label="Automations that send this email." />}>
+          {usedBy.map((item) => (
+            // Not a link: leaving from here would skip the editor's unsaved-changes guard.
+            <ChangeRow
+              key={item.id}
+              icon={Zap}
+              label={item.isEnabled ? 'Sending' : 'Switched off'}
+              value={<span className="truncate">{item.name}</span>}
+            />
+          ))}
+        </RecordGroup>
       )}
-
-      <SettingsSection title="Actions">
-        <ActionRows danger={canDelete ? <ActionRow icon={Trash2} label="Delete template" danger onClick={onDelete} /> : undefined}>
-          <ActionRow icon={Eye} label="Preview in an inbox" onClick={onPreview} />
-          {onSendTest && <ActionRow icon={Send} label="Send a test email" disabled={sendTestBlocked} onClick={onSendTest} />}
-        </ActionRows>
-      </SettingsSection>
     </motion.div>
   );
 }
 
-/** A brand colour as a row: the swatch is the tile (and the picker), the hex on the right. */
+/** A brand colour, shaped like a `ChangeRow`: the swatch is the tile (and the picker), the hex is the value. */
 function ColourRow({ title, value, onChange }: { title: string; value: string; onChange: (value: string) => void }) {
   return (
-    <label className="flex cursor-pointer items-center justify-between gap-3 has-[:disabled]:cursor-not-allowed">
-      <span className="flex min-w-0 items-center gap-3">
-        <span className="relative flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background p-1">
-          <span className="size-full rounded-sm border border-black/10" style={{ backgroundColor: value }} aria-hidden="true" />
-          <input
-            type="color"
-            value={value}
-            onChange={(event) => onChange(event.target.value)}
-            aria-label={title}
-            className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
-          />
-        </span>
-        <span className="truncate text-sm font-semibold text-foreground">{title}</span>
+    <label className="flex cursor-pointer items-center gap-3 py-2.5 first:pt-0 has-[:disabled]:cursor-not-allowed">
+      <span className="relative flex size-10 shrink-0 items-center justify-center rounded-md border border-border bg-background p-1.5">
+        <span
+          className="size-full rounded-sm border border-black/10 dark:border-white/15"
+          style={{ backgroundColor: value }}
+          aria-hidden="true"
+        />
+        <input
+          type="color"
+          value={value}
+          onChange={(event) => onChange(event.target.value)}
+          aria-label={title}
+          className="absolute inset-0 cursor-pointer opacity-0 disabled:cursor-not-allowed"
+        />
       </span>
-      <span className="shrink-0 font-mono text-xs uppercase text-muted-foreground">{value}</span>
+      <span className="min-w-0 flex-1">
+        <span className="block text-label uppercase text-muted-foreground">{title}</span>
+        <span className="mt-0.5 block font-mono text-sm font-semibold uppercase text-foreground">{value}</span>
+      </span>
     </label>
   );
 }
 
+type BlockRow = 'image' | 'alt' | 'href' | 'url' | 'width' | 'height' | 'align' | 'split';
+
 function BlockSettings({
   block,
+  readOnly,
   onChange,
   onChooseImage,
   onBrowseMedia,
   onDeselect,
 }: {
   block: TemplateBlock;
+  readOnly: boolean;
   onChange: (block: TemplateBlock) => void;
   onChooseImage: () => void;
   onBrowseMedia?: () => void;
   onDeselect: () => void;
 }) {
   const meta = BLOCK_META[block.type];
-
-  // The block's identity card: which block, what it is for, and the way back.
-  const header = (
-    <SettingsSection
-      title="Block"
-      actions={
-        <Button type="button" variant="ghost" size="sm" className="-mr-2 gap-1.5 text-muted-foreground" onClick={onDeselect}>
-          <ArrowLeft aria-hidden="true" /> Email settings
-        </Button>
-      }
-    >
-      <div className="flex items-start gap-3">
-        <RowTile icon={meta.icon} />
-        <div className="min-w-0">
-          <p className="text-sm font-semibold text-foreground">{meta.label}</p>
-          <p className="mt-0.5 text-xs leading-relaxed text-muted-foreground">{meta.about}</p>
-        </div>
-      </div>
-    </SettingsSection>
-  );
+  // An image block with no picture opens on choosing one.
+  const [open, setOpen] = useState<BlockRow | null>(() => (block.type === 'image' && !block.url ? 'image' : null));
+  const toggle = (row: BlockRow) => setOpen((current) => (current === row ? null : row));
 
   const alignment =
     'align' in block ? (
-      <FieldRow icon={AlignLeft} title="Alignment">
+      <ChangeRow
+        icon={AlignLeft}
+        label="Alignment"
+        value={ALIGN_OPTIONS.find((option) => option.value === block.align)?.label ?? block.align}
+        open={open === 'align'}
+        onToggle={() => toggle('align')}
+        verbs={['Change', 'Done']}
+      >
         <SegmentedControl
           options={ALIGN_OPTIONS}
           value={block.align}
@@ -389,43 +424,50 @@ function BlockSettings({
           ariaLabel="Alignment"
           className="w-full [&>button]:flex-1"
         />
-      </FieldRow>
+      </ChangeRow>
     ) : null;
 
-  if (block.type === 'heading' || block.type === 'text')
-    return (
-      <>
-        {header}
-        <SettingsSection title="Layout">{alignment}</SettingsSection>
-      </>
-    );
+  let body: React.ReactNode = <p className="text-sm text-muted-foreground">Nothing else to set.</p>;
+
+  if (block.type === 'heading' || block.type === 'text') body = alignment;
 
   if (block.type === 'button')
-    return (
+    body = (
       <>
-        {header}
-        <SettingsSection title="Button">
-          <div className="space-y-4">
-            <FieldRow icon={ExternalLink} title="Opens" htmlFor="block-button-url" note="Where it takes people">
-              <Input
-                id="block-button-url"
-                value={block.url}
-                onChange={(event) => onChange({ ...block, url: event.target.value })}
-                placeholder="https://your-cafe.com/order"
-              />
-            </FieldRow>
-            {alignment}
-          </div>
-        </SettingsSection>
+        <ChangeRow
+          icon={ExternalLink}
+          label="Opens"
+          value={shown(block.url, 'No link yet')}
+          open={open === 'url'}
+          onToggle={() => toggle('url')}
+          verbs={['Change', 'Done']}
+        >
+          <Input
+            id="block-button-url"
+            aria-label="Where the button takes people"
+            value={block.url}
+            autoFocus
+            onChange={(event) => onChange({ ...block, url: event.target.value })}
+            placeholder="https://your-cafe.com/order"
+          />
+        </ChangeRow>
+        {alignment}
       </>
     );
 
   if (block.type === 'image')
-    return (
+    body = (
       <>
-        {header}
-        <SettingsSection title="Image">
-          <div className="space-y-4">
+        <ChangeRow
+          icon={ImagePlus}
+          label="Image"
+          value={shown(block.url ? (imageHost(block.url) ?? block.url) : '', 'None chosen')}
+          tone={!block.url && !readOnly ? 'warning' : undefined}
+          open={open === 'image'}
+          onToggle={() => toggle('image')}
+          verbs={['Change', 'Done']}
+        >
+          <div className="space-y-3">
             {block.url && (
               <div className="overflow-hidden rounded-md border border-border bg-band/40 text-muted-foreground">
                 <EmailImage url={block.url} alt="" className="mx-auto block max-h-36 w-full object-contain" />
@@ -448,188 +490,204 @@ function BlockSettings({
                 {block.url ? 'Replace image' : 'Upload image'}
               </Button>
             )}
-            <FieldRow icon={Link2} title="Image link" htmlFor="block-image-url" note="Or paste one">
-              <Input
-                id="block-image-url"
-                value={block.url}
-                onChange={(event) => onChange({ ...block, url: event.target.value })}
-                placeholder="https://"
-              />
-            </FieldRow>
-            <FieldRow icon={Type} title="Description" htmlFor="block-image-alt">
-              <Input
-                id="block-image-alt"
-                value={block.alt}
-                onChange={(event) => onChange({ ...block, alt: event.target.value })}
-                placeholder="A flat white on the counter"
-                hint="Shown when images are off, and read aloud to people who can’t see them."
-              />
-            </FieldRow>
-          </div>
-        </SettingsSection>
-        <SettingsSection title="Link and size">
-          <div className="space-y-4">
-            <FieldRow icon={ExternalLink} title="Opens" htmlFor="block-image-href" note="Optional">
-              <Input
-                id="block-image-href"
-                value={block.href}
-                onChange={(event) => onChange({ ...block, href: event.target.value })}
-                placeholder="https://"
-              />
-            </FieldRow>
-            <Slider
-              label="Width"
-              aria-label="Image width"
-              min={10}
-              max={100}
-              step={5}
-              value={block.width}
-              onValueChange={(width) => onChange({ ...block, width })}
-              formatValue={(width) => `${width}%`}
+            <Input
+              id="block-image-url"
+              aria-label="Image link"
+              value={block.url}
+              onChange={(event) => onChange({ ...block, url: event.target.value })}
+              placeholder="Or paste a link: https://"
             />
-            {alignment}
           </div>
-        </SettingsSection>
+        </ChangeRow>
+        <ChangeRow
+          icon={Type}
+          label="Description"
+          value={shown(block.alt, 'None')}
+          open={open === 'alt'}
+          onToggle={() => toggle('alt')}
+          verbs={['Change', 'Done']}
+        >
+          <Input
+            id="block-image-alt"
+            aria-label="Image description"
+            value={block.alt}
+            autoFocus
+            onChange={(event) => onChange({ ...block, alt: event.target.value })}
+            placeholder="A flat white on the counter"
+            hint="Shown when images are off, and read aloud to people who can’t see them."
+          />
+        </ChangeRow>
+        <ChangeRow
+          icon={ExternalLink}
+          label="Opens"
+          value={shown(block.href, 'Nothing')}
+          open={open === 'href'}
+          onToggle={() => toggle('href')}
+          verbs={['Change', 'Done']}
+        >
+          <Input
+            id="block-image-href"
+            aria-label="Where the image takes people"
+            value={block.href}
+            autoFocus
+            onChange={(event) => onChange({ ...block, href: event.target.value })}
+            placeholder="https://"
+          />
+        </ChangeRow>
+        <ChangeRow
+          icon={Maximize}
+          label="Width"
+          value={`${block.width}%`}
+          open={open === 'width'}
+          onToggle={() => toggle('width')}
+          verbs={['Change', 'Done']}
+        >
+          <Slider
+            label="Width"
+            aria-label="Image width"
+            min={10}
+            max={100}
+            step={5}
+            value={block.width}
+            onValueChange={(width) => onChange({ ...block, width })}
+            formatValue={(width) => `${width}%`}
+          />
+        </ChangeRow>
+        {alignment}
       </>
     );
 
   if (block.type === 'spacer')
-    return (
-      <>
-        {header}
-        <SettingsSection title="Size">
-          <Slider
-            label="Height"
-            aria-label="Spacer height"
-            min={8}
-            max={120}
-            step={4}
-            value={block.height}
-            onValueChange={(height) => onChange({ ...block, height })}
-            formatValue={(height) => `${height}px`}
-          />
-        </SettingsSection>
-      </>
+    body = (
+      <ChangeRow
+        icon={Maximize}
+        label="Height"
+        value={`${block.height}px`}
+        open={open === 'height'}
+        onToggle={() => toggle('height')}
+        verbs={['Change', 'Done']}
+      >
+        <Slider
+          label="Height"
+          aria-label="Spacer height"
+          min={8}
+          max={120}
+          step={4}
+          value={block.height}
+          onValueChange={(height) => onChange({ ...block, height })}
+          formatValue={(height) => `${height}px`}
+        />
+      </ChangeRow>
     );
 
   if (isColumnsBlock(block))
-    return (
-      <>
-        {header}
-        <SettingsSection title="Split">
-          <div className="grid grid-cols-2 gap-2">
-            {COLUMN_LAYOUTS.map(({ value, label, widths }) => (
-              <button
-                key={value}
-                type="button"
-                onClick={() => onChange(relayoutColumns(block, value))}
-                aria-pressed={block.layout === value}
-                className={cn(
-                  'flex flex-col items-center gap-1.5 rounded-md border p-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-ring',
-                  block.layout === value ? 'border-primary bg-primary/6' : 'border-border bg-background hover:border-primary/40',
-                )}
-              >
-                <span className="flex h-6 w-full items-stretch gap-1" aria-hidden="true">
-                  {widths.map((width, index) => (
-                    <span
-                      key={index}
-                      style={{ width: `${width}%` }}
-                      className={cn('rounded-sm', block.layout === value ? 'bg-primary/25' : 'bg-band')}
-                    />
-                  ))}
-                </span>
-                <span className="text-micro font-semibold">{label}</span>
-              </button>
-            ))}
-          </div>
-        </SettingsSection>
-      </>
+    body = (
+      <ChangeRow
+        icon={LayoutGrid}
+        label="Split"
+        value={COLUMN_LAYOUTS.find((layout) => layout.value === block.layout)?.label ?? block.layout}
+        open={open === 'split'}
+        onToggle={() => toggle('split')}
+        verbs={['Change', 'Done']}
+      >
+        <div className="grid grid-cols-2 gap-2">
+          {COLUMN_LAYOUTS.map(({ value, label, widths }) => (
+            <button
+              key={value}
+              type="button"
+              onClick={() => onChange(relayoutColumns(block, value))}
+              aria-pressed={block.layout === value}
+              className={cn(
+                'flex flex-col items-center gap-1.5 rounded-md border p-2.5 transition-colors focus-visible:outline-2 focus-visible:outline-ring',
+                block.layout === value ? 'border-primary/50 bg-primary/6' : 'border-border bg-background hover:border-primary/40',
+              )}
+            >
+              <span className="flex h-6 w-full items-stretch gap-1" aria-hidden="true">
+                {widths.map((width, index) => (
+                  <span
+                    key={index}
+                    style={{ width: `${width}%` }}
+                    className={cn('rounded-sm', block.layout === value ? 'bg-primary/25' : 'bg-band')}
+                  />
+                ))}
+              </span>
+              <span className="text-micro font-semibold">{label}</span>
+            </button>
+          ))}
+        </div>
+      </ChangeRow>
     );
 
   if (block.type === 'html')
-    return (
-      <>
-        {header}
-        <SettingsSection title="Code">
-          <FieldRow icon={Braces} title="HTML" htmlFor="block-html">
-            <textarea
-              id="block-html"
-              value={block.html}
-              onChange={(event) => onChange({ ...block, html: event.target.value })}
-              spellCheck={false}
-              className={cn(TEXTAREA_CLASS, 'min-h-80')}
-            />
-          </FieldRow>
-        </SettingsSection>
-      </>
+    body = (
+      <textarea
+        id="block-html"
+        aria-label="HTML"
+        value={block.html}
+        onChange={(event) => onChange({ ...block, html: event.target.value })}
+        spellCheck={false}
+        className={cn(TEXTAREA_CLASS, 'min-h-80')}
+      />
     );
 
   if (block.type === 'social')
-    return (
-      <>
-        {header}
-        <SettingsSection
-          title="Links"
-          actions={
-            <Button
-              type="button"
-              variant="ghost"
-              size="sm"
-              className="-mr-2 gap-1.5"
-              onClick={() => onChange({ ...block, links: [...block.links, { label: 'Website', url: 'https://' }] })}
-            >
-              <Plus aria-hidden="true" /> Add
-            </Button>
-          }
-        >
-          {block.links.length === 0 ? (
-            <p className="text-sm text-muted-foreground">No links yet — add one.</p>
-          ) : (
-            <div className="space-y-3">
-              {block.links.map((link, index) => {
-                const patch = (next: Partial<typeof link>) =>
-                  onChange({ ...block, links: block.links.map((item, position) => (position === index ? { ...item, ...next } : item)) });
-                return (
-                  <div key={index} className="rounded-md border border-border bg-background p-3">
-                    <div className="flex items-center justify-between gap-3">
-                      <div className="flex min-w-0 items-center gap-3">
-                        <RowTile icon={Globe} />
-                        <p className="truncate text-sm font-semibold text-foreground">{link.label || 'Untitled link'}</p>
-                      </div>
-                      <Button
-                        type="button"
-                        variant="ghost"
-                        size="icon-sm"
-                        aria-label={`Remove ${link.label || 'link'}`}
-                        onClick={() => onChange({ ...block, links: block.links.filter((_, position) => position !== index) })}
-                        className="text-muted-foreground hover:text-destructive"
-                      >
-                        <Trash2 aria-hidden="true" />
-                      </Button>
-                    </div>
-                    <div className="mt-3 grid gap-2">
-                      <Input
-                        aria-label="Label"
-                        value={link.label}
-                        onChange={(event) => patch({ label: event.target.value })}
-                        placeholder="Instagram"
-                      />
-                      <Input
-                        aria-label="Link"
-                        value={link.url}
-                        onChange={(event) => patch({ url: event.target.value })}
-                        placeholder="https://"
-                      />
-                    </div>
-                  </div>
-                );
-              })}
+    body = (
+      <div className="space-y-3">
+        {block.links.length === 0 && <p className="text-sm text-muted-foreground">No links yet.</p>}
+        {block.links.map((link, index) => {
+          const patch = (next: Partial<typeof link>) =>
+            onChange({ ...block, links: block.links.map((item, position) => (position === index ? { ...item, ...next } : item)) });
+          return (
+            <div key={index} className="flex items-start gap-2">
+              <div className="grid min-w-0 flex-1 gap-1.5">
+                <Input
+                  aria-label="Label"
+                  value={link.label}
+                  onChange={(event) => patch({ label: event.target.value })}
+                  placeholder="Instagram"
+                />
+                <Input aria-label="Link" value={link.url} onChange={(event) => patch({ url: event.target.value })} placeholder="https://" />
+              </div>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Remove ${link.label || 'link'}`}
+                onClick={() => onChange({ ...block, links: block.links.filter((_, position) => position !== index) })}
+                className="mt-0.5 text-muted-foreground hover:text-destructive"
+              >
+                <Trash2 aria-hidden="true" />
+              </Button>
             </div>
-          )}
-        </SettingsSection>
-      </>
+          );
+        })}
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          className="gap-1.5 border-dashed"
+          onClick={() => onChange({ ...block, links: [...block.links, { label: 'Website', url: 'https://' }] })}
+        >
+          <Plus aria-hidden="true" /> Add link
+        </Button>
+      </div>
     );
 
-  // Divider: nothing to set beyond what it is.
-  return header;
+  return (
+    <RecordGroup
+      card
+      id="template-block"
+      title={meta.label}
+      actions={
+        <Button type="button" variant="outline" size="sm" onClick={onDeselect}>
+          <ArrowLeft aria-hidden="true" /> Email settings
+        </Button>
+      }
+      footnote={meta.about}
+    >
+      <fieldset disabled={readOnly} className="min-w-0">
+        {body}
+      </fieldset>
+    </RecordGroup>
+  );
 }

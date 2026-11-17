@@ -125,17 +125,15 @@ export function ModifierGroupDrawer({ tenantId, group, onClose }: { tenantId: st
           placeholder="e.g. Milk"
           error={submitted ? (nameError ?? undefined) : undefined}
         />
-        <div className="rounded-lg border border-border bg-field px-4 py-3.5">
-          <SettingRows>
-            <SettingRow
-              icon={Scale}
-              title="These are sizes"
-              description="Recipes get a column per size, so a large can use more milk than a small."
-            >
-              <Switch label="These are sizes" checked={isSize} onChange={setIsSize} />
-            </SettingRow>
-          </SettingRows>
-        </div>
+        <SettingRows>
+          <SettingRow
+            icon={Scale}
+            title="These are sizes"
+            description="Recipes get a column per size, so a large can use more milk than a small."
+          >
+            <Switch label="These are sizes" checked={isSize} onChange={setIsSize} />
+          </SettingRow>
+        </SettingRows>
         {group && inUse && (
           <p className="px-1 text-xs text-muted-foreground">
             {group.modifierCount} {group.modifierCount === 1 ? 'modifier is' : 'modifiers are'} in this group, so it can’t be deleted. Move

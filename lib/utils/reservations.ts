@@ -28,6 +28,56 @@ export interface FloorTable {
   width: number;
   height: number;
   rotation: number;
+  /** Where the chairs go; null spreads `maxCovers` chairs around the shape. */
+  chairs?: FloorChairs | null;
+}
+
+/**
+ * Chairs per side for a square or rectangular table, a count around a round
+ * one, or each chair placed by hand on any table.
+ */
+export type FloorChairs =
+  | { mode: 'sides'; top: number; right: number; bottom: number; left: number }
+  | { mode: 'around'; count: number }
+  | { mode: 'custom'; seats: FloorSeat[] };
+
+/**
+ * A chair placed by hand: its centre relative to the table's centre, before
+ * the table's turn (so it moves and turns with the table), and the way it
+ * faces — 0 has the table below it, as `ChairSpot.angle`.
+ */
+export interface FloorSeat {
+  x: number;
+  y: number;
+  rotation: number;
+}
+
+export type FixtureKind =
+  | 'window'
+  | 'wall'
+  | 'entrance'
+  | 'door'
+  | 'bar'
+  | 'counter'
+  | 'kitchen'
+  | 'toilets'
+  | 'stairs'
+  | 'pillar'
+  | 'plant'
+  | 'label';
+
+/** Something on the floor that isn't a table — a window, the entrance, the bar. */
+export interface FloorFixture {
+  id: string;
+  areaId: string;
+  locationId: string;
+  kind: FixtureKind;
+  label: string | null;
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+  rotation: number;
 }
 
 /** What the floor and list screens need of a booking. */
@@ -332,6 +382,27 @@ export const SHAPE_SIZE: Record<DiningTableShape, { width: number; height: numbe
   rectangle: { width: 140, height: 80 },
 };
 
+/**
+ * A bar seat: a stool for one, drawn as a small round table with no chairs
+ * around it (the stool is the seat). Booked, seated and shown like any table.
+ */
+export const BAR_SEAT = {
+  shape: 'round' as const,
+  width: 32,
+  height: 32,
+  covers: 1,
+  chairs: { mode: 'around' as const, count: 0 },
+};
+
+/** The next free "B3"-style label for a bar seat — its own series, so seats don't use up table numbers. */
+export function nextBarSeatLabel(labels: readonly string[]): string {
+  const numbers = labels
+    .map((label) => /^B(\d+)$/i.exec(label.trim())?.[1])
+    .filter(Boolean)
+    .map(Number);
+  return `B${(numbers.length ? Math.max(...numbers) : 0) + 1}`;
+}
+
 /** The next free "T7"-style label, after the highest number already used. */
 export function nextTableLabel(labels: readonly string[]): string {
   const numbers = labels
@@ -339,6 +410,28 @@ export function nextTableLabel(labels: readonly string[]): string {
     .filter(Boolean)
     .map(Number);
   return `T${(numbers.length ? Math.max(...numbers) : 0) + 1}`;
+}
+
+/**
+ * The label for a copy of a table: its number counted on ("T7" → "T8", "12" →
+ * "13", "Booth 2" → "Booth 3"), or " 2" added to a name without one ("Booth" →
+ * "Booth 2") — always past labels already taken (ignoring case), and within the
+ * API's 20 characters.
+ */
+export function copyLabel(label: string, taken: readonly string[]): string {
+  const used = new Set(taken.map((name) => name.trim().toLowerCase()));
+  const own = label.trim();
+  const numbered = /^(.*?)(\d+)$/.exec(own);
+  const digits = numbered ? numbered[2]!.length : 1;
+  let next = numbered ? Number(numbered[2]) + 1 : 2;
+  for (;;) {
+    const number = String(next).padStart(digits, '0');
+    const candidate = numbered
+      ? `${numbered[1]!.slice(0, Math.max(0, 20 - number.length))}${number}`
+      : `${(own || 'T').slice(0, Math.max(0, 19 - number.length)).trimEnd()} ${number}`;
+    if (!used.has(candidate.toLowerCase())) return candidate;
+    next += 1;
+  }
 }
 
 /** A spot for a new table: the first grid cell, left to right, top to bottom, not covered by another. */

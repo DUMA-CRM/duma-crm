@@ -1,30 +1,34 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { InfoRow, PickerRow } from '@/components/cms/rows';
+import { RowWarning } from '@/components/cms/rows';
+import { copyText } from '@/components/cms/shared';
 import {
-  AlertTriangle,
   CalendarClock,
   CalendarDays,
   Clock,
+  ExternalLink,
   Globe,
   type IconComponent,
+  Link2,
   RefreshCw,
   StickyNote,
   Timer,
   Users,
 } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { SaveBar, Switch } from '@/components/settings/controls';
+import { ChangeRow, SaveBar, Switch, ValueMissing } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { NumberStepper } from '@/components/shared/FormParts';
 import { PublicQrCodeCard } from '@/components/shared/PublicQrCodeCard';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
+import { SectionSkeleton } from '@/components/shared/TileSkeleton';
+import { CopyButton } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -63,22 +67,23 @@ const draftOf = (settings: ReservationSettings): Draft => ({
 });
 
 /**
- * A location's booking rules: whether guests can book online (and the page's
- * link), the gap kept between bookings on a table, and the emails the guest
- * gets. Edited as a draft and saved together, like the other settings pages.
- * Laid out like the other tabs: the rules in the main column, each number a
- * row that opens its stepper; the booking page's link and QR code alongside.
+ * A location's booking rules, in the Settings → Account layout: two stacks of
+ * titled cards — Online booking · Guest emails | Booking page · Between
+ * bookings. Each rule is a row whose Change opens its stepper; the rules are
+ * one draft saved through the bar, and Cancel puts a row back as it was.
  */
 export function BookingRules({ locationId, canEdit }: { locationId: string; canEdit: boolean }) {
   const queryClient = useQueryClient();
+  const reduceMotion = useReducedMotion();
   const query = useQuery({
     queryKey: moduleQueryKeys.reservations.key('settings', locationId),
     queryFn: () => getReservationSettings(locationId),
   });
   const [draftState, setDraftState] = useState<{ locationId: string; value: Draft } | null>(null);
   const [confirmNewLink, setConfirmNewLink] = useState(false);
-  // One rule open at a time; a tap on the open one closes it.
+  // One rule open at a time, with what it held when it opened so Cancel can put it back.
   const [open, setOpen] = useState<Row | null>(null);
+  const [before, setBefore] = useState<Draft | null>(null);
 
   const saved = query.data ? draftOf(query.data) : null;
   const draft = draftState?.locationId === locationId ? draftState.value : saved;
@@ -93,6 +98,7 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
     mutationFn: () => saveReservationSettings(locationId, { ...draft!, guestMessage: draft!.guestMessage?.trim() || null }),
     onSuccess: async (next) => {
       setDraftState(null);
+      setOpen(null);
       await settle(next);
     },
     onError: (error) => toast('error', error.message),
@@ -107,27 +113,37 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
     onError: (error) => toast('error', error.message),
   });
 
-  if (query.isPending) return <Bone className="h-96 w-full rounded-lg" />;
+  if (query.isPending) return <RulesSkeleton />;
   if (query.isError) return <ErrorState title="Couldn’t load the booking rules" onRetry={() => void query.refetch()} />;
   const settings = query.data;
   const value = draft!;
 
-  const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
+  const toggle = (row: Row) => {
+    if (open === row) {
+      if (before) set(row, before[row] as never);
+      setOpen(null);
+      return;
+    }
+    setBefore(value);
+    setOpen(row);
+  };
+  /** Read-only users see the value alone, with no Change. */
+  const changer = (row: Row) => (canEdit ? { open: open === row, onToggle: () => toggle(row) } : {});
   /** A number rule: its value on the row, the stepper (and why it matters) underneath. */
   const numberRow = (
     row: Row & keyof Draft,
     icon: IconComponent,
-    title: string,
-    shown: string,
+    label: string,
+    shown: React.ReactNode,
     hint: string,
     min: number,
     max: number,
     step: number,
     unit: string,
   ) => (
-    <PickerRow icon={icon} title={title} value={shown} open={open === row} onToggle={() => toggle(row)}>
+    <ChangeRow icon={icon} label={label} value={shown} {...changer(row)}>
       <NumberStepper
-        label={title}
+        label={label}
         value={value[row] as number}
         min={min}
         max={max}
@@ -136,154 +152,211 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
         onChange={(next) => set(row, next as never)}
       />
       <p className="mt-1.5 text-xs text-muted-foreground">{hint}</p>
-    </PickerRow>
-  );
-  const switchRow = (key: keyof Draft, icon: IconComponent, title: string) => (
-    <InfoRow icon={icon} title={title}>
-      <Switch checked={value[key] as boolean} onChange={(next) => set(key, next as never)} label={title} disabled={!canEdit} />
-    </InfoRow>
+    </ChangeRow>
   );
 
   return (
-    <SettingsTabBody
-      narrowAside
-      aside={
-        <SettingsSection
-          title="Booking page"
-          actions={<Badge variant={settings.onlineEnabled ? 'success' : 'muted'}>{settings.onlineEnabled ? 'Live' : 'Off'}</Badge>}
-        >
-          {settings.publicUrl ? (
-            <div className="space-y-3">
-              <PublicQrCodeCard url={settings.publicUrl} locationName="your location" purpose="booking page" downloadPrefix="booking" />
-              {!settings.onlineEnabled && (
-                <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-                  The page answers only while online booking is on.
-                </p>
+    // Outside the settings shell, so it brings the shell's stagger with it.
+    <motion.div
+      className="flex flex-col gap-5"
+      initial={reduceMotion ? false : 'hidden'}
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+    >
+      {/* Two stacked columns, not paired rows: a short card never leaves a gap beside a tall one. */}
+      <div className="grid items-start gap-5 xl:grid-cols-2">
+        <div className="flex min-w-0 flex-col gap-5">
+          <RecordGroup card id="booking-rules-online" title="Online booking">
+            <div>
+              <ChangeRow
+                icon={Globe}
+                label="Take bookings online"
+                value={value.onlineEnabled ? 'On' : <ValueMissing>Off</ValueMissing>}
+                trailing={
+                  <Switch
+                    checked={value.onlineEnabled}
+                    onChange={(next) => set('onlineEnabled', next)}
+                    label="Take bookings online"
+                    disabled={!canEdit}
+                  />
+                }
+              />
+              {numberRow(
+                'onlineMaxPartySize',
+                Users,
+                'Largest party online',
+                `${value.onlineMaxPartySize} ${value.onlineMaxPartySize === 1 ? 'guest' : 'guests'}`,
+                'Bigger parties see your phone number instead.',
+                1,
+                50,
+                1,
+                'guests',
               )}
-              {canEdit && (
-                <Button variant="outline" className="h-9 w-full" onClick={() => setConfirmNewLink(true)}>
-                  <RefreshCw size={14} aria-hidden="true" />
-                  New link
-                </Button>
+              {numberRow(
+                'onlineDurationMinutes',
+                Clock,
+                'Table held for',
+                minutesLabel(value.onlineDurationMinutes),
+                'How long an online booking keeps its table.',
+                15,
+                720,
+                15,
+                'min',
+              )}
+              {numberRow(
+                'slotIntervalMinutes',
+                CalendarClock,
+                'Times offered every',
+                minutesLabel(value.slotIntervalMinutes),
+                'Start times run from opening at this step.',
+                5,
+                120,
+                5,
+                'min',
+              )}
+              {numberRow(
+                'minNoticeMinutes',
+                Timer,
+                'Soonest booking',
+                value.minNoticeMinutes > 0 ? `${minutesLabel(value.minNoticeMinutes)} ahead` : <ValueMissing>Any time</ValueMissing>,
+                'How far ahead of now a guest must book.',
+                0,
+                10080,
+                15,
+                'min',
+              )}
+              {numberRow(
+                'bookingHorizonDays',
+                CalendarDays,
+                'Furthest ahead',
+                `${value.bookingHorizonDays} ${value.bookingHorizonDays === 1 ? 'day' : 'days'}`,
+                'How many days ahead guests can book.',
+                1,
+                365,
+                1,
+                'days',
+              )}
+              <ChangeRow
+                icon={StickyNote}
+                label="Note for guests"
+                value={
+                  value.guestMessage?.trim() ? (
+                    <span className="truncate">{value.guestMessage.trim()}</span>
+                  ) : (
+                    <ValueMissing>None</ValueMissing>
+                  )
+                }
+                {...changer('guestMessage')}
+              >
+                <textarea
+                  aria-label="Note for guests"
+                  value={value.guestMessage ?? ''}
+                  onChange={(event) => set('guestMessage', event.target.value)}
+                  maxLength={500}
+                  rows={3}
+                  autoFocus
+                  placeholder="We hold tables for 15 minutes. Dogs welcome on the terrace."
+                  className="w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30 disabled:opacity-60"
+                />
+                <p className="mt-1.5 text-xs text-muted-foreground">Shown on the booking page and in the confirmation email.</p>
+              </ChangeRow>
+              {!settings.hasOpeningHours && (
+                <RowWarning className="mt-3">
+                  Online times come from this location’s opening hours, and it has none set — guests would see no times. Set them in{' '}
+                  <Link href="/settings/workspaces" className="underline underline-offset-2">
+                    Settings → Workspace
+                  </Link>
+                  .
+                </RowWarning>
               )}
             </div>
-          ) : (
-            <p className="text-sm text-muted-foreground">
-              Save these rules once and the link appears here — put it on your website, Google profile or social pages.
-            </p>
-          )}
-        </SettingsSection>
-      }
-    >
-      <SettingsSection title="Online booking">
-        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
-          {switchRow('onlineEnabled', Globe, 'Take bookings online')}
-          {numberRow(
-            'onlineMaxPartySize',
-            Users,
-            'Largest party online',
-            `${value.onlineMaxPartySize} ${value.onlineMaxPartySize === 1 ? 'guest' : 'guests'}`,
-            'Bigger parties see your phone number instead.',
-            1,
-            50,
-            1,
-            'guests',
-          )}
-          {numberRow(
-            'onlineDurationMinutes',
-            Clock,
-            'Table held for',
-            minutesLabel(value.onlineDurationMinutes),
-            'How long an online booking keeps its table.',
-            15,
-            720,
-            15,
-            'min',
-          )}
-          {numberRow(
-            'slotIntervalMinutes',
-            CalendarClock,
-            'Times offered every',
-            minutesLabel(value.slotIntervalMinutes),
-            'Start times run from opening at this step.',
-            5,
-            120,
-            5,
-            'min',
-          )}
-          {numberRow(
-            'minNoticeMinutes',
-            Timer,
-            'Soonest booking',
-            minutesLabel(value.minNoticeMinutes, 'Any time'),
-            'How far ahead of now a guest must book.',
-            0,
-            10080,
-            15,
-            'min',
-          )}
-          {numberRow(
-            'bookingHorizonDays',
-            CalendarDays,
-            'Furthest ahead',
-            `${value.bookingHorizonDays} ${value.bookingHorizonDays === 1 ? 'day' : 'days'}`,
-            'How many days ahead guests can book.',
-            1,
-            365,
-            1,
-            'days',
-          )}
-          <PickerRow
-            icon={StickyNote}
-            title="Note for guests"
-            value={value.guestMessage?.trim() || 'None'}
-            muted={!value.guestMessage?.trim()}
-            open={open === 'guestMessage'}
-            onToggle={() => toggle('guestMessage')}
+          </RecordGroup>
+
+          <GuestEmails locationId={locationId} canEdit={canEdit} />
+        </div>
+
+        <div className="flex min-w-0 flex-col gap-5">
+          <RecordGroup
+            card
+            id="booking-rules-page"
+            title="Booking page"
+            actions={
+              <div className="flex items-center gap-2">
+                <Badge variant={settings.onlineEnabled ? 'success' : 'muted'}>{settings.onlineEnabled ? 'Live' : 'Off'}</Badge>
+                {canEdit && settings.publicUrl && (
+                  <Button variant="outline" size="sm" onClick={() => setConfirmNewLink(true)}>
+                    <RefreshCw aria-hidden="true" />
+                    New link
+                  </Button>
+                )}
+              </div>
+            }
+            footnote={
+              !settings.publicUrl
+                ? undefined
+                : settings.onlineEnabled
+                  ? 'Put it on your website, Google profile or social pages.'
+                  : 'The page answers only while online booking is on.'
+            }
           >
-            <textarea
-              aria-label="Note for guests"
-              value={value.guestMessage ?? ''}
-              onChange={(event) => set('guestMessage', event.target.value)}
-              maxLength={500}
-              rows={3}
-              autoFocus
-              placeholder="We hold tables for 15 minutes. Dogs welcome on the terrace."
-              className="w-full rounded-md border border-input bg-control px-3 py-2 text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30 disabled:opacity-60"
-            />
-            <p className="mt-1.5 text-xs text-muted-foreground">Shown on the booking page and in the confirmation email.</p>
-          </PickerRow>
-        </fieldset>
-        {!settings.hasOpeningHours && (
-          <Warning>
-            Online times come from this location’s opening hours, and it has none set — guests would see no times. Set them in{' '}
-            <Link href="/settings/workspaces" className="underline underline-offset-2">
-              Settings → Workspace
-            </Link>
-            .
-          </Warning>
-        )}
-      </SettingsSection>
+            {settings.publicUrl ? (
+              <div className="space-y-4">
+                <ChangeRow
+                  icon={Link2}
+                  label="Link"
+                  value={<span className="truncate font-mono text-xs font-medium">{settings.publicUrl.replace(/^https?:\/\//, '')}</span>}
+                  trailing={
+                    <>
+                      <CopyButton onCopy={() => copyText(settings.publicUrl!)} iconOnly label="Copy the link" className="size-8" />
+                      <Button asChild variant="outline" size="icon-sm" aria-label="Open the booking page">
+                        <a href={settings.publicUrl} target="_blank" rel="noopener noreferrer">
+                          <ExternalLink size={14} aria-hidden="true" />
+                        </a>
+                      </Button>
+                    </>
+                  }
+                />
+                <PublicQrCodeCard url={settings.publicUrl} locationName="your location" purpose="booking page" downloadPrefix="booking" />
+              </div>
+            ) : (
+              <ChangeRow icon={Link2} label="Link" value={<ValueMissing>Appears once these rules are saved</ValueMissing>} />
+            )}
+          </RecordGroup>
 
-      <SettingsSection title="Between bookings">
-        <fieldset disabled={!canEdit} className="min-w-0 space-y-3">
-          {numberRow(
-            'turnBufferMinutes',
-            Timer,
-            'Turn time',
-            minutesLabel(value.turnBufferMinutes, 'Back to back'),
-            'Kept free on a table after a party leaves, to clear and reset it — for every booking, online, by phone and walk-ins.',
-            0,
-            120,
-            5,
-            'min',
-          )}
-        </fieldset>
-      </SettingsSection>
+          <RecordGroup
+            card
+            id="booking-rules-between"
+            title="Between bookings"
+            footnote="For every booking — online, by phone and walk-ins."
+          >
+            <div>
+              {numberRow(
+                'turnBufferMinutes',
+                Timer,
+                'Turn time',
+                value.turnBufferMinutes > 0 ? minutesLabel(value.turnBufferMinutes) : <ValueMissing>Back to back</ValueMissing>,
+                'Kept free on a table after a party leaves, to clear and reset it.',
+                0,
+                120,
+                5,
+                'min',
+              )}
+            </div>
+          </RecordGroup>
+        </div>
+      </div>
 
-      <GuestEmails locationId={locationId} canEdit={canEdit} />
-
-      {canEdit && <SaveBar dirty={dirty} saving={save.isPending} onSave={() => save.mutate()} onDiscard={() => setDraftState(null)} />}
+      {canEdit && (
+        <SaveBar
+          dirty={dirty}
+          saving={save.isPending}
+          onSave={() => save.mutate()}
+          onDiscard={() => {
+            setDraftState(null);
+            setOpen(null);
+          }}
+        />
+      )}
 
       {confirmNewLink && (
         <ConfirmModal
@@ -296,16 +369,33 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
           onClose={() => setConfirmNewLink(false)}
         />
       )}
-    </SettingsTabBody>
+    </motion.div>
   );
 }
 
-/** Something that stops a rule working, with where to fix it. */
-function Warning({ children }: { children: React.ReactNode }) {
+/** The two stacks of cards, without their words. */
+function RulesSkeleton() {
+  const rows = (count: number) =>
+    Array.from({ length: count }, (_, index) => (
+      <div key={index} className="flex items-center gap-3">
+        <Bone className="size-10 shrink-0" />
+        <span className="min-w-0 flex-1 space-y-1.5">
+          <Bone className="h-2.5 w-20" />
+          <Bone className="h-3.5 w-44 max-w-full" />
+        </span>
+        <Bone className="h-8 w-20 shrink-0" />
+      </div>
+    ));
   return (
-    <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
-      <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
-      <span>{children}</span>
-    </p>
+    <div role="status" aria-label="Loading the booking rules" className="grid items-start gap-5 xl:grid-cols-2">
+      <div className="flex min-w-0 flex-col gap-5">
+        <SectionSkeleton>{rows(7)}</SectionSkeleton>
+        <SectionSkeleton>{rows(3)}</SectionSkeleton>
+      </div>
+      <div className="flex min-w-0 flex-col gap-5">
+        <SectionSkeleton>{rows(1)}</SectionSkeleton>
+        <SectionSkeleton>{rows(1)}</SectionSkeleton>
+      </div>
+    </div>
   );
 }

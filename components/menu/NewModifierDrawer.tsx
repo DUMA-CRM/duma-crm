@@ -6,9 +6,10 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { ChefHat, Eye, Loader2, Plus, Scale, SlidersHorizontal } from '@/components/icons';
+import { GroupPicker } from '@/components/menu/GroupPicker';
 import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
-import { ChoiceCards, FormSection } from '@/components/shared/FormParts';
+import { FormSection } from '@/components/shared/FormParts';
 import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -158,14 +159,13 @@ export function NewModifierDrawer({
         <FormSection framed={false} title="Group">
           {groups.length ? (
             <>
-              <ChoiceCards
-                columns={ordered.length >= 4 ? 4 : ordered.length === 3 ? 3 : 2}
+              <GroupPicker
+                groups={ordered}
                 value={groupId}
                 onChange={(value) => {
                   setGroupId(value);
                   setIsSize(ordered.find((g) => g.id === value)?.isSize ?? false);
                 }}
-                options={ordered.map((g) => ({ value: g.id, label: g.name }))}
               />
               {submitted && groupError && <p className="text-xs text-destructive">{groupError}</p>}
             </>
@@ -180,20 +180,18 @@ export function NewModifierDrawer({
           )}
         </FormSection>
 
-        <div className="rounded-lg border border-border bg-field px-4 py-3.5">
-          <SettingRows>
-            <SettingRow
-              icon={Scale}
-              title="This is a size"
-              description="Set from the group. Sizes get their own quantity column in every recipe."
-            >
-              <Switch label="This is a size" checked={isSize} onChange={setIsSize} />
-            </SettingRow>
-            <SettingRow icon={Eye} title="Available at the till" description="Turn off to set it up now and offer it later.">
-              <Switch label="Available at the till" checked={isAvailable} onChange={setIsAvailable} />
-            </SettingRow>
-          </SettingRows>
-        </div>
+        <SettingRows>
+          <SettingRow
+            icon={Scale}
+            title="This is a size"
+            description="Set from the group. Sizes get their own quantity column in every recipe."
+          >
+            <Switch label="This is a size" checked={isSize} onChange={setIsSize} />
+          </SettingRow>
+          <SettingRow icon={Eye} title="Available at the till" description="Turn off to set it up now and offer it later.">
+            <Switch label="Available at the till" checked={isAvailable} onChange={setIsAvailable} />
+          </SettingRow>
+        </SettingRows>
       </form>
     </Drawer>
   );

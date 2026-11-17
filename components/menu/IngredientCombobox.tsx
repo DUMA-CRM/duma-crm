@@ -67,15 +67,19 @@ export function IngredientCombobox({
         aria-expanded={open}
         className={cn(inputClass, 'flex items-center justify-between gap-2 text-left')}
       >
-        <span className={cn('truncate', selected ? 'text-foreground' : 'text-muted-foreground')}>
+        <span
+          className={cn('truncate', selected ? 'text-foreground' : 'text-muted-foreground')}
+          title={selected ? `${selected.name} (${selected.unit})` : undefined}
+        >
           {selected ? `${selected.name} (${selected.unit})` : 'Select ingredient…'}
         </span>
         <ChevronDown size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
       </button>
 
       {open && (
-        <div className="absolute z-30 mt-1 w-full overflow-hidden rounded-sm border border-rule bg-surface shadow-lg">
-          <div className="flex items-center gap-2 border-b border-rule px-3">
+        // At least as wide as the field and wider when a name needs it, so no ingredient is cut to "Oat m…".
+        <div className="absolute left-0 z-30 mt-1 w-max min-w-full max-w-[min(28rem,calc(100vw-2rem))] overflow-hidden rounded-lg border border-border bg-surface shadow-lg">
+          <div className="flex items-center gap-2 border-b border-border px-3">
             <Search size={14} className="shrink-0 text-muted-foreground" aria-hidden="true" />
             <input
               ref={inputRef}
@@ -86,7 +90,7 @@ export function IngredientCombobox({
             />
           </div>
 
-          <ul role="listbox" className="max-h-64 overflow-auto py-1">
+          <ul role="listbox" className="max-h-64 overflow-auto p-1">
             {matches.length === 0 && <li className="px-3 py-2.5 text-xs text-muted-foreground">No ingredient matches “{query}”.</li>}
             {matches.map((option) => {
               const alreadyUsed = disabledIds?.has(option.id) && option.id !== value;
@@ -103,21 +107,21 @@ export function IngredientCombobox({
                       setOpen(false);
                     }}
                     className={cn(
-                      'flex w-full items-center gap-2 px-3 py-2 text-left text-sm transition-colors',
+                      'flex w-full items-start gap-2 rounded-sm px-2.5 py-2 text-left text-sm transition-colors',
                       alreadyUsed ? 'cursor-not-allowed text-muted-foreground/50' : 'hover:bg-band',
                     )}
                   >
                     <Check
                       size={14}
-                      className={cn('shrink-0', option.id === value ? 'text-primary' : 'text-transparent')}
+                      className={cn('mt-0.5 shrink-0', option.id === value ? 'text-primary' : 'text-transparent')}
                       aria-hidden="true"
                     />
-                    <span className="min-w-0 flex-1 truncate text-foreground">{option.name}</span>
-                    <span className="shrink-0 text-label text-muted-foreground">{option.unit}</span>
+                    <span className="min-w-0 flex-1 break-words text-foreground">{option.name}</span>
+                    <span className="mt-0.5 shrink-0 text-label text-muted-foreground">{option.unit}</span>
                     {/* Surfaced here because a missing cost is what makes a
                         margin quietly wrong further down the screen. */}
-                    {option.costPerUnit == null && <span className="shrink-0 text-label text-warning">no cost</span>}
-                    {alreadyUsed && <span className="shrink-0 text-label">added</span>}
+                    {option.costPerUnit == null && <span className="mt-0.5 shrink-0 text-label text-measured">no cost</span>}
+                    {alreadyUsed && <span className="mt-0.5 shrink-0 text-label">added</span>}
                   </button>
                 </li>
               );

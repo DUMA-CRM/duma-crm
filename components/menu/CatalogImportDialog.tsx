@@ -134,7 +134,7 @@ export function CatalogImportDialog({ tenantId, onClose }: { tenantId: string; o
                 event.preventDefault();
                 void load(event.dataTransfer.files[0]);
               }}
-              className="flex w-full flex-col items-center gap-2 rounded-lg border border-dashed border-rule/70 bg-control px-4 py-8 text-sm text-muted-foreground transition-colors hover:border-rule hover:text-foreground"
+              className="flex w-full flex-col items-center gap-2 rounded-lg border border-dashed border-border bg-control px-4 py-8 text-sm text-muted-foreground transition-colors hover:border-edge hover:bg-band/40 hover:text-foreground"
             >
               <UploadCloud size={22} aria-hidden="true" />
               <span className="font-medium text-foreground">Choose a CSV file</span>
@@ -213,7 +213,7 @@ export function CatalogImportDialog({ tenantId, onClose }: { tenantId: string; o
               {report.totals.productsCreated} new, {report.totals.productsUpdated} updated · {report.totals.variantsCreated} sizes added,{' '}
               {report.totals.variantsUpdated} updated{report.totals.stockSet > 0 ? ` · stock set for ${report.totals.stockSet}` : ''}
             </p>
-            <ul className="max-h-64 divide-y divide-border overflow-auto rounded-lg border border-border bg-control">
+            <ul className="max-h-64 overflow-auto rounded-lg border border-border bg-control py-1">
               {report.products.map((product) => (
                 <li key={product.name} className="px-3.5 py-2">
                   <p className="flex items-center justify-between gap-2 text-sm">

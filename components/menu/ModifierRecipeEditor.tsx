@@ -13,7 +13,6 @@ import { Button } from '@/components/ui/button';
 
 import { getModifierRecipe, setModifierRecipe } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { cn } from '@/lib/utils/cn';
 
 /**
  * What selecting a modifier ADDS to a drink — Oat Milk → 200 ml oat milk,
@@ -73,31 +72,17 @@ export function ModifierRecipeDrawer({
       }
     >
       <div className="space-y-5">
-        <div className="flex items-center gap-3 rounded-lg border border-border bg-field px-4 py-3.5">
-          <span
-            className={cn(
-              'flex size-10 shrink-0 items-center justify-center rounded-lg',
-              modifier.isSize ? 'bg-primary/8 text-primary' : 'bg-reference/8 text-reference',
-            )}
-            aria-hidden="true"
-          >
-            {modifier.isSize ? <Scale size={18} /> : <SlidersHorizontal size={18} />}
+        {/* The drawer's title names the modifier; one line says where it sits and what it costs. */}
+        <p className="flex flex-wrap items-center gap-x-2 gap-y-1 text-sm text-muted-foreground">
+          {modifier.isSize ? <Scale size={14} aria-hidden="true" /> : <SlidersHorizontal size={14} aria-hidden="true" />}
+          <span>
+            {modifier.group ?? 'Extra'} · {adjust ? `${adjust > 0 ? '+' : '−'}${formatMoney(Math.abs(adjust), 2)}` : 'no charge'}
           </span>
-          <div className="min-w-0 flex-1">
-            <p className="flex items-center gap-2 truncate text-sm font-semibold text-foreground">
-              {modifier.label}
-              {modifier.isDefault && (
-                <span className="shrink-0 rounded-md bg-primary/8 px-1.5 py-0.5 text-micro font-semibold text-primary">Default</span>
-              )}
-            </p>
-            <p className="truncate text-xs text-muted-foreground">
-              {modifier.group ?? 'Extra'} · {adjust ? `${adjust > 0 ? '+' : '−'}${formatMoney(Math.abs(adjust), 2)}` : 'no charge'}
-            </p>
-          </div>
-          {recipe.dirty && (
-            <span className="shrink-0 rounded-md bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">Unsaved</span>
+          {modifier.isDefault && (
+            <span className="rounded-sm bg-primary/8 px-1.5 py-0.5 text-micro font-semibold text-primary">Default</span>
           )}
-        </div>
+          {recipe.dirty && <span className="rounded-sm bg-measured/10 px-1.5 py-0.5 text-micro font-semibold text-measured">Unsaved</span>}
+        </p>
 
         <FormSection
           framed={false}
@@ -124,7 +109,9 @@ export function ModifierRecipeDrawer({
           )}
         </FormSection>
 
-        {recipe.hasIngredients && <RecipeTotals summary={recipe.summary} allAllergens={recipe.allAllergens} title="What it adds" />}
+        {recipe.hasIngredients && (
+          <RecipeTotals summary={recipe.summary} allAllergens={recipe.allAllergens} title="What it adds" framed={false} />
+        )}
       </div>
     </Drawer>
   );

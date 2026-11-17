@@ -4,30 +4,43 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { InfoRow, InfoRows, RowTile, SectionInfo } from '@/components/cms/rows';
-import { ChevronRight, Plus, Search, TicketPercent, Users } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
+import { CalendarClock, Coins, Pause, Plus, Search, TicketPercent, X } from '@/components/icons';
+import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { Fact } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
+import type { Tone } from '@/components/shared/tone';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { type PromotionListItem, getPromotions } from '@/lib/modules/promotions/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { type PromotionStanding, STANDING_LABELS, promotionStanding, usageLabel } from '@/lib/utils/promotions';
+import {
+  KIND_LABELS,
+  type PromotionKind,
+  type PromotionStanding,
+  STANDING_LABELS,
+  promotionStanding,
+  usageLabel,
+} from '@/lib/utils/promotions';
+import {
+  PROMOTIONS_VIEW_LABELS,
+  type PromotionsView,
+  filterPromotions,
+  inPromotionsView,
+  promotionsOverview,
+} from '@/lib/utils/promotions-overview';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { PromotionsTabs } from './PromotionsTabs';
-
-type Filter = 'current' | 'archived';
 
 export const STANDING_BADGE: Record<PromotionStanding, 'success' | 'reference' | 'warning' | 'muted'> = {
   live: 'success',
@@ -38,10 +51,22 @@ export const STANDING_BADGE: Record<PromotionStanding, 'success' | 'reference' |
   archived: 'muted',
 };
 
+const STANDING_TONE: Record<PromotionStanding, Tone> = {
+  live: 'success',
+  scheduled: 'info',
+  paused: 'warning',
+  used_up: 'muted',
+  ended: 'muted',
+  archived: 'muted',
+};
+
+const VIEWS: readonly PromotionsView[] = ['current', 'live', 'scheduled', 'paused', 'ended', 'archived'];
+const KINDS = Object.keys(KIND_LABELS) as PromotionKind[];
+
 /**
- * The promotions, laid out like Booking rules: one section of link rows —
- * tile, name and code, what it takes off, where it stands, how much it's been
- * used — and the totals in the aside. "New promotion" lives in the page header.
+ * The promotions as a list, like Forms: four figures (the first three filter
+ * the list), a search with the Show and Type selects and the count, then one
+ * row per promotion. "New promotion" lives in the page header.
  */
 export function PromotionsList({ onOpen, onNew }: { onOpen: (id: string) => void; onNew: () => void }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId);
@@ -49,7 +74,8 @@ export function PromotionsList({ onOpen, onNew }: { onOpen: (id: string) => void
   const canWrite = hasCapability(capabilities, 'promotions:write');
   const reduceMotion = useReducedMotion();
   const formatMoney = useFormatMoney();
-  const [filter, setFilter] = useState<Filter>('current');
+  const [view, setView] = useState<PromotionsView>('current');
+  const [kind, setKind] = useState<PromotionKind | 'any'>('any');
   const [search, setSearch] = useState('');
   // Pinned on mount so "Live" doesn't flip under a render.
   const [now] = useState(() => Date.now());
@@ -60,10 +86,17 @@ export function PromotionsList({ onOpen, onNew }: { onOpen: (id: string) => void
     enabled: Boolean(tenantId),
   });
   const all = useMemo(() => query.data ?? [], [query.data]);
-  const needle = search.trim().toLowerCase();
-  const shown = all
-    .filter((promotion) => (filter === 'archived' ? promotion.status === 'archived' : promotion.status !== 'archived'))
-    .filter((promotion) => !needle || promotion.name.toLowerCase().includes(needle) || promotion.firstCode?.toLowerCase().includes(needle));
+  const overview = useMemo(() => promotionsOverview(all, now), [all, now]);
+  const shown = filterPromotions(all, { view, kind, search }, now);
+
+  const filtersActive = Boolean(search.trim()) || view !== 'current' || kind !== 'any';
+  const clearFilters = () => {
+    setSearch('');
+    setView('current');
+    setKind('any');
+  };
+  /** A figure picks its view; picking it again goes back to every current one. */
+  const pick = (next: PromotionsView) => setView((current) => (current === next ? 'current' : next));
 
   const header = (body: React.ReactNode) => (
     <EditorShell
@@ -84,7 +117,23 @@ export function PromotionsList({ onOpen, onNew }: { onOpen: (id: string) => void
     </EditorShell>
   );
 
-  if (query.isSuccess && all.length === 0)
+  if (query.isPending)
+    return header(
+      <div className="flex flex-col gap-5" aria-busy="true">
+        <FactsSkeleton count={4} label="Loading promotion figures" className="gap-3 sm:grid-cols-2 xl:grid-cols-4" />
+        <div className="flex flex-wrap items-center gap-2">
+          <Bone className="h-9 min-w-56 flex-1" />
+          <Bone className="h-9 w-40" />
+          <Bone className="h-9 w-40" />
+        </div>
+        <ListSkeleton rows={5} label="Loading your promotions" />
+      </div>,
+    );
+
+  if (query.isError)
+    return header(<ErrorState className="flex-1" title="Couldn’t load your promotions" onRetry={() => void query.refetch()} />);
+
+  if (all.length === 0)
     return header(
       <EmptyState
         className="flex-1"
@@ -99,145 +148,140 @@ export function PromotionsList({ onOpen, onNew }: { onOpen: (id: string) => void
       />,
     );
 
+  const viewCount = (value: PromotionsView) => all.filter((promotion) => inPromotionsView(promotion, value, now)).length;
+
   return header(
-    <SettingsTabBody narrowAside aside={<PromotionsAside promotions={all} loaded={query.isSuccess} now={now} formatMoney={formatMoney} />}>
-      <SettingsSection
-        title="Promotions"
-        actions={
-          <SegmentedControl<Filter>
-            value={filter}
-            onChange={setFilter}
-            ariaLabel="Which promotions"
-            options={[
-              { value: 'current', label: 'Current' },
-              { value: 'archived', label: 'Archived' },
-            ]}
-          />
-        }
-      >
-        {query.isPending ? (
-          <TilesSkeleton count={4} label="Loading promotions" />
-        ) : query.isError ? (
-          <ErrorState title="Couldn’t load your promotions" onRetry={() => void query.refetch()} />
-        ) : (
-          <div className="space-y-3">
-            {all.length > 6 && (
-              <Input
-                aria-label="Find a promotion"
-                placeholder="Find by name or code"
-                value={search}
-                leftIcon={<Search size={14} aria-hidden="true" />}
-                onChange={(event) => setSearch(event.target.value)}
-              />
-            )}
-            {shown.length === 0 ? (
-              <p className="py-6 text-center text-sm text-muted-foreground">
-                {needle
-                  ? `No promotion matches “${search.trim()}”.`
-                  : filter === 'archived'
-                    ? 'Nothing archived.'
-                    : 'Everything is archived.'}
-              </p>
-            ) : (
-              <ul className="-mx-2 flex flex-col gap-0.5">
-                {shown.map((promotion, index) => (
-                  <motion.li
-                    key={promotion.id}
-                    initial={reduceMotion ? false : { opacity: 0, y: 6 }}
-                    animate={{ opacity: 1, y: 0, transition: { delay: reduceMotion ? 0 : Math.min(index, 8) * 0.03 } }}
+    // Outside the settings shell, so it brings the shell's stagger with it.
+    <motion.div
+      className="flex flex-col gap-5"
+      initial={reduceMotion ? false : 'hidden'}
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+    >
+      <motion.dl variants={SECTION_RISE} className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <Fact
+          surface="page"
+          icon={TicketPercent}
+          label="Live"
+          value={overview.live}
+          hint={`of ${overview.current} ${overview.current === 1 ? 'promotion' : 'promotions'}`}
+          selected={view === 'live'}
+          onSelect={() => pick('live')}
+        />
+        <Fact
+          surface="page"
+          icon={Pause}
+          label="Paused"
+          value={overview.paused}
+          hint={overview.paused > 0 ? 'Codes don’t work' : 'None paused'}
+          selected={view === 'paused'}
+          onSelect={overview.paused > 0 || view === 'paused' ? () => pick('paused') : undefined}
+        />
+        <Fact
+          surface="page"
+          icon={CalendarClock}
+          label="Ended"
+          value={overview.ended}
+          hint={overview.ended > 0 ? 'Past their date or used up' : 'None ended'}
+          selected={view === 'ended'}
+          onSelect={overview.ended > 0 || view === 'ended' ? () => pick('ended') : undefined}
+        />
+        <Fact
+          surface="page"
+          icon={Coins}
+          label="Discount given"
+          value={formatMoney(Number(overview.discountGiven), 2)}
+          hint={`over ${overview.uses.toLocaleString('en-GB')} ${overview.uses === 1 ? 'use' : 'uses'}`}
+        />
+      </motion.dl>
+
+      <motion.section variants={SECTION_RISE} className="flex flex-col gap-3" aria-label="Promotions">
+        <div className="flex flex-wrap items-center gap-2">
+          <div className="min-w-56 flex-1">
+            <Input
+              type="search"
+              aria-label="Find a promotion by name or code"
+              placeholder="Name or code…"
+              value={search}
+              leftIcon={<Search size={14} aria-hidden="true" />}
+              onChange={(event) => setSearch(event.target.value)}
+              rightAction={
+                search ? (
+                  <button
+                    type="button"
+                    onClick={() => setSearch('')}
+                    aria-label="Clear search"
+                    className="flex size-6 items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground"
                   >
-                    <PromotionRow promotion={promotion} now={now} onOpen={() => onOpen(promotion.id)} />
-                  </motion.li>
-                ))}
-              </ul>
-            )}
+                    <X size={13} aria-hidden="true" />
+                  </button>
+                ) : undefined
+              }
+            />
           </div>
+          <Select
+            value={view}
+            onValueChange={(value) => setView(value as PromotionsView)}
+            options={VIEWS.map((value) => ({ value, label: `${PROMOTIONS_VIEW_LABELS[value]} · ${viewCount(value)}` }))}
+            ariaLabel="Which promotions"
+            className="w-40"
+          />
+          <Select
+            value={kind}
+            onValueChange={(value) => setKind(value as PromotionKind | 'any')}
+            options={[{ value: 'any', label: 'Any type' }, ...KINDS.map((value) => ({ value, label: KIND_LABELS[value] }))]}
+            ariaLabel="Type of promotion"
+            className="w-40"
+          />
+          <span className="ml-auto text-xs tabular-nums text-muted-foreground" aria-live="polite">
+            {filtersActive
+              ? `${shown.length} of ${all.length}`
+              : `${overview.current} ${overview.current === 1 ? 'promotion' : 'promotions'}`}
+          </span>
+        </div>
+
+        {shown.length === 0 ? (
+          <EmptyState
+            icon={Search}
+            kind="search"
+            title="No promotion matches"
+            description="Try a different search or filter."
+            action={{ label: 'Clear filters', onClick: clearFilters }}
+          />
+        ) : (
+          <ListRowGroup aria-label="Promotions">
+            {shown.map((promotion) => (
+              <PromotionRow key={promotion.id} promotion={promotion} now={now} onOpen={() => onOpen(promotion.id)} />
+            ))}
+          </ListRowGroup>
         )}
-      </SettingsSection>
-    </SettingsTabBody>,
+      </motion.section>
+    </motion.div>,
   );
 }
 
-/** One promotion: tile, name and code; its usage and standing on the right. */
+/** One promotion: tile, name and where it stands; its code and offer; its uses on the right. */
 function PromotionRow({ promotion, now, onOpen }: { promotion: PromotionListItem; now: number; onOpen: () => void }) {
   const standing = promotionStanding(promotion, now);
-  const codes = promotion.codeCount;
+  const more = promotion.codeCount - 1;
   return (
-    <button
-      type="button"
-      onClick={onOpen}
-      className="group flex w-full items-center gap-3 rounded-md px-2 py-1.5 text-left transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-    >
-      <RowTile icon={TicketPercent} tone={standing === 'live' ? 'success' : 'default'} />
-      <span className="min-w-0 flex-1">
-        <span className="flex min-w-0 items-center gap-2">
-          <span className="truncate text-sm font-semibold text-foreground">{promotion.name}</span>
-          <Badge variant={STANDING_BADGE[standing]} className="shrink-0">
-            {STANDING_LABELS[standing]}
-          </Badge>
-        </span>
-        <span className="block truncate text-xs text-muted-foreground">
+    <ListRow
+      icon={TicketPercent}
+      tone={STANDING_TONE[standing]}
+      title={promotion.name}
+      titleExtra={
+        <Badge variant={STANDING_BADGE[standing]} className="shrink-0">
+          {STANDING_LABELS[standing]}
+        </Badge>
+      }
+      meta={
+        <>
           {promotion.firstCode ? <span className="font-mono text-foreground">{promotion.firstCode}</span> : 'No code yet'}
-          {codes > 1 && ` +${codes - 1} more`} · {promotion.summary}
-        </span>
-      </span>
-      <span className="hidden shrink-0 text-right text-xs tabular-nums text-muted-foreground sm:block">{usageLabel(promotion)}</span>
-      <ChevronRight
-        size={16}
-        className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-        aria-hidden="true"
-      />
-    </button>
-  );
-}
-
-function PromotionsAside({
-  promotions,
-  loaded,
-  now,
-  formatMoney,
-}: {
-  promotions: PromotionListItem[];
-  loaded: boolean;
-  now: number;
-  formatMoney: (value: number, digits?: number) => string;
-}) {
-  const live = promotions.filter((promotion) => promotionStanding(promotion, now) === 'live').length;
-  const uses = promotions.reduce((sum, promotion) => sum + promotion.redemptionCount, 0);
-  const given = promotions.reduce((sum, promotion) => sum + Number(promotion.discountTotal), 0);
-  const figure = (value: React.ReactNode) => <span className="text-sm tabular-nums text-muted-foreground">{loaded ? value : '—'}</span>;
-  return (
-    <>
-      <SettingsSection title="Overview">
-        <InfoRows>
-          <InfoRow icon={TicketPercent} title="Live now">
-            {figure(
-              <>
-                <span className="text-foreground">{live}</span> of{' '}
-                {promotions.filter((promotion) => promotion.status !== 'archived').length}
-              </>,
-            )}
-          </InfoRow>
-          <InfoRow icon={Users} title="Uses">
-            {figure(uses.toLocaleString())}
-          </InfoRow>
-          <InfoRow icon={TicketPercent} title="Discount given">
-            {figure(formatMoney(given, 2))}
-          </InfoRow>
-        </InfoRows>
-      </SettingsSection>
-      <SettingsSection
-        title="How codes work"
-        actions={
-          <SectionInfo label="A code is checked when it's typed and again as the order is placed, so a limit can't be beaten by two tills at once. Cancelling or fully refunding the order gives the use back." />
-        }
-      >
-        <ul className="space-y-2 text-sm leading-relaxed text-muted-foreground">
-          <li>The till takes the code on the whole order, after any loyalty reward.</li>
-          <li>Codes that are once per customer, or for a first order, need a customer on the sale.</li>
-          <li>Every use is recorded — open a promotion to see who used it.</li>
-        </ul>
-      </SettingsSection>
-    </>
+          {more > 0 && ` +${more} more`} · {promotion.summary}
+        </>
+      }
+      trailing={<span className="hidden text-xs tabular-nums text-muted-foreground sm:inline">{usageLabel(promotion)}</span>}
+      onClick={onOpen}
+    />
   );
 }

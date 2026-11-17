@@ -4,12 +4,13 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { RowTile } from '@/components/cms/rows';
-import { AlertTriangle, Bell, ChevronRight, type IconComponent, Loader2, Mail, Plus, XCircle } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
+import { RowWarning } from '@/components/cms/rows';
+import { Bell, type IconComponent, Loader2, Mail, Plus, XCircle } from '@/components/icons';
+import { ChangeRow, ValueMissing } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -18,7 +19,6 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type BookingEmailAutomation, type BookingEmailTrigger, getGuestEmails, setUpGuestEmails } from '@/lib/modules/reservations/client';
 import { toast } from '@/lib/toast';
-import { cn } from '@/lib/utils/cn';
 import { useAuthStore } from '@/stores/authStore';
 
 const MOMENTS: { trigger: BookingEmailTrigger; title: string; icon: IconComponent }[] = [
@@ -36,8 +36,8 @@ function stateOf(automation: BookingEmailAutomation): { label: string; variant: 
 /**
  * A booking's guest emails are Communications automations — a template the
  * workspace edits and a workflow that sends it — so every guest email lives in
- * one place. This lists the automation for each moment, opens it in
- * Communications, and sets up the starter ones (live or as drafts) for any
+ * one place. This lists the automation for each moment as a row (its state,
+ * and Open to edit it in Communications), and sets up the starter ones (live or as drafts) for any
  * moment that has none. A moment without an enabled automation sends nothing.
  */
 export function GuestEmails({ locationId, canEdit }: { locationId: string; canEdit: boolean }) {
@@ -74,93 +74,106 @@ export function GuestEmails({ locationId, canEdit }: { locationId: string; canEd
   const email = query.data?.email;
 
   return (
-    <SettingsSection
+    <RecordGroup
+      card
+      id="booking-rules-emails"
       title="Guest emails"
       actions={
         canSetUp && query.isSuccess && missing.length > 0 ? (
-          <Button className="h-9" onClick={() => setSettingUp(true)}>
-            <Plus size={14} aria-hidden="true" />
+          <Button variant="outline" size="sm" onClick={() => setSettingUp(true)}>
+            <Plus aria-hidden="true" />
             Set up
           </Button>
         ) : undefined
       }
+      footnote={
+        query.isSuccess && !(email && !email.ready)
+          ? `Sent to the email on the booking through Communications — change the wording, timing or location there.${
+              missing.length > 0 && !canSetUp ? ' Someone who can edit Communications can set up the missing ones.' : ''
+            }`
+          : undefined
+      }
     >
       {query.isPending ? (
-        <Bone className="h-32 w-full rounded-lg" />
+        <div role="status" aria-busy="true" aria-label="Loading the guest emails" className="space-y-5">
+          {MOMENTS.map((moment) => (
+            <div key={moment.trigger} className="flex items-center gap-3">
+              <Bone className="size-10 shrink-0" />
+              <span className="min-w-0 flex-1 space-y-1.5">
+                <Bone className="h-2.5 w-20" />
+                <Bone className="h-3.5 w-44 max-w-full" />
+              </span>
+            </div>
+          ))}
+        </div>
       ) : query.isError ? (
         <ErrorState title="Couldn’t load the guest emails" onRetry={() => void query.refetch()} className="py-4" />
       ) : (
-        <>
-          <div className="-mx-2 flex flex-col gap-0.5">
-            {MOMENTS.map((moment) => {
-              const automation = automations.find((candidate) => candidate.trigger === moment.trigger);
-              const state = automation ? stateOf(automation) : null;
-              const body = (
+        <div>
+          {MOMENTS.map((moment) => {
+            const automation = automations.find((candidate) => candidate.trigger === moment.trigger);
+            const state = automation ? stateOf(automation) : null;
+            return (
+              <ChangeRow
+                key={moment.trigger}
+                icon={moment.icon}
+                label={moment.title}
+                value={
+                  automation ? (
+                    <>
+                      <span className="truncate">
+                        {automation.name}
+                        {automation.offsetHours ? (
+                          <span className="font-normal text-muted-foreground"> · {automation.offsetHours} h before</span>
+                        ) : null}
+                      </span>
+                      {state && (
+                        <Badge variant={state.variant} className="shrink-0">
+                          {state.label}
+                        </Badge>
+                      )}
+                    </>
+                  ) : (
+                    <ValueMissing>Not set up — nothing is sent</ValueMissing>
+                  )
+                }
+                trailing={
+                  automation ? (
+                    <Button asChild variant="outline" size="sm">
+                      <Link
+                        href={`/communications?automation=${automation.id}`}
+                        aria-label={`Open the ${moment.title.toLowerCase()} email in Communications`}
+                      >
+                        Open
+                      </Link>
+                    </Button>
+                  ) : undefined
+                }
+              />
+            );
+          })}
+          {email && !email.ready && (
+            <RowWarning className="mt-3">
+              {email.reason === 'module_off' ? (
                 <>
-                  <RowTile icon={moment.icon} />
-                  <span className="min-w-0 flex-1">
-                    <span className="block truncate text-sm font-semibold text-foreground">{moment.title}</span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      {automation
-                        ? `${automation.name}${automation.offsetHours ? ` · ${automation.offsetHours} h before` : ''}`
-                        : 'Not set up — nothing is sent'}
-                    </span>
-                  </span>
-                  {state && <Badge variant={state.variant}>{state.label}</Badge>}
-                  {automation && (
-                    <ChevronRight
-                      size={14}
-                      className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-                      aria-hidden="true"
-                    />
-                  )}
+                  Nothing is sent while Communications is off. Switch it on in{' '}
+                  <Link href="/settings/modules" className="underline underline-offset-2">
+                    Settings → Modules
+                  </Link>
+                  .
                 </>
-              );
-              return automation ? (
-                <Link
-                  key={moment.trigger}
-                  href={`/communications?automation=${automation.id}`}
-                  className="group flex items-center gap-3 rounded-md px-2 py-1.5 transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
-                >
-                  {body}
-                </Link>
               ) : (
-                <div key={moment.trigger} className={cn('flex items-center gap-3 px-2 py-1.5', 'opacity-80')}>
-                  {body}
-                </div>
-              );
-            })}
-          </div>
-          {email && !email.ready ? (
-            <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
-              <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
-              <span>
-                {email.reason === 'module_off' ? (
-                  <>
-                    Nothing is sent while Communications is off. Switch it on in{' '}
-                    <Link href="/settings/modules" className="underline underline-offset-2">
-                      Settings → Modules
-                    </Link>
-                    .
-                  </>
-                ) : (
-                  <>
-                    Nothing is sent until an email account is connected in{' '}
-                    <Link href="/settings/connectors" className="underline underline-offset-2">
-                      Settings → Connectors
-                    </Link>
-                    .
-                  </>
-                )}
-              </span>
-            </p>
-          ) : (
-            <p className="mt-4 text-xs text-muted-foreground">
-              Sent to the email on the booking through Communications — change the wording, timing or location there.
-              {missing.length > 0 && !canSetUp && ' Someone who can edit Communications can set up the missing ones.'}
-            </p>
+                <>
+                  Nothing is sent until an email account is connected in{' '}
+                  <Link href="/settings/connectors" className="underline underline-offset-2">
+                    Settings → Connectors
+                  </Link>
+                  .
+                </>
+              )}
+            </RowWarning>
           )}
-        </>
+        </div>
       )}
 
       {settingUp && (
@@ -172,7 +185,7 @@ export function GuestEmails({ locationId, canEdit }: { locationId: string; canEd
           onClose={() => setSettingUp(false)}
         />
       )}
-    </SettingsSection>
+    </RecordGroup>
   );
 }
 

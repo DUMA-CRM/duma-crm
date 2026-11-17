@@ -1,19 +1,19 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { RotateCcw, Search, ShieldOff } from '@/components/icons';
+import { Plus, RotateCcw, Search, ShieldOff } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Avatar } from '@/components/shared/Avatar';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { ListRow } from '@/components/shared/ListRow';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { Modal } from '@/components/shared/Modal';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
+import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/label';
@@ -27,7 +27,7 @@ import {
 } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
-import { SUPPRESSION_REASONS, groupSuppressions, suppressionSourceLabel } from '@/lib/utils/communications';
+import { SUPPRESSION_REASONS, groupSuppressions, suppressionReasonLabel, suppressionSourceLabel } from '@/lib/utils/communications';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { CommunicationsToolbar } from './CommunicationsToolbar';
@@ -41,8 +41,8 @@ const ADD_REASONS = SUPPRESSION_REASONS.filter((reason) => reason.value !== 'pri
 
 /**
  * Who marketing email must not reach, as the other tabs list things: a search
- * row, then a heading per reason with a row per address. Lifting asks first —
- * it lets marketing reach that address again.
+ * with the Reason select and the count, then one row per address, newest
+ * first. Lifting asks first — it lets marketing reach that address again.
  *
  * `adding` is controlled by the page: the "Add email" button lives in the
  * masthead with every other tab's primary action.
@@ -51,7 +51,9 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
   const { canSuppress } = useEmailAccess();
+  const reduceMotion = useReducedMotion();
   const [search, setSearch] = useState('');
+  const [why, setWhy] = useState('all');
   const [email, setEmail] = useState('');
   const [reason, setReason] = useState('customer_request');
   const [liftTarget, setLiftTarget] = useState<MarketingSuppression | null>(null);
@@ -84,8 +86,27 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
   });
 
   const list = useMemo(() => suppressions.data ?? [], [suppressions.data]);
-  const groups = useMemo(() => groupSuppressions(list, search), [list, search]);
-  const shown = groups.reduce((total, group) => total + group.items.length, 0);
+  // Reasons offered are the ones on the list, so the filter never returns nothing.
+  const reasonOptions = useMemo(
+    () => [
+      { value: 'all', label: 'Any reason' },
+      ...groupSuppressions(list, '').map((group) => ({ value: group.reason, label: `${group.label} · ${group.items.length}` })),
+    ],
+    [list],
+  );
+  const shown = useMemo(
+    () =>
+      groupSuppressions(list, search)
+        .filter((group) => why === 'all' || group.reason === why)
+        .flatMap((group) => group.items)
+        .sort((a, b) => Date.parse(b.createdAt) - Date.parse(a.createdAt)),
+    [list, search, why],
+  );
+  const filtersActive = Boolean(search.trim()) || why !== 'all';
+  const clearFilters = () => {
+    setSearch('');
+    setWhy('all');
+  };
   const validEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim());
 
   const addModal = adding && (
@@ -117,39 +138,24 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
 
   if (suppressions.isPending)
     return (
-      <div className="space-y-5" role="status" aria-busy="true" aria-label="Loading suppressions">
-        <div className="space-y-1.5 px-1" aria-hidden="true">
-          <Bone className="h-3.5 w-full max-w-xl" />
-          <Bone className="h-3.5 w-2/3 max-w-md" />
-        </div>
+      <div className="flex flex-col gap-3" aria-busy="true">
         <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
-          <Bone className="h-9 min-w-56 flex-1 lg:max-w-sm" />
-          <Bone className="ml-auto h-3 w-20" />
+          <Bone className="h-9 min-w-56 flex-1" />
+          <Bone className="h-9 w-40" />
         </div>
-        <div>
-          <Bone className="mb-2 h-3 w-24" />
-          <div className="overflow-hidden rounded-lg border border-border bg-card">
-            {Array.from({ length: 4 }, (_, index) => (
-              <RowSkeleton key={index} index={index} avatar />
-            ))}
-          </div>
-        </div>
+        <ListSkeleton rows={4} avatar label="Loading suppressions" />
       </div>
     );
 
   if (suppressions.isError)
-    return (
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <ErrorState title="Suppressions couldn’t be loaded" onRetry={() => void suppressions.refetch()} />
-      </div>
-    );
+    return <ErrorState className="flex-1" title="Suppressions couldn’t be loaded" onRetry={() => void suppressions.refetch()} />;
 
   return (
     <motion.div
-      className="flex flex-1 flex-col gap-5"
-      initial="hidden"
+      className="flex flex-1 flex-col gap-3"
+      initial={reduceMotion ? false : 'hidden'}
       animate="shown"
-      variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
+      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
     >
       {list.length === 0 ? (
         <EmptyState
@@ -157,52 +163,43 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
           title="No one has opted out"
           className="flex-1"
           description="Unsubscribes, bounces and addresses you add by hand appear here."
+          action={canSuppress ? { label: 'Add email', onClick: () => onAddingChange(true), icon: Plus } : undefined}
         />
       ) : (
         <>
-          <CommunicationsToolbar
-            search={search}
-            onSearch={setSearch}
-            placeholder="Search name, address or reason…"
-            onClear={() => setSearch('')}
-            count={
-              <>
-                {shown !== list.length && `${shown} of `}
-                {list.length} {list.length === 1 ? 'address' : 'addresses'}
-              </>
-            }
-          />
+          <motion.div variants={SECTION_RISE}>
+            <CommunicationsToolbar
+              search={search}
+              onSearch={setSearch}
+              placeholder="Name, address or reason…"
+              label="Find a suppressed address by name, address or reason"
+              count={filtersActive ? `${shown.length} of ${list.length}` : `${list.length} ${list.length === 1 ? 'address' : 'addresses'}`}
+              filters={<Select value={why} onValueChange={setWhy} options={reasonOptions} ariaLabel="Reason" className="w-40" />}
+            />
+          </motion.div>
 
-          {groups.length === 0 ? (
-            <motion.div variants={SECTION_RISE} className="flex flex-1 flex-col">
+          <motion.div variants={SECTION_RISE} className="flex flex-1 flex-col">
+            {shown.length === 0 ? (
               <EmptyState
                 className="flex-1"
                 icon={Search}
                 kind="search"
-                title="Nothing matches"
-                description="Try another name, address or reason."
-                action={{ label: 'Clear search', onClick: () => setSearch('') }}
+                title="No address matches"
+                description="Try a different search or reason."
+                action={{ label: 'Clear filters', onClick: clearFilters }}
               />
-            </motion.div>
-          ) : (
-            groups.map((group) => (
-              <motion.section key={group.reason} variants={SECTION_RISE} aria-label={group.label}>
-                <h2 className="mb-2 flex items-center gap-2 text-sm font-semibold text-heading">
-                  {group.label}
-                  <span className="text-xs font-normal text-muted-foreground tabular-nums">{group.items.length}</span>
-                </h2>
-                <ul className="space-y-2">
-                  {group.items.map((item) => (
-                    <SuppressionRow key={item.id} item={item} canLift={canSuppress} onLift={() => setLiftTarget(item)} />
-                  ))}
-                </ul>
-              </motion.section>
-            ))
-          )}
+            ) : (
+              <ListRowGroup aria-label="Suppressed addresses">
+                {shown.map((item) => (
+                  <SuppressionRow key={item.id} item={item} canLift={canSuppress} onLift={() => setLiftTarget(item)} />
+                ))}
+              </ListRowGroup>
+            )}
+          </motion.div>
         </>
       )}
 
-      <motion.p variants={SECTION_RISE} className="text-xs leading-relaxed text-muted-foreground">
+      <motion.p variants={SECTION_RISE} className="px-1 text-xs leading-relaxed text-muted-foreground">
         These addresses won’t receive marketing emails. Receipts and order updates still go out.
       </motion.p>
 
@@ -228,12 +225,11 @@ export function SuppressionsPanel({ adding, onAddingChange }: { adding: boolean;
   );
 }
 
-/** One address: who (their initials when it's a customer), the masked address and how it was added on one line, when, and Lift on hover. */
+/** One address: who (their initials when it's a customer), the masked address, why and how it was added, when, and Lift on hover. */
 function SuppressionRow({ item, canLift, onLift }: { item: MarketingSuppression; canLift: boolean; onLift: () => void }) {
   const name = item.customer ? `${item.customer.firstName} ${item.customer.lastName}` : null;
   return (
     <ListRow
-      className="rounded-lg border border-border bg-field [&:last-child]:border-b"
       icon={name ? undefined : ShieldOff}
       tone="muted"
       leading={name ? <Avatar name={name} /> : undefined}
@@ -241,11 +237,11 @@ function SuppressionRow({ item, canLift, onLift }: { item: MarketingSuppression;
       meta={
         <>
           {name && <span className="font-mono">{item.maskedValue} · </span>}
-          {suppressionSourceLabel(item.source)}
+          {suppressionReasonLabel(item.reason)} · {suppressionSourceLabel(item.source)}
         </>
       }
       trailing={<RelativeTime iso={item.createdAt} className="text-xs tabular-nums text-muted-foreground" />}
-      control={
+      actions={
         canLift ? (
           <Button
             type="button"

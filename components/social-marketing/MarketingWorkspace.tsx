@@ -115,7 +115,7 @@ export function MarketingWorkspace() {
     canWrite = hasCapability(caps, 'marketing:write'),
     canPublish = hasCapability(caps, 'marketing:publish');
   const [anchor, setAnchor] = useState(() => workspaceDateKey()),
-    [view, setView] = useState<View>('week'),
+    [view, setView] = useState<View>('month'),
     [platform, setPlatform] = useState('all'),
     // Several accounts can be shown at once; none chosen means all of them.
     [accountFilter, setAccountFilter] = useState<string[]>([]),

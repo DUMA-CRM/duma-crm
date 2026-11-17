@@ -2,39 +2,36 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
-import { useMemo, useState } from 'react';
+import { useState } from 'react';
 
-import { CalendarCheck, CalendarDays, ChevronLeft, ChevronRight, Clock, LayoutGrid, MapPin, Pencil, Plus, SlidersHorizontal } from '@/components/icons';
+import { CalendarCheck, LayoutDashboard, LayoutGrid, MapPin, Pencil, Plus, SlidersHorizontal } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
-import { Calendar } from '@/components/ui/calendar';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { hasCapability } from '@/lib/auth/capabilities';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { type Booking, getBookings, getFloorPlan, getWaitlist } from '@/lib/modules/reservations/client';
-import { dateToIso, isoToDate } from '@/lib/utils/date';
-import { addDays, dayRange } from '@/lib/utils/reservations';
-import { formatCalendarDate, workspaceDateKey, workspaceTimeZone } from '@/lib/utils/workspace-time';
+import { type Booking, getFloorPlan, getWaitlist } from '@/lib/modules/reservations/client';
+import { type HostPanelTab, type ReservationsTab, resolveReservationsTab } from '@/lib/utils/reservations-lists';
+import { workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { BookingDrawer, type BookingDrawerState } from './BookingDrawer';
 import { BookingRules } from './BookingRules';
-import { BookingsDay } from './BookingsDay';
 import { FloorPlanEditor } from './FloorPlanEditor';
-import { FloorView } from './FloorView';
-import { WaitlistPanel } from './WaitlistPanel';
-
-type Tab = 'bookings' | 'floor' | 'waitlist' | 'plan' | 'rules';
-const TABS: readonly Tab[] = ['bookings', 'floor', 'waitlist', 'plan', 'rules'];
+import { HostView } from './HostView';
+import { type HostTarget, ReservationsOverview } from './ReservationsOverview';
 
 /**
- * Bookings, the live floor, the waitlist and (for managers) the floor plan, for
- * the location chosen in the sidebar. The tab lives in the query string so a
- * refresh or a shared link lands in the same place; the day is local state.
+ * Reservations for the location chosen in the sidebar: the Overview (where it
+ * always opens), the Host stand — bookings, waitlist and the live floor on one
+ * page — and, for managers, the Floor plan and Booking rules. The tab lives in
+ * the query string so a refresh or a shared link lands in the same place; old
+ * `?tab=bookings|floor|waitlist` links land on Host (see
+ * `resolveReservationsTab`). The header holds New booking on Host and nothing
+ * elsewhere; the day is chosen on the floor's toolbar.
  */
 export function ReservationsWorkspace() {
   const router = useRouter();
@@ -46,14 +43,10 @@ export function ReservationsWorkspace() {
   const canDrawFloor = hasCapability(capabilities, 'reservations.floor:write');
   const canSetRules = hasCapability(capabilities, 'reservations.settings:write');
 
-  const requested = searchParams.get('tab') as Tab | null;
-  const tab: Tab =
-    requested && TABS.includes(requested) && (requested !== 'plan' || canDrawFloor) && (requested !== 'rules' || canSetRules)
-      ? requested
-      : 'bookings';
-  const setTab = (next: Tab) => {
+  const { tab, panel } = resolveReservationsTab(searchParams.get('tab'), { canDrawFloor, canSetRules });
+  const setTab = (next: ReservationsTab) => {
     const query = new URLSearchParams(searchParams.toString());
-    if (next === 'bookings') query.delete('tab');
+    if (next === 'overview') query.delete('tab');
     else query.set('tab', next);
     const search = query.toString();
     router.replace(search ? `${pathname}?${search}` : pathname, { scroll: false });
@@ -62,20 +55,14 @@ export function ReservationsWorkspace() {
   const today = workspaceDateKey();
   const [date, setDate] = useState(today);
   const [drawer, setDrawer] = useState<BookingDrawerState | null>(null);
-  const [pickerOpen, setPickerOpen] = useState(false);
+  const [hostControls, setHostControls] = useState<HTMLElement | null>(null);
+  // The panel list an Overview card asked for; Host reads it when it opens.
+  const [hostPanel, setHostPanel] = useState<HostPanelTab | null>(null);
 
-  const range = useMemo(() => dayRange(date, workspaceTimeZone()), [date]);
   const floor = useQuery({
     queryKey: moduleQueryKeys.reservations.key('floor', locationId),
     queryFn: () => getFloorPlan(locationId!),
     enabled: Boolean(locationId),
-  });
-  const bookings = useQuery({
-    queryKey: moduleQueryKeys.reservations.key('bookings', locationId, date),
-    queryFn: () => getBookings(locationId!, range),
-    enabled: Boolean(locationId),
-    // Another host may seat or book from their own screen.
-    refetchInterval: 60_000,
   });
   const waitlist = useQuery({
     queryKey: moduleQueryKeys.reservations.key('waitlist', locationId),
@@ -85,69 +72,28 @@ export function ReservationsWorkspace() {
   });
 
   const openBooking = (booking: Booking) => setDrawer({ mode: 'edit', booking });
-
-  // My rota's stepper: outline keys at the header's height, the calendar behind an icon.
-  const dayControls = (tab === 'bookings' || tab === 'floor') && locationId && (
-    <>
-      <Button
-        variant="outline"
-        size="icon"
-        className="size-9"
-        aria-label="Previous day"
-        title="Previous day"
-        onClick={() => setDate(addDays(date, -1))}
-      >
-        <ChevronLeft size={16} aria-hidden="true" />
-      </Button>
-      <Button variant="outline" className="h-9" onClick={() => setDate(today)} disabled={date === today}>
-        Today
-      </Button>
-      <Button variant="outline" size="icon" className="size-9" aria-label="Next day" title="Next day" onClick={() => setDate(addDays(date, 1))}>
-        <ChevronRight size={16} aria-hidden="true" />
-      </Button>
-      <Popover open={pickerOpen} onOpenChange={setPickerOpen}>
-        <PopoverTrigger asChild>
-          <Button variant="outline" size="icon" className="size-9" aria-label="Go to a date" title="Go to a date">
-            <CalendarDays size={16} aria-hidden="true" />
-          </Button>
-        </PopoverTrigger>
-        <PopoverContent align="end" className="w-auto">
-          <Calendar
-            mode="single"
-            selected={isoToDate(date) ?? undefined}
-            defaultMonth={isoToDate(date) ?? undefined}
-            onSelect={(picked) => {
-              if (!picked) return;
-              setDate(dateToIso(picked));
-              setPickerOpen(false);
-            }}
-          />
-        </PopoverContent>
-      </Popover>
-    </>
-  );
+  const openHost = (target?: HostTarget) => {
+    if (target?.date) setDate(target.date);
+    setHostPanel(target?.tab ?? null);
+    setTab('host');
+  };
+  const host = tab === 'host' && Boolean(locationId);
 
   return (
     <EditorShell
       eyebrow="Front of house"
       title="Reservations"
       icon={<CalendarCheck size={20} aria-hidden="true" />}
-      meta={
-        locationId && (tab === 'bookings' || tab === 'floor') ? (
-          <span className="text-xs text-muted-foreground">
-            {formatCalendarDate(date, { weekday: 'long', day: 'numeric', month: 'long' })}
-          </span>
-        ) : undefined
-      }
+      // The host stand fills the screen and scrolls its panes on their own.
+      flush={host}
       subheader={
-        <SectionTabs<Tab>
+        <SectionTabs<ReservationsTab>
           tabs={[
-            { value: 'bookings', label: 'Bookings', icon: CalendarCheck },
-            { value: 'floor', label: 'Floor', icon: LayoutGrid },
+            { value: 'overview', label: 'Overview', icon: LayoutDashboard },
             {
-              value: 'waitlist',
-              label: 'Waitlist',
-              icon: Clock,
+              value: 'host',
+              label: 'Host',
+              icon: LayoutGrid,
               count: waitlist.data?.length,
               countLabel: `${waitlist.data?.length ?? 0} parties waiting`,
             },
@@ -155,21 +101,28 @@ export function ReservationsWorkspace() {
             ...(canSetRules ? [{ value: 'rules' as const, label: 'Booking rules', icon: SlidersHorizontal }] : []),
           ]}
           value={tab}
-          onChange={setTab}
+          onChange={(next) => {
+            setHostPanel(null);
+            setTab(next);
+          }}
           ariaLabel="Reservations sections"
           animationId="reservations-tabs"
         />
       }
       actions={
-        <div className="flex items-center gap-2">
-          {dayControls}
-          {canWrite && locationId && tab !== 'plan' && tab !== 'rules' && (
-            <Button className="h-9" aria-label="New booking" onClick={() => setDrawer({ mode: 'new', date })}>
-              <Plus size={15} aria-hidden="true" />
-              <span className="hidden md:inline">New booking</span>
-            </Button>
-          )}
-        </div>
+        host && locationId ? (
+          // The day on the floor sits with the page's one action; the floor's toolbar keeps the live controls.
+          <div className="flex items-center gap-2">
+            {/* Host's floor controls (day and time, area, plan/list) render here. */}
+            <div ref={setHostControls} className="flex items-center gap-2" />
+            {canWrite && (
+              <Button aria-label="New booking" onClick={() => setDrawer({ mode: 'new', date })}>
+                <Plus size={15} aria-hidden="true" />
+                <span className="hidden md:inline">New booking</span>
+              </Button>
+            )}
+          </div>
+        ) : undefined
       }
     >
       {!locationId ? (
@@ -179,30 +132,26 @@ export function ReservationsWorkspace() {
           title="Choose a location"
           description="Bookings, tables and the waitlist belong to one location. Pick it from the location menu at the foot of the sidebar."
         />
-      ) : tab === 'bookings' ? (
-        <BookingsDay
-          date={date}
-          today={today}
-          query={bookings}
-          canWrite={canWrite}
-          onOpen={openBooking}
-          onNew={() => setDrawer({ mode: 'new', date })}
-        />
-      ) : tab === 'floor' ? (
-        <FloorView
+      ) : tab === 'overview' ? (
+        <ReservationsOverview locationId={locationId} onOpenHost={openHost} />
+      ) : tab === 'host' ? (
+        <HostView
+          // A different location starts the stand afresh.
+          key={locationId}
           locationId={locationId}
           date={date}
           today={today}
+          onDateChange={setDate}
+          controlsSlot={hostControls}
           floor={floor}
-          bookings={bookings}
+          waitlist={waitlist}
           canWrite={canWrite}
           canDrawFloor={canDrawFloor}
+          initialPanel={hostPanel ?? panel}
           onOpenBooking={openBooking}
           onNewBooking={(prefill) => setDrawer({ mode: 'new', date, ...prefill })}
           onDrawFloor={() => setTab('plan')}
         />
-      ) : tab === 'waitlist' ? (
-        <WaitlistPanel locationId={locationId} query={waitlist} floor={floor.data ?? []} canWrite={canWrite} />
       ) : tab === 'rules' ? (
         <BookingRules locationId={locationId} canEdit={canSetRules} />
       ) : (

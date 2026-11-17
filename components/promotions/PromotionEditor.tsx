@@ -5,7 +5,6 @@ import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
 import { DateTimeField } from '@/components/cms/DateTimeField';
-import { ActionRow, ActionRows, InfoRow, InfoRows, PickerRow, RowTile, SectionInfo } from '@/components/cms/rows';
 import { copyText } from '@/components/cms/shared';
 import {
   Archive,
@@ -31,17 +30,17 @@ import {
   UserRound,
   Users,
 } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { SaveBar, Switch } from '@/components/settings/controls';
+import { ChangeRow, SaveBar, Switch, ValueMissing } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards } from '@/components/shared/FormParts';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { Bone } from '@/components/shared/Skeleton';
-import { Tooltip } from '@/components/shared/Tooltip';
+import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
 import { useCurrencySymbol, useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { CopyButton } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
@@ -83,7 +82,6 @@ import {
   normaliseCode,
   offerAmountLabel,
   perCustomerLabel,
-  promotionConditions,
   promotionDraftProblems,
   promotionStanding,
   scopeLabel,
@@ -129,12 +127,30 @@ const ROW_OF: Partial<Record<keyof PromotionDraft, Row>> = {
   endsAt: 'endsAt',
 };
 
+/** The fields each row edits — what its Cancel puts back. */
+const FIELDS_OF: Record<Row, (keyof PromotionDraft)[]> = {
+  name: ['name'],
+  code: ['code'],
+  kind: ['kind'],
+  value: ['value'],
+  maxDiscount: ['maxDiscount'],
+  appliesTo: ['appliesTo'],
+  items: ['categoryIds', 'menuItemIds'],
+  minSubtotal: ['minSubtotal'],
+  locations: ['locationIds'],
+  channels: ['channels'],
+  maxRedemptions: ['maxRedemptions'],
+  perCustomer: ['maxRedemptionsPerCustomer'],
+  startsAt: ['startsAt'],
+  endsAt: ['endsAt'],
+};
+
 /**
- * One promotion, full page, laid out like Booking rules: the rule in the main
- * column (offer, conditions, limits, dates), each one a row that says what
- * it's set to and opens its control on a tap; beside it what it reads as, its
- * uses, its codes and where it stands. New promotions get their first code
- * here; more come from the Codes card once it exists.
+ * One promotion, full page, in the Settings → Account layout: the rule as a
+ * bento of Offer · How often | Who qualifies · When, each value a row whose
+ * Change opens its control; its codes and uses as lists under it; the receipt
+ * line it prints as a live preview in the rail. New promotions get their first
+ * code here; more come from Codes once it exists.
  */
 export function PromotionEditor({
   promotionId,
@@ -157,7 +173,7 @@ export function PromotionEditor({
   if (promotionId && query.isPending)
     return (
       <EditorShell title="Loading promotion" onClose={onClose} icon={<TicketPercent size={20} aria-hidden="true" />}>
-        <Bone className="h-96 w-full rounded-lg" />
+        <EditorSkeleton />
       </EditorShell>
     );
   if (promotionId && (query.isError || !query.data))
@@ -201,13 +217,16 @@ function PromotionForm({
   const queryClient = useQueryClient();
   const reduceMotion = useReducedMotion();
   const symbol = useCurrencySymbol();
+  const formatMoney = useFormatMoney();
   const isNew = promotion === null;
   const initial = useMemo(() => (promotion ? draftFromPromotion(promotion) : emptyPromotionDraft()), [promotion]);
   const [draft, setDraft] = useState<PromotionDraft>(initial);
   const [showProblems, setShowProblems] = useState(false);
   const [archiving, setArchiving] = useState(false);
-  // One rule open at a time; a tap on the open one closes it. A new promotion starts on its name.
+  // One row open at a time. A new promotion starts on its name.
   const [open, setOpen] = useState<Row | null>(isNew ? 'name' : null);
+  // The draft as it was when the open row opened, so its Cancel can put that row back.
+  const [before, setBefore] = useState<PromotionDraft>(initial);
   const patch = (next: Partial<PromotionDraft>) => setDraft((current) => ({ ...current, ...next }));
 
   const dirty = JSON.stringify(draft) !== JSON.stringify(initial);
@@ -237,7 +256,6 @@ function PromotionForm({
 
   const save = useMutation({
     mutationFn: async () => {
-      const fields = draftToFields(draft);
       if (isNew) return createPromotion({ ...fields, code: normaliseCode(draft.code) }, tenantId);
       return updatePromotion(promotion.id, fields, tenantId);
     },
@@ -261,12 +279,16 @@ function PromotionForm({
     onError: (error) => toast('error', error.message),
   });
 
+  const openRow = (row: Row | null) => {
+    setBefore(draft);
+    setOpen(row);
+  };
   const attemptSave = () => {
     const fields = Object.keys(problems) as (keyof PromotionDraft)[];
     if (fields.length) {
       setShowProblems(true);
       // Open the first row with a problem, so the fix is under the eye.
-      setOpen(ROW_OF[fields[0]!] ?? null);
+      openRow(ROW_OF[fields[0]!] ?? null);
       toast('error', problems[fields[0]!]!);
       return;
     }
@@ -292,44 +314,383 @@ function PromotionForm({
   const amountOff = draft.kind === 'percentage' || draft.kind === 'fixed_amount';
   const needsItems = draft.kind === 'free_item' || (amountOff && draft.appliesTo === 'items');
 
-  const toggle = (row: Row) => setOpen((current) => (current === row ? null : row));
+  /** Change opens a row; Cancel closes it and puts its fields back as they were when it opened. */
+  const toggle = (row: Row) => {
+    if (open === row) {
+      patch(Object.fromEntries(FIELDS_OF[row].map((field) => [field, before[field]])) as Partial<PromotionDraft>);
+      setOpen(null);
+      return;
+    }
+    openRow(row);
+  };
+  const onToggle = (row: Row) => (readOnly ? undefined : () => toggle(row));
+  /** Enter in a row's field closes it, keeping what was typed. */
+  const closeOnEnter = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      setOpen(null);
+    }
+  };
   /** The row's tile: red for a problem the save found, amber for something required still empty. */
   const toneOf = (field: keyof PromotionDraft, required = false) =>
     problemOf(field) ? ('danger' as const) : required && !String(draft[field]).trim() ? ('warning' as const) : undefined;
+  const shown = (text: string, missing: boolean) =>
+    missing ? <ValueMissing>{text}</ValueMissing> : <span className="truncate">{text}</span>;
   const textRow = (
     row: Row,
     field: 'name' | 'code' | 'value' | 'maxDiscount' | 'minSubtotal' | 'maxRedemptions' | 'maxRedemptionsPerCustomer',
     icon: IconComponent,
-    title: string,
-    shown: string,
-    muted: boolean,
+    label: string,
+    value: string,
+    missing: boolean,
     control: Omit<React.ComponentProps<typeof Input>, 'value' | 'onChange'> & { clean?: (raw: string) => string },
     required = false,
   ) => {
     const { clean, ...input } = control;
     return (
-      <PickerRow
+      <ChangeRow
         icon={icon}
-        title={title}
-        value={shown}
-        muted={muted}
+        label={label}
+        value={shown(value, missing)}
         tone={toneOf(field, required)}
         open={open === row}
-        onToggle={() => toggle(row)}
+        onToggle={onToggle(row)}
       >
         <Input
-          aria-label={title}
+          aria-label={label}
           value={draft[field]}
           onChange={(event) => patch({ [field]: clean ? clean(event.target.value) : event.target.value })}
+          onKeyDown={closeOnEnter}
           error={problemOf(field)}
           autoFocus
           {...input}
         />
-      </PickerRow>
+      </ChangeRow>
     );
   };
   const currency = <span className="text-sm text-muted-foreground">{symbol}</span>;
   const digitsOnly = (raw: string) => raw.replace(/\D/g, '');
+
+  const offer = (
+    <RecordGroup
+      card
+      id="promotion-offer"
+      title="Offer"
+      footnote={
+        promotion?.status === 'archived'
+          ? 'Archived: its codes no longer work and it can’t be edited. Restore it to use it again.'
+          : draft.kind === 'free_delivery'
+            ? 'Takes the delivery fee off a website order. The till has no delivery, so the code can’t be used there.'
+            : undefined
+      }
+    >
+      <fieldset disabled={readOnly} className="min-w-0">
+        {textRow(
+          'name',
+          'name',
+          Type,
+          'Name',
+          draft.name.trim() || 'Not named',
+          !draft.name.trim(),
+          { placeholder: 'Summer 10% off' },
+          true,
+        )}
+        {isNew &&
+          textRow(
+            'code',
+            'code',
+            Hash,
+            'Code',
+            normaliseCode(draft.code) || 'Not set',
+            !draft.code.trim(),
+            {
+              placeholder: 'SUMMER10',
+              className: 'font-mono uppercase',
+              clean: normaliseCode,
+              hint: 'More codes, or a batch of single-use ones, can be added once it’s created.',
+            },
+            true,
+          )}
+        <ChangeRow icon={TicketPercent} label="Type" value={KIND_LABELS[draft.kind]} open={open === 'kind'} onToggle={onToggle('kind')}>
+          <ChoiceCards<PromotionKind> value={draft.kind} onChange={(kind) => patch({ kind })} options={KINDS} appearance="settings" />
+        </ChangeRow>
+        {amountOff &&
+          textRow(
+            'value',
+            'value',
+            draft.kind === 'percentage' ? Tag : Coins,
+            draft.kind === 'percentage' ? 'Percentage off' : 'Amount off',
+            offerAmountLabel(draft, symbol),
+            !draft.value.trim(),
+            {
+              inputMode: 'decimal',
+              placeholder: draft.kind === 'percentage' ? '10' : '5.00',
+              leftIcon: draft.kind === 'fixed_amount' ? currency : undefined,
+              rightIcon: draft.kind === 'percentage' ? <span className="text-sm text-muted-foreground">%</span> : undefined,
+              hint: draft.kind === 'percentage' ? 'Up to 100.' : 'Never more than the order itself.',
+            },
+            true,
+          )}
+        {draft.kind === 'percentage' &&
+          textRow(
+            'maxDiscount',
+            'maxDiscount',
+            Coins,
+            'Most it takes off',
+            moneyLabel(draft.maxDiscount, symbol, 'No cap'),
+            !draft.maxDiscount.trim(),
+            {
+              inputMode: 'decimal',
+              placeholder: 'No cap',
+              leftIcon: currency,
+              hint: 'Caps the percentage on a big order. Leave empty for no cap.',
+            },
+          )}
+        {amountOff && (
+          <ChangeRow
+            icon={ShoppingBag}
+            label="Applies to"
+            value={draft.appliesTo === 'order' ? 'Whole order' : 'Some items'}
+            open={open === 'appliesTo'}
+            onToggle={onToggle('appliesTo')}
+          >
+            <ChoiceCards<PromotionDraft['appliesTo']>
+              value={draft.appliesTo}
+              onChange={(appliesTo) => patch({ appliesTo })}
+              options={[
+                { value: 'order', label: 'Whole order' },
+                { value: 'items', label: 'Some items' },
+              ]}
+              appearance="settings"
+            />
+          </ChangeRow>
+        )}
+        {needsItems && (
+          <ChangeRow
+            icon={ListChecks}
+            label={draft.kind === 'free_item' ? 'Items that can be free' : 'Which items'}
+            value={shown(itemsChosenLabel(draft.categoryIds, draft.menuItemIds), !draft.categoryIds.length && !draft.menuItemIds.length)}
+            tone={problemOf('menuItemIds') ? 'danger' : !draft.categoryIds.length && !draft.menuItemIds.length ? 'warning' : undefined}
+            open={open === 'items'}
+            onToggle={onToggle('items')}
+          >
+            <div className="grid gap-3 sm:grid-cols-2">
+              <MultiSelect
+                value={draft.categoryIds}
+                onChange={(categoryIds) => patch({ categoryIds })}
+                options={categoryOptions}
+                placeholder="No categories"
+                ariaLabel="Categories"
+              />
+              <MultiSelect
+                value={draft.menuItemIds}
+                onChange={(menuItemIds) => patch({ menuItemIds })}
+                options={itemOptions}
+                placeholder="No single items"
+                ariaLabel="Items"
+              />
+            </div>
+            <Hint error={problemOf('menuItemIds')}>
+              {draft.kind === 'free_item' ? 'The cheapest one in the order is free.' : 'Anything in a chosen category counts.'}
+            </Hint>
+          </ChangeRow>
+        )}
+      </fieldset>
+    </RecordGroup>
+  );
+
+  const whoQualifies = (
+    <RecordGroup
+      card
+      id="promotion-who-qualifies"
+      title="Who qualifies"
+      footnote={draft.combinesWithLoyalty ? undefined : 'An order can use the code or a loyalty reward, not both.'}
+    >
+      <fieldset disabled={readOnly} className="min-w-0">
+        {textRow(
+          'minSubtotal',
+          'minSubtotal',
+          ShoppingBag,
+          'Minimum spend',
+          moneyLabel(draft.minSubtotal, symbol),
+          !draft.minSubtotal.trim(),
+          {
+            inputMode: 'decimal',
+            placeholder: 'None',
+            leftIcon: currency,
+            hint: 'Counted on the whole basket.',
+          },
+        )}
+        <ScopeRow
+          icon={MapPin}
+          label="Locations"
+          everyLabel="Every location"
+          value={draft.locationIds}
+          onChange={(locationIds) => patch({ locationIds })}
+          options={locationOptions}
+          error={problemOf('locationIds')}
+          open={open === 'locations'}
+          onToggle={onToggle('locations')}
+        />
+        <ScopeRow
+          icon={Monitor}
+          label="Where it can be used"
+          everyLabel="Everywhere"
+          value={draft.channels}
+          onChange={(channels) => patch({ channels: channels as PromotionChannel[] | null })}
+          options={CHANNEL_OPTIONS}
+          error={problemOf('channels')}
+          open={open === 'channels'}
+          onToggle={onToggle('channels')}
+        />
+        <ChangeRow
+          icon={Users}
+          label="First order"
+          value={draft.firstOrderOnly ? 'Only a customer’s first order' : <ValueMissing>Any order</ValueMissing>}
+          trailing={
+            <Switch label="First order only" checked={draft.firstOrderOnly} onChange={(firstOrderOnly) => patch({ firstOrderOnly })} />
+          }
+        />
+        <ChangeRow
+          icon={Sparkles}
+          label="Loyalty rewards"
+          value={draft.combinesWithLoyalty ? 'Works with them' : <ValueMissing>Not with a reward</ValueMissing>}
+          trailing={
+            <Switch
+              label="Works with loyalty rewards"
+              checked={draft.combinesWithLoyalty}
+              onChange={(combinesWithLoyalty) => patch({ combinesWithLoyalty })}
+            />
+          }
+        />
+      </fieldset>
+    </RecordGroup>
+  );
+
+  const needsCustomer = draft.firstOrderOnly || Boolean(draft.maxRedemptionsPerCustomer.trim());
+  const howOften = (
+    <RecordGroup
+      card
+      id="promotion-how-often"
+      title="How often"
+      footnote={
+        needsCustomer
+          ? 'Per-customer limits and first order only need a customer on the sale — the till asks for one when the code is entered.'
+          : undefined
+      }
+    >
+      <fieldset disabled={readOnly} className="min-w-0">
+        {textRow(
+          'maxRedemptions',
+          'maxRedemptions',
+          Repeat,
+          'Total uses',
+          usesLimitLabel(draft.maxRedemptions),
+          !draft.maxRedemptions.trim(),
+          {
+            inputMode: 'numeric',
+            placeholder: 'Unlimited',
+            clean: digitsOnly,
+            hint: 'Across every code and customer. Two tills can’t both take the last one.',
+          },
+        )}
+        {textRow(
+          'perCustomer',
+          'maxRedemptionsPerCustomer',
+          UserRound,
+          'Uses per customer',
+          perCustomerLabel(draft.maxRedemptionsPerCustomer),
+          !draft.maxRedemptionsPerCustomer.trim(),
+          {
+            inputMode: 'numeric',
+            placeholder: 'Unlimited',
+            clean: digitsOnly,
+            hint: 'Leave empty for no limit.',
+          },
+        )}
+      </fieldset>
+    </RecordGroup>
+  );
+
+  const when = (
+    <RecordGroup card id="promotion-when" title="When">
+      <fieldset disabled={readOnly} className="min-w-0">
+        <ChangeRow
+          icon={Calendar}
+          label="Starts"
+          value={shown(formatDateTime(draft.startsAt, 'Straight away'), !draft.startsAt)}
+          open={open === 'startsAt'}
+          onToggle={onToggle('startsAt')}
+        >
+          <DateTimeField
+            label="Starts"
+            value={draft.startsAt}
+            onChange={(startsAt) => patch({ startsAt })}
+            hint="Leave empty to start as soon as it’s live."
+          />
+        </ChangeRow>
+        <ChangeRow
+          icon={CalendarClock}
+          label="Ends"
+          value={shown(formatDateTime(draft.endsAt, 'Until you stop it'), !draft.endsAt)}
+          tone={problemOf('endsAt') ? 'danger' : undefined}
+          open={open === 'endsAt'}
+          onToggle={onToggle('endsAt')}
+        >
+          <DateTimeField
+            label="Ends"
+            value={draft.endsAt}
+            onChange={(endsAt) => patch({ endsAt })}
+            error={problemOf('endsAt')}
+            hint="Leave empty to run until you pause or archive it."
+          />
+        </ChangeRow>
+        {isNew && (
+          <ChangeRow
+            icon={Play}
+            label="Once created"
+            value={draft.status === 'active' ? 'Live straight away' : <ValueMissing>Paused until you make it live</ValueMissing>}
+            trailing={
+              <Switch
+                label="Live as soon as it’s created"
+                checked={draft.status === 'active'}
+                onChange={(live) => patch({ status: live ? 'active' : 'paused' })}
+              />
+            }
+          />
+        )}
+      </fieldset>
+    </RecordGroup>
+  );
+
+  const statusActions =
+    editable && promotion ? (
+      <>
+        {promotion.status === 'active' && (
+          <Button variant="outline" className="h-9 gap-1.5" disabled={setStatus.isPending} onClick={() => setStatus.mutate('paused')}>
+            <Pause size={15} aria-hidden="true" />
+            Pause
+          </Button>
+        )}
+        {promotion.status === 'paused' && (
+          <Button variant="outline" className="h-9 gap-1.5" disabled={setStatus.isPending} onClick={() => setStatus.mutate('active')}>
+            <Play size={15} aria-hidden="true" />
+            Make live
+          </Button>
+        )}
+        {promotion.status === 'archived' ? (
+          <Button variant="outline" className="h-9 gap-1.5" disabled={setStatus.isPending} onClick={() => setStatus.mutate('paused')}>
+            <RotateCcw size={15} aria-hidden="true" />
+            Restore, paused
+          </Button>
+        ) : (
+          <Button variant="outline" className="h-9 gap-1.5" disabled={setStatus.isPending} onClick={() => setArchiving(true)}>
+            <Archive size={15} aria-hidden="true" />
+            Archive
+          </Button>
+        )}
+      </>
+    ) : undefined;
 
   return (
     <EditorShell
@@ -338,11 +699,14 @@ function PromotionForm({
       icon={<TicketPercent size={20} aria-hidden="true" />}
       onClose={onClose}
       dirty={dirty && !save.isPending}
+      actions={statusActions}
       meta={
         promotion ? (
           <span className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
             {standing && <Badge variant={STANDING_BADGE[standing]}>{STANDING_LABELS[standing]}</Badge>}
-            <span className="tabular-nums">{usageLabel(promotion)}</span>
+            <span className="tabular-nums">
+              {usageLabel(promotion)} · {formatMoney(Number(promotion.discountTotal), 2)} given
+            </span>
           </span>
         ) : undefined
       }
@@ -351,359 +715,25 @@ function PromotionForm({
         className="w-full"
         initial={reduceMotion ? false : 'hidden'}
         animate="shown"
-        variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
+        variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
       >
-        <SettingsTabBody
-          narrowAside
-          aside={
-            <>
-              <SettingsSection title="Reads as">
-                <div className="flex items-start gap-3">
-                  <RowTile icon={Sparkles} />
-                  <div className="min-w-0">
-                    <p className="text-sm font-semibold text-foreground">
-                      {isNew ? normaliseCode(draft.code) || 'YOURCODE' : (promotion?.codes[0]?.code ?? 'No code yet')}
-                      <span className="font-normal text-muted-foreground"> · {offerSentence(fields, symbol)}</span>
-                    </p>
-                    <ul className="mt-1.5 flex flex-wrap gap-1.5">
-                      {promotionConditions(fields, symbol).map((condition) => (
-                        <li
-                          key={condition}
-                          className="rounded-sm border border-border bg-control px-1.5 py-0.5 text-micro font-medium text-muted-foreground"
-                        >
-                          {condition}
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              </SettingsSection>
-              {promotion && <UsageSection promotion={promotion} />}
-              {promotion && (
-                <CodesSection promotion={promotion} editable={editable && promotion.status !== 'archived'} onChanged={invalidate} />
-              )}
-              {promotion && standing && (
-                <SettingsSection title="Status" actions={<Badge variant={STANDING_BADGE[standing]}>{STANDING_LABELS[standing]}</Badge>}>
-                  <div className="space-y-3">
-                    {promotion.status === 'archived' && (
-                      <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-                        Its codes no longer work and it can’t be edited. Restore it to use it again.
-                      </p>
-                    )}
-                    {editable && (
-                      <ActionRows>
-                        {promotion.status === 'active' && (
-                          <ActionRow
-                            icon={Pause}
-                            label="Pause — stop it being used"
-                            disabled={setStatus.isPending}
-                            onClick={() => setStatus.mutate('paused')}
-                          />
-                        )}
-                        {promotion.status === 'paused' && (
-                          <ActionRow
-                            icon={Play}
-                            label="Make it live again"
-                            disabled={setStatus.isPending}
-                            onClick={() => setStatus.mutate('active')}
-                          />
-                        )}
-                        {promotion.status === 'archived' ? (
-                          <ActionRow
-                            icon={RotateCcw}
-                            label="Restore, paused"
-                            disabled={setStatus.isPending}
-                            onClick={() => setStatus.mutate('paused')}
-                          />
-                        ) : (
-                          <ActionRow
-                            icon={Archive}
-                            label="Archive"
-                            danger
-                            disabled={setStatus.isPending}
-                            onClick={() => setArchiving(true)}
-                          />
-                        )}
-                      </ActionRows>
-                    )}
-                  </div>
-                </SettingsSection>
-              )}
-            </>
-          }
-        >
-          <SettingsSection title="Offer">
-            <fieldset disabled={readOnly} className="min-w-0 space-y-3">
-              {textRow(
-                'name',
-                'name',
-                Type,
-                'Name',
-                draft.name.trim() || 'Not named',
-                !draft.name.trim(),
-                {
-                  placeholder: 'Summer 10% off',
-                  hint: 'Shown on receipts.',
-                },
-                true,
-              )}
-              {isNew &&
-                textRow(
-                  'code',
-                  'code',
-                  Hash,
-                  'Code',
-                  normaliseCode(draft.code) || 'Not set',
-                  !draft.code.trim(),
-                  {
-                    placeholder: 'SUMMER10',
-                    className: 'font-mono uppercase',
-                    clean: normaliseCode,
-                    hint: 'What customers type. More codes, or a batch of single-use ones, can be added once it’s created.',
-                  },
-                  true,
-                )}
-              <PickerRow
-                icon={TicketPercent}
-                title="Type"
-                value={KIND_LABELS[draft.kind]}
-                open={open === 'kind'}
-                onToggle={() => toggle('kind')}
-              >
-                <ChoiceCards<PromotionKind> value={draft.kind} onChange={(kind) => patch({ kind })} options={KINDS} appearance="settings" />
-              </PickerRow>
-              {amountOff &&
-                textRow(
-                  'value',
-                  'value',
-                  draft.kind === 'percentage' ? Tag : Coins,
-                  draft.kind === 'percentage' ? 'Percentage off' : 'Amount off',
-                  offerAmountLabel(draft, symbol),
-                  !draft.value.trim(),
-                  {
-                    inputMode: 'decimal',
-                    placeholder: draft.kind === 'percentage' ? '10' : '5.00',
-                    leftIcon: draft.kind === 'fixed_amount' ? currency : undefined,
-                    rightIcon: draft.kind === 'percentage' ? <span className="text-sm text-muted-foreground">%</span> : undefined,
-                    hint: draft.kind === 'percentage' ? 'Up to 100.' : 'Never more than the order itself.',
-                  },
-                  true,
-                )}
-              {draft.kind === 'percentage' &&
-                textRow(
-                  'maxDiscount',
-                  'maxDiscount',
-                  Coins,
-                  'Most it takes off',
-                  moneyLabel(draft.maxDiscount, symbol, 'No cap'),
-                  !draft.maxDiscount.trim(),
-                  {
-                    inputMode: 'decimal',
-                    placeholder: 'No cap',
-                    leftIcon: currency,
-                    hint: 'Caps the percentage on a big order. Leave empty for no cap.',
-                  },
-                )}
-              {amountOff && (
-                <PickerRow
-                  icon={ShoppingBag}
-                  title="Applies to"
-                  value={draft.appliesTo === 'order' ? 'Whole order' : 'Some items'}
-                  open={open === 'appliesTo'}
-                  onToggle={() => toggle('appliesTo')}
-                >
-                  <ChoiceCards<PromotionDraft['appliesTo']>
-                    value={draft.appliesTo}
-                    onChange={(appliesTo) => patch({ appliesTo })}
-                    options={[
-                      { value: 'order', label: 'Whole order' },
-                      { value: 'items', label: 'Some items' },
-                    ]}
-                    appearance="settings"
-                  />
-                </PickerRow>
-              )}
-              {needsItems && (
-                <PickerRow
-                  icon={ListChecks}
-                  title={draft.kind === 'free_item' ? 'Items that can be free' : 'Which items'}
-                  value={itemsChosenLabel(draft.categoryIds, draft.menuItemIds)}
-                  muted={!draft.categoryIds.length && !draft.menuItemIds.length && !problemOf('menuItemIds')}
-                  tone={
-                    problemOf('menuItemIds') ? 'danger' : !draft.categoryIds.length && !draft.menuItemIds.length ? 'warning' : undefined
-                  }
-                  open={open === 'items'}
-                  onToggle={() => toggle('items')}
-                >
-                  <div className="grid gap-3 sm:grid-cols-2">
-                    <MultiSelect
-                      value={draft.categoryIds}
-                      onChange={(categoryIds) => patch({ categoryIds })}
-                      options={categoryOptions}
-                      placeholder="No categories"
-                      ariaLabel="Categories"
-                    />
-                    <MultiSelect
-                      value={draft.menuItemIds}
-                      onChange={(menuItemIds) => patch({ menuItemIds })}
-                      options={itemOptions}
-                      placeholder="No single items"
-                      ariaLabel="Items"
-                    />
-                  </div>
-                  <p className={cn('mt-1.5 text-xs', problemOf('menuItemIds') ? 'text-exception' : 'text-muted-foreground')}>
-                    {problemOf('menuItemIds') ??
-                      (draft.kind === 'free_item' ? 'The cheapest one in the order is free.' : 'Anything in a chosen category counts.')}
-                  </p>
-                </PickerRow>
-              )}
-            </fieldset>
-            {draft.kind === 'free_delivery' && (
-              <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-                Takes the delivery fee off a website order. The till has no delivery, so the code can’t be used there.
-              </p>
-            )}
-          </SettingsSection>
+        <SettingsTabBody>
+          {/* Two stacked columns, not paired rows: a short card never leaves a gap beside a tall one. */}
+          <div className="grid items-start gap-5 xl:grid-cols-2">
+            <div className="flex min-w-0 flex-col gap-5">
+              {offer}
+              {howOften}
+            </div>
+            <div className="flex min-w-0 flex-col gap-5">
+              {whoQualifies}
+              {when}
+            </div>
+          </div>
 
-          <SettingsSection title="Who qualifies">
-            <fieldset disabled={readOnly} className="min-w-0 space-y-3">
-              {textRow(
-                'minSubtotal',
-                'minSubtotal',
-                ShoppingBag,
-                'Minimum spend',
-                moneyLabel(draft.minSubtotal, symbol),
-                !draft.minSubtotal.trim(),
-                {
-                  inputMode: 'decimal',
-                  placeholder: 'None',
-                  leftIcon: currency,
-                  hint: 'Counted on the whole basket.',
-                },
-              )}
-              <ScopeRow
-                icon={MapPin}
-                title="Locations"
-                everyLabel="Every location"
-                value={draft.locationIds}
-                onChange={(locationIds) => patch({ locationIds })}
-                options={locationOptions}
-                error={problemOf('locationIds')}
-                open={open === 'locations'}
-                onToggle={() => toggle('locations')}
-              />
-              <ScopeRow
-                icon={Monitor}
-                title="Where it can be used"
-                everyLabel="Everywhere"
-                value={draft.channels}
-                onChange={(channels) => patch({ channels: channels as PromotionChannel[] | null })}
-                options={CHANNEL_OPTIONS}
-                error={problemOf('channels')}
-                open={open === 'channels'}
-                onToggle={() => toggle('channels')}
-              />
-              <InfoRow icon={Users} title="First order only">
-                <Switch label="First order only" checked={draft.firstOrderOnly} onChange={(firstOrderOnly) => patch({ firstOrderOnly })} />
-              </InfoRow>
-              <InfoRow icon={Sparkles} title="Works with loyalty rewards">
-                <Switch
-                  label="Works with loyalty rewards"
-                  checked={draft.combinesWithLoyalty}
-                  onChange={(combinesWithLoyalty) => patch({ combinesWithLoyalty })}
-                />
-              </InfoRow>
-            </fieldset>
-            {!draft.combinesWithLoyalty && (
-              <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-                An order can use the code or a loyalty reward, not both.
-              </p>
-            )}
-          </SettingsSection>
-
-          <SettingsSection title="How often">
-            <fieldset disabled={readOnly} className="min-w-0 space-y-3">
-              {textRow(
-                'maxRedemptions',
-                'maxRedemptions',
-                Repeat,
-                'Total uses',
-                usesLimitLabel(draft.maxRedemptions),
-                !draft.maxRedemptions.trim(),
-                {
-                  inputMode: 'numeric',
-                  placeholder: 'Unlimited',
-                  clean: digitsOnly,
-                  hint: 'Across every code and customer. Leave empty for no limit.',
-                },
-              )}
-              {textRow(
-                'perCustomer',
-                'maxRedemptionsPerCustomer',
-                UserRound,
-                'Uses per customer',
-                perCustomerLabel(draft.maxRedemptionsPerCustomer),
-                !draft.maxRedemptionsPerCustomer.trim(),
-                {
-                  inputMode: 'numeric',
-                  placeholder: 'Unlimited',
-                  clean: digitsOnly,
-                  hint: 'Leave empty for no limit.',
-                },
-              )}
-            </fieldset>
-            {(draft.firstOrderOnly || draft.maxRedemptionsPerCustomer.trim()) && (
-              <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-                Per-customer limits and first order only need a customer on the sale — the till asks for one when the code is entered.
-              </p>
-            )}
-          </SettingsSection>
-
-          <SettingsSection title="When">
-            <fieldset disabled={readOnly} className="min-w-0 space-y-3">
-              <PickerRow
-                icon={Calendar}
-                title="Starts"
-                value={formatDateTime(draft.startsAt, 'Straight away')}
-                muted={!draft.startsAt}
-                open={open === 'startsAt'}
-                onToggle={() => toggle('startsAt')}
-              >
-                <DateTimeField
-                  label="Starts"
-                  value={draft.startsAt}
-                  onChange={(startsAt) => patch({ startsAt })}
-                  hint="Leave empty to start as soon as it’s live."
-                />
-              </PickerRow>
-              <PickerRow
-                icon={CalendarClock}
-                title="Ends"
-                value={formatDateTime(draft.endsAt, 'Until you stop it')}
-                muted={!draft.endsAt}
-                tone={problemOf('endsAt') ? 'danger' : undefined}
-                open={open === 'endsAt'}
-                onToggle={() => toggle('endsAt')}
-              >
-                <DateTimeField
-                  label="Ends"
-                  value={draft.endsAt}
-                  onChange={(endsAt) => patch({ endsAt })}
-                  error={problemOf('endsAt')}
-                  hint="Leave empty to run until you pause or archive it."
-                />
-              </PickerRow>
-              {isNew && (
-                <InfoRow icon={Play} title="Live as soon as it’s created">
-                  <Switch
-                    label="Live as soon as it’s created"
-                    checked={draft.status === 'active'}
-                    onChange={(live) => patch({ status: live ? 'active' : 'paused' })}
-                  />
-                </InfoRow>
-              )}
-            </fieldset>
-          </SettingsSection>
+          {promotion && (
+            <CodesSection promotion={promotion} editable={editable && promotion.status !== 'archived'} onChanged={invalidate} />
+          )}
+          {promotion && <UsageSection promotion={promotion} />}
 
           {editable && (
             <SaveBar
@@ -712,7 +742,14 @@ function PromotionForm({
               saveLabel={isNew ? 'Create promotion' : 'Save changes'}
               message={`${isNew ? 'Not created yet' : 'Unsaved changes'} · ${saveShortcut} ${isNew ? 'creates' : 'saves'}`}
               onSave={attemptSave}
-              onDiscard={isNew ? onClose : () => setDraft(initial)}
+              onDiscard={
+                isNew
+                  ? onClose
+                  : () => {
+                      setDraft(initial);
+                      setOpen(null);
+                    }
+              }
             />
           )}
         </SettingsTabBody>
@@ -733,23 +770,52 @@ function PromotionForm({
   );
 }
 
-/** "10% off everything", "£5 off pastries", "A free item from coffee". */
-function offerSentence(fields: ReturnType<typeof draftToFields>, symbol: string) {
-  if (fields.kind === 'free_delivery') return 'Free delivery';
-  const amount =
-    fields.kind === 'free_item'
-      ? 'A free item'
-      : fields.kind === 'percentage'
-        ? `${fields.value ?? '…'}% off${fields.maxDiscount ? ` (up to ${symbol}${Number(fields.maxDiscount).toFixed(2)})` : ''}`
-        : `${symbol}${fields.value ? Number(fields.value).toFixed(2) : '…'} off`;
-  const scope = fields.kind === 'free_item' || fields.appliesTo === 'items' ? ' selected items' : ' the whole order';
-  return fields.kind === 'free_item' ? amount : `${amount}${scope}`;
+/** The line under an open row's control: why it matters, or what's wrong with it. */
+function Hint({ error, children }: { error?: string | undefined; children: React.ReactNode }) {
+  return <p className={cn('mt-1.5 text-xs', error ? 'text-exception' : 'text-muted-foreground')}>{error ?? children}</p>;
+}
+
+/** The editor without its words: the four sections as two columns, the receipt beside them. */
+function EditorSkeleton() {
+  const section = (rows: number) => (
+    <div className="space-y-2">
+      <Bone className="h-4 w-24" />
+      <div className="space-y-5 rounded-lg border border-border bg-card px-5 py-4 shadow-sm">
+        {Array.from({ length: rows }, (_, index) => (
+          <div key={index} className="flex items-center gap-3">
+            <Bone className="size-10 shrink-0" />
+            <span className="min-w-0 flex-1 space-y-1.5">
+              <Bone className="h-2.5 w-20" />
+              <Bone className="h-3.5 w-40 max-w-full" />
+            </span>
+            <Bone className="h-8 w-20 shrink-0" />
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+  return (
+    <div role="status" aria-label="Loading promotion">
+      <SettingsTabBody>
+        <div className="grid items-start gap-5 xl:grid-cols-2">
+          <div className="flex min-w-0 flex-col gap-5">
+            {section(4)}
+            {section(2)}
+          </div>
+          <div className="flex min-w-0 flex-col gap-5">
+            {section(5)}
+            {section(2)}
+          </div>
+        </div>
+      </SettingsTabBody>
+    </div>
+  );
 }
 
 /** Locations or channels: the row says which; open, "Every …" as a switch and, off, a pick-list. */
 function ScopeRow({
   icon,
-  title,
+  label,
   everyLabel,
   value,
   onChange,
@@ -759,20 +825,28 @@ function ScopeRow({
   onToggle,
 }: {
   icon: IconComponent;
-  title: string;
+  label: string;
   everyLabel: string;
   value: string[] | null;
   onChange: (value: string[] | null) => void;
   options: { value: string; label: string }[];
   error?: string | undefined;
   open: boolean;
-  onToggle: () => void;
+  onToggle: (() => void) | undefined;
 }) {
   return (
-    <PickerRow
+    <ChangeRow
       icon={icon}
-      title={title}
-      value={scopeLabel(value, options, everyLabel)}
+      label={label}
+      value={
+        value === null ? (
+          everyLabel
+        ) : value.length === 0 ? (
+          <ValueMissing>None chosen</ValueMissing>
+        ) : (
+          <span className="truncate">{scopeLabel(value, options, everyLabel)}</span>
+        )
+      }
       tone={error ? 'danger' : value?.length === 0 ? 'warning' : undefined}
       open={open}
       onToggle={onToggle}
@@ -783,15 +857,15 @@ function ScopeRow({
       </label>
       {value !== null && (
         <div className="mt-2">
-          <MultiSelect value={value} onChange={onChange} options={options} placeholder="Choose…" ariaLabel={title} />
+          <MultiSelect value={value} onChange={onChange} options={options} placeholder="Choose…" ariaLabel={label} />
         </div>
       )}
       {error && <p className="mt-1.5 text-xs text-exception">{error}</p>}
-    </PickerRow>
+    </ChangeRow>
   );
 }
 
-/** How much it has been used, and the latest uses. */
+/** Every use, newest first, paged as the API pages them. */
 function UsageSection({ promotion }: { promotion: PromotionDetail }) {
   const tenantId = useWorkspaceStore((state) => state.tenantId) ?? undefined;
   const formatMoney = useFormatMoney();
@@ -802,66 +876,64 @@ function UsageSection({ promotion }: { promotion: PromotionDetail }) {
   });
   const total = uses.data?.pagination.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / (uses.data?.pagination.limit ?? 50)));
+  const listed = uses.isSuccess && total > 0;
   return (
-    <SettingsSection
+    <RecordGroup
+      id="promotion-usage"
       title="Usage"
-      actions={<SectionInfo label="Cancelled and fully refunded orders give their use back — they stay listed, marked returned." />}
+      card={!uses.isPending && !listed}
+      footnote="Cancelled and fully refunded orders give their use back — they stay listed, marked returned."
     >
-      <div className="space-y-4">
-        <InfoRows>
-          <InfoRow icon={Users} title="Used">
-            <span className="text-sm tabular-nums text-muted-foreground">{usageLabel(promotion)}</span>
-          </InfoRow>
-          <InfoRow icon={TicketPercent} title="Discount given">
-            <span className="text-sm tabular-nums text-muted-foreground">{formatMoney(Number(promotion.discountTotal), 2)}</span>
-          </InfoRow>
-        </InfoRows>
-        {uses.isPending ? (
-          <Bone className="h-24 w-full rounded-md" />
-        ) : uses.isError ? (
-          <ErrorState className="py-6" title="Couldn’t load the uses" description="" onRetry={() => void uses.refetch()} />
-        ) : total === 0 ? (
-          <p className="text-sm text-muted-foreground">No one has used it yet. Each use appears here, with who and when.</p>
-        ) : (
-          <div>
-            <ul className="space-y-2.5">
-              {uses.data.data.map((use) => (
-                <li key={use.id} className="flex items-center justify-between gap-3 text-sm">
-                  <span className="min-w-0">
-                    <span
-                      className={cn(
-                        'block truncate font-medium',
-                        use.status === 'reversed' ? 'text-muted-foreground line-through' : 'text-foreground',
-                      )}
-                    >
-                      {use.customerName ?? 'Walk-in'}
-                    </span>
-                    <span className="block truncate text-xs text-muted-foreground">
-                      <span className="font-mono">{use.code}</span> · <RelativeTime iso={use.createdAt} />
-                      {use.status === 'reversed' && ' · returned'}
-                    </span>
+      {uses.isPending ? (
+        <ListSkeleton rows={3} label="Loading uses" />
+      ) : uses.isError ? (
+        <ErrorState className="py-6" title="Couldn’t load the uses" description="" onRetry={() => void uses.refetch()} />
+      ) : total === 0 ? (
+        <EmptyState compact icon={Users} title="No uses yet" description="Each use appears here, with who and when." />
+      ) : (
+        <>
+          <ListRowGroup aria-label="Uses">
+            {uses.data.data.map((use) => (
+              <ListRow
+                key={use.id}
+                icon={UserRound}
+                muted={use.status === 'reversed'}
+                title={use.customerName ?? 'Walk-in'}
+                meta={
+                  <>
+                    <span className="font-mono">{use.code}</span> · <RelativeTime iso={use.createdAt} />
+                    {use.status === 'reversed' && ' · returned'}
+                  </>
+                }
+                trailing={
+                  <span
+                    className={cn(
+                      'text-xs font-semibold tabular-nums',
+                      use.status === 'reversed' ? 'text-muted-foreground line-through' : 'text-foreground',
+                    )}
+                  >
+                    −{formatMoney(Number(use.amount), 2)}
                   </span>
-                  <span className="shrink-0 text-xs font-semibold tabular-nums text-foreground">−{formatMoney(Number(use.amount), 2)}</span>
-                </li>
-              ))}
-            </ul>
-            {pages > 1 && (
-              <div className="mt-3 flex items-center justify-between text-xs text-muted-foreground">
-                <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
-                  Newer
-                </Button>
-                <span className="tabular-nums">
-                  {page} of {pages}
-                </span>
-                <Button variant="ghost" size="sm" disabled={page >= pages} onClick={() => setPage((current) => current + 1)}>
-                  Older
-                </Button>
-              </div>
-            )}
-          </div>
-        )}
-      </div>
-    </SettingsSection>
+                }
+              />
+            ))}
+          </ListRowGroup>
+          {pages > 1 && (
+            <div className="mt-2 flex items-center justify-between text-xs text-muted-foreground">
+              <Button variant="ghost" size="sm" disabled={page <= 1} onClick={() => setPage((current) => current - 1)}>
+                Newer
+              </Button>
+              <span className="tabular-nums">
+                {page} of {pages}
+              </span>
+              <Button variant="ghost" size="sm" disabled={page >= pages} onClick={() => setPage((current) => current + 1)}>
+                Older
+              </Button>
+            </div>
+          )}
+        </>
+      )}
+    </RecordGroup>
   );
 }
 
@@ -914,150 +986,157 @@ function CodesSection({
 
   const shown = promotion.codes.slice(0, 8);
   const batchValid = /^\d+$/.test(count) && Number(count) >= 1 && Number(count) <= 1000;
+  const codeValid = /^[A-Z0-9-]{3,50}$/.test(normaliseCode(code));
 
   return (
-    <SettingsSection
+    <RecordGroup
+      id="promotion-codes"
       title="Codes"
       actions={
-        promotion.codes.length > 1 ? (
-          <Tooltip side="top" align="end" label="Download every code as a CSV">
-            <Button variant="ghost" size="icon-sm" aria-label="Download codes" onClick={download}>
+        <div className="flex flex-wrap justify-end gap-2">
+          {promotion.codes.length > 1 && (
+            <Button variant="outline" size="sm" onClick={download} aria-label="Download every code as a CSV">
               <Download aria-hidden="true" />
+              CSV
             </Button>
-          </Tooltip>
-        ) : undefined
+          )}
+          {editable && (
+            <>
+              <Button variant="outline" size="sm" onClick={() => setAdding('code')} aria-pressed={adding === 'code'}>
+                <Plus aria-hidden="true" />
+                Add code
+              </Button>
+              <Button variant="outline" size="sm" onClick={() => setAdding('batch')} aria-pressed={adding === 'batch'}>
+                <Sparkles aria-hidden="true" />
+                Single-use batch
+              </Button>
+            </>
+          )}
+        </div>
       }
-    >
-      <div className="space-y-3">
-        {promotion.codes.length === 0 ? (
-          <p className="text-sm text-muted-foreground">No codes yet — add one so it can be used.</p>
-        ) : (
-          <ul className="space-y-3">
-            {shown.map((item) => (
-              <li key={item.id} className="flex items-center justify-between gap-3">
-                <span className="flex min-w-0 items-center gap-3">
-                  <RowTile icon={Hash} />
-                  <span className="min-w-0">
-                    <span
-                      className={cn(
-                        'block truncate font-mono text-sm font-semibold',
-                        item.isActive ? 'text-foreground' : 'text-muted-foreground line-through',
-                      )}
-                    >
-                      {item.code}
-                    </span>
-                    <span className="block text-xs tabular-nums text-muted-foreground">
-                      {item.maxRedemptions === 1
-                        ? item.redemptionCount
-                          ? 'Used'
-                          : 'Single use'
-                        : `${item.redemptionCount} ${item.redemptionCount === 1 ? 'use' : 'uses'}${item.maxRedemptions ? ` of ${item.maxRedemptions}` : ''}`}
-                    </span>
-                  </span>
-                </span>
-                <span className="flex shrink-0 items-center gap-1.5">
-                  <CopyButton
-                    iconOnly
-                    size="icon-sm"
-                    variant="ghost"
-                    label={`Copy ${item.code}`}
-                    copiedLabel="Copied"
-                    onCopy={async () => {
-                      const copied = await copyText(item.code);
-                      if (!copied) toast('error', 'Copy failed — select the code instead.');
-                      return copied;
-                    }}
-                  />
-                  {editable && (
-                    <Switch
-                      label={`${item.code} ${item.isActive ? 'on' : 'off'}`}
-                      checked={item.isActive}
-                      disabled={toggle.isPending}
-                      onChange={() => toggle.mutate(item)}
-                    />
-                  )}
-                </span>
-              </li>
-            ))}
-          </ul>
-        )}
-        {promotion.codes.length > shown.length && (
-          <p className="text-xs text-muted-foreground">
+      footnote={
+        promotion.codes.length > shown.length ? (
+          <>
             And {promotion.codes.length - shown.length} more —{' '}
-            <button type="button" className="font-medium text-foreground underline" onClick={download}>
+            <button type="button" className="font-medium text-foreground underline underline-offset-2" onClick={download}>
               download them all
             </button>
             .
-          </p>
-        )}
-
-        {editable && adding === null && (
-          <ActionRows>
-            <ActionRow icon={Plus} label="Add a code" onClick={() => setAdding('code')} />
-            <ActionRow icon={Sparkles} label="Generate a single-use batch" onClick={() => setAdding('batch')} />
-          </ActionRows>
-        )}
+          </>
+        ) : undefined
+      }
+    >
+      <ListRowGroup aria-label="Codes">
         {editable && adding === 'code' && (
-          <form
-            className="space-y-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (/^[A-Z0-9-]{3,50}$/.test(normaliseCode(code))) add.mutate();
-            }}
-          >
-            <Input
-              aria-label="New code"
-              value={code}
-              onChange={(event) => setCode(normaliseCode(event.target.value))}
-              placeholder="AUTUMN15"
-              className="font-mono uppercase"
-              autoFocus
-            />
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setAdding(null)}>
+          <li className="border-b border-border px-3.5 py-3 last:border-b-0">
+            <form
+              className="flex flex-wrap items-start gap-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (codeValid) add.mutate();
+              }}
+            >
+              <div className="min-w-48 flex-1">
+                <Input
+                  aria-label="New code"
+                  value={code}
+                  onChange={(event) => setCode(normaliseCode(event.target.value))}
+                  placeholder="AUTUMN15"
+                  className="font-mono uppercase"
+                  autoFocus
+                />
+              </div>
+              <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
                 Cancel
               </Button>
-              <Button type="submit" size="sm" disabled={add.isPending || !/^[A-Z0-9-]{3,50}$/.test(normaliseCode(code))}>
+              <Button type="submit" disabled={add.isPending || !codeValid}>
                 {add.isPending ? 'Adding…' : 'Add code'}
               </Button>
-            </div>
-          </form>
+            </form>
+          </li>
         )}
         {editable && adding === 'batch' && (
-          <form
-            className="space-y-2"
-            onSubmit={(event) => {
-              event.preventDefault();
-              if (batchValid) add.mutate();
-            }}
-          >
-            <p className="text-xs text-muted-foreground">Random codes that each work once — for vouchers, flyers or a mailing list.</p>
-            <div className="grid grid-cols-2 gap-2">
-              <Input
-                label="How many"
-                inputMode="numeric"
-                value={count}
-                onChange={(event) => setCount(event.target.value.replace(/\D/g, ''))}
-              />
-              <Input
-                label="Prefix (optional)"
-                value={prefix}
-                onChange={(event) => setPrefix(normaliseCode(event.target.value).slice(0, 12))}
-                placeholder="VIP"
-                className="font-mono uppercase"
-              />
-            </div>
-            <div className="flex justify-end gap-2">
-              <Button type="button" variant="ghost" size="sm" onClick={() => setAdding(null)}>
-                Cancel
-              </Button>
-              <Button type="submit" size="sm" disabled={add.isPending || !batchValid}>
-                {add.isPending ? 'Generating…' : `Generate ${batchValid ? count : ''}`}
-              </Button>
-            </div>
-          </form>
+          <li className="border-b border-border px-3.5 py-3 last:border-b-0">
+            <form
+              className="space-y-2"
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (batchValid) add.mutate();
+              }}
+            >
+              <div className="grid grid-cols-2 gap-2">
+                <Input
+                  label="How many"
+                  inputMode="numeric"
+                  value={count}
+                  onChange={(event) => setCount(event.target.value.replace(/\D/g, ''))}
+                />
+                <Input
+                  label="Prefix (optional)"
+                  value={prefix}
+                  onChange={(event) => setPrefix(normaliseCode(event.target.value).slice(0, 12))}
+                  placeholder="VIP"
+                  className="font-mono uppercase"
+                />
+              </div>
+              <p className="text-xs text-muted-foreground">Random codes that each work once — for vouchers, flyers or a mailing list.</p>
+              <div className="flex justify-end gap-2">
+                <Button type="button" variant="ghost" onClick={() => setAdding(null)}>
+                  Cancel
+                </Button>
+                <Button type="submit" disabled={add.isPending || !batchValid}>
+                  {add.isPending ? 'Generating…' : `Generate ${batchValid ? count : ''}`}
+                </Button>
+              </div>
+            </form>
+          </li>
         )}
-      </div>
-    </SettingsSection>
+        {promotion.codes.length === 0 && adding === null && (
+          <li className="px-3.5 py-4 text-sm text-muted-foreground">No codes yet — add one so it can be used.</li>
+        )}
+        {shown.map((item) => (
+          <ListRow
+            key={item.id}
+            icon={Hash}
+            muted={!item.isActive}
+            title={<span className="font-mono">{item.code}</span>}
+            meta={
+              <>
+                {item.maxRedemptions === 1
+                  ? item.redemptionCount
+                    ? 'Used'
+                    : 'Single use'
+                  : `${item.redemptionCount} ${item.redemptionCount === 1 ? 'use' : 'uses'}${item.maxRedemptions ? ` of ${item.maxRedemptions}` : ''}`}
+                {!item.isActive && ' · switched off'}
+              </>
+            }
+            control={
+              <span className="flex items-center gap-1.5">
+                <CopyButton
+                  iconOnly
+                  size="icon-sm"
+                  variant="ghost"
+                  label={`Copy ${item.code}`}
+                  copiedLabel="Copied"
+                  onCopy={async () => {
+                    const copied = await copyText(item.code);
+                    if (!copied) toast('error', 'Copy failed — select the code instead.');
+                    return copied;
+                  }}
+                />
+                {editable && (
+                  <Switch
+                    label={`${item.code} ${item.isActive ? 'on' : 'off'}`}
+                    checked={item.isActive}
+                    disabled={toggle.isPending}
+                    onChange={() => toggle.mutate(item)}
+                  />
+                )}
+              </span>
+            }
+          />
+        ))}
+      </ListRowGroup>
+    </RecordGroup>
   );
 }

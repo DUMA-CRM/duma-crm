@@ -148,6 +148,8 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
   const rows = draft ?? serverRows;
   const dirty = draft !== null;
   const edit = (next: RecipeRow[]) => setDraft(next);
+  /** Drop the draft: the rows mirror the server again. */
+  const discard = () => setDraft(null);
 
   const save = useMutation({
     mutationFn: () => {
@@ -218,5 +220,20 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
   const allAllergens = [...new Set(summary.flatMap((s) => s.allergens))].sort();
   const hasIngredients = rows.some((r) => r.stockItemId);
 
-  return { rows, edit, dirty, isLoading, save, stockItems, itemMap, usedIds, qtyFor, columns, summary, allAllergens, hasIngredients };
+  return {
+    rows,
+    edit,
+    discard,
+    dirty,
+    isLoading,
+    save,
+    stockItems,
+    itemMap,
+    usedIds,
+    qtyFor,
+    columns,
+    summary,
+    allAllergens,
+    hasIngredients,
+  };
 }

@@ -1,7 +1,7 @@
 'use client';
 
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { motion } from 'motion/react';
+import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
 import { MailX, RefreshCw, Search, Send } from '@/components/icons';
@@ -9,10 +9,13 @@ import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Avatar } from '@/components/shared/Avatar';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { LoadMore } from '@/components/shared/LoadMore';
-import { Pill } from '@/components/shared/Pill';
-import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
+import { NeedsAttention } from '@/components/shared/NeedsAttention';
+import { RecordGroup } from '@/components/shared/RecordGroup';
+import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
 import type { Tone } from '@/components/shared/tone';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Select, type SelectOption } from '@/components/ui/select';
 
@@ -54,9 +57,10 @@ export const DELIVERY_STATUS: Record<EmailDelivery['status'], { tone: Tone; labe
 };
 
 /**
- * Every email that went out, as the audit log reads: a find-and-filter row,
- * failures folded at the top with their fix, then a list per day, newest
- * first, loading older pages as you reach the end.
+ * Every email that went out, as the audit log reads: failures counted at the
+ * top with a way to them, the search with the Status, Template and When
+ * selects and the count, then a titled list per day, newest first, loading
+ * older pages as you reach the end.
  *
  * Filtering happens here, over what's loaded — the API pages by date and
  * doesn't filter by status or template.
@@ -72,6 +76,7 @@ export function HistoryPanel({
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
   const { canSend } = useEmailAccess();
+  const reduceMotion = useReducedMotion();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<DeliveryBucket>(initialStatus);
   const [template, setTemplate] = useState('all');
@@ -131,31 +136,19 @@ export function HistoryPanel({
 
   if (history.isPending)
     return (
-      <div className="space-y-5" role="status" aria-busy="true" aria-label="Loading email history">
+      <div className="flex flex-col gap-3" aria-busy="true">
         <div className="flex flex-wrap items-center gap-2" aria-hidden="true">
-          <Bone className="h-9 min-w-56 flex-1 lg:max-w-sm" />
+          <Bone className="h-9 min-w-56 flex-1" />
           <Bone className="h-9 w-40" />
-          <Bone className="h-9 w-44" />
           <Bone className="h-9 w-40" />
-          <Bone className="ml-auto h-3 w-24" />
+          <Bone className="h-9 w-40" />
         </div>
-        <div>
-          <Bone className="mb-2 ml-1 h-4 w-24" />
-          <div className="overflow-hidden rounded-lg border border-border bg-card">
-            {Array.from({ length: 8 }, (_, index) => (
-              <RowSkeleton key={index} index={index} avatar />
-            ))}
-          </div>
-        </div>
+        <ListSkeleton rows={8} avatar label="Loading email history" />
       </div>
     );
 
   if (history.isError && deliveries.length === 0)
-    return (
-      <div className="overflow-hidden rounded-lg border border-border bg-card">
-        <ErrorState title="Email history couldn’t be loaded" onRetry={() => void history.refetch()} />
-      </div>
-    );
+    return <ErrorState className="flex-1" title="Email history couldn’t be loaded" onRetry={() => void history.refetch()} />;
 
   if (deliveries.length === 0)
     return (
@@ -170,78 +163,64 @@ export function HistoryPanel({
   return (
     <motion.div
       className="flex flex-1 flex-col gap-5"
-      initial="hidden"
+      initial={reduceMotion ? false : 'hidden'}
       animate="shown"
-      variants={{ shown: { transition: { staggerChildren: 0.05 } } }}
+      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
     >
       {/* A count and a way to them — each failed row below carries its own fix. */}
-      {failedCount > 0 && status !== 'failed' && (
-        <motion.section
-          variants={SECTION_RISE}
-          aria-label="Needs attention"
-          className="flex items-center gap-3 rounded-lg border border-border bg-field px-4 py-3"
-        >
-          <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-exception/8 text-exception">
-            <MailX size={18} aria-hidden="true" />
-          </span>
-          <span className="min-w-0 flex-1 text-sm font-semibold text-foreground">
-            {failedCount} {failedCount === 1 ? 'email' : 'emails'} failed
-          </span>
-          <Button type="button" variant="outline" size="sm" onClick={() => setStatus('failed')}>
-            Show failed
-          </Button>
-        </motion.section>
+      {status !== 'failed' && (
+        <NeedsAttention
+          items={
+            failedCount > 0
+              ? [
+                  {
+                    key: 'failed',
+                    tone: 'exception',
+                    icon: MailX,
+                    title: `${failedCount} ${failedCount === 1 ? 'email' : 'emails'} failed`,
+                    fix: { label: 'Show failed', run: () => setStatus('failed') },
+                  },
+                ]
+              : []
+          }
+        />
       )}
 
-      <CommunicationsToolbar
-        search={search}
-        onSearch={setSearch}
-        placeholder="Search recipient or subject…"
-        onClear={clearFilters}
-        count={filtered ? `${visible.length} of ${deliveries.length} loaded` : `${deliveries.length} of ${total.toLocaleString()} emails`}
-        filters={
-          <>
-            <Select
-              value={status}
-              onValueChange={(value) => setStatus(value as DeliveryBucket)}
-              options={STATUS_OPTIONS}
-              ariaLabel="Status"
-              className="w-full sm:w-36"
-            />
-            <Select
-              value={template}
-              onValueChange={setTemplate}
-              options={templateOptions}
-              ariaLabel="Template"
-              className="w-full sm:w-40"
-              disabled={templateOptions.length === 1}
-            />
-            <Select
-              value={when}
-              onValueChange={(value) => setWhen(value as HistoryWindow)}
-              options={WINDOW_OPTIONS}
-              ariaLabel="When"
-              className="w-full sm:w-36"
-            />
-          </>
-        }
-        chips={[
-          ...(status !== 'all'
-            ? [{ label: STATUS_OPTIONS.find((option) => option.value === status)!.label, onRemove: () => setStatus('all') }]
-            : []),
-          ...(template !== 'all'
-            ? [
-                {
-                  label: templateOptions.find((option) => option.value === template)?.label ?? 'Template',
-                  onRemove: () => setTemplate('all'),
-                },
-              ]
-            : []),
-          ...(when !== 'all'
-            ? [{ label: WINDOW_OPTIONS.find((option) => option.value === when)!.label, onRemove: () => setWhen('all') }]
-            : []),
-        ]}
-      />
+      <motion.div variants={SECTION_RISE}>
+        <CommunicationsToolbar
+          search={search}
+          onSearch={setSearch}
+          placeholder="Recipient or subject…"
+          label="Find an email by recipient or subject"
+          count={filtered ? `${visible.length} of ${deliveries.length} loaded` : `${deliveries.length} of ${total.toLocaleString()} emails`}
+          filters={
+            <>
+              <Select
+                value={status}
+                onValueChange={(value) => setStatus(value as DeliveryBucket)}
+                options={STATUS_OPTIONS}
+                ariaLabel="Status"
+                className="w-40"
+              />
+              <Select
+                value={template}
+                onValueChange={setTemplate}
+                options={templateOptions}
+                ariaLabel="Template"
+                className="w-40"
+                disabled={templateOptions.length === 1}
+              />
+              <Select
+                value={when}
+                onValueChange={(value) => setWhen(value as HistoryWindow)}
+                options={WINDOW_OPTIONS}
+                ariaLabel="When"
+                className="w-40"
+              />
+            </>
+          }
+        />
+      </motion.div>
 
       {days.length === 0 ? (
         <motion.div variants={SECTION_RISE} className="flex flex-1 flex-col">
@@ -249,33 +228,28 @@ export function HistoryPanel({
             className="flex-1"
             icon={Search}
             kind="search"
-            title="Nothing matches"
-            description="Try another search or filter."
+            title="No email matches"
+            description="Try a different search or filter."
             action={{ label: 'Clear filters', onClick: clearFilters }}
           />
         </motion.div>
       ) : (
-        <div className="space-y-6">
-          {days.map((day) => (
-            <motion.section key={day.day} variants={SECTION_RISE} aria-labelledby={`history-day-${day.day}`}>
-              <h2 id={`history-day-${day.day}`} className="mb-2 px-1 text-sm font-semibold text-heading">
-                {dayHeading(day.day, now)}
-              </h2>
-              <ul className="space-y-2">
-                {day.items.map((delivery) => (
-                  <DeliveryRow
-                    key={delivery.id}
-                    delivery={delivery}
-                    canRetry={canSend}
-                    retrying={retry.isPending && retry.variables === delivery.id}
-                    onRetry={() => retry.mutate(delivery.id)}
-                    onOpen={() => onPreview(delivery)}
-                  />
-                ))}
-              </ul>
-            </motion.section>
-          ))}
-        </div>
+        days.map((day) => (
+          <RecordGroup key={day.day} id={`history-day-${day.day}`} title={dayHeading(day.day, now)}>
+            <ListRowGroup aria-label={dayHeading(day.day, now)}>
+              {day.items.map((delivery) => (
+                <DeliveryRow
+                  key={delivery.id}
+                  delivery={delivery}
+                  canRetry={canSend}
+                  retrying={retry.isPending && retry.variables === delivery.id}
+                  onRetry={() => retry.mutate(delivery.id)}
+                  onOpen={() => onPreview(delivery)}
+                />
+              ))}
+            </ListRowGroup>
+          </RecordGroup>
+        ))
       )}
 
       <LoadMore
@@ -288,7 +262,7 @@ export function HistoryPanel({
   );
 }
 
-/** One email in the audit log's shape: the recipient with their email's state as a dot, who and what, time. */
+/** One email: the recipient with their email's state as a dot, who and what, the template or the error, time — and Try again on a failure. */
 function DeliveryRow({
   delivery,
   canRetry,
@@ -303,6 +277,7 @@ function DeliveryRow({
   onOpen: () => void;
 }) {
   const state = DELIVERY_STATUS[delivery.status];
+  const failed = delivery.status === 'failed';
   const detail = [
     delivery.template?.name ?? BOOKING_EMAIL_LABELS[delivery.trigger] ?? delivery.trigger.replaceAll('_', ' '),
     delivery.toName && delivery.toEmail,
@@ -311,39 +286,45 @@ function DeliveryRow({
     .join(' · ');
 
   return (
-    <li className="group flex items-center gap-2 rounded-lg border border-border bg-field pr-3 transition-colors hover:border-rule">
-      <button
-        type="button"
-        onClick={onOpen}
-        aria-label={`Open email to ${delivery.toEmail}: ${delivery.subject}`}
-        className="flex min-w-0 flex-1 items-center gap-3 py-3 pl-3.5 text-left focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
-      >
-        {/* Initials only: no Gravatar lookup for every address in the send log. */}
-        <Avatar name={delivery.toName || delivery.toEmail} status={state.tone} statusLabel={state.label} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm text-foreground">
-            <span className="font-semibold">{delivery.toName || delivery.toEmail}</span>
-            <span className="text-muted-foreground"> — {delivery.subject}</span>
+    <ListRow
+      // Initials only: no Gravatar lookup for every address in the send log.
+      leading={<Avatar name={delivery.toName || delivery.toEmail} status={state.tone} statusLabel={state.label} />}
+      title={
+        <>
+          {delivery.toName || delivery.toEmail}
+          <span className="font-normal text-muted-foreground"> — {delivery.subject}</span>
+        </>
+      }
+      titleExtra={
+        failed ? (
+          <Badge variant="destructive" className="shrink-0">
+            Failed
+          </Badge>
+        ) : undefined
+      }
+      meta={failed && delivery.lastError ? <span className="text-exception">{delivery.lastError}</span> : detail}
+      trailing={
+        <>
+          {delivery.attemptCount > 1 && (
+            <span className="hidden text-micro tabular-nums text-muted-foreground sm:inline">
+              attempt {delivery.attemptCount}/{delivery.maxAttempts}
+            </span>
+          )}
+          <span className="hidden w-12 text-right text-xs tabular-nums text-muted-foreground sm:block">
+            {timeOfDay(deliveryTime(delivery)).slice(0, 5)}
           </span>
-          <span className="mt-0.5 block truncate text-xs text-muted-foreground">
-            {delivery.status === 'failed' && delivery.lastError ? <span className="text-exception">{delivery.lastError}</span> : detail}
-          </span>
-        </span>
-        {delivery.status === 'failed' && <Pill tone="exception">Failed</Pill>}
-        {delivery.attemptCount > 1 && (
-          <span className="hidden shrink-0 text-micro tabular-nums text-muted-foreground sm:inline">
-            attempt {delivery.attemptCount}/{delivery.maxAttempts}
-          </span>
-        )}
-        <span className="hidden w-12 shrink-0 sm:block text-right text-xs tabular-nums text-muted-foreground">
-          {timeOfDay(deliveryTime(delivery)).slice(0, 5)}
-        </span>
-      </button>
-      {delivery.status === 'failed' && canRetry && (
-        <Button variant="outline" size="sm" disabled={retrying} onClick={onRetry} className="shrink-0 gap-1.5">
-          <RefreshCw className={cn(retrying && 'animate-spin')} /> Try again
-        </Button>
-      )}
-    </li>
+        </>
+      }
+      targetLabel={`Open email to ${delivery.toEmail}: ${delivery.subject}`}
+      onClick={onOpen}
+      chevron={false}
+      control={
+        failed && canRetry ? (
+          <Button variant="outline" size="sm" disabled={retrying} onClick={onRetry} className="gap-1.5">
+            <RefreshCw className={cn(retrying && 'animate-spin')} /> Try again
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }

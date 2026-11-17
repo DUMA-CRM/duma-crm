@@ -1,8 +1,9 @@
 'use client';
 
-import { Flame, TriangleAlert } from '@/components/icons';
+import { RowWarning } from '@/components/cms/rows';
+import { Flame } from '@/components/icons';
 import { AllergenChip } from '@/components/menu/shared';
-import { SettingsSection } from '@/components/settings/SettingsSection';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 
 import type { Costing } from '@/lib/menu/costing';
@@ -32,73 +33,87 @@ export function RecipeTotals({
   allAllergens,
   showMargin = false,
   title = 'Cost',
+  framed = true,
 }: {
   summary: SummaryEntry[];
   allAllergens: string[];
   /** Menu items have a sale price to measure against; modifiers only add cost. */
   showMargin?: boolean;
   title?: string;
+  /** A titled card on a page; `false` in a drawer, where a section is a heading and its rows, never a card. */
+  framed?: boolean;
 }) {
   const formatMoney = useFormatMoney();
   const missingData = summary.some((s) => s.missingCost > 0 || s.missingNutrition > 0);
+  const id = `recipe-totals-${title.toLowerCase().replace(/[^a-z0-9]+/g, '-')}`;
 
-  return (
-    <SettingsSection title={title}>
-      <div className="space-y-3">
-        {summary.map((s) => (
-          <div key={s.col.id} className="rounded-lg border border-border bg-card px-3.5 py-3">
-            {/* Only worth a size heading when there is more than one size. */}
-            {summary.length > 1 && <p className="mb-2 text-label uppercase text-muted-foreground">{s.col.label}</p>}
-            <dl className="space-y-1.5 text-sm tabular-nums">
-              <Figure label="Ingredients" value={formatMoney(s.cogs, 2)} strong incomplete={s.missingCost > 0} />
-              {showMargin && s.costing && (
+  const body = (
+    <div className="space-y-4">
+      {summary.map((s) => (
+        <div key={s.col.id}>
+          {/* Only worth a size heading when there is more than one size. */}
+          {summary.length > 1 && <p className="mb-1.5 text-label uppercase text-muted-foreground">{s.col.label}</p>}
+          <dl className="space-y-1.5 text-sm tabular-nums">
+            <Figure label="Ingredients" value={formatMoney(s.cogs, 2)} strong incomplete={s.missingCost > 0} />
+            {showMargin && s.costing && (
+              <>
+                {s.costing.vat > 0 && <Figure label={`VAT (${s.costing.vatRate}%)`} value={`−${formatMoney(s.costing.vat, 2)}`} />}
+                <Figure
+                  label="Margin"
+                  value={
+                    <>
+                      {formatMoney(s.costing.margin, 2)}{' '}
+                      <span className="font-normal text-muted-foreground">({s.costing.marginPct.toFixed(0)}%)</span>
+                    </>
+                  }
+                  strong
+                  tone={s.costing.margin >= 0 ? 'good' : 'bad'}
+                />
+              </>
+            )}
+            <Figure
+              label={
                 <>
-                  {s.costing.vat > 0 && <Figure label={`VAT (${s.costing.vatRate}%)`} value={`−${formatMoney(s.costing.vat, 2)}`} />}
-                  <Figure
-                    label="Margin"
-                    value={
-                      <>
-                        {formatMoney(s.costing.margin, 2)}{' '}
-                        <span className="font-normal text-muted-foreground">({s.costing.marginPct.toFixed(0)}%)</span>
-                      </>
-                    }
-                    strong
-                    tone={s.costing.margin >= 0 ? 'good' : 'bad'}
-                  />
+                  <Flame size={13} aria-hidden="true" /> Energy
                 </>
-              )}
-              <Figure
-                label={
-                  <>
-                    <Flame size={13} aria-hidden="true" /> Energy
-                  </>
-                }
-                value={`${Math.round(s.kcal)} kcal`}
-                incomplete={s.missingNutrition > 0}
-              />
-            </dl>
-          </div>
-        ))}
+              }
+              value={`${Math.round(s.kcal)} kcal`}
+              incomplete={s.missingNutrition > 0}
+            />
+          </dl>
+        </div>
+      ))}
 
-        {allAllergens.length > 0 && (
-          <div>
-            <p className="mb-2 text-label uppercase text-muted-foreground">Allergens</p>
-            <div className="flex flex-wrap gap-1.5">
-              {allAllergens.map((allergen) => (
-                <AllergenChip key={allergen} allergen={allergen} />
-              ))}
-            </div>
+      {allAllergens.length > 0 && (
+        <div>
+          <p className="mb-1.5 text-label uppercase text-muted-foreground">Allergens</p>
+          <div className="flex flex-wrap gap-1.5">
+            {allAllergens.map((allergen) => (
+              <AllergenChip key={allergen} allergen={allergen} />
+            ))}
           </div>
-        )}
+        </div>
+      )}
 
-        {missingData && (
-          <p className="flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs leading-relaxed text-measured">
-            <TriangleAlert size={13} className="mt-px shrink-0" aria-hidden="true" />
-            Marked figures (*) are incomplete — some ingredients have no cost or nutrition set on the stock item.
-          </p>
-        )}
-      </div>
-    </SettingsSection>
+      {missingData && (
+        <RowWarning>Marked figures (*) are incomplete — some ingredients have no cost or nutrition set on the stock item.</RowWarning>
+      )}
+    </div>
+  );
+
+  if (!framed)
+    return (
+      <section aria-labelledby={`${id}-title`}>
+        <h3 id={`${id}-title`} className="mb-2 text-sm font-semibold text-foreground">
+          {title}
+        </h3>
+        {body}
+      </section>
+    );
+  return (
+    <RecordGroup card id={id} title={title}>
+      {body}
+    </RecordGroup>
   );
 }
 

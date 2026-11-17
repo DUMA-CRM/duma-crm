@@ -496,24 +496,35 @@ export function ChangeRow({
   onToggle,
   trailing,
   verbs = ['Change', 'Cancel'],
+  tone,
+  touch = false,
   children,
 }: {
   icon: IconComponent;
   label: string;
   value: React.ReactNode;
+  /** The row needs attention while closed: `danger` for a problem a save found, `warning` for something required left empty. */
+  tone?: 'warning' | 'danger';
   open?: boolean;
   onToggle?: () => void;
   /** A one-tap action on the value itself (Copy, Call), left of Change. */
   trailing?: React.ReactNode;
   /** The button's words, closed and open — ['Show', 'Hide'] for a row that opens read-only detail. */
   verbs?: readonly [string, string];
+  /** On a touch screen, a 44px Change button — for rows used standing up (the host stand's booking drawer). */
+  touch?: boolean;
   children?: React.ReactNode;
 }) {
   const reduceMotion = useReducedMotion();
   return (
     <div className="py-2.5 first:pt-0 last:pb-0">
       <div className="flex items-center gap-3">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
+        <span
+          className={cn(
+            'flex size-10 shrink-0 items-center justify-center rounded-md',
+            tone === 'danger' ? 'bg-exception/10 text-exception' : tone === 'warning' ? 'bg-measured/12 text-measured' : 'bg-primary/8 text-primary',
+          )}
+        >
           <Icon size={18} aria-hidden="true" />
         </span>
         <div className="min-w-0 flex-1">
@@ -522,7 +533,15 @@ export function ChangeRow({
         </div>
         {trailing && <div className="flex shrink-0 items-center gap-1">{trailing}</div>}
         {onToggle && (
-          <Button variant={open ? 'ghost' : 'outline'} size="sm" onClick={onToggle} aria-expanded={open}>
+          <Button
+            // Not a submit: rows sit inside forms (the booking drawer), and opening one must not save it.
+            type="button"
+            variant={open ? 'ghost' : 'outline'}
+            size="sm"
+            className={cn(touch && 'pointer-coarse:h-11 pointer-coarse:px-4 pointer-coarse:text-sm')}
+            onClick={onToggle}
+            aria-expanded={open}
+          >
             {open ? verbs[1] : verbs[0]}
           </Button>
         )}

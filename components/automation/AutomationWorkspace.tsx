@@ -85,15 +85,17 @@ function Workspace({ tenantId }: { tenantId: string | null }) {
       />
     );
   }
+  // An empty list offers "New workflow" in its empty state, so it isn't there twice.
+  const empty = query.isSuccess && query.data.length === 0;
   return (
     <EditorShell
       title="Automation"
       icon={<Zap size={20} aria-hidden="true" />}
       actions={
-        access.canWrite && tab === 'workflows' ? (
-          <Button size="sm" onClick={() => navigate({ automation: 'new' })}>
-            <Plus size={15} />
-            New workflow
+        access.canWrite && tab === 'workflows' && !empty ? (
+          <Button className="h-9 gap-1.5" aria-label="New workflow" onClick={() => navigate({ automation: 'new' })}>
+            <Plus size={15} aria-hidden="true" />
+            <span className="hidden md:inline">New workflow</span>
           </Button>
         ) : undefined
       }
@@ -109,14 +111,24 @@ function Workspace({ tenantId }: { tenantId: string | null }) {
         />
       }
     >
-      {tab === 'workflows' && (
-        <AutomationsPanel
-          onEdit={({ automation }) => navigate({ automation: automation?.id ?? 'new' })}
-          onOpenTemplates={templates}
-          asideExtra={<ScheduledAutomations />}
-        />
-      )}
-      {tab === 'runs' && <AutomationRuns tenantId={tenantId} onOpenWorkflow={(id) => navigate({ automation: id })} />}
+      {/* A flex column, so an empty state can fill the page and centre. */}
+      <div className="flex flex-1 flex-col">
+        {tab === 'workflows' && (
+          <AutomationsPanel
+            onEdit={({ automation }) => navigate({ automation: automation?.id ?? 'new' })}
+            onOpenTemplates={templates}
+            onOpenRuns={() => navigate({ tab: 'runs' }, true)}
+            after={<ScheduledAutomations />}
+          />
+        )}
+        {tab === 'runs' && (
+          <AutomationRuns
+            tenantId={tenantId}
+            onOpenWorkflow={(id) => navigate({ automation: id })}
+            onOpenWorkflows={() => navigate({ tab: null }, true)}
+          />
+        )}
+      </div>
     </EditorShell>
   );
 }

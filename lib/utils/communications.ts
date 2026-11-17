@@ -168,6 +168,63 @@ export function groupAutomations<T extends { name: string; trigger: string; isEn
   }).filter((group) => group.items.length > 0);
 }
 
+/** What a workflow row flags — a healthy, published workflow flags nothing. */
+export type AutomationFlag = 'missing_template' | 'draft' | 'unpublished';
+
+/**
+ * A deleted template outranks the draft state; a draft has nothing published
+ * to differ from, so it is never also "unpublished changes".
+ */
+export function automationFlags(automation: AutomationLike, missingTemplates: number): AutomationFlag[] {
+  const flags: AutomationFlag[] = [];
+  if (missingTemplates > 0) flags.push('missing_template');
+  if (automation.publishedVersion === 0) flags.push('draft');
+  else if (hasUnpublishedChanges(automation)) flags.push('unpublished');
+  return flags;
+}
+
+/** The Workflows list's Show filter. `attention` is anything flagged; `failed` is any workflow with a failed run. */
+export type AutomationView = 'all' | 'sending' | 'off' | 'attention' | 'failed';
+
+export const AUTOMATION_VIEW_LABELS: Record<AutomationView, string> = {
+  all: 'All workflows',
+  sending: 'Sending',
+  off: 'Switched off',
+  attention: 'Needs a look',
+  failed: 'Failed runs',
+};
+
+export function inAutomationView(automation: AutomationLike, view: AutomationView, missingTemplates: number): boolean {
+  switch (view) {
+    case 'all':
+      return true;
+    case 'sending':
+      return automation.isEnabled;
+    case 'off':
+      return !automation.isEnabled;
+    case 'attention':
+      return automationFlags(automation, missingTemplates).length > 0;
+    case 'failed':
+      return (automation.failedRunCount ?? 0) > 0;
+  }
+}
+
+/** The figures over the Workflows list, and the count behind each Show option. */
+export function automationsOverview<T extends AutomationLike & { runCount?: number }>(
+  automations: readonly T[],
+  missingTemplates: (automation: T) => number,
+): Record<AutomationView, number> & { runs: number; failedRuns: number } {
+  const counts = { all: 0, sending: 0, off: 0, attention: 0, failed: 0, runs: 0, failedRuns: 0 };
+  for (const automation of automations) {
+    const missing = missingTemplates(automation);
+    for (const view of Object.keys(AUTOMATION_VIEW_LABELS) as AutomationView[])
+      if (inAutomationView(automation, view, missing)) counts[view] += 1;
+    counts.runs += automation.runCount ?? 0;
+    counts.failedRuns += automation.failedRunCount ?? 0;
+  }
+  return counts;
+}
+
 // ── Templates list ────────────────────────────────────────────────────────────
 
 /** How many automations have a send step using each template id. */

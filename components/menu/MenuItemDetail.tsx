@@ -15,7 +15,6 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { LoadingState } from '@/components/shared/Skeleton';
-import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { getMenuItems } from '@/lib/modules/catalog/client';
@@ -23,6 +22,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const MENU_ITEM_FORM_ID = 'menu-item-detail-form';
+const noop = () => {};
 
 type Tab = 'details' | 'sizes' | 'photos' | 'languages' | 'recipe';
 
@@ -54,9 +54,8 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
   const requested = searchParams.get('tab') as Tab | null;
   const [chosenTab, setTab] = useState<Tab>(requested && TAB_VALUES.includes(requested) && menuItemId ? requested : 'details');
   const [pending, setPending] = useState(false);
-  const [justSaved, flashSaved] = useDoneBeat();
   const [dirty, setDirty] = useState(false);
-  // The recipe tab saves itself; its Save button lives up here with the others.
+  // Each tab saves through its own SaveBar; the recipe still hands its save up, for anything that wants it.
   const recipeSave = useRef<(() => void) | null>(null);
   const [recipe, setRecipe] = useState({ dirty: false, pending: false });
   const onRecipeStatus = useCallback((status: { dirty: boolean; pending: boolean }) => setRecipe(status), []);
@@ -111,28 +110,8 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
       subheader={
         item && tabs.length > 1 ? <SectionTabs tabs={tabs} value={tab} onChange={setTab} ariaLabel={`${words.Item} sections`} /> : undefined
       }
-      actions={
-        <>
-          {item && <DeleteMenuItemButton item={item} onDeleted={() => router.push('/menu/items')} />}
-          {item && tab === 'recipe' && (
-            <ActionButton
-              onClick={() => recipeSave.current?.()}
-              disabled={!recipe.dirty}
-              pending={recipe.pending}
-              done={justSaved}
-              className="h-9 min-w-36 px-5"
-            >
-              {recipe.dirty ? 'Save recipe' : 'Saved'}
-            </ActionButton>
-          )}
-          {/* Only the details form is a <form>; the recipe tab saves through the button above. */}
-          {tab === 'details' && (
-            <ActionButton type="submit" form={MENU_ITEM_FORM_ID} pending={pending} done={justSaved} className="h-9 min-w-36 px-5">
-              {item ? 'Save changes' : `Create ${words.item}`}
-            </ActionButton>
-          )}
-        </>
-      }
+      // Saving is the SaveBar's job on every tab; the header keeps the one action on the record itself.
+      actions={item ? <DeleteMenuItemButton item={item} onDeleted={() => router.push('/menu/items')} /> : undefined}
     >
       {tab === 'details' || !item ? (
         <MenuItemForm
@@ -148,7 +127,6 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
             router.replace(`/menu/items/${created.id}${words.tools.retail && !words.tools.kitchen ? '?tab=sizes' : ''}`)
           }
           onOpenTab={setTab}
-          onSaved={flashSaved}
         />
       ) : tab === 'sizes' ? (
         <VariantsEditor menuItemId={item.id} productName={item.name} productPrice={item.price} tenantId={tenantId} />
@@ -163,7 +141,7 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
           vatRate={item.vatRate}
           saveRef={recipeSave}
           onStatusChange={onRecipeStatus}
-          onSaved={flashSaved}
+          onSaved={noop}
         />
       )}
     </EditorShell>

@@ -41,3 +41,25 @@ export function groupModifiers<M extends ModifierRow, G extends GroupRow>(modifi
   if (other?.length) sections.push({ id: 'other', name: 'Other', isSize: false, modifiers: other.sort(order) });
   return sections;
 }
+
+export type ModifierAvailability = 'any' | 'available' | 'unavailable';
+
+/**
+ * The Group and Availability filters over `groupModifiers`' sections. Filtering
+ * by availability drops the groups left with nothing to show, as a search does;
+ * picking one group keeps it even when it's empty, so it can still be added to.
+ */
+export function narrowModifierSections<S extends { id: string; modifiers: { isAvailable: boolean }[] }>(
+  sections: S[],
+  groupId: string,
+  availability: ModifierAvailability,
+): S[] {
+  return sections
+    .filter((section) => groupId === 'all' || section.id === groupId)
+    .map((section) =>
+      availability === 'any'
+        ? section
+        : { ...section, modifiers: section.modifiers.filter((m) => m.isAvailable === (availability === 'available')) },
+    )
+    .filter((section) => availability === 'any' || section.modifiers.length > 0);
+}

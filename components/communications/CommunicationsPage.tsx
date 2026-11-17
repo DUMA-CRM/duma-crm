@@ -20,7 +20,13 @@ import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
-import { type EmailDelivery, getEmailConnection, getEmailDeliveries, getEmailTemplates } from '@/lib/modules/communications/client';
+import {
+  type EmailDelivery,
+  getEmailConnection,
+  getEmailDeliveries,
+  getEmailTemplates,
+  getMarketingSuppressions,
+} from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { type ConnectionState, connectionState } from '@/lib/utils/communications';
@@ -104,6 +110,13 @@ function CommunicationsView() {
     // (The history table shares this key and polls faster while it is open.)
     refetchInterval: 60_000,
   });
+  // The Suppressions panel's own query (same key), read here only so the header
+  // can step aside while the empty state offers "Add email" itself.
+  const { data: suppressions } = useQuery({
+    queryKey: moduleQueryKeys.communications.key('marketing-suppressions', tenantId),
+    queryFn: () => getMarketingSuppressions(tenantId ?? undefined),
+    enabled: Boolean(tenantId) && tab === 'suppressions',
+  });
   const connectionStatus = connectionState(connection, access.canReadConnection);
   // Failures on the newest page — surfaced on the History tab so they aren't missed.
   const failedCount = (deliveries?.data ?? []).filter((delivery) => delivery.status === 'failed').length;
@@ -159,20 +172,26 @@ function CommunicationsView() {
   // ── List view ──────────────────────────────────────────────────────────────
 
   // One primary action, always in the same place — whatever the open tab is for.
+  // An empty list offers it in its empty state instead, so it isn't there twice.
+  const noTemplates = templatesFetched && !templates.some((template) => template.isActive);
+  const noSuppressions = suppressions !== undefined && suppressions.length === 0;
   const action =
-    tab === 'templates' && access.canWrite
+    tab === 'templates' && access.canWrite && !noTemplates
       ? { icon: Plus, label: 'New template', onClick: () => navigate({ template: 'new' }) }
-      : tab === 'suppressions' && access.canSuppress
+      : tab === 'suppressions' && access.canSuppress && !noSuppressions
         ? { icon: Plus, label: 'Add email', onClick: () => setAddingSuppression(true) }
         : null;
   const ActionIcon = action?.icon;
   const actionControl =
     action && ActionIcon ? (
-      <Button size="sm" className="gap-1.5" aria-label={action.label} onClick={action.onClick}>
+      <Button className="h-9 gap-1.5" aria-label={action.label} onClick={action.onClick}>
         <ActionIcon size={15} aria-hidden="true" />
-        <span>{action.label}</span>
+        <span className="hidden md:inline">{action.label}</span>
       </Button>
     ) : null;
+  const connectionBadge = (
+    <ConnectionStatus state={connectionStatus} onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined} />
+  );
 
   // Previewing a template keeps `?preview=` so the link is shareable; a bad id
   // simply opens nothing rather than taking over the page.
@@ -183,10 +202,11 @@ function CommunicationsView() {
       eyebrow="Customer engagement"
       title="Communications"
       icon={<Send size={20} aria-hidden="true" />}
-      meta={<ConnectionStatus state={connectionStatus} onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined} />}
-      actions={<div className="hidden md:flex">{actionControl}</div>}
+      meta={connectionBadge}
+      actions={actionControl ?? undefined}
       subheader={
         <>
+          {/* The masthead's meta is hidden below md, so the connection rides beside the section picker there. */}
           <div className="flex items-center gap-3 border-b border-border bg-field px-3 py-2 md:hidden">
             <Select
               value={tab}
@@ -195,9 +215,7 @@ function CommunicationsView() {
               ariaLabel="Communications section"
               className="min-w-0 flex-1"
             />
-            {actionControl ?? (
-              <ConnectionStatus state={connectionStatus} onOpenConnection={canConfigure ? () => router.push(EMAIL_CONNECTOR) : undefined} />
-            )}
+            {connectionBadge}
           </div>
           <div className="hidden md:block">
             <SectionTabs
@@ -211,13 +229,14 @@ function CommunicationsView() {
       }
     >
       {/* A flex column, so a tab's empty state can fill the page and centre. */}
-      <div className="flex flex-1 flex-col space-y-5">
+      <div className="flex flex-1 flex-col">
         {tab === 'overview' && (
           <OverviewPanel
             onOpenAutomations={() => navigate({ tab: 'automations' }, 'replace')}
             onOpenAutomation={(id) => navigate({ automation: id })}
             onOpenFailures={() => navigate({ tab: 'history', status: 'failed' }, 'replace')}
             onOpenHistory={() => navigate({ tab: 'history', status: null }, 'replace')}
+            onOpenTemplates={() => navigate({ tab: 'templates' }, 'replace')}
             onPreviewDelivery={setOpenedDelivery}
           />
         )}

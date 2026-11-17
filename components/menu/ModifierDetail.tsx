@@ -1,46 +1,49 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { Eye, EyeOff, Scale, SlidersHorizontal, Trash2 } from '@/components/icons';
+import { RowWarning, SectionInfo } from '@/components/cms/rows';
+import { Coins, Eye, EyeOff, Layers3, Scale, SlidersHorizontal, Trash2, Type } from '@/components/icons';
+import { GroupPicker } from '@/components/menu/GroupPicker';
 import { RecipeIngredientEditor, RecipeIngredientSkeleton } from '@/components/menu/RecipeIngredientEditor';
 import { RecipeTotals } from '@/components/menu/RecipeTotals';
 import { useRecipeDraft } from '@/components/menu/useRecipeDraft';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
-import { SettingRow, SettingRows, Switch } from '@/components/settings/controls';
+import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
-import { ChoiceCards } from '@/components/shared/FormParts';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
-import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/label';
 
 import { createModifier, deleteModifier, getModifierGroups, getModifiers, updateModifier } from '@/lib/modules/catalog/client';
 import { getModifierRecipe, setModifierRecipe } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
+import { formatPriceChange, priceChangeWords } from '@/lib/utils/menu-editor';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const FORM_ID = 'modifier-detail-form';
 
+type Row = 'name' | 'price' | 'group';
+
 /**
  * A modifier's record: identity and the stock it draws down, on one page.
  *
- * Laid out board-then-workbench, the same as the menu item recipe editor — the
- * editing gets the width, the cost figures stay in a stable narrow column. The
- * previous two-equal-panels split gave the ingredient editor half a screen and
- * pushed it into horizontal scrolling as soon as a second size existed.
+ * The editor layout: What it uses (the ingredients) gets the main column; the
+ * modifier's own rows — name, price change, group, size, available — and What
+ * it adds sit in the sidebar, first when stacked. The previous two-equal-panels
+ * split gave the ingredient editor half a screen and pushed it into horizontal
+ * scrolling as soon as a second size existed.
  *
- * One Save covers the whole record. The fields and the recipe are two API
+ * One SaveBar covers the whole record. The fields and the recipe are two API
  * calls, but that is the API's shape, not the user's — an Update button in the
  * header plus a separate Save recipe button lower down meant it was possible to
  * leave with half the work committed.
@@ -48,6 +51,7 @@ const FORM_ID = 'modifier-detail-form';
 export function ModifierDetail({ modifierId }: { modifierId?: string }) {
   const symbol = useCurrencySymbol();
   const qc = useQueryClient();
+  const reduceMotion = useReducedMotion();
   const router = useRouter();
   const { tenantId } = useWorkspaceStore();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
@@ -101,7 +105,35 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
   const fieldsDirty = draft !== null;
   const dirty = fieldsDirty || recipe.dirty;
 
-  const [justSaved, flashSaved] = useDoneBeat();
+  // One row open at a time; a new modifier starts with its name open.
+  const [open, setOpen] = useState<Row | null>(modifierId ? null : 'name');
+  const [before, setBefore] = useState(form);
+  const openRow = (row: Row) => {
+    setBefore(form);
+    setOpen(row);
+  };
+  /** Change opens a row; Cancel closes it and puts its fields back as they were when it opened. */
+  const toggle = (row: Row) => {
+    if (open !== row) return openRow(row);
+    const fields =
+      row === 'name'
+        ? { label: before.label }
+        : row === 'price'
+          ? { priceAdjust: before.priceAdjust }
+          : { groupId: before.groupId, category: before.category, isSize: before.isSize };
+    const next = { ...form, ...fields };
+    // Back to exactly what is saved: no draft at all, so the SaveBar leaves.
+    setDraft(JSON.stringify(next) === JSON.stringify(server) ? null : next);
+    setOpen(null);
+  };
+  /** Enter in a row's field closes it, keeping what was typed. */
+  const closeOnEnter = (event: React.KeyboardEvent) => {
+    if (event.key === 'Enter' && !event.nativeEvent.isComposing) {
+      event.preventDefault();
+      setOpen(null);
+    }
+  };
+
   const save = useMutation({
     mutationFn: async () => {
       if (fieldsDirty || !modifier) {
@@ -128,6 +160,13 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
     },
     onError: (err) => toast('error', err.message || 'The modifier wasn’t saved. Try again.'),
   });
+  const submit = () => {
+    setSubmitted(true);
+    if (!labelError && !priceError) {
+      setOpen(null);
+      save.mutate();
+    } else openRow(labelError ? 'name' : 'price');
+  };
 
   const remove = useMutation({
     mutationFn: () => deleteModifier(modifier!.id),
@@ -159,6 +198,113 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
     );
   }
 
+  const groupName = groups.find((group) => group.id === groupId)?.name ?? (category || null);
+  const change = formatPriceChange(String(priceAdjust), symbol);
+
+  const details = (
+    <RecordGroup
+      card
+      id="modifier-details"
+      title="Modifier"
+      actions={
+        <SectionInfo label="Sizes get their own quantity column in every recipe, so a large can use more milk than a small. Turn off Available when you run out — it stays set up and keeps its recipe." />
+      }
+    >
+      <ChangeRow
+        icon={Type}
+        label="Name"
+        tone={submitted && labelError ? 'warning' : undefined}
+        value={label.trim() ? <span className="truncate">{label.trim()}</span> : <ValueMissing>Not named</ValueMissing>}
+        open={open === 'name'}
+        onToggle={() => toggle('name')}
+      >
+        <Input
+          aria-label="Name"
+          value={label}
+          onChange={(e) => patch({ label: e.target.value })}
+          onKeyDown={closeOnEnter}
+          placeholder="e.g. Oat milk"
+          autoFocus
+          error={submitted ? (labelError ?? undefined) : undefined}
+        />
+      </ChangeRow>
+      <ChangeRow
+        icon={Coins}
+        label="Price change"
+        tone={submitted && priceError ? 'warning' : undefined}
+        value={
+          priceError ? (
+            <ValueMissing>Not set</ValueMissing>
+          ) : change ? (
+            <>
+              <span className="tabular-nums">{change}</span>
+              <ValueAside>· {priceChangeWords(String(priceAdjust)).toLowerCase()}</ValueAside>
+            </>
+          ) : (
+            'No charge'
+          )
+        }
+        open={open === 'price'}
+        onToggle={() => toggle('price')}
+      >
+        <Input
+          aria-label="Price change"
+          value={priceAdjust}
+          onChange={(e) => patch({ priceAdjust: e.target.value })}
+          onKeyDown={closeOnEnter}
+          inputMode="decimal"
+          autoFocus
+          placeholder="0.50"
+          leftIcon={<span className="text-sm">{symbol}</span>}
+          className="tabular-nums sm:max-w-48"
+          error={submitted ? (priceError ?? undefined) : undefined}
+          hint={!priceError ? priceChangeWords(String(priceAdjust)) : 'Use -0.20 to take money off.'}
+        />
+      </ChangeRow>
+      <ChangeRow
+        icon={Layers3}
+        label="Group"
+        value={groupName ? <span className="truncate">{groupName}</span> : <ValueMissing>No group</ValueMissing>}
+        open={open === 'group'}
+        onToggle={groups.length ? () => toggle('group') : undefined}
+      >
+        <GroupPicker
+          groups={groups}
+          value={groupId}
+          onChange={(value) => {
+            const selected = groups.find((group) => group.id === value);
+            patch({ groupId: value, category: selected?.name ?? '', isSize: selected?.isSize ?? false });
+          }}
+        />
+      </ChangeRow>
+      {/* The explicit replacement for the old category === 'size' rule, which
+          silently disabled per-size costing if you typed "Sizes". */}
+      <ChangeRow
+        icon={Scale}
+        label="Size"
+        value={isSize ? 'Yes — a column in every recipe' : <ValueMissing>No</ValueMissing>}
+        trailing={<Switch label="This is a size" checked={isSize} onChange={(checked) => patch({ isSize: checked })} />}
+      />
+      <ChangeRow
+        icon={isAvailable ? Eye : EyeOff}
+        label="Available at the till"
+        value={isAvailable ? 'Yes' : <ValueMissing>No — hidden at the till</ValueMissing>}
+        trailing={<Switch label="Available at the till" checked={isAvailable} onChange={(checked) => patch({ isAvailable: checked })} />}
+      />
+      {!groups.length && (
+        <RowWarning className="mt-3">
+          <span>
+            No groups yet.{' '}
+            <Link href="/menu/modifiers" className="font-semibold underline">
+              Create one on Modifiers
+            </Link>{' '}
+            first — Size, Milk or Extras.
+          </span>
+        </RowWarning>
+      )}
+    </RecordGroup>
+  );
+
   return (
     <EditorShell
       eyebrow={modifier ? 'Modifier' : undefined}
@@ -168,30 +314,18 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
       dirty={dirty && !save.isPending}
       discardMessage="This modifier has changes that have not been saved. Leaving now discards them."
       actions={
-        <>
-          {modifier && (
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setConfirmingDelete(true)}
-              aria-label={`Delete ${label}`}
-              className="size-9 text-muted-foreground/70 hover:text-destructive"
-            >
-              <Trash2 size={16} />
-            </Button>
-          )}
-          {dirty && !save.isPending && <span className="hidden text-label font-semibold text-warning sm:inline">Unsaved changes</span>}
-          <ActionButton
-            type="submit"
-            form={FORM_ID}
-            pending={save.isPending}
-            done={justSaved}
-            doneLabel={modifier ? 'Saved' : 'Created'}
-            className="h-9 min-w-36 px-5"
+        modifier ? (
+          <Button
+            variant="outline"
+            size="icon"
+            onClick={() => setConfirmingDelete(true)}
+            aria-label={`Delete ${label}`}
+            title={`Delete ${label}`}
+            className="size-9 text-muted-foreground hover:border-exception/40 hover:bg-exception/6 hover:text-exception"
           >
-            {modifier ? 'Save changes' : 'Create modifier'}
-          </ActionButton>
-        </>
+            <Trash2 size={16} aria-hidden="true" />
+          </Button>
+        ) : undefined
       }
     >
       <form
@@ -199,121 +333,64 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          setSubmitted(true);
-          if (!labelError && !priceError) save.mutate(undefined, { onSuccess: flashSaved });
+          submit();
         }}
       >
-        <SettingsTabBody
-          stickyAside
-          aside={
-            <>
-              <SettingsSection title="Settings">
-                <SettingRows>
-                  {/* The explicit replacement for the old category === 'size'
-                      rule, which silently disabled per-size costing if you typed
-                      "Sizes". */}
-                  <SettingRow
-                    icon={Scale}
-                    title="This is a size"
-                    description="Sizes get their own quantity column in every recipe, so a large can use more milk than a small."
-                  >
-                    <Switch label="This is a size" checked={isSize} onChange={(checked) => patch({ isSize: checked })} />
-                  </SettingRow>
-                  <SettingRow
-                    icon={isAvailable ? Eye : EyeOff}
-                    title="Available at the till"
-                    description="Turn off when you run out. It stays set up and keeps its recipe."
-                  >
-                    <Switch label="Available at the till" checked={isAvailable} onChange={(checked) => patch({ isAvailable: checked })} />
-                  </SettingRow>
-                </SettingRows>
-              </SettingsSection>
-              {modifier && recipe.hasIngredients && (
-                <RecipeTotals summary={recipe.summary} allAllergens={recipe.allAllergens} title="What it adds" />
-              )}
-            </>
-          }
+        <motion.div
+          initial={reduceMotion ? false : 'hidden'}
+          animate="shown"
+          variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+          className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem] xl:grid-cols-[minmax(0,1fr)_26rem]"
         >
-          <SettingsSection title="Modifier" description="An option offered with an item — a size, a milk, an extra shot.">
-            <div className="space-y-4">
-              <div className="grid gap-4 sm:grid-cols-[minmax(0,1fr)_10rem]">
-                <Input
-                  label="Name"
-                  value={label}
-                  onChange={(e) => patch({ label: e.target.value })}
-                  placeholder="e.g. Oat milk"
-                  autoFocus={!modifier}
-                  error={submitted ? (labelError ?? undefined) : undefined}
+          {/* What it uses is the work, so it takes the main column. */}
+          <div className="flex min-w-0 flex-col gap-5">
+            <RecordGroup
+              id="modifier-recipe"
+              title="What it uses"
+              footnote="The stock it adds to a drink — this is what makes stock, cost and allergens right."
+            >
+              {!modifier ? (
+                <div className="rounded-lg border border-dashed border-border px-4 py-5 text-center text-sm text-muted-foreground">
+                  Create the modifier first, then set what it adds to a drink.
+                </div>
+              ) : recipe.isLoading ? (
+                <RecipeIngredientSkeleton />
+              ) : (
+                <RecipeIngredientEditor
+                  rows={recipe.rows}
+                  onChange={recipe.edit}
+                  columns={recipe.columns}
+                  stockItems={recipe.stockItems}
+                  itemMap={recipe.itemMap}
+                  usedIds={recipe.usedIds}
+                  sizes={sizes}
+                  emptyHint="Nothing yet. Add what this option adds to a drink — Oat Milk uses 200ml of oat milk, an extra shot uses 9g of beans."
                 />
-                <Input
-                  label="Price change"
-                  value={priceAdjust}
-                  onChange={(e) => patch({ priceAdjust: e.target.value })}
-                  inputMode="decimal"
-                  placeholder="0.50"
-                  leftIcon={<span className="text-sm">{symbol}</span>}
-                  className="tabular-nums"
-                  error={submitted ? (priceError ?? undefined) : undefined}
-                  hint={
-                    !priceError
-                      ? Number(priceAdjust) === 0
-                        ? 'No charge'
-                        : Number(priceAdjust) < 0
-                          ? 'Takes money off'
-                          : 'Added to the item’s price'
-                      : undefined
-                  }
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <FieldLabel as="span">Group</FieldLabel>
-                {groups.length ? (
-                  <ChoiceCards
-                    columns={groups.length >= 4 ? 4 : groups.length === 3 ? 3 : 2}
-                    value={groupId}
-                    onChange={(value) => {
-                      const selected = groups.find((group) => group.id === value);
-                      patch({ groupId: value, category: selected?.name ?? '', isSize: selected?.isSize ?? false });
-                    }}
-                    options={groups.map((group) => ({ value: group.id, label: group.name }))}
-                  />
-                ) : (
-                  <p className="rounded-md bg-measured/10 px-3 py-2 text-xs text-measured">
-                    No groups yet.{' '}
-                    <Link href="/menu/modifiers" className="font-semibold underline">
-                      Create one on Modifiers
-                    </Link>{' '}
-                    first — Size, Milk or Extras.
-                  </p>
-                )}
-              </div>
-            </div>
-          </SettingsSection>
-
-          <SettingsSection
-            title="What it uses"
-            description="The stock it adds to a drink — this is what makes stock, cost and allergens right."
-          >
-            {!modifier ? (
-              <p className="rounded-lg border border-dashed border-rule/70 px-4 py-3 text-sm text-muted-foreground">
-                Create the modifier first, then set what it adds to a drink.
-              </p>
-            ) : recipe.isLoading ? (
-              <RecipeIngredientSkeleton />
-            ) : (
-              <RecipeIngredientEditor
-                rows={recipe.rows}
-                onChange={recipe.edit}
-                columns={recipe.columns}
-                stockItems={recipe.stockItems}
-                itemMap={recipe.itemMap}
-                usedIds={recipe.usedIds}
-                sizes={sizes}
-                emptyHint="Nothing yet. Add what this option adds to a drink — Oat Milk uses 200ml of oat milk, an extra shot uses 9g of beans."
-              />
+              )}
+            </RecordGroup>
+          </div>
+          {/* Stacked (below lg) the settings come first, so a new modifier starts on its name. */}
+          <div className="flex min-w-0 flex-col gap-5 max-lg:order-first lg:sticky lg:top-5">
+            {details}
+            {modifier && recipe.hasIngredients && (
+              <RecipeTotals summary={recipe.summary} allAllergens={recipe.allAllergens} title="What it adds" />
             )}
-          </SettingsSection>
-        </SettingsTabBody>
+          </div>
+        </motion.div>
+
+        <SaveBar
+          dirty={dirty || !modifier}
+          saving={save.isPending}
+          saveLabel={modifier ? 'Save changes' : 'Create modifier'}
+          message={modifier ? undefined : 'Not created yet'}
+          onSave={submit}
+          onDiscard={() => {
+            setDraft(null);
+            recipe.discard();
+            setSubmitted(false);
+            setOpen(modifier ? null : 'name');
+          }}
+        />
       </form>
 
       {confirmingDelete && modifier && (

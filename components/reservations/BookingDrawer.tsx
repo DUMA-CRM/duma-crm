@@ -1,35 +1,36 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import { useId, useMemo, useState } from 'react';
 
-import { RowTile } from '@/components/cms/rows';
 import {
   AlertTriangle,
   CalendarDays,
   Clock,
   LayoutGrid,
   Loader2,
+  Mail,
   Phone,
   Search,
   Sparkles,
   StickyNote,
+  Tag,
   Timer,
   UserRound,
   Users,
   X,
 } from '@/components/icons';
-import { Switch } from '@/components/settings/controls';
+import { ChangeRow, Switch, ValueMissing } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
-import { DetailRow, DrawerSection } from '@/components/shared/DrawerSection';
-import { FormSection, NumberStepper } from '@/components/shared/FormParts';
+import { NumberStepper } from '@/components/shared/FormParts';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
-import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 import { TimePicker } from '@/components/ui/time-picker';
 
@@ -73,9 +74,22 @@ export type BookingDrawerState =
 const DURATIONS = [60, 90, 120, 150, 180];
 const stayLabel = (minutes: number) => (minutes % 60 ? `${Math.floor(minutes / 60)}h ${minutes % 60}` : `${minutes / 60}h`);
 const SOURCE_OPTIONS = (Object.keys(SOURCE_LABELS) as BookingSource[]).map((value) => ({ value, label: SOURCE_LABELS[value] }));
+const STAGGER = { hidden: {}, shown: { transition: { staggerChildren: 0.05 } } };
+/** A row here closes on "Done" and keeps what was typed: the footer's Cancel is what throws the booking's changes away. */
+const VERBS = ['Change', 'Done'] as const;
 
 /** The rows that open their input underneath — one at a time. */
-type Row = 'party' | 'day' | 'time' | 'stay' | 'tables';
+type Row = 'customer' | 'name' | 'phone' | 'email' | 'party' | 'day' | 'time' | 'stay' | 'tables' | 'notes' | 'source';
+
+/** Which row holds the field a problem is about, so the fix is in view. */
+const PROBLEM_ROW: Partial<Record<keyof BookingDraft, Row>> = {
+  guestName: 'name',
+  guestEmail: 'email',
+  partySize: 'party',
+  date: 'day',
+  time: 'time',
+  durationMinutes: 'stay',
+};
 
 /** Next quarter hour from now, as HH:MM — a sensible time for a booking taken now. */
 function nextQuarter(now = new Date()): string {
@@ -89,6 +103,10 @@ function nextQuarter(now = new Date()): string {
  * Take or change a booking. The tables offered are what's free for the chosen
  * window — the API decides, and a booking taken in the meantime by someone
  * else comes back as a refusal naming the table, not a double booking.
+ *
+ * Laid out for the host stand: the status steps as big keys at the top, then
+ * plain titled groups of rows (Guest, When, Details), each showing its value
+ * with a Change that opens the field underneath, one at a time.
  */
 export function BookingDrawer({
   locationId,
@@ -104,6 +122,7 @@ export function BookingDrawer({
   onClose: () => void;
 }) {
   const queryClient = useQueryClient();
+  const reduceMotion = useReducedMotion();
   const timeZone = workspaceTimeZone();
   const existing = state.mode === 'edit' ? state.booking : null;
   const editable = canWrite && (!existing || isLive(existing.status));
@@ -142,7 +161,8 @@ export function BookingDrawer({
   const [confirm, setConfirm] = useState<Booking['status'] | null>(null);
   const [showProblems, setShowProblems] = useState(false);
   const [sendConfirmation, setSendConfirmation] = useState(true);
-  const [openRow, setOpenRow] = useState<Row | null>(null);
+  // A new booking starts on the name; a saved one starts closed.
+  const [openRow, setOpenRow] = useState<Row | null>(existing ? null : 'name');
   const id = useId();
 
   const set = <K extends keyof BookingDraft>(key: K, value: BookingDraft[K]) => setDraft((current) => ({ ...current, [key]: value }));
@@ -212,9 +232,8 @@ export function BookingDrawer({
       setShowProblems(true);
       toast('error', Object.values(problems)[0]!);
       // A problem behind a closed row is opened, so the fix is in view.
-      const first = Object.keys(problems)[0];
-      if (first === 'date' || first === 'time') setOpenRow(first === 'date' ? 'day' : 'time');
-      if (first === 'partySize') setOpenRow('party');
+      const row = PROBLEM_ROW[Object.keys(problems)[0] as keyof BookingDraft];
+      if (row) setOpenRow(row);
       return;
     }
     save.mutate();
@@ -224,7 +243,10 @@ export function BookingDrawer({
     setTableIds((current) => (current.includes(id) ? current.filter((value) => value !== id) : [...current, id]));
   const problem = (key: keyof BookingDraft) => (showProblems ? problems[key] : undefined);
   const toggleRow = (row: Row) => setOpenRow((current) => (current === row ? null : row));
+  /** A row's Change, only while the booking can be edited — read-only rows show the value alone. */
+  const changer = (row: Row) => (editable ? { open: openRow === row, onToggle: () => toggleRow(row), verbs: VERBS, touch: true } : {});
   const clashing = chosen.some((table) => byId.get(table.id) && !byId.get(table.id)!.free);
+  const actions = existing && canWrite ? bookingActions(existing.status) : [];
 
   // What Ask DUMA is told about the saved booking — the one the drawer opened on.
   const facts = useMemo(() => {
@@ -237,6 +259,10 @@ export function BookingDrawer({
       now: new Date(),
     });
   }, [existing, floor, customer, timeZone]);
+
+  const allergies = customer?.allergies?.length ? customer.allergies.join(', ') : null;
+  const text = (value: string, empty: string) =>
+    value.trim() ? <span className="truncate">{value.trim()}</span> : <ValueMissing>{empty}</ValueMissing>;
 
   return (
     <Drawer
@@ -257,10 +283,10 @@ export function BookingDrawer({
       footer={
         editable ? (
           <div className="flex gap-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose} disabled={save.isPending}>
+            <Button type="button" variant="outline" className="flex-1 pointer-coarse:h-11" onClick={onClose} disabled={save.isPending}>
               Cancel
             </Button>
-            <Button type="submit" form="booking-form" className="flex-1" disabled={save.isPending}>
+            <Button type="submit" form="booking-form" className="flex-1 pointer-coarse:h-11" disabled={save.isPending}>
               {save.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
               {existing ? 'Save booking' : 'Create booking'}
             </Button>
@@ -268,18 +294,21 @@ export function BookingDrawer({
         ) : undefined
       }
     >
-      <div className="space-y-6">
-        {existing && canWrite && bookingActions(existing.status).length > 0 && (
-          <div className="flex flex-wrap gap-2">
-            {bookingActions(existing.status).map((action) => (
+      <motion.div className="space-y-6" initial={reduceMotion ? false : 'hidden'} animate="shown" variants={STAGGER}>
+        {/* The steps a host takes standing up: big keys, the likely next one across the top. */}
+        {actions.length > 0 && (
+          <div className="grid grid-cols-2 gap-2" role="group" aria-label="Booking status">
+            {actions.map((action) => (
               <Button
                 key={action.status}
                 type="button"
+                size="touch"
                 variant={action.primary ? 'default' : action.destructive ? 'destructive' : 'outline'}
-                className="flex-1"
+                className={cn(action.primary && 'col-span-2')}
                 disabled={step.isPending}
                 onClick={() => (action.destructive ? setConfirm(action.status) : step.mutate(action.status))}
               >
+                {step.isPending && step.variables === action.status && <Loader2 className="animate-spin" aria-hidden="true" />}
                 {action.label}
               </Button>
             ))}
@@ -287,209 +316,276 @@ export function BookingDrawer({
         )}
 
         <form id="booking-form" onSubmit={submit}>
-          <fieldset disabled={!editable} className="space-y-6">
-            <div className="space-y-3">
-              <CustomerLink
-                id={`${id}-customer`}
-                customer={customer}
-                onChange={setCustomer}
-                onPick={(picked) => {
-                  setCustomer(picked);
-                  setDraft((current) => ({
-                    ...current,
-                    guestName:
-                      current.guestName && current.guestName !== 'Walk-in'
-                        ? current.guestName
-                        : `${picked.firstName} ${picked.lastName}`.trim(),
-                    guestPhone: current.guestPhone || picked.phone || '',
-                    guestEmail: current.guestEmail || picked.email || '',
-                  }));
-                }}
-                editable={editable}
-              />
-              <Input
-                id={`${id}-name`}
-                label="Guest name"
-                required
-                value={draft.guestName}
-                onChange={(event) => set('guestName', event.target.value)}
-                placeholder="Who the table is for"
-                error={problem('guestName')}
-                autoFocus={!existing}
-              />
-            </div>
-
-            {/* One line each — what it is set to — and the control opens underneath on a tap. */}
-            <DrawerSection id={`${id}-when`} title="When">
-              <DetailRow
-                icon={Users}
-                title="Party"
-                value={`${draft.partySize} ${draft.partySize === 1 ? 'guest' : 'guests'}`}
-                open={openRow === 'party'}
-                onToggle={() => toggleRow('party')}
-              >
-                <NumberStepper
-                  label="Guests"
-                  value={draft.partySize}
-                  min={1}
-                  max={200}
-                  unit={draft.partySize === 1 ? 'guest' : 'guests'}
-                  onChange={(value) => {
-                    setDraft((current) => ({
-                      ...current,
-                      partySize: value,
-                      ...(!durationTouched && { durationMinutes: defaultDurationMinutes(value) }),
-                    }));
-                  }}
-                />
-              </DetailRow>
-              <DetailRow
-                icon={CalendarDays}
-                title="Day"
-                value={
-                  problem('date') ?? formatCalendarDate(draft.date, { weekday: 'short', day: 'numeric', month: 'short' }, 'Choose a day')
-                }
-                tone={problem('date') ? 'warning' : undefined}
-                open={openRow === 'day'}
-                onToggle={() => toggleRow('day')}
-              >
-                <DatePicker value={draft.date} onValueChange={(value) => set('date', value)} aria-label="Day" error={problem('date')} />
-              </DetailRow>
-              <DetailRow
-                icon={Clock}
-                title="Time"
-                value={problem('time') ?? (draft.time || 'Choose a time')}
-                tone={problem('time') ? 'warning' : undefined}
-                open={openRow === 'time'}
-                onToggle={() => toggleRow('time')}
-              >
-                <TimePicker value={draft.time} onValueChange={(value) => set('time', value)} minuteStep={15} aria-label="Time" />
-              </DetailRow>
-              <DetailRow
-                icon={Timer}
-                title="Stay"
-                value={stayLabel(draft.durationMinutes)}
-                open={openRow === 'stay'}
-                onToggle={() => toggleRow('stay')}
-              >
-                <SegmentedControl<string>
-                  value={String(draft.durationMinutes)}
-                  onChange={(value) => {
-                    setDurationTouched(true);
-                    set('durationMinutes', Number(value));
-                  }}
-                  ariaLabel="How long they stay"
-                  options={DURATIONS.map((minutes) => ({ value: String(minutes), label: stayLabel(minutes) }))}
-                />
-              </DetailRow>
-              <DetailRow
-                icon={LayoutGrid}
-                title="Tables"
-                value={
-                  clashing
-                    ? 'Booked then'
-                    : short
-                      ? `Seats ${seatsAtMost(chosen)} of ${draft.partySize}`
-                      : chosen.length
-                        ? chosen.map((table) => table.label).join(' + ')
-                        : 'None yet'
-                }
-                muted={chosen.length === 0}
-                tone={clashing || short ? 'warning' : undefined}
-                open={openRow === 'tables'}
-                onToggle={() => toggleRow('tables')}
-              >
-                <TablePicker floor={floor} tableIds={tableIds} byId={byId} editable={editable} timeZone={timeZone} onToggle={toggleTable} />
-                {availability.isError && (
-                  <p className="mt-2 text-xs text-exception">Couldn’t check which tables are free — saving still checks.</p>
-                )}
-                {short && (
-                  <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-measured">
-                    <AlertTriangle size={13} aria-hidden="true" />
-                    Those tables seat {seatsAtMost(chosen)}; the party is {draft.partySize}.
-                  </p>
-                )}
-                {clashing && (
-                  <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-exception">
-                    <AlertTriangle size={13} aria-hidden="true" />A chosen table is booked then — choose another or change the time.
-                  </p>
-                )}
-              </DetailRow>
-            </DrawerSection>
-
-            <FormSection
-              icon={Phone}
-              title="Contact details"
-              collapsible
-              defaultOpen={Boolean(existing?.guestPhone || existing?.guestEmail)}
-              invalid={Boolean(problem('guestEmail'))}
-            >
-              <div className="grid gap-3 sm:grid-cols-2">
-                <Input
-                  label="Phone"
-                  type="tel"
-                  autoComplete="tel"
-                  value={draft.guestPhone}
-                  onChange={(event) => set('guestPhone', event.target.value)}
-                />
-                <Input
+          <fieldset disabled={!editable} className="min-w-0 space-y-6">
+            <RecordGroup id={`${id}-guest`} title="Guest">
+              <div>
+                <ChangeRow
+                  icon={UserRound}
+                  label="Customer record"
+                  tone={allergies ? 'warning' : undefined}
+                  value={
+                    customer ? (
+                      <span className="min-w-0">
+                        <span className="block truncate">{`${customer.firstName} ${customer.lastName}`.trim()}</span>
+                        {allergies && <span className="block truncate text-xs font-medium text-measured">Allergies: {allergies}</span>}
+                      </span>
+                    ) : (
+                      <ValueMissing>Not linked</ValueMissing>
+                    )
+                  }
+                  trailing={
+                    customer && editable ? (
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="icon-sm"
+                        className="pointer-coarse:size-11"
+                        aria-label="Unlink the customer"
+                        onClick={() => setCustomer(null)}
+                      >
+                        <X size={15} aria-hidden="true" />
+                      </Button>
+                    ) : undefined
+                  }
+                  {...(editable && !customer
+                    ? {
+                        open: openRow === 'customer',
+                        onToggle: () => toggleRow('customer'),
+                        verbs: ['Find', 'Close'] as const,
+                        touch: true,
+                      }
+                    : {})}
+                >
+                  <CustomerSearch
+                    id={`${id}-customer`}
+                    onPick={(picked) => {
+                      setCustomer(picked);
+                      setOpenRow(null);
+                      setDraft((current) => ({
+                        ...current,
+                        guestName:
+                          current.guestName && current.guestName !== 'Walk-in'
+                            ? current.guestName
+                            : `${picked.firstName} ${picked.lastName}`.trim(),
+                        guestPhone: current.guestPhone || picked.phone || '',
+                        guestEmail: current.guestEmail || picked.email || '',
+                      }));
+                    }}
+                  />
+                </ChangeRow>
+                <ChangeRow
+                  icon={UserRound}
+                  label="Name"
+                  tone={problem('guestName') ? 'danger' : undefined}
+                  value={
+                    problem('guestName') ? <span className="text-exception">{problem('guestName')}</span> : text(draft.guestName, 'Not set')
+                  }
+                  {...changer('name')}
+                >
+                  <Input
+                    id={`${id}-name`}
+                    aria-label="Guest name"
+                    required
+                    value={draft.guestName}
+                    onChange={(event) => set('guestName', event.target.value)}
+                    placeholder="Who the table is for"
+                    error={problem('guestName')}
+                    autoFocus
+                  />
+                </ChangeRow>
+                <ChangeRow icon={Phone} label="Phone" value={text(draft.guestPhone, 'None')} {...changer('phone')}>
+                  <Input
+                    aria-label="Phone"
+                    type="tel"
+                    autoComplete="tel"
+                    value={draft.guestPhone}
+                    onChange={(event) => set('guestPhone', event.target.value)}
+                    autoFocus
+                  />
+                </ChangeRow>
+                <ChangeRow
+                  icon={Mail}
                   label="Email"
-                  type="email"
-                  autoComplete="email"
-                  value={draft.guestEmail}
-                  onChange={(event) => set('guestEmail', event.target.value)}
-                  error={problem('guestEmail')}
-                />
-              </div>
-              {!existing && draft.guestEmail.trim() && (
-                <div className="flex items-center gap-3">
-                  <span className="min-w-0 flex-1">
-                    <span className="block text-sm font-semibold text-foreground">Email a confirmation</span>
-                    <span className="block text-xs leading-relaxed text-muted-foreground">
+                  tone={problem('guestEmail') ? 'danger' : undefined}
+                  value={
+                    problem('guestEmail') ? <span className="text-exception">{problem('guestEmail')}</span> : text(draft.guestEmail, 'None')
+                  }
+                  {...changer('email')}
+                >
+                  <Input
+                    aria-label="Email"
+                    type="email"
+                    autoComplete="email"
+                    value={draft.guestEmail}
+                    onChange={(event) => set('guestEmail', event.target.value)}
+                    error={problem('guestEmail')}
+                    autoFocus
+                  />
+                </ChangeRow>
+                {!existing && draft.guestEmail.trim() && (
+                  <>
+                    <ChangeRow
+                      icon={Mail}
+                      label="Email a confirmation"
+                      value={sendConfirmation ? 'Yes' : <ValueMissing>No</ValueMissing>}
+                      trailing={<Switch checked={sendConfirmation} onChange={setSendConfirmation} label="Email a confirmation" />}
+                    />
+                    <p className="pb-1 text-xs leading-relaxed text-muted-foreground sm:pl-13">
                       To {draft.guestEmail.trim()}, if a confirmation automation is set up. The reminder goes either way.
-                    </span>
-                  </span>
-                  <Switch checked={sendConfirmation} onChange={setSendConfirmation} label="Email a confirmation" />
-                </div>
-              )}
-            </FormSection>
+                    </p>
+                  </>
+                )}
+              </div>
+            </RecordGroup>
 
-            <FormSection icon={StickyNote} title="Notes" collapsible defaultOpen={Boolean(draft.notes)}>
-              <FieldLabel htmlFor={`${id}-notes`}>Notes</FieldLabel>
-              <textarea
-                id={`${id}-notes`}
-                value={draft.notes}
-                onChange={(event) => set('notes', event.target.value)}
-                maxLength={500}
-                rows={3}
-                placeholder="Allergies, an occasion, a high chair…"
-                className="w-full rounded-md border border-input bg-control px-3 py-2 text-base sm:text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30 disabled:opacity-60"
-              />
-            </FormSection>
+            <RecordGroup id={`${id}-when`} title="When">
+              <div>
+                <ChangeRow
+                  icon={Users}
+                  label="Party"
+                  value={`${draft.partySize} ${draft.partySize === 1 ? 'guest' : 'guests'}`}
+                  tone={problem('partySize') ? 'danger' : undefined}
+                  {...changer('party')}
+                >
+                  <NumberStepper
+                    label="Guests"
+                    value={draft.partySize}
+                    min={1}
+                    max={200}
+                    unit={draft.partySize === 1 ? 'guest' : 'guests'}
+                    onChange={(value) => {
+                      setDraft((current) => ({
+                        ...current,
+                        partySize: value,
+                        ...(!durationTouched && { durationMinutes: defaultDurationMinutes(value) }),
+                      }));
+                    }}
+                  />
+                </ChangeRow>
+                <ChangeRow
+                  icon={CalendarDays}
+                  label="Day"
+                  tone={problem('date') ? 'danger' : undefined}
+                  value={
+                    problem('date') ? (
+                      <span className="text-exception">{problem('date')}</span>
+                    ) : (
+                      formatCalendarDate(draft.date, { weekday: 'short', day: 'numeric', month: 'short' }, 'Choose a day')
+                    )
+                  }
+                  {...changer('day')}
+                >
+                  <DatePicker value={draft.date} onValueChange={(value) => set('date', value)} aria-label="Day" error={problem('date')} />
+                </ChangeRow>
+                <ChangeRow
+                  icon={Clock}
+                  label="Time"
+                  tone={problem('time') ? 'danger' : undefined}
+                  value={
+                    problem('time') ? (
+                      <span className="text-exception">{problem('time')}</span>
+                    ) : (
+                      draft.time || <ValueMissing>Choose a time</ValueMissing>
+                    )
+                  }
+                  {...changer('time')}
+                >
+                  <TimePicker value={draft.time} onValueChange={(value) => set('time', value)} minuteStep={15} aria-label="Time" />
+                </ChangeRow>
+                <ChangeRow icon={Timer} label="Stay" value={stayLabel(draft.durationMinutes)} {...changer('stay')}>
+                  <SegmentedControl<string>
+                    value={String(draft.durationMinutes)}
+                    onChange={(value) => {
+                      setDurationTouched(true);
+                      set('durationMinutes', Number(value));
+                    }}
+                    ariaLabel="How long they stay"
+                    options={DURATIONS.map((minutes) => ({ value: String(minutes), label: stayLabel(minutes) }))}
+                    className="w-full [&>button]:flex-1"
+                  />
+                </ChangeRow>
+                <ChangeRow
+                  icon={LayoutGrid}
+                  label="Tables"
+                  tone={clashing ? 'danger' : short ? 'warning' : undefined}
+                  value={
+                    clashing ? (
+                      <span className="text-exception">Booked then</span>
+                    ) : short ? (
+                      <span className="text-measured">
+                        Seats {seatsAtMost(chosen)} of {draft.partySize}
+                      </span>
+                    ) : chosen.length ? (
+                      <span className="truncate">{chosen.map((table) => table.label).join(' + ')}</span>
+                    ) : (
+                      <ValueMissing>None yet</ValueMissing>
+                    )
+                  }
+                  {...changer('tables')}
+                >
+                  <TablePicker
+                    floor={floor}
+                    tableIds={tableIds}
+                    byId={byId}
+                    editable={editable}
+                    timeZone={timeZone}
+                    onToggle={toggleTable}
+                  />
+                  {availability.isError && (
+                    <p className="mt-2 text-xs text-exception">Couldn’t check which tables are free — saving still checks.</p>
+                  )}
+                  {short && (
+                    <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-measured">
+                      <AlertTriangle size={13} aria-hidden="true" />
+                      Those tables seat {seatsAtMost(chosen)}; the party is {draft.partySize}.
+                    </p>
+                  )}
+                  {clashing && (
+                    <p className="mt-2 flex items-center gap-1.5 text-xs font-medium text-exception">
+                      <AlertTriangle size={13} aria-hidden="true" />A chosen table is booked then — choose another or change the time.
+                    </p>
+                  )}
+                </ChangeRow>
+              </div>
+            </RecordGroup>
 
-            <FormSection icon={Phone} title="Booking source" collapsible>
-              <FieldLabel htmlFor={`${id}-source`} required>
-                Source
-              </FieldLabel>
-              <Select
-                id={`${id}-source`}
-                value={source}
-                onValueChange={(value) => setSource(value as BookingSource)}
-                options={SOURCE_OPTIONS}
-                ariaLabel="How the booking came in"
-                className="w-full"
-                disabled={!editable}
-              />
-            </FormSection>
+            <RecordGroup id={`${id}-details`} title="Details">
+              <div>
+                <ChangeRow icon={StickyNote} label="Notes" value={text(draft.notes, 'None')} {...changer('notes')}>
+                  <textarea
+                    id={`${id}-notes`}
+                    aria-label="Notes"
+                    value={draft.notes}
+                    onChange={(event) => set('notes', event.target.value)}
+                    maxLength={500}
+                    rows={3}
+                    autoFocus
+                    placeholder="Allergies, an occasion, a high chair…"
+                    className="w-full rounded-md border border-input bg-control px-3 py-2 text-base sm:text-sm text-foreground shadow-sm outline-none placeholder:text-muted-foreground focus-visible:border-ring focus-visible:outline-2 focus-visible:outline-offset-0 focus-visible:outline-ring/30 disabled:opacity-60"
+                  />
+                </ChangeRow>
+                <ChangeRow icon={Tag} label="Taken by" value={SOURCE_LABELS[source]} {...changer('source')}>
+                  <Select
+                    id={`${id}-source`}
+                    value={source}
+                    onValueChange={(value) => setSource(value as BookingSource)}
+                    options={SOURCE_OPTIONS}
+                    ariaLabel="How the booking came in"
+                    className="w-full"
+                    disabled={!editable}
+                  />
+                </ChangeRow>
+              </div>
+            </RecordGroup>
           </fieldset>
         </form>
 
         {facts && (
-          <DrawerSection id={`${id}-ask`} title="Ask DUMA" action={<Sparkles size={14} className="text-primary" aria-hidden="true" />}>
+          <RecordGroup id={`${id}-ask`} title="Ask DUMA" actions={<Sparkles size={14} className="text-primary" aria-hidden="true" />}>
             <BookingAssist facts={facts} />
-          </DrawerSection>
+          </RecordGroup>
         )}
-      </div>
+      </motion.div>
 
       {confirm && (
         <ConfirmModal
@@ -552,21 +648,29 @@ function TablePicker({
                     type="button"
                     aria-pressed={selected}
                     disabled={!editable || (busy && !selected)}
-                    title={
-                      clash ? `${clash.guestName} at ${slotOf(clash.startsAt, timeZone)}` : `Seats ${table.minCovers}–${table.maxCovers}`
+                    aria-label={
+                      clash
+                        ? `${table.label}, booked by ${clash.guestName} at ${slotOf(clash.startsAt, timeZone)}`
+                        : `${table.label}, seats ${table.minCovers}–${table.maxCovers}`
                     }
                     onClick={() => onToggle(table.id)}
                     className={cn(
-                      'flex h-10 min-w-16 flex-col items-center justify-center rounded-md border px-2 text-xs transition-colors',
-                      selected ? 'border-primary bg-primary text-primary-foreground' : 'border-rule bg-field text-foreground hover:bg-band',
+                      'flex h-11 min-w-16 flex-col items-center justify-center rounded-md border px-2 text-xs transition-colors focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
+                      selected ? 'border-primary bg-primary/8 text-primary' : 'border-border bg-card text-foreground hover:bg-band/60',
                       busy && !selected && 'cursor-not-allowed border-dashed opacity-50',
                       busy && selected && 'border-exception bg-exception/10 text-exception',
                       info && !info.seatsParty && !selected && !busy && 'text-muted-foreground',
                     )}
                   >
                     <span className="font-semibold">{table.label}</span>
-                    <span className={cn('text-[10px]', selected ? 'text-primary-foreground/80' : 'text-muted-foreground')}>
-                      {busy ? 'Booked' : table.minCovers === table.maxCovers ? table.maxCovers : `${table.minCovers}–${table.maxCovers}`}
+                    <span className={cn('text-[10px]', selected ? 'text-primary/80' : 'text-muted-foreground')}>
+                      {busy
+                        ? clash
+                          ? `${clash.guestName.split(' ')[0]} ${slotOf(clash.startsAt, timeZone)}`
+                          : 'Booked'
+                        : table.minCovers === table.maxCovers
+                          ? table.maxCovers
+                          : `${table.minCovers}–${table.maxCovers}`}
                     </span>
                   </button>
                 );
@@ -579,22 +683,10 @@ function TablePicker({
 }
 
 /**
- * Link the booking to a customer record — their allergies and history come
- * with them. Searches name, phone or email, like the till.
+ * Find a customer record to link — their allergies and history come with
+ * them. Searches name, phone or email, like the till.
  */
-function CustomerLink({
-  id,
-  customer,
-  onChange,
-  onPick,
-  editable,
-}: {
-  id: string;
-  customer: Pick<Customer, 'id' | 'firstName' | 'lastName' | 'allergies'> | null;
-  onChange: (customer: null) => void;
-  onPick: (customer: Customer) => void;
-  editable: boolean;
-}) {
+function CustomerSearch({ id, onPick }: { id: string; onPick: (customer: Customer) => void }) {
   const [term, setTerm] = useState('');
   const search = term.trim();
   const results = useQuery({
@@ -604,61 +696,43 @@ function CustomerLink({
     staleTime: 30_000,
   });
 
-  if (customer) {
-    const allergies = customer.allergies?.length ? customer.allergies.join(', ') : null;
-    return (
-      <div className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3">
-        <RowTile icon={UserRound} tone={allergies ? 'warning' : 'success'} />
-        <span className="min-w-0 flex-1">
-          <span className="block truncate text-sm font-semibold text-foreground">
-            {`${customer.firstName} ${customer.lastName}`.trim()}
-          </span>
-          <span className={cn('block text-xs', allergies ? 'font-medium text-measured' : 'text-muted-foreground')}>
-            {allergies ? `Allergies: ${allergies}` : 'Customer record linked'}
-          </span>
-        </span>
-        {editable && (
-          <Button type="button" variant="ghost" size="icon-sm" aria-label="Unlink the customer" onClick={() => onChange(null)}>
-            <X size={15} />
-          </Button>
-        )}
-      </div>
-    );
-  }
-  if (!editable) return null;
   return (
     <div>
       <Input
         id={id}
-        label="Link customer"
-        leftIcon={<Search size={14} />}
+        aria-label="Find a customer"
+        leftIcon={<Search size={14} aria-hidden="true" />}
         value={term}
         onChange={(event) => setTerm(event.target.value)}
-        placeholder="Search by name, phone or email"
+        placeholder="Name, phone or email"
+        autoFocus
       />
       {search.length >= 2 && (
-        <div className="mt-1.5 rounded-md border border-border bg-card p-1">
+        <div className="mt-1.5">
           {results.isPending ? (
-            <p className="px-2 py-1.5 text-xs text-muted-foreground">Searching…</p>
+            <p className="px-1 py-2 text-xs text-muted-foreground">Searching…</p>
           ) : results.isError ? (
-            <p className="px-2 py-1.5 text-xs text-exception">Couldn’t search customers.</p>
+            <p className="px-1 py-2 text-xs text-exception">Couldn’t search customers.</p>
           ) : results.data.data.length === 0 ? (
-            <p className="px-2 py-1.5 text-xs text-muted-foreground">No customer matches — the booking can be taken without one.</p>
+            <p className="px-1 py-2 text-xs text-muted-foreground">No customer matches — the booking can be taken without one.</p>
           ) : (
-            results.data.data.map((match) => (
-              <button
-                key={match.id}
-                type="button"
-                onClick={() => {
-                  onPick(match);
-                  setTerm('');
-                }}
-                className="flex w-full items-center justify-between gap-3 rounded-md px-2 py-1.5 text-left text-sm hover:bg-band"
-              >
-                <span className="truncate font-medium text-foreground">{`${match.firstName} ${match.lastName}`.trim()}</span>
-                <span className="shrink-0 text-xs text-muted-foreground">{match.phone ?? match.email ?? ''}</span>
-              </button>
-            ))
+            <ul className="-mx-1 flex flex-col">
+              {results.data.data.map((match) => (
+                <li key={match.id}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      onPick(match);
+                      setTerm('');
+                    }}
+                    className="flex min-h-11 w-full items-center justify-between gap-3 rounded-md px-2 text-left text-sm transition-colors hover:bg-band/60 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring"
+                  >
+                    <span className="truncate font-medium text-foreground">{`${match.firstName} ${match.lastName}`.trim()}</span>
+                    <span className="shrink-0 text-xs text-muted-foreground">{match.phone ?? match.email ?? ''}</span>
+                  </button>
+                </li>
+              ))}
+            </ul>
           )}
         </div>
       )}

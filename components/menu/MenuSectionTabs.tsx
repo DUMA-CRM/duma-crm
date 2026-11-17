@@ -50,3 +50,9 @@ export function MenuSectionTabs() {
     />
   );
 }
+
+/** The header icon every menu tab shares, so switching tabs doesn't swap it. */
+export function MenuShellIcon() {
+  const words = useCatalogWords();
+  return words.vocabulary === 'retail' ? <Tag size={20} aria-hidden="true" /> : <UtensilsCrossed size={20} aria-hidden="true" />;
+}

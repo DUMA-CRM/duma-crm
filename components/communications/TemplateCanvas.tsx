@@ -2,12 +2,31 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { ArrowDown, ArrowUp, Copy, ImagePlus, LayoutGrid, Menu, Trash2 } from '@/components/icons';
+import { RowMenu } from '@/components/cms/rows';
+import {
+  ArrowDown,
+  ArrowUp,
+  Code,
+  Copy,
+  FileText,
+  Globe,
+  GripVertical,
+  ImagePlus,
+  Link2,
+  ListView,
+  Minus,
+  Plus,
+  Trash2,
+} from '@/components/icons';
+import type { IconComponent } from '@/components/icons';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { cn } from '@/lib/utils/cn';
 
 import { EmailImage } from './EmailImage';
 import {
+  COLUMN_LAYOUTS,
   type ColumnsLayout,
   type DropContainer,
   type TemplateBlock,
@@ -27,12 +46,92 @@ import {
   updateTemplateBlock,
 } from './templateDesign';
 
-/** What is being dragged: a brand new block from the palette, or an existing one. */
+/** What is being dragged — an existing block (moved by its grip) — or what a "+" adds. */
 export type DragPayload = { kind: 'new'; type: TemplateBlock['type']; layout?: ColumnsLayout } | { kind: 'move'; blockId: string };
 
-/** Builds the block a palette drag or click asked for. */
+/** Builds the block a "+" asked for. */
 export const blockFromPayload = (payload: Extract<DragPayload, { kind: 'new' }>): TemplateBlock =>
   payload.type === 'columns' ? newColumnsBlock(payload.layout ?? 'two-equal') : newLeafBlock(payload.type);
+
+const BLOCK_CHOICES: Array<{ type: TemplateLeafBlock['type']; label: string; icon: IconComponent }> = [
+  { type: 'heading', label: 'Heading', icon: FileText },
+  { type: 'text', label: 'Text', icon: ListView },
+  { type: 'button', label: 'Button', icon: Link2 },
+  { type: 'image', label: 'Image', icon: ImagePlus },
+  { type: 'divider', label: 'Divider', icon: Minus },
+  { type: 'spacer', label: 'Spacer', icon: ArrowDown },
+  { type: 'social', label: 'Social', icon: Globe },
+  { type: 'html', label: 'HTML', icon: Code },
+];
+
+type NewBlock = Extract<DragPayload, { kind: 'new' }>;
+
+/**
+ * What a "+" offers: the content blocks, then — on the page itself, never inside
+ * a column — a row of columns by its shape. Clicks inside never reach the block
+ * the "+" sits on, so choosing selects the new block, not the old one.
+ */
+function AddBlockMenu({
+  columns,
+  onPick,
+  children,
+}: {
+  /** Offer column rows too (only on the page, not inside a column). */
+  columns: boolean;
+  onPick: (payload: NewBlock) => void;
+  /** The trigger button. */
+  children: React.ReactElement;
+}) {
+  const [open, setOpen] = useState(false);
+  const pick = (payload: NewBlock) => {
+    setOpen(false);
+    onPick(payload);
+  };
+  return (
+    <span className="contents" onClick={(event) => event.stopPropagation()}>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>{children}</PopoverTrigger>
+        <PopoverContent align="center" className="w-64 p-2">
+          {/* Compact choices: a small icon and the name — a full action row leaves no room for the word in half a popover. */}
+          <div className="grid grid-cols-2 gap-0.5">
+            {BLOCK_CHOICES.map(({ type, label, icon: Icon }) => (
+              <button
+                key={type}
+                type="button"
+                onClick={() => pick({ kind: 'new', type })}
+                className="flex min-h-9 items-center gap-2 rounded-md px-2 text-left text-sm font-medium text-foreground transition-colors hover:bg-band/50 focus-visible:outline-2 focus-visible:outline-ring"
+              >
+                <Icon size={15} className="shrink-0 text-muted-foreground" aria-hidden="true" />
+                <span className="min-w-0">{label}</span>
+              </button>
+            ))}
+          </div>
+          {columns && (
+            <>
+              <p className="mt-2 px-2 pb-1.5 text-label uppercase text-muted-foreground">Columns</p>
+              <div className="grid grid-cols-2 gap-1.5 px-1 pb-1">
+                {COLUMN_LAYOUTS.map(({ value, label, widths }) => (
+                  <button
+                    key={value}
+                    type="button"
+                    onClick={() => pick({ kind: 'new', type: 'columns', layout: value })}
+                    title={label}
+                    aria-label={`Add a ${label} row`}
+                    className="flex h-9 items-stretch gap-1 rounded-md border border-border bg-background p-1.5 transition-colors hover:border-primary/40 hover:bg-primary/6 focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    {widths.map((width, index) => (
+                      <span key={index} style={{ width: `${width}%` }} className="rounded-sm bg-band" aria-hidden="true" />
+                    ))}
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+        </PopoverContent>
+      </Popover>
+    </span>
+  );
+}
 
 const HIGHLIGHT_NAME = 'template-variable';
 const HIGHLIGHT_STYLE_ID = 'template-variable-highlight-style';
@@ -95,7 +194,8 @@ export interface CanvasDnd {
 
 /**
  * The email itself, as a direct-manipulation surface: text is edited in place,
- * blocks are dragged into position, and column rows accept content per cell.
+ * a "+" under any block adds the next one, blocks are dragged by their grip,
+ * and column rows take content per cell.
  */
 export function TemplateCanvas({
   design,
@@ -140,7 +240,15 @@ export function TemplateCanvas({
     dnd.end();
   };
 
+  /** A new block at this spot, selected so its settings open. */
+  const add = (container: DropContainer, index: number, payload: NewBlock) => {
+    const block = blockFromPayload(payload);
+    onChange(insertTemplateBlock(design, block, container, index));
+    onSelect(block.id);
+  };
+
   const actions = {
+    add,
     select: onSelect,
     update: (block: TemplateBlock) => onChange(updateTemplateBlock(design, block)),
     remove: (blockId: string) => {
@@ -159,7 +267,8 @@ export function TemplateCanvas({
   };
 
   return (
-    <div className="rounded-lg border border-border p-4" style={{ backgroundColor: design.styles.backgroundColor }}>
+    <div className="space-y-3">
+    <div className="rounded-lg border border-border p-3 sm:p-5" style={{ backgroundColor: design.styles.backgroundColor }}>
       <div
         ref={sheetRef}
         className="mx-auto max-w-155 rounded-md p-6 md:p-8"
@@ -170,17 +279,11 @@ export function TemplateCanvas({
         }}
       >
         {design.blocks.length === 0 && !dnd.dragging ? (
-          <button
-            type="button"
-            onClick={() => {
-              const block = newLeafBlock('text');
-              onChange(insertTemplateBlock(design, block, { kind: 'root' }, 0));
-              onSelect(block.id);
-            }}
-            className="w-full rounded-sm border border-dashed border-current/25 p-12 text-sm opacity-60"
-          >
-            Add your first content block — or drag one in from the left
-          </button>
+          <AddBlockMenu columns onPick={(payload) => add({ kind: 'root' }, 0, payload)}>
+            <button type="button" className="w-full rounded-sm border border-dashed border-current/25 p-12 text-sm opacity-60 transition-opacity hover:opacity-100">
+              Add your first block
+            </button>
+          </AddBlockMenu>
         ) : (
           <>
             <DropGap container={{ kind: 'root' }} index={0} dnd={dnd} accepts={accepts} onDrop={drop} first />
@@ -195,6 +298,8 @@ export function TemplateCanvas({
                   accepts={accepts}
                   onDropAt={drop}
                   actions={actions}
+                  container={{ kind: 'root' }}
+                  index={index}
                 />
                 <DropGap container={{ kind: 'root' }} index={index + 1} dnd={dnd} accepts={accepts} onDrop={drop} />
               </div>
@@ -202,6 +307,15 @@ export function TemplateCanvas({
           </>
         )}
       </div>
+    </div>
+      {/* The end of the email, the one place to add that is always on screen. */}
+      {design.blocks.length > 0 && (
+        <AddBlockMenu columns onPick={(payload) => add({ kind: 'root' }, design.blocks.length, payload)}>
+          <Button type="button" variant="outline" className="w-full gap-1.5 border-dashed">
+            <Plus aria-hidden="true" /> Add block
+          </Button>
+        </AddBlockMenu>
+      )}
     </div>
   );
 }
@@ -230,6 +344,7 @@ function indexIn(design: TemplateDesign, container: DropContainer, blockId: stri
 }
 
 interface BlockActions {
+  add: (container: DropContainer, index: number, payload: NewBlock) => void;
   select: (id: string) => void;
   update: (block: TemplateBlock) => void;
   remove: (blockId: string) => void;
@@ -311,6 +426,8 @@ function BlockShell({
   accepts,
   onDropAt,
   actions,
+  container,
+  index,
   compact = false,
 }: {
   block: TemplateBlock;
@@ -321,6 +438,9 @@ function BlockShell({
   accepts: AcceptsHandler;
   onDropAt: DropHandler;
   actions: BlockActions;
+  /** Where the block sits, so its "+" adds the next one just below it. */
+  container: DropContainer;
+  index: number;
   /** Blocks inside a column get a tighter frame. */
   compact?: boolean;
 }) {
@@ -335,9 +455,9 @@ function BlockShell({
         actions.select(block.id);
       }}
       className={cn(
-        'group/block relative rounded-sm border-2 transition-colors',
+        'group/block relative rounded-sm border transition-colors',
         compact ? 'px-1' : 'px-2',
-        selected ? 'border-primary' : 'border-transparent hover:border-current/20',
+        selected ? 'border-primary/60' : 'border-transparent hover:border-current/15',
       )}
     >
       <BlockToolbar
@@ -349,6 +469,20 @@ function BlockShell({
         onRemove={() => actions.remove(block.id)}
         onNudge={(direction) => actions.nudge(block.id, direction)}
       />
+
+      {/* "+" on the lower edge: the next block, just below this one. */}
+      <AddBlockMenu columns={container.kind === 'root'} onPick={(payload) => actions.add(container, index + 1, payload)}>
+        <button
+          type="button"
+          aria-label={`Add a block below this ${isColumnsBlock(block) ? 'row' : block.type}`}
+          className={cn(
+            'absolute -bottom-3 left-1/2 z-10 flex size-6 -translate-x-1/2 items-center justify-center rounded-full border border-border bg-card text-muted-foreground shadow-sm transition-opacity hover:text-foreground focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring data-[state=open]:opacity-100',
+            selected ? 'opacity-100' : 'opacity-0 group-hover/block:opacity-100',
+          )}
+        >
+          <Plus size={13} aria-hidden="true" />
+        </button>
+      </AddBlockMenu>
 
       {isColumnsBlock(block) ? (
         <ColumnsView
@@ -368,7 +502,7 @@ function BlockShell({
   );
 }
 
-/** Hover controls: drag by the grip, or nudge, copy and delete. */
+/** Hover controls: drag by the grip; move, copy and delete behind ⋯. */
 function BlockToolbar({
   block,
   selected,
@@ -390,10 +524,10 @@ function BlockToolbar({
   return (
     <div
       className={cn(
-        'absolute -top-3 right-1 z-10 flex items-center gap-0.5 rounded-sm border border-rule bg-card p-0.5 shadow-md transition-opacity',
+        'absolute -top-4 right-1 z-10 flex items-center gap-0.5 rounded-md border border-border bg-card p-0.5 text-foreground shadow-sm transition-opacity',
         selected ? 'opacity-100' : 'opacity-0 group-hover/block:opacity-100 focus-within:opacity-100',
       )}
-      // Clicking the toolbar must not also re-enter the block's own handlers.
+      // Clicking the toolbar (or its menu) must not also re-enter the block's own handlers.
       onClick={(event) => event.stopPropagation()}
     >
       {/* Only the grip is draggable, so selecting and editing text stay usable. */}
@@ -409,52 +543,22 @@ function BlockToolbar({
         onDragEnd={dnd.end}
         aria-label={`Drag to move this ${label}`}
         title="Drag to move"
-        className="flex size-6 cursor-grab items-center justify-center rounded-sm text-muted-foreground hover:bg-muted hover:text-foreground active:cursor-grabbing"
+        className="flex size-7 cursor-grab items-center justify-center rounded-sm text-muted-foreground hover:bg-band hover:text-foreground active:cursor-grabbing"
       >
-        <Menu size={13} />
+        <GripVertical size={14} />
       </button>
-      <ToolbarButton label="Move up" onClick={() => onNudge(-1)}>
-        <ArrowUp size={13} />
-      </ToolbarButton>
-      <ToolbarButton label="Move down" onClick={() => onNudge(1)}>
-        <ArrowDown size={13} />
-      </ToolbarButton>
-      <ToolbarButton label={`Duplicate this ${label}`} onClick={onDuplicate}>
-        <Copy size={13} />
-      </ToolbarButton>
-      <ToolbarButton label={`Delete this ${label}`} onClick={onRemove} destructive>
-        <Trash2 size={13} />
-      </ToolbarButton>
+      <span className="[&_button]:size-7">
+        <RowMenu
+          label={`This ${label}’s actions`}
+          items={[
+            { icon: ArrowUp, label: 'Move up', onClick: () => onNudge(-1) },
+            { icon: ArrowDown, label: 'Move down', onClick: () => onNudge(1) },
+            { icon: Copy, label: 'Duplicate', onClick: onDuplicate },
+            { icon: Trash2, label: 'Delete', danger: true, onClick: onRemove },
+          ]}
+        />
+      </span>
     </div>
-  );
-}
-
-function ToolbarButton({
-  label,
-  onClick,
-  destructive,
-  children,
-}: {
-  label: string;
-  onClick: () => void;
-  destructive?: boolean;
-  children: React.ReactNode;
-}) {
-  return (
-    <button
-      type="button"
-      onClick={onClick}
-      aria-label={label}
-      title={label}
-      className={cn(
-        'flex size-6 items-center justify-center rounded-sm transition-colors',
-        destructive
-          ? 'text-muted-foreground hover:bg-band hover:text-destructive'
-          : 'text-muted-foreground hover:bg-muted hover:text-foreground',
-      )}
-    >
-      {children}
-    </button>
   );
 }
 
@@ -488,7 +592,7 @@ function ColumnsView({
         return (
           <div key={column.id} style={{ width: `${widths[columnIndex] ?? 100 / block.columns.length}%` }} className="min-w-0">
             {empty ? (
-              <EmptyCell container={container} dnd={dnd} accepts={accepts} onDrop={onDropAt} />
+              <EmptyCell container={container} dnd={dnd} accepts={accepts} onDrop={onDropAt} onAdd={(payload) => actions.add(container, 0, payload)} />
             ) : (
               <>
                 <DropGap container={container} index={0} dnd={dnd} accepts={accepts} onDrop={onDropAt} first vertical />
@@ -503,6 +607,8 @@ function ColumnsView({
                       accepts={accepts}
                       onDropAt={onDropAt}
                       actions={actions}
+                      container={container}
+                      index={leafIndex}
                       compact
                     />
                     <DropGap container={container} index={leafIndex + 1} dnd={dnd} accepts={accepts} onDrop={onDropAt} vertical />
@@ -517,17 +623,19 @@ function ColumnsView({
   );
 }
 
-/** An empty cell is one big target — the whole point of choosing a layout first. */
+/** An empty cell: a "+" for its first block, and one big target while a block is dragged. */
 function EmptyCell({
   container,
   dnd,
   accepts,
   onDrop,
+  onAdd,
 }: {
   container: DropContainer;
   dnd: CanvasDnd;
   accepts: AcceptsHandler;
   onDrop: DropHandler;
+  onAdd: (payload: NewBlock) => void;
 }) {
   const [over, setOver] = useState(false);
   const allowed = dnd.dragging && accepts(container);
@@ -547,15 +655,23 @@ function EmptyCell({
         onDrop(container, 0);
       }}
       className={cn(
-        'flex min-h-24 flex-col items-center justify-center gap-1 rounded-sm border-2 border-dashed p-3 text-center text-label transition-colors',
-        over ? 'border-primary bg-band' : 'border-current/20 opacity-50',
+        'flex min-h-24 flex-col items-center justify-center gap-1 rounded-sm border border-dashed p-3 text-center text-label transition-colors',
+        over ? 'border-primary bg-primary/6' : 'border-current/20',
       )}
     >
-      {/* Inert, so dragging over the label never reads as leaving the cell. */}
-      <span className="pointer-events-none flex flex-col items-center gap-1">
-        <LayoutGrid size={14} aria-hidden="true" />
-        Drop content here
-      </span>
+      {dnd.dragging ? (
+        // Inert, so dragging over the label never reads as leaving the cell.
+        <span className="pointer-events-none opacity-60">Drop here</span>
+      ) : (
+        <AddBlockMenu columns={false} onPick={onAdd}>
+          <button
+            type="button"
+            className="flex items-center gap-1 rounded-sm px-2 py-1 opacity-60 transition-opacity hover:opacity-100 focus-visible:outline-2 focus-visible:outline-ring"
+          >
+            <Plus size={13} aria-hidden="true" /> Add
+          </button>
+        </AddBlockMenu>
+      )}
     </div>
   );
 }

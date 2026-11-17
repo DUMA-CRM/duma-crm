@@ -1,17 +1,17 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { RowTile, SectionInfo } from '@/components/cms/rows';
+import { RowTile } from '@/components/cms/rows';
 import { cmsKeys } from '@/components/cms/shared';
 import { ChevronDown, Coins, Globe, Languages, Trash2 } from '@/components/icons';
 import { CommitInput, catalogKey } from '@/components/menu/VariantsEditor';
-import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { ErrorState } from '@/components/shared/ErrorState';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { useWorkspaceCurrency } from '@/components/shared/useWorkspaceMoney';
@@ -30,7 +30,7 @@ import {
 } from '@/lib/modules/catalog/client';
 import { type CmsLocale, getCmsLocales } from '@/lib/modules/cms/client';
 import { toast } from '@/lib/toast';
-import { extraCurrencies, fromPrice, pricedIn, translationProgress } from '@/lib/utils/catalog-i18n';
+import { extraCurrencies, pricedIn, translationProgress } from '@/lib/utils/catalog-i18n';
 import { variantNoun } from '@/lib/utils/catalog-import';
 import { cn } from '@/lib/utils/cn';
 import { CURRENCIES, currencySymbol, formatCurrency } from '@/lib/utils/currencies';
@@ -52,6 +52,7 @@ export function ProductLanguages({ menuItemId, tenantId }: { menuItemId: string;
   // Currencies picked here but not yet priced — they live on the page until a price is saved.
   const [added, setAdded] = useState<string[]>([]);
   const refresh = () => queryClient.invalidateQueries({ queryKey: catalogKey(menuItemId, tenantId) });
+  const reduceMotion = useReducedMotion();
 
   if (catalogQuery.isPending) return <LoadingState label="Loading languages and prices" />;
   if (catalogQuery.isError) return <ErrorState title="Couldn’t load this product" onRetry={() => void catalogQuery.refetch()} />;
@@ -60,7 +61,12 @@ export function ProductLanguages({ menuItemId, tenantId }: { menuItemId: string;
   const currencies = extraCurrencies(locales, base, catalog.prices, added);
 
   return (
-    <SettingsTabBody narrowAside aside={<ShopperCard catalog={catalog} locales={locales} base={base} />}>
+    <motion.div
+      initial={reduceMotion ? false : 'hidden'}
+      animate="shown"
+      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
+      className="flex flex-col gap-5"
+    >
       <LanguagesCard
         catalog={catalog}
         locales={locales}
@@ -80,48 +86,48 @@ export function ProductLanguages({ menuItemId, tenantId }: { menuItemId: string;
         onForget={(code) => setAdded((list) => list.filter((entry) => entry !== code))}
         onChanged={refresh}
       />
-    </SettingsTabBody>
+    </motion.div>
   );
 }
 
-/** The card shell the Sizes tab uses: a header that is the card's own, then the body. */
+/** A titled section as the Sizes tab draws one: the title and its count above, the card, then the footnote. */
 function Card({
   id,
   title,
   count,
-  info,
+  actions,
   children,
-  footer,
+  footnote,
 }: {
   id: string;
   title: string;
   count?: number;
-  info: string;
+  actions?: React.ReactNode;
   children: React.ReactNode;
-  footer?: React.ReactNode;
+  footnote?: React.ReactNode;
 }) {
   return (
-    <section aria-labelledby={id} className="overflow-hidden rounded-lg border border-border bg-control">
-      <header className="flex items-center gap-3 px-4 py-3.5">
-        <h2 id={id} className="text-base font-semibold tracking-title text-heading">
-          {title}
-        </h2>
-        {count !== undefined && count > 0 && (
-          <span className="rounded-full bg-band px-2 py-0.5 text-xs font-semibold tabular-nums text-muted-foreground">{count}</span>
-        )}
-        <span className="ml-auto">
-          <SectionInfo label={info} />
-        </span>
-      </header>
-      {children}
-      {footer && <footer className="border-t border-border px-4 py-2.5 text-xs text-muted-foreground">{footer}</footer>}
-    </section>
+    <RecordGroup
+      id={id}
+      title={title}
+      actions={
+        (count !== undefined && count > 0) || actions ? (
+          <span className="flex items-center gap-3">
+            {count !== undefined && count > 0 && <span className="text-sm tabular-nums text-muted-foreground">{count}</span>}
+            {actions}
+          </span>
+        ) : undefined
+      }
+      footnote={footnote}
+    >
+      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">{children}</div>
+    </RecordGroup>
   );
 }
 
 function EmptyBody({ icon, title, children }: { icon: typeof Globe; title: string; children: React.ReactNode }) {
   return (
-    <div className="flex flex-col items-center gap-3 border-t border-border px-6 py-10 text-center">
+    <div className="flex flex-col items-center gap-3 px-6 py-10 text-center">
       <RowTile icon={icon} />
       <div>
         <p className="text-sm font-semibold text-foreground">{title}</p>
@@ -154,28 +160,30 @@ function LanguagesCard({
   const defaultName = locales.find((locale) => locale.isDefault)?.name ?? 'your default language';
   return (
     <Card
-      id="product-languages-title"
+      id="product-languages"
       title="Languages"
       count={others.length}
-      info="The product’s name, description and option names in each language your website speaks. Anything left blank shows in the default language."
-      footer={
-        state === 'ready' && others.length > 0 ? (
-          <>
-            Languages are shared with your website content —{' '}
-            <Link href="/content?tab=locales" className="font-medium text-foreground underline-offset-2 hover:underline">
-              add or remove them in Content
-            </Link>
-            .
-          </>
-        ) : undefined
+      footnote={
+        <>
+          The name, description and option names in each language your website speaks; anything left blank shows in the default language.
+          Your website asks with <span className="font-mono">?locale=</span> — see Settings → Developers.
+          {state === 'ready' && others.length > 0 && (
+            <>
+              {' '}
+              Languages are shared with your website content —{' '}
+              <Link href="/content?tab=locales" className="font-medium text-foreground underline-offset-2 hover:underline">
+                add or remove them in Content
+              </Link>
+              .
+            </>
+          )}
+        </>
       }
     >
       {state === 'loading' ? (
-        <div className="border-t border-border">
-          <LoadingState label="Loading languages" />
-        </div>
+        <LoadingState label="Loading languages" />
       ) : state === 'error' ? (
-        <div className="border-t border-border p-4">
+        <div className="p-4">
           <ErrorState title="Couldn’t load your languages" onRetry={onRetry} />
         </div>
       ) : others.length === 0 ? (
@@ -187,7 +195,7 @@ function LanguagesCard({
           and it appears here, ready to translate.
         </EmptyBody>
       ) : (
-        <div className="space-y-1 border-t border-border px-4 py-3">
+        <div className="space-y-1 px-4 py-3">
           {others.map((locale) => (
             <LanguageRow
               key={locale.code}
@@ -486,7 +494,7 @@ function PricesCard({
   const addCurrency = (
     <Select
       ariaLabel="Add a currency"
-      className="h-8 w-52 text-xs"
+      className="h-8 w-auto min-w-52 text-xs"
       value=""
       onValueChange={(code) => code && onAdd(code)}
       options={[
@@ -498,20 +506,22 @@ function PricesCard({
 
   return (
     <Card
-      id="product-prices-title"
+      id="product-prices"
       title="Prices in other currencies"
       count={currencies.length}
-      info={`What this ${words.item} costs where you sell in another currency. Each is its own price, not a conversion — round it the way shoppers there expect.`}
-      footer={
-        currencies.length > 0 ? (
-          <div className="flex flex-wrap items-center justify-between gap-2">
-            <span>
+      actions={currencies.length > 0 && choices.length > 0 ? addCurrency : undefined}
+      footnote={
+        <>
+          What this {words.item} costs where you sell in another currency. Each is its own price, not a conversion — round it the way
+          shoppers there expect.
+          {currencies.length > 0 && (
+            <>
+              {' '}
               {hasSizes ? `A blank ${noun.one} uses the price in the first row. ` : ''}A currency sells only once
               {hasSizes ? ` every ${noun.one}` : ' it'} has a price.
-            </span>
-            {choices.length > 0 && addCurrency}
-          </div>
-        ) : undefined
+            </>
+          )}
+        </>
       }
     >
       {currencies.length === 0 ? (
@@ -520,7 +530,7 @@ function PricesCard({
           <div className="mt-3 flex justify-center">{addCurrency}</div>
         </EmptyBody>
       ) : (
-        <div className="overflow-x-auto border-t border-border">
+        <div className="overflow-x-auto">
           <table className="w-full text-sm" style={{ minWidth: `${16 + currencies.length * 9}rem` }}>
             <thead>
               <tr className="border-b border-border bg-band/30 text-left text-micro font-semibold uppercase tracking-micro text-muted-foreground">
@@ -592,59 +602,5 @@ function PricesCard({
         />
       )}
     </Card>
-  );
-}
-
-// ─── What a shopper sees ─────────────────────────────────────────────────────
-
-function ShopperCard({ catalog, locales, base }: { catalog: ItemCatalog; locales: CmsLocale[]; base: string }) {
-  const sorted = [...locales].sort((a, b) => Number(b.isDefault) - Number(a.isDefault) || a.name.localeCompare(b.name));
-  const basePrices =
-    catalog.variants.length > 0
-      ? catalog.variants.map((variant) => Number(variant.price ?? catalog.item.price))
-      : [Number(catalog.item.price)];
-  const baseFrom = Math.min(...basePrices);
-  return (
-    <SettingsSection
-      title="What shoppers see"
-      footnote={
-        <>
-          Your website asks with <span className="font-mono">?locale=</span> — see Settings → Developers.
-        </>
-      }
-    >
-      {sorted.length === 0 ? (
-        <p className="text-sm text-muted-foreground">One language, priced in {base}.</p>
-      ) : (
-        <ul className="space-y-3">
-          {sorted.map((locale) => {
-            const currency = locale.currency && locale.currency !== base ? locale.currency : base;
-            const abroad = currency !== base ? fromPrice(catalog, currency) : null;
-            const name = locale.isDefault
-              ? catalog.item.name
-              : (catalog.translations.item.find((row) => row.locale === locale.code)?.name ?? null);
-            const missingPrice = currency !== base && abroad === null;
-            return (
-              <li key={locale.code} className="flex items-center gap-3">
-                <RowTile icon={Globe} tone={missingPrice ? 'warning' : 'default'} />
-                <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-semibold text-foreground">{locale.name}</p>
-                  <p className={cn('truncate text-xs', name ? 'text-muted-foreground' : 'text-muted-foreground/70')} lang={locale.code}>
-                    {name ?? `${catalog.item.name} (not translated)`}
-                  </p>
-                </div>
-                <div className="shrink-0 text-right">
-                  <p className="text-sm font-semibold tabular-nums text-foreground">
-                    {catalog.variants.length > 0 ? 'from ' : ''}
-                    {abroad !== null ? formatCurrency(abroad, currency) : formatCurrency(baseFrom, base)}
-                  </p>
-                  {missingPrice && <p className="text-xs text-measured">No {currency} price yet</p>}
-                </div>
-              </li>
-            );
-          })}
-        </ul>
-      )}
-    </SettingsSection>
   );
 }

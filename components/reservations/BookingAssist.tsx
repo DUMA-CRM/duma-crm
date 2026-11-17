@@ -15,7 +15,7 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /**
  * Ask DUMA about the booking that's open, with the answer in the mascot's
- * bubble. The booking's
+ * bubble, straight on the drawer — no card of its own. The booking's
  * facts go with the question — the agent has no reservations tools of its own.
  * Hidden while the workspace has Ask DUMA switched off.
  */
@@ -57,7 +57,7 @@ export function BookingAssist({ facts }: { facts: ReservationFacts }) {
   }
 
   return (
-    <div className="space-y-3 px-4 py-3.5">
+    <div className="space-y-3">
       <DumaSays
         line={busy ? 'Thinking…' : (reply?.text ?? `Anything you want to know about ${facts.guest}’s booking?`)}
         busy={busy}
@@ -80,7 +80,13 @@ export function BookingAssist({ facts }: { facts: ReservationFacts }) {
           placeholder="Ask about this booking…"
           onChange={(event) => setQuestion(event.target.value)}
         />
-        <Button type="submit" size="icon" aria-label="Ask" disabled={busy || question.trim().length < QUESTION_MIN}>
+        <Button
+          type="submit"
+          size="icon"
+          className="pointer-coarse:size-11"
+          aria-label="Ask"
+          disabled={busy || question.trim().length < QUESTION_MIN}
+        >
           {busy ? <Loader2 size={15} className="animate-spin" aria-hidden="true" /> : <ArrowUp size={15} aria-hidden="true" />}
         </Button>
       </form>

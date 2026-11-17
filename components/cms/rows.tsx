@@ -317,7 +317,18 @@ export interface RowMenuItem {
  * A row's secondary actions behind a ⋯ button — so a list shows its rows, not
  * a fence of icon buttons. Picking an item closes the menu, then runs it.
  */
-export function RowMenu({ label, items, pending = false }: { label: string; items: RowMenuItem[]; pending?: boolean }) {
+export function RowMenu({
+  label,
+  items,
+  pending = false,
+  touch = false,
+}: {
+  label: string;
+  items: RowMenuItem[];
+  pending?: boolean;
+  /** A 44px key on coarse pointers — for touch-first screens like the host stand. */
+  touch?: boolean;
+}) {
   const [open, setOpen] = useState(false);
   const run = (item: RowMenuItem) => () => {
     setOpen(false);
@@ -326,7 +337,13 @@ export function RowMenu({ label, items, pending = false }: { label: string; item
   return (
     <Popover open={open} onOpenChange={setOpen}>
       <PopoverTrigger asChild>
-        <Button variant="ghost" size="icon-sm" aria-label={label} disabled={pending} className="shrink-0 text-muted-foreground">
+        <Button
+          variant="ghost"
+          size="icon-sm"
+          aria-label={label}
+          disabled={pending}
+          className={cn('shrink-0 text-muted-foreground', touch && 'pointer-coarse:size-11')}
+        >
           {pending ? <Loader2 className="animate-spin" aria-hidden="true" /> : <MoreHorizontal aria-hidden="true" />}
         </Button>
       </PopoverTrigger>

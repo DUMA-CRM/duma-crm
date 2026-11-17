@@ -1,13 +1,11 @@
 'use client';
 
-import { motion } from 'motion/react';
 import { useState } from 'react';
 
 import { TriggerDialog, triggerIcon } from '@/components/automation/TriggerPicker';
-import { InfoRow, InfoRows, PickerRow, RowMenu } from '@/components/cms/rows';
+import { RowMenu, RowWarning } from '@/components/cms/rows';
 import {
   CalendarDays,
-  CheckCircle2,
   Clock,
   Copy,
   Eye,
@@ -17,14 +15,13 @@ import {
   MapPin,
   Send,
   Trash2,
-  TriangleAlert,
   Type,
   Users,
-  XCircle,
   Zap,
 } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
-import { SettingsSection } from '@/components/settings/SettingsSection';
+import { ChangeRow, ValueAside, ValueMissing } from '@/components/settings/controls';
+import { RecordGroup } from '@/components/shared/RecordGroup';
 import { TimezoneSelect } from '@/components/shared/TimezoneSelect';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { AmountUnitPicker } from '@/components/ui/amount-unit-picker';
@@ -55,18 +52,15 @@ import { isMovableNode } from './workflowModel';
 import { NODE_META } from './workflowNodes';
 import { workflowFieldAvailable } from './workflowPolicy';
 
-/** Sections rise in one after another, as in the Content editors. */
-const STAGGER = { shown: { transition: { staggerChildren: 0.06 } } };
-
 const labelOf = (options: { value: string; label: string }[], value: string) =>
   options.find((option) => option.value === value)?.label ?? value;
 
 /**
- * The editor's right rail, in the Content editors' vocabulary and all on one
- * scroll: the workflow as a whole, then the selected step (what it does, then
- * its settings as one-line rows that open their input). Runs live under Automation → Runs.
+ * The editor's sidebar: the workflow as a whole, then the selected step — each
+ * a titled card of rows whose Change opens the control in place, one at a time.
+ * Sticky beside a long flow, so a step's settings stay in view as you pick it.
  *
- * Read-only viewers get the same rail with every control disabled by one
+ * Read-only viewers get the same cards with every control disabled by one
  * fieldset; the email preview, which only reads, stays live.
  */
 export function AutomationSidebar({
@@ -114,117 +108,105 @@ export function AutomationSidebar({
   unpublished?: boolean;
   /** What's wrong with the selected step — shown at the top of its card. */
   stepIssues?: string[];
-  /** A new workflow whose trigger isn't chosen yet: its "Starts when" row opens on the event list. */
+  /** A new workflow whose trigger isn't chosen yet: its event row opens on the event list. */
   chooseTrigger?: boolean;
   onTriggerChosen?: () => void;
 }) {
   const [nameOpen, setNameOpen] = useState(() => !name.trim());
+  const failed = automation?.failedRunCount ?? 0;
   return (
-    // No panel of its own: the cards sit on the page beside the canvas, as a settings page's side column does.
-    <aside className="min-h-0 overflow-auto bg-band">
-      <motion.div initial="hidden" animate="shown" variants={STAGGER} className="flex flex-col gap-5 p-4 md:p-6 lg:pl-0">
-        <SettingsSection
-          title="Workflow"
-          actions={
-            <div className="flex items-center gap-1.5">
-              {unpublished && <Badge variant="warning">Unpublished changes</Badge>}
-              <Badge variant={automation?.isEnabled ? 'success' : 'muted'}>
-                {automation?.isEnabled
-                  ? `Live · v${automation.publishedVersion}`
-                  : automation?.publishedVersion
-                    ? `Off · v${automation.publishedVersion}`
-                    : automation
-                      ? 'Draft'
-                      : 'New'}
-              </Badge>
-            </div>
-          }
-        >
-          <div className="space-y-3">
-            <fieldset disabled={readOnly} className="min-w-0">
-              <PickerRow
-                icon={Type}
-                title="Name"
-                value={name.trim() || 'Not named'}
-                muted={!name.trim()}
-                tone={!name.trim() && !readOnly ? 'warning' : undefined}
-                open={nameOpen}
-                onToggle={() => setNameOpen((current) => !current)}
-              >
-                <Input
-                  id="workflow-name"
-                  value={name}
-                  onChange={(event) => onName(event.target.value)}
-                  required
-                  autoFocus
-                  placeholder="Order ready"
-                />
-                <p className="mt-1.5 text-xs text-muted-foreground">Only your team sees this.</p>
-              </PickerRow>
-            </fieldset>
-            <InfoRows>
-              <InfoRow icon={Users} title="About">
-                <span className="text-sm font-semibold text-foreground">
-                  {triggerEvent === 'stock_low'
-                    ? 'Stock items'
-                    : staffAudience
-                      ? 'Employees'
-                      : bookingAudience
-                        ? 'Booking guests'
-                        : 'Customers'}
-                </span>
-              </InfoRow>
-              {automation && (
-                <>
-                  <InfoRow icon={Send} title="Runs">
-                    <span className="text-sm font-semibold tabular-nums text-foreground">
-                      {(automation.runCount ?? 0).toLocaleString()}
-                    </span>
-                  </InfoRow>
-                  {Boolean(automation.failedRunCount) && (
-                    <InfoRow icon={XCircle} tone="danger" title="Failed runs">
-                      <span className="text-sm font-semibold tabular-nums text-exception">{automation.failedRunCount}</span>
-                    </InfoRow>
-                  )}
-                  <InfoRow icon={Clock} title="Last checked">
-                    <span className="text-sm font-semibold text-foreground">
-                      {automation.lastEvaluatedAt ? timeAgo(automation.lastEvaluatedAt, now) : 'Not yet'}
-                    </span>
-                  </InfoRow>
-                </>
-              )}
-            </InfoRows>
+    // Stacked (below lg) the sidebar comes first, so a new workflow starts on its name and trigger.
+    <div className="-m-1 flex min-w-0 flex-col gap-5 p-1 max-lg:order-first lg:sticky lg:top-0 lg:max-h-[calc(100dvh-var(--header-height))] lg:overflow-y-auto">
+      <RecordGroup
+        card
+        id="workflow-details"
+        title="Workflow"
+        actions={
+          <div className="flex items-center gap-1.5">
+            {unpublished && <Badge variant="warning">Unpublished changes</Badge>}
+            <Badge variant={automation?.isEnabled ? 'success' : 'muted'}>
+              {automation?.isEnabled
+                ? `Live · v${automation.publishedVersion}`
+                : automation?.publishedVersion
+                  ? `Off · v${automation.publishedVersion}`
+                  : automation
+                    ? 'Draft'
+                    : 'New'}
+            </Badge>
           </div>
-        </SettingsSection>
-
-        {node ? (
-          // Keyed by step, so each one opens with its empty settings ready and the rest folded.
-          <StepPanel
-            key={node.id}
-            issues={stepIssues}
-            node={node}
-            triggerEvent={triggerEvent}
-            templates={templates}
-            locations={locations}
-            segments={segments}
-            staffAudience={staffAudience}
-            bookingAudience={bookingAudience}
-            readOnly={readOnly}
-            templateName={templateName}
-            onChange={onChange}
-            onDuplicate={() => onDuplicate(node.id)}
-            onRemove={() => onRemove(node.id)}
-            onPreview={onPreview}
-            chooseTrigger={chooseTrigger}
-            onTriggerChosen={onTriggerChosen}
+        }
+      >
+        <fieldset disabled={readOnly} className="min-w-0">
+          <ChangeRow
+            icon={Type}
+            label="Name"
+            value={name.trim() ? <span className="truncate">{name}</span> : <ValueMissing>Not named</ValueMissing>}
+            tone={!name.trim() && !readOnly ? 'warning' : undefined}
+            open={nameOpen}
+            onToggle={() => setNameOpen((current) => !current)}
+            verbs={['Change', 'Done']}
+          >
+            <Input
+              id="workflow-name"
+              aria-label="Workflow name"
+              value={name}
+              onChange={(event) => onName(event.target.value)}
+              required
+              placeholder="Order ready"
+            />
+            <p className="mt-1.5 text-xs text-muted-foreground">Only your team sees this.</p>
+          </ChangeRow>
+          <ChangeRow
+            icon={Users}
+            label="About"
+            value={
+              triggerEvent === 'stock_low' ? 'Stock items' : staffAudience ? 'Employees' : bookingAudience ? 'Booking guests' : 'Customers'
+            }
           />
-        ) : (
-          <SettingsSection title="Step">
-            <p className="text-sm text-muted-foreground">Select a step on the canvas and its settings appear here.</p>
-          </SettingsSection>
-        )}
-      </motion.div>
-    </aside>
+          {automation && (
+            <ChangeRow
+              icon={Send}
+              label="Runs"
+              tone={failed ? 'danger' : undefined}
+              value={
+                <>
+                  <span className="tabular-nums">{(automation.runCount ?? 0).toLocaleString()}</span>
+                  {failed > 0 && <span className="tabular-nums text-exception">· {failed} failed</span>}
+                  <ValueAside>· checked {automation.lastEvaluatedAt ? timeAgo(automation.lastEvaluatedAt, now) : 'not yet'}</ValueAside>
+                </>
+              }
+            />
+          )}
+        </fieldset>
+      </RecordGroup>
+
+      {node ? (
+        // Keyed by step, so each one opens with its empty settings ready and the rest folded.
+        <StepPanel
+          key={node.id}
+          issues={stepIssues}
+          node={node}
+          triggerEvent={triggerEvent}
+          templates={templates}
+          locations={locations}
+          segments={segments}
+          staffAudience={staffAudience}
+          bookingAudience={bookingAudience}
+          readOnly={readOnly}
+          templateName={templateName}
+          onChange={onChange}
+          onDuplicate={() => onDuplicate(node.id)}
+          onRemove={() => onRemove(node.id)}
+          onPreview={onPreview}
+          chooseTrigger={chooseTrigger}
+          onTriggerChosen={onTriggerChosen}
+        />
+      ) : (
+        <RecordGroup card id="workflow-step" title="Step">
+          <p className="text-sm text-muted-foreground">Select a step and its settings open here.</p>
+        </RecordGroup>
+      )}
+    </div>
   );
 }
 
@@ -271,104 +253,105 @@ function StepPanel({
   // One setting open at a time; the step opens on what still needs filling in.
   const [open, setOpen] = useState<string | null>(() => firstOpenRow(node, chooseTrigger));
   const toggle = (id: string) => setOpen((current) => (current === id ? null : id));
-  const nameRow = (
-    <Row id="name" open={open} onToggle={toggle} icon={meta.icon} title="Name on the canvas" value={node.name}>
+  const nameRow = node.type !== 'end' && (
+    <Row id="name" open={open} onToggle={toggle} icon={meta.icon} title="Name" value={node.name}>
       <Input
         id="step-name"
+        aria-label="Step name"
         value={node.name}
         autoFocus
         onChange={(event) => onChange({ ...node, name: event.target.value })}
         placeholder={meta.label}
       />
-      <p className="text-xs text-muted-foreground">How this step reads on the canvas.</p>
+      <p className="text-xs text-muted-foreground">How this step reads in the flow.</p>
     </Row>
   );
 
   return (
-    <>
-      {/* One card for the step: who it is and what it does, then the how — every line the same row. */}
-      <SettingsSection
-        title={node.type === 'trigger' ? 'Starts when' : meta.label}
-        actions={
-          !readOnly && (duplicable || removable) ? (
-            <RowMenu
-              label={`${node.name || meta.label} actions`}
-              items={[
-                ...(duplicable ? [{ icon: Copy, label: 'Duplicate this step', onClick: onDuplicate }] : []),
-                ...(removable ? [{ icon: Trash2, label: 'Remove this step', danger: true, onClick: onRemove }] : []),
-              ]}
-            />
-          ) : undefined
-        }
-      >
-        {/* Checked on every change: what still stops this step, before its settings. */}
-        {issues?.length ? (
-          <div className="mb-4 flex items-start gap-2 rounded-md bg-exception/8 px-3 py-2 text-xs font-medium text-exception" role="status">
-            <TriangleAlert size={14} className="mt-px shrink-0" aria-hidden="true" />
+    <RecordGroup
+      card
+      id="workflow-step"
+      title={node.type === 'trigger' ? 'Starts when' : meta.label}
+      actions={
+        !readOnly && (duplicable || removable) ? (
+          <RowMenu
+            label={`${node.name || meta.label} actions`}
+            items={[
+              ...(duplicable ? [{ icon: Copy, label: 'Duplicate this step', onClick: onDuplicate }] : []),
+              ...(removable ? [{ icon: Trash2, label: 'Remove this step', danger: true, onClick: onRemove }] : []),
+            ]}
+          />
+        ) : undefined
+      }
+      // The step in one sentence — what the rows add up to (nothing to say until a trigger has its event).
+      footnote={
+        (node.type === 'trigger' && chooseTrigger) || node.type === 'end'
+          ? undefined
+          : describeStep(node, { templateName, locationName, staff: staffAudience, booking: bookingAudience })
+      }
+    >
+      {/* Checked on every change: what still stops this step, before its settings. */}
+      {issues?.length ? (
+        <RowWarning className="mb-3">
+          {issues.length === 1 ? (
+            issues[0]
+          ) : (
             <ul className="space-y-0.5">
               {issues.map((issue) => (
                 <li key={issue}>{issue}</li>
               ))}
             </ul>
-          </div>
-        ) : null}
-        <fieldset disabled={readOnly} className="min-w-0 space-y-3">
-          {node.type !== 'trigger' && nameRow}
-          <StepSettings
-            triggerChosen={!chooseTrigger}
-            open={open}
-            onToggle={toggle}
-            onTriggerChosen={() => {
-              onTriggerChosen?.();
-              setOpen(null);
-            }}
-            node={node}
-            triggerEvent={triggerEvent}
-            templates={templates}
-            locations={locations}
-            segments={segments}
-            locationName={locationName ?? null}
-            onChange={onChange}
-          />
-          {/* A trigger's name rarely matters — it comes after what starts the workflow. */}
-          {node.type === 'trigger' && nameRow}
-        </fieldset>
-        {/* Outside the fieldset: previewing is reading, so a read-only viewer keeps it. */}
-        {node.type === 'send_email' && selectedTemplate && (
-          <button
-            type="button"
-            onClick={onPreview}
-            aria-label={`Preview ${selectedTemplate.name}`}
-            className="group relative mt-4 block w-full overflow-hidden rounded-md border border-border bg-white text-left focus-visible:outline-2 focus-visible:outline-ring"
-          >
-            <span className="block aspect-4/3 overflow-hidden">
-              <iframe
-                title=""
-                sandbox=""
-                tabIndex={-1}
-                srcDoc={previewEmailHtml(selectedTemplate.htmlBody, proxiedImageForEmail)}
-                className="pointer-events-none h-150 w-[200%] origin-top-left scale-50 border-0 bg-white"
-              />
+          )}
+        </RowWarning>
+      ) : null}
+      {node.type === 'end' && <p className="text-sm text-muted-foreground">Nothing to set — this branch finishes here.</p>}
+      <fieldset disabled={readOnly} className="min-w-0">
+        {node.type !== 'trigger' && nameRow}
+        <StepSettings
+          triggerChosen={!chooseTrigger}
+          open={open}
+          onToggle={toggle}
+          onTriggerChosen={() => {
+            onTriggerChosen?.();
+            setOpen(null);
+          }}
+          node={node}
+          triggerEvent={triggerEvent}
+          templates={templates}
+          locations={locations}
+          segments={segments}
+          locationName={locationName ?? null}
+          onChange={onChange}
+        />
+        {/* A trigger's name rarely matters — it comes after what starts the workflow. */}
+        {node.type === 'trigger' && nameRow}
+      </fieldset>
+      {/* Outside the fieldset: previewing is reading, so a read-only viewer keeps it. */}
+      {node.type === 'send_email' && selectedTemplate && (
+        <button
+          type="button"
+          onClick={onPreview}
+          aria-label={`Preview ${selectedTemplate.name}`}
+          className="group relative mt-3 block w-full overflow-hidden rounded-md border border-border bg-white text-left focus-visible:outline-2 focus-visible:outline-ring"
+        >
+          <span className="block aspect-4/3 overflow-hidden">
+            <iframe
+              title=""
+              sandbox=""
+              tabIndex={-1}
+              srcDoc={previewEmailHtml(selectedTemplate.htmlBody, proxiedImageForEmail)}
+              className="pointer-events-none h-150 w-[200%] origin-top-left scale-50 border-0 bg-white"
+            />
+          </span>
+          <span className="flex items-center gap-2 border-t border-border bg-card px-3 py-2.5">
+            <span className="min-w-0 flex-1 truncate text-xs font-semibold text-foreground">{selectedTemplate.subject}</span>
+            <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground group-hover:text-foreground">
+              <Eye size={13} aria-hidden="true" /> Preview
             </span>
-            <span className="flex items-center gap-2 border-t border-border bg-card px-3 py-2.5">
-              <span className="min-w-0 flex-1">
-                <span className="block truncate text-xs font-semibold text-foreground">{selectedTemplate.subject}</span>
-                <span className="block text-micro text-muted-foreground">Subject line</span>
-              </span>
-              <span className="inline-flex shrink-0 items-center gap-1 text-xs font-semibold text-muted-foreground group-hover:text-foreground">
-                <Eye size={13} aria-hidden="true" /> Preview
-              </span>
-            </span>
-          </button>
-        )}
-        {/* The step in one sentence — what the rows above add up to (nothing to say until a trigger has its event). */}
-        {!(node.type === 'trigger' && chooseTrigger) && (
-          <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-            {describeStep(node, { templateName, locationName, staff: staffAudience, booking: bookingAudience })}
-          </p>
-        )}
-      </SettingsSection>
-    </>
+          </span>
+        </button>
+      )}
+    </RecordGroup>
   );
 }
 
@@ -403,28 +386,22 @@ function StepSettings({
   if (node.type === 'trigger') {
     const event = node.config.event;
     const days = Math.abs(node.config.offsetDays ?? 0);
-    const hasOptions =
-      event === 'segment_entered' ||
-      event === 'reservation_reminder' ||
-      event.startsWith('order_') ||
-      event.startsWith('reservation_') ||
-      event === 'customer_birthday' ||
-      event === 'customer_inactive';
     return (
       <>
-        {/* The event as a row like the rest; a tap opens the event dialog. */}
-        <PickerRow
+        {/* The event as a row like the rest; Change opens the event dialog. */}
+        <ChangeRow
           icon={triggerChosen ? triggerIcon(event) : Zap}
-          title="Event"
-          value={triggerChosen ? labelOf(TRIGGER_OPTIONS, event) : 'Choose an event'}
-          muted={!triggerChosen}
+          label="Event"
+          value={triggerChosen ? labelOf(TRIGGER_OPTIONS, event) : <ValueMissing>Choose an event</ValueMissing>}
+          tone={triggerChosen ? undefined : 'warning'}
           open={open === 'event'}
           onToggle={() => onToggle('event')}
+          verbs={['Change', 'Done']}
         >
           <p className="text-xs leading-relaxed text-muted-foreground">
             {triggerChosen ? TRIGGER_HELP[event] : 'Whatever should start this workflow — an order, a birthday, a booking.'}
           </p>
-        </PickerRow>
+        </ChangeRow>
         {open === 'event' && (
           <TriggerDialog
             current={triggerChosen ? event : undefined}
@@ -448,7 +425,6 @@ function StepSettings({
             }}
           />
         )}
-        {hasOptions && <p className="pt-2 text-label uppercase text-muted-foreground">Options</p>}
         {event === 'segment_entered' && (
           <Row
             id="segment"
@@ -611,7 +587,7 @@ function StepSettings({
           value={node.config.message}
           rows={5}
           maxLength={3500}
-          className="w-full rounded-md border border-input bg-control p-3 text-sm"
+          className="w-full rounded-md border border-input bg-control p-3 text-sm outline-none focus:border-primary"
           onChange={(e) => onChange({ ...node, config: { ...node.config, message: e.target.value } })}
         />
         <label className="flex items-start gap-2 text-sm">
@@ -655,7 +631,7 @@ function StepSettings({
             maxLength={10000}
             rows={5}
             autoFocus
-            className="w-full rounded-md border border-input bg-control p-3 text-sm"
+            className="w-full rounded-md border border-input bg-control p-3 text-sm outline-none focus:border-primary"
             onChange={(event) => onChange({ ...node, config: { ...node.config, body: event.target.value } })}
           />
           <p className="text-xs text-muted-foreground">The workflow’s publisher must keep helpdesk management permission.</p>
@@ -769,25 +745,10 @@ function StepSettings({
           </p>
         </Row>
         {unavailable && (
-          <p className="flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
-            <TriangleAlert size={14} className="mt-px shrink-0" aria-hidden="true" />
-            <span>
-              This trigger doesn’t provide “{current?.label ?? node.config.field}”, so the check can’t pass. Choose another under If.
-            </span>
-          </p>
+          <RowWarning className="mt-2">
+            This trigger doesn’t provide “{current?.label ?? node.config.field}”, so the check can’t pass. Choose another under If.
+          </RowWarning>
         )}
-        {/* Which way each answer goes. */}
-        <InfoRows>
-          <InfoRow icon={CheckCircle2} tone="success" title="Yes">
-            <span className="text-sm text-muted-foreground">Left branch</span>
-          </InfoRow>
-          <InfoRow icon={XCircle} title="No">
-            <span className="text-sm text-muted-foreground">Right branch</span>
-          </InfoRow>
-        </InfoRows>
-        <p className="rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
-          Goes down <span className="font-semibold text-foreground">Yes</span> when {sentence}; everything else goes down No.
-        </p>
       </>
     );
   }
@@ -795,7 +756,7 @@ function StepSettings({
   return null;
 }
 
-/** A setting as a row: its value in words (or "Not set", muted), opening its control underneath. */
+/** A setting as a row: its value in words (or "Not set", muted), Change opening its control underneath. */
 function Row({
   id,
   open,
@@ -814,16 +775,16 @@ function Row({
   children: React.ReactNode;
 }) {
   return (
-    <PickerRow
+    <ChangeRow
       icon={icon}
-      title={title}
-      value={value.trim() || 'Not set'}
-      muted={!value.trim()}
+      label={title}
+      value={value.trim() ? <span className="truncate">{value}</span> : <ValueMissing>Not set</ValueMissing>}
       open={open === id}
       onToggle={() => onToggle(id)}
+      verbs={['Change', 'Done']}
     >
       <div className="space-y-1.5">{children}</div>
-    </PickerRow>
+    </ChangeRow>
   );
 }
 

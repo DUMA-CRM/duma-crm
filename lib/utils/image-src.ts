@@ -30,8 +30,16 @@ export function viaApiProxy(url: string | null | undefined, apiOrigin: string, p
   if (origin && url.startsWith(`${origin}/`)) return `${prefix}${url.slice(origin.length)}`;
   // An API built without PUBLIC_API_URL writes its own paths relative.
   if (url.startsWith('/v1/')) return `${prefix}${url}`;
+  // A photo saved under another API host — the retired api.dudych.cc, or a local
+  // API run against the production database, which stamps http://localhost:7777.
+  // The file is still in this API's storage under the same id; only the host is stale.
+  const stale = STALE_API_IMAGE.exec(url);
+  if (stale) return `${prefix}${stale[1]}`;
   return url;
 }
+
+/** An API image path — a menu photo or a Media file — behind any http(s) host. */
+const STALE_API_IMAGE = /^https?:\/\/[^/?#]+(\/v1\/(?:menu-items\/images|cms\/delivery\/assets)\/[^?#]+)/i;
 
 /**
  * The address to store for a media-library image picked for a record (an
