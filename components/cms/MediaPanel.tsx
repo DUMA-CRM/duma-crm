@@ -285,7 +285,7 @@ export function MediaPanel({
 
   const upload = useMutation({
     mutationFn: async ({ files, to }: { files: File[]; to: string | null }) => {
-      // One at a time: each file is up to 25 MB, and a failure names its file.
+      // One at a time so a failure names its file.
       const failures: string[] = [];
       for (const file of files) {
         try {
@@ -826,7 +826,9 @@ export function MediaPanel({
           className="flex-1"
           icon={ImageIcon}
           title={access.canWrite ? 'Upload your first file' : 'No media yet'}
-          description="Images, video, audio and documents up to 25 MB. Each gets a permanent public URL your website can use directly."
+          description={target?.builtIn === false
+            ? 'Images, video, audio and documents are uploaded to your connected storage.'
+            : 'Images, video, audio and documents up to 25 MB per file on DUMA storage.'}
           action={access.canWrite ? { label: 'Upload', onClick: () => pickFiles(null), icon: UploadCloud } : undefined}
         />
       )
@@ -1156,6 +1158,7 @@ export function MediaPanel({
       {stagedVideos && (
         <VideoOptionsDialog
           files={stagedVideos}
+          connectedStorage={target?.builtIn === false}
           mode="upload"
           freeBytes={target?.freeBytes ?? null}
           isPending={upload.isPending}
@@ -1634,6 +1637,7 @@ export function AssetDrawer({
       {converting && asset && isConvertibleVideo(converting.type) && (
         <VideoOptionsDialog
           files={[converting]}
+          connectedStorage={target?.builtIn === false}
           mode="replace"
           freeBytes={
             target?.freeBytes == null ? null : target.freeBytes + (sharesAllowance(asset, target.connectionId) ? asset.sizeBytes : 0)

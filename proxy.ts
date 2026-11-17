@@ -172,5 +172,6 @@ export const config = {
   // browser reading the manifest before sign-in — got the sign-in page instead.
   // Every image format public/ may hold is listed — a .webp or .jpg missing here
   // silently became a redirect for every signed-out visitor.
-  matcher: ['/((?!_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|webp|avif|gif|svg|ico|webmanifest|js)$).*)'],
+  // Media transfers go straight to the external API rewrite without Proxy buffering.
+  matcher: ['/((?!be/v1/cms/assets(?:/[^/]+/(?:file|renditions))?/?$|_next/static|_next/image|favicon.ico|.*\\.(?:png|jpe?g|webp|avif|gif|svg|ico|webmanifest|js)$).*)'],
 };

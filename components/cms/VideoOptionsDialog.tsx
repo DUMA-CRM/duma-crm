@@ -44,6 +44,7 @@ export function VideoOptionsDialog({
   files,
   mode,
   freeBytes,
+  connectedStorage = false,
   isPending,
   onConfirm,
   onClose,
@@ -52,6 +53,7 @@ export function VideoOptionsDialog({
   mode: 'upload' | 'replace';
   /** Space left where uploads go; null when there is no limit. */
   freeBytes: number | null;
+  connectedStorage?: boolean;
   isPending: boolean;
   onConfirm: (files: File[]) => void;
   onClose: () => void;
@@ -107,7 +109,7 @@ export function VideoOptionsDialog({
   const busy = videos.some((file) => results.get(file)?.status !== 'done' && results.get(file)?.status !== 'failed');
   // A video the API cannot take as it is (a .mov) and could not be converted blocks the upload.
   const unusable = videos.filter((file) => results.get(file)?.status === 'failed' && !isStorableVideo(file.type));
-  const tooLarge = outputs.filter((file) => file.size > MAX_ASSET_BYTES);
+  const tooLarge = connectedStorage ? [] : [...outputs, ...others].filter((file) => file.size > MAX_ASSET_BYTES);
   const before = files.reduce((sum, file) => sum + file.size, 0);
   const after = outputs.reduce((sum, file) => sum + file.size, 0) + others.reduce((sum, file) => sum + file.size, 0);
   const overLimit = freeBytes !== null && after > freeBytes;
@@ -159,7 +161,7 @@ export function VideoOptionsDialog({
           </p>
           <div className="flex gap-2">
             {mode === 'upload' && videos.every((file) => isStorableVideo(file.type)) && (
-              <Button variant="ghost" disabled={isPending} onClick={() => onConfirm(files)}>
+              <Button variant="ghost" disabled={isPending || (!connectedStorage && files.some((file) => file.size > MAX_ASSET_BYTES)) || (freeBytes !== null && before > freeBytes)} onClick={() => onConfirm(files)}>
                 Upload originals
               </Button>
             )}

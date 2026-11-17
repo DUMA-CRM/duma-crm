@@ -426,5 +426,5 @@ export function renameForVideo(fileName: string): string {
   return `${base}.mp4`;
 }
 
-/** The API's per-file ceiling (MAX_CMS_ASSET_BYTES in duma-api). */
+/** The per-file ceiling for built-in DUMA storage (MAX_CMS_ASSET_BYTES in duma-api). */
 export const MAX_ASSET_BYTES = 25 * 1024 * 1024;

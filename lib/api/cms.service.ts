@@ -1,3 +1,4 @@
+import { MAX_ASSET_BYTES } from '../utils/media-storage';
 import { apiFetch } from './client';
 
 // ─── Content model ───────────────────────────────────────────────────────────
@@ -437,12 +438,25 @@ export const getCmsAssets = (filters: CmsAssetFilters, tenantId?: string) =>
     `/cms/assets?${qs(tenantId, filters)}`,
   );
 export const getCmsAsset = (id: string, tenantId?: string) => apiFetch<CmsAsset>(`/cms/assets/${id}?${qs(tenantId)}`);
-export const uploadCmsAsset = (file: File, meta: { title?: string; altText?: string; folder?: string }, tenantId?: string) => {
+function cmsUploadBody(file: File, meta: { title?: string; altText?: string; folder?: string } = {}) {
+  if (file.size > MAX_ASSET_BYTES) {
+    return {
+      body: file,
+      headers: {
+        'Content-Type': 'application/octet-stream',
+        'X-Duma-Media-Upload': encodeURIComponent(JSON.stringify({ fileName: file.name.slice(0, 255), mimeType: file.type, ...meta })),
+      },
+      timeoutMs: 20 * 60_000,
+    };
+  }
   const body = new FormData();
   body.set('file', file);
   for (const [key, value] of Object.entries(meta)) if (value) body.set(key, value);
-  return apiFetch<CmsAsset>(`/cms/assets?${qs(tenantId)}`, { method: 'POST', body, timeoutMs: 120_000 });
-};
+  return { body, timeoutMs: 120_000 };
+}
+
+export const uploadCmsAsset = (file: File, meta: { title?: string; altText?: string; folder?: string }, tenantId?: string) =>
+  apiFetch<CmsAsset>(`/cms/assets?${qs(tenantId)}`, { method: 'POST', ...cmsUploadBody(file, meta) });
 /**
  * An image from a link, fetched by the API into the media library (https, public hosts, images up to 25 MB) —
  * so a media field can be filled from a URL. Returns the new asset.
@@ -453,11 +467,8 @@ export const importCmsAsset = (url: string, meta: { title?: string; altText?: st
 export const getCmsAssetFile = (id: string, tenantId?: string) =>
   apiFetch<Blob>(`/cms/assets/${id}/file?${qs(tenantId)}`, { asBlob: true, timeoutMs: 120_000 });
 /** Swap the file under an asset — same id, so entries using it keep working. */
-export const replaceCmsAssetFile = (id: string, file: File, tenantId?: string) => {
-  const body = new FormData();
-  body.set('file', file);
-  return apiFetch<CmsAsset>(`/cms/assets/${id}/file?${qs(tenantId)}`, { method: 'PUT', body, timeoutMs: 120_000 });
-};
+export const replaceCmsAssetFile = (id: string, file: File, tenantId?: string) =>
+  apiFetch<CmsAsset>(`/cms/assets/${id}/file?${qs(tenantId)}`, { method: 'PUT', ...cmsUploadBody(file) });
 /** Store one smaller copy made in the browser; returns the asset with its renditions. */
 export const uploadCmsRendition = (id: string, file: File, tenantId?: string) => {
   const body = new FormData();
