@@ -7,11 +7,12 @@ import { ExceptionStrip, buildExceptions } from '@/components/dashboard/Exceptio
 import { LivePanel } from '@/components/dashboard/LivePanel';
 import { OrdersByHour } from '@/components/dashboard/OrdersByHour';
 import { TakenTodayPanel } from '@/components/dashboard/TakenTodayPanel';
-import { TodayKpiRow } from '@/components/dashboard/TodayKpiRow';
+import { TodayFigure, isTodayFigure } from '@/components/dashboard/TodayFigure';
 import { TopItemsToday } from '@/components/dashboard/TopItemsToday';
-import { AlertTriangle, ArrowRight } from '@/components/icons';
-import { ErrorState } from '@/components/shared/ErrorState';
+import { Widget } from '@/components/dashboard/widget/Widget';
+import { AlertTriangle, ArrowRight, LineChart } from '@/components/icons';
 
+import { widgetDefinition } from '@/lib/dashboard/widget-registry';
 import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { type TodayDashboard, useTodayDashboard } from '@/lib/hooks/useTodayDashboard';
 import { tradingDayLabel } from '@/lib/utils/trading-day';
@@ -97,49 +98,69 @@ export function TodayBanners() {
   );
 }
 
-/** Today's figures failed as a whole: one notice in place of the trading panels, with a retry. */
-function TodayError({ onRetry }: { onRetry: () => void }) {
+/** What needs someone right now, from today's operations read. */
+const needsYouItems = (dashboard: TodayDashboard, kitchenScreen: boolean) =>
+  buildExceptions({
+    lateOrders: dashboard.lateOrders,
+    criticalStock: dashboard.criticalStock,
+    urgentRestocks: dashboard.urgentRestocks,
+    coverGaps: dashboard.coverGaps,
+    attendanceIssues: dashboard.attendanceIssues,
+    now: dashboard.now.getTime(),
+    lateness: dashboard.lateness,
+    kitchenScreen,
+  });
+
+/**
+ * Needs you as the board draws it: a full-width strip above the widgets, never
+ * a cell, there only while something needs someone (or the checks failed). In
+ * edit mode it is always drawn, as the preview you remove it from.
+ */
+export function NeedsYouStrip({ preview = false }: { preview?: boolean }) {
+  const dashboard = useToday();
+  const kitchenScreen = useModuleEnabled('kds');
   return (
-    <div className="rounded-lg border border-border bg-card shadow-sm">
-      <ErrorState title="Today’s figures couldn’t be loaded" onRetry={onRetry} className="py-10" />
-    </div>
+    <ExceptionStrip
+      preview={preview}
+      items={needsYouItems(dashboard, kitchenScreen)}
+      loading={dashboard.loading.operations}
+      error={dashboard.errors.operations}
+      onRetry={() => void dashboard.refresh()}
+    />
   );
 }
 
 /**
- * One trading panel by its widget key. When today's core figures fail, the
- * first panel says so and the rest stand down, rather than six copies of it.
+ * One trading panel by its widget key. Each holds its own cell on the grid, so
+ * when today's core figures fail every panel that reads them says so in place,
+ * with a retry — a blank cell would read as a hole in the board.
  */
 export function TodayWidget({
   widgetKey,
-  first,
-  kpisOnBoard = false,
+  netSalesOnBoard = false,
 }: {
   widgetKey: string;
-  first: boolean;
-  /** The figures row is on the board, so the takings panel needn't repeat net sales. */
-  kpisOnBoard?: boolean;
+  /** The net sales tile is on the board, so the takings panel needn't repeat it. */
+  netSalesOnBoard?: boolean;
 }) {
   const dashboard = useToday();
   const kitchenScreen = useModuleEnabled('kds');
   const { tradingDay, metrics, pace, target, baseline, labour, hourly, topItems, yesterdayMetrics, loading, errors, refresh } = dashboard;
 
-  if (errors.core) return first ? <TodayError onRetry={() => void refresh()} /> : null;
+  if (isTodayFigure(widgetKey)) return <TodayFigure figure={widgetKey} dashboard={dashboard} />;
+
+  // The needs-attention strip and the live panel read today's operations, not the core figures.
+  if (errors.core && widgetKey !== 'analytics.exceptions' && widgetKey !== 'analytics.live') {
+    const title = widgetDefinition(widgetKey)?.label ?? 'Today';
+    return <Widget title={title} icon={LineChart} tint="orders" error onRetry={() => void refresh()} />;
+  }
 
   switch (widgetKey) {
     case 'analytics.exceptions':
       return (
         <ExceptionStrip
-          items={buildExceptions({
-            lateOrders: dashboard.lateOrders,
-            criticalStock: dashboard.criticalStock,
-            urgentRestocks: dashboard.urgentRestocks,
-            coverGaps: dashboard.coverGaps,
-            attendanceIssues: dashboard.attendanceIssues,
-            now: dashboard.now.getTime(),
-            lateness: dashboard.lateness,
-            kitchenScreen,
-          })}
+          fill
+          items={needsYouItems(dashboard, kitchenScreen)}
           loading={loading.operations}
           error={errors.operations}
           onRetry={() => void refresh()}
@@ -157,7 +178,7 @@ export function TodayWidget({
           loading={loading.core}
           yesterdayRevenue={yesterdayMetrics ? yesterdayMetrics.revenue : null}
           lastWeekRevenue={dashboard.lastWeekMetrics ? dashboard.lastWeekMetrics.revenue : null}
-          showHeadline={!kpisOnBoard}
+          showHeadline={!netSalesOnBoard}
           locationId={dashboard.activeLocationId}
           dailyTarget={dashboard.dailyTarget}
         />
@@ -166,6 +187,8 @@ export function TodayWidget({
       return (
         <LivePanel
           day={tradingDay}
+          now={dashboard.now}
+          oldestActiveAt={dashboard.oldestActiveAt}
           pendingOrders={dashboard.pendingOrders}
           preparingOrders={dashboard.preparingOrders}
           readyOrders={dashboard.readyOrders}
@@ -178,23 +201,6 @@ export function TodayWidget({
           showStaff={dashboard.workforce}
           kitchenScreen={kitchenScreen}
           showLate={dashboard.lateness !== null}
-        />
-      );
-    case 'analytics.kpis':
-      return (
-        <TodayKpiRow
-          day={tradingDay}
-          orders={metrics.orders}
-          averageOrderValue={metrics.averageOrderValue}
-          revenue={metrics.revenue}
-          refundsIssuedToday={Number(dashboard.refundsIssuedToday)}
-          refundsOnTodaysSales={Number(dashboard.refundsOnTodaysSales)}
-          labour={labour}
-          baseline={baseline}
-          loading={loading.core}
-          labourLoading={loading.labour}
-          labourError={errors.labour}
-          showLabour={dashboard.workforce}
         />
       );
     case 'analytics.orders-hourly':

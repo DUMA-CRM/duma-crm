@@ -1,33 +1,26 @@
 'use client';
 
 import { DailyTargetControl } from '@/components/dashboard/DailyTargetControl';
-import { ModuleCard } from '@/components/dashboard/ModuleCards';
-import { Target, TrendingDown, TrendingUp } from '@/components/icons';
-import { TrendChart, TrendLegend } from '@/components/reports/kit/parts';
-import { MiniBar } from '@/components/shared/MiniBar';
+import { Widget, WidgetBar, WidgetCaption, WidgetFigure, useFamily } from '@/components/dashboard/widget/Widget';
+import { WidgetCurve, WidgetFacts } from '@/components/dashboard/widget/parts';
+import { LineChart } from '@/components/icons';
 import { Bone } from '@/components/shared/Skeleton';
-import { useFormatMoney, useWorkspaceCurrency } from '@/components/shared/useWorkspaceMoney';
+import { DeltaBadge } from '@/components/shared/StatCard';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 
 import type { DayBaseline, HourlyVolume } from '@/lib/modules/analytics/client';
 import { cn } from '@/lib/utils/cn';
+import { axisTicks, daySeries } from '@/lib/utils/day-series';
 import { MIN_BASELINE_SAMPLES, type Pace, type TargetProgress } from '@/lib/utils/pace';
-import { compactMoney } from '@/lib/utils/report-chart';
-import { takenTodaySeries } from '@/lib/utils/taken-today';
 import { weekdayName } from '@/lib/utils/today-figures';
 import { type TradingDay, axisHours, axisNowMinutes } from '@/lib/utils/trading-day';
 
-/* What the site has taken through the day, against what a typical same
-   weekday had taken by each hour — drawn with Reports' trend chart: the
-   running total, a typical day dashed, the target stepped, a tooltip on every
-   hour. The day's comparisons sit under it as a row of figures. */
-
-/** Static classes — Tailwind can't see a computed `sm:grid-cols-${n}`. */
-const STAT_COLUMNS: Record<number, string> = {
-  1: 'grid-cols-1',
-  2: 'grid-cols-2',
-  3: 'grid-cols-2 sm:grid-cols-3',
-  4: 'grid-cols-2 sm:grid-cols-4',
-};
+/* What the site has taken through the day — the dashboard's signature curve,
+   drawn on the location's real trading hours: today's running total in the
+   orders colour up to now, a typical same weekday dashed across the whole day,
+   the target as a green rule. A mark only goes where real data puts it.
+   Medium is the figure and the curve side by side; large stacks them over the
+   day's comparisons; extra large gives the curve the width it deserves. */
 
 export function TakenTodayPanel({
   day,
@@ -56,159 +49,186 @@ export function TakenTodayPanel({
   /** Null when every location is in scope — a target belongs to one site. */
   locationId: string | null;
   dailyTarget: number | null;
-  /** Off when the figures row already leads with net sales — the panel then says only how the day compares. */
+  /** Off when the net sales widget is on the board — the figure then gives way to how the day compares. */
   showHeadline?: boolean;
 }) {
   const money = useFormatMoney();
-  const currency = useWorkspaceCurrency();
+  const family = useFamily();
   const weekday = weekdayName(day.weekday);
   const showToday = day.state !== 'before-open' && day.state !== 'closed-today';
   const hasTypical = (baseline?.sampleCount ?? 0) >= MIN_BASELINE_SAMPLES;
-  const typicalLabel = `Typical ${weekday}`;
   const ahead = pace.delta >= 0;
 
-  const series = takenTodaySeries({
-    buckets: axisHours(day),
-    revenueByHour: new Map(hourly.map((row) => [row.hour, Number(row.totalRevenue ?? 0)])),
+  // The whole trading day on the axis; today's running total only up to the hour under way.
+  const buckets = axisHours(day);
+  const series = daySeries({
+    buckets,
+    byHour: new Map(hourly.map((row) => [row.hour, Number(row.totalRevenue ?? 0)])),
     typicalByHour: hasTypical ? new Map((baseline?.byHour ?? []).map((row) => [row.hour, row.cumulativeRevenue])) : new Map(),
-    typicalDay: hasTypical ? (baseline?.dailyMedianRevenue ?? 0) : 0,
     nowMinutes: axisNowMinutes(day),
-    takenSoFar,
-    target: target?.target ?? null,
     showToday,
+    soFar: takenSoFar,
+    trading: day.state === 'trading',
   });
+  // How much of a typical whole day is already in — the day's progress, as a share.
+  const dayShare = showToday && hasTypical && (baseline?.dailyMedianRevenue ?? 0) > 0 ? takenSoFar / baseline!.dailyMedianRevenue : null;
 
-  // Before the day starts the headline is what it's aiming at; once it's under way, what's in.
+  // Before the day starts the figure is what it's aiming at; once it's under way, what's in.
   const headline = showToday ? takenSoFar : (target?.target ?? (hasTypical ? (baseline?.dailyMedianRevenue ?? 0) : null));
-  const caption = showToday
-    ? null
-    : day.state === 'before-open'
-      ? `${target ? 'Today’s target' : typicalLabel} · opens ${day.hours?.open ?? '—'}`
-      : `${typicalLabel} · closed today`;
+  const title = day.state === 'before-open' ? 'Before open' : day.state === 'closed-today' ? 'Closed today' : 'Taken today';
+  const figure = (showHeadline || !showToday) && headline !== null ? money(headline) : null;
+
+  const paceLine =
+    showToday && pace.available ? (
+      <DeltaBadge
+        size="sm"
+        className="min-w-0"
+        delta={{
+          value: `${ahead ? '+' : '−'}${money(Math.abs(pace.delta))}`,
+          trend: ahead ? 'up' : 'down',
+          tone: ahead ? 'positive' : 'negative',
+          label: `vs a typical ${weekday}`,
+        }}
+      />
+    ) : showToday ? (
+      pace.sampleCount < MIN_BASELINE_SAMPLES ? (
+        'No typical day to compare with yet'
+      ) : (
+        'Too early to compare'
+      )
+    ) : day.state === 'before-open' ? (
+      `${target ? 'Today’s target' : `Typical ${weekday}`} · opens ${day.hours?.open ?? '—'}`
+    ) : (
+      `Typical ${weekday} · closed today`
+    );
 
   // The day's comparisons, only the ones that can be said honestly.
   const stats = [
     showToday && pace.available ? { label: 'Typical by now', value: money(pace.expectedByNow) } : null,
-    showToday && lastWeekRevenue !== null ? { label: `Last ${weekday} by now`, value: money(lastWeekRevenue) } : null,
     showToday && day.state === 'trading' && pace.projected !== null ? { label: 'On pace for', value: money(pace.projected) } : null,
-    hasTypical ? { label: `${typicalLabel} in full`, value: money(baseline?.dailyMedianRevenue ?? 0) } : null,
+    showToday && lastWeekRevenue !== null ? { label: `Last ${weekday}`, value: money(lastWeekRevenue) } : null,
     yesterdayRevenue !== null ? { label: 'Yesterday', value: money(yesterdayRevenue) } : null,
-  ]
-    .filter((stat): stat is { label: string; value: string } => stat !== null)
-    .slice(0, 4);
+    hasTypical ? { label: `Typical ${weekday}`, value: money(baseline?.dailyMedianRevenue ?? 0) } : null,
+  ].filter((stat): stat is { label: string; value: string } => stat !== null);
 
-  const title = day.state === 'before-open' ? 'Before open' : day.state === 'closed-today' ? 'Closed today' : 'Taken today';
+  const curve = (showAxis: boolean) =>
+    buckets.length === 0 ? (
+      <p className="flex h-full items-center text-[13px] text-muted-foreground">No trading hours to draw the day on.</p>
+    ) : (
+      <WidgetCurve
+        today={series.today}
+        typical={series.typical}
+        target={target?.target ?? null}
+        slots={buckets.length}
+        tint="orders"
+        label={showToday ? `Taken through the day so far, against a typical ${weekday}` : `A typical ${weekday}, hour by hour`}
+        axis={showAxis ? axisTicks(buckets) : undefined}
+      />
+    );
+
+  const progressLine = !target && dayShare !== null && (
+    <div className="mt-2 min-w-0">
+      <WidgetBar
+        value={dayShare * 100}
+        max={100}
+        className="bg-measured"
+        label={`${Math.round(dayShare * 100)}% of a typical ${weekday}`}
+      />
+      <p className="mt-1 truncate text-[11px] text-muted-foreground tabular-nums">
+        <span className="font-semibold text-heading">{Math.round(dayShare * 100)}%</span> of a typical {weekday}
+      </p>
+    </div>
+  );
+
+  const targetLine = target && (
+    <div className="mt-2 min-w-0">
+      <WidgetBar
+        value={target.progress * 100}
+        max={100}
+        className={target.ahead ? 'bg-success' : 'bg-stock'}
+        label={`${Math.round(target.progress * 100)}% of the ${money(target.target)} target`}
+      />
+      <p className="mt-1 truncate text-[11px] text-muted-foreground tabular-nums">
+        <span className="font-semibold text-heading">{Math.round(target.progress * 100)}%</span> of {money(target.target)} target
+      </p>
+    </div>
+  );
+
+  const reading = (
+    <div className="min-w-0">
+      {figure && <WidgetFigure value={figure} size={family === 'medium' ? 'medium' : 'large'} />}
+      <WidgetCaption className={cn('flex items-center', figure && 'mt-1.5')}>{paceLine}</WidgetCaption>
+    </div>
+  );
+
+  // The comparisons flat on the card, not in a tray: across the foot at large, a column of label and figure at extra large.
+  const statRow = <WidgetFacts facts={stats.slice(0, 4)} columns={4} tray={false} className="border-t border-border/60 pt-3" />;
+  const statColumn = (
+    <dl className="divide-y divide-border/60">
+      {stats.slice(0, 4).map((stat) => (
+        <div key={stat.label} className="flex items-baseline justify-between gap-3 py-1.5 text-[13px] leading-[18px]">
+          <dt className="min-w-0 truncate text-muted-foreground">{stat.label}</dt>
+          <dd className="shrink-0 font-semibold text-heading tabular-nums">{stat.value}</dd>
+        </div>
+      ))}
+    </dl>
+  );
 
   return (
-    <ModuleCard
-      id="dashboard-taken-today"
+    <Widget
       title={title}
+      icon={LineChart}
+      tint="orders"
+      surface="plain"
       href="/reports/sales-by-hour"
-      linkLabel="Sales by hour"
       hrefLabel="Open sales by hour"
-      actions={locationId && <DailyTargetControl locationId={locationId} target={target?.target ?? dailyTarget} />}
+      // At every size: the target is set where it is read.
+      accessory={locationId ? <DailyTargetControl locationId={locationId} target={target?.target ?? dailyTarget} /> : undefined}
       loading={loading}
       skeleton={
-        <div role="status" aria-busy="true" aria-label="Loading today’s takings" className="space-y-4">
-          <Bone className="h-7 w-44" />
-          <Bone className="h-52 w-full" />
-          <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
-            {[0, 1, 2, 3].map((index) => (
-              <Bone key={index} className="h-9" />
-            ))}
-          </div>
+        <div role="status" aria-busy="true" aria-label="Loading today’s takings" className="flex flex-1 flex-col gap-3">
+          <Bone className="h-9 w-32 rounded-md" />
+          <Bone className="min-h-0 w-full flex-1 rounded-md" />
         </div>
       }
-      error={false}
-      onRetry={() => undefined}
     >
-      <div className="space-y-4">
-        {/* The reading: the figure (unless the row above already shows it) and how it compares. */}
-        <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-          {(showHeadline || !showToday) && headline !== null && (
-            <span data-figure className="text-2xl font-semibold tracking-figure text-foreground">
-              {money(headline)}
-            </span>
-          )}
-          {showToday && pace.available ? (
-            <span
-              className={cn(
-                'inline-flex items-center gap-1 rounded-sm px-1.5 py-0.5 text-xs font-semibold tabular-nums',
-                ahead ? 'bg-momentum/10 text-momentum' : 'bg-measured/10 text-measured',
-              )}
-            >
-              {ahead ? <TrendingUp size={12} aria-hidden="true" /> : <TrendingDown size={12} aria-hidden="true" />}
-              {money(Math.abs(pace.delta))} {ahead ? 'ahead of' : 'behind'} a typical {weekday}
-              {pace.deltaPct !== null && ` · ${pace.deltaPct > 0 ? '+' : ''}${pace.deltaPct.toFixed(0)}%`}
-            </span>
-          ) : showToday ? (
-            <span className="text-xs text-muted-foreground">
-              {pace.sampleCount < MIN_BASELINE_SAMPLES ? 'No typical day to compare with yet' : 'Too early to compare'}
-            </span>
-          ) : (
-            caption && <span className="text-xs text-muted-foreground">{caption}</span>
-          )}
+      {family === 'banner' ? (
+        // Half a square: the figure and its pace on one line — stacked, the two outgrow the cell and meet the header.
+        <div className="mt-auto flex min-h-0 min-w-0 flex-1 items-end gap-4">
+          <div className="flex min-w-0 flex-1 items-baseline gap-2.5">
+            <WidgetFigure value={figure ?? money(takenSoFar)} size="banner" className="shrink-0" />
+            <span className="flex min-w-0 items-center truncate text-[13px] text-muted-foreground">{paceLine}</span>
+          </div>
+          <div className="h-full min-h-0 w-[58%] shrink-0">{curve(false)}</div>
         </div>
-
-        {/* Progress on the target: the bar, then how far along the day should be. */}
-        {target && (
-          <div className="flex flex-wrap items-center gap-x-3 gap-y-1.5">
-            <Target size={15} className={cn('shrink-0', target.ahead ? 'text-momentum' : 'text-measured')} aria-hidden="true" />
-            <MiniBar
-              value={target.progress * 100}
-              max={100}
-              tone={target.ahead ? 'success' : 'warning'}
-              label={`${Math.round(target.progress * 100)}% of the ${money(target.target)} target`}
-              className="min-w-32 flex-1"
-            />
-            <p className="text-xs tabular-nums text-muted-foreground">
-              <span className={cn('font-semibold', target.progress >= 1 ? 'text-momentum' : 'text-foreground')}>
-                {Math.round(target.progress * 100)}%
-              </span>{' '}
-              of {money(target.target)}
-              {showToday && ` · ${Math.round(target.expectedByNow * 100)}% expected by now`}
-            </p>
+      ) : family === 'medium' ? (
+        <div className="flex min-h-0 flex-1 gap-4">
+          <div className="mt-auto flex min-w-0 flex-1 flex-col">
+            {reading}
+            {targetLine}
+            {progressLine}
           </div>
-        )}
-
-        {series.points.length === 0 ? (
-          <p className="flex h-40 items-center justify-center text-sm text-muted-foreground">The day’s first hour hasn’t started yet.</p>
-        ) : (
-          <div className="-mx-1">
-            <TrendChart
-              points={series.points.map((point) => ({ label: `By ${point.label}`, axis: point.label, value: point.value }))}
-              previous={series.typical}
-              target={series.target}
-              format={(value) => money(value)}
-              axisFormat={(value) => compactMoney(value, currency)}
-              height={220}
-              ariaLabel={showToday ? `Taken through the day so far, against a typical ${weekday}` : `A typical ${weekday}, hour by hour`}
-              seriesLabel={showToday ? 'Today' : typicalLabel}
-              previousLabel={typicalLabel}
-            />
+          <div className="w-[50%] shrink-0 pt-2">{curve(false)}</div>
+        </div>
+      ) : family === 'extraLarge' ? (
+        <div className="flex min-h-0 flex-1 gap-6">
+          <div className="flex w-[34%] shrink-0 flex-col">
+            {reading}
+            {targetLine}
+            {progressLine}
+            <div className="mt-auto pt-3">{statColumn}</div>
           </div>
-        )}
-
-        <TrendLegend
-          comparison={!!series.typical}
-          seriesLabel={showToday ? 'Today' : typicalLabel}
-          previousLabel={typicalLabel}
-          target={!!series.target}
-        />
-
-        {stats.length > 0 && (
-          <dl className={cn('grid gap-x-6 gap-y-3 pt-1', STAT_COLUMNS[stats.length])}>
-            {stats.map((stat) => (
-              <div key={stat.label} className="min-w-0">
-                <dt className="truncate text-xs text-muted-foreground">{stat.label}</dt>
-                <dd data-figure className="mt-0.5 text-base font-semibold text-foreground">
-                  {stat.value}
-                </dd>
-              </div>
-            ))}
-          </dl>
-        )}
-      </div>
-    </ModuleCard>
+          <div className="min-w-0 flex-1 pt-1">{curve(true)}</div>
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 flex-col">
+          {reading}
+          {targetLine}
+          {progressLine}
+          <div className="min-h-0 flex-1 py-3">{curve(true)}</div>
+          {statRow}
+        </div>
+      )}
+    </Widget>
   );
 }

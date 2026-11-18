@@ -5,6 +5,7 @@ import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
 import type { StockLevel } from '@/lib/utils/pos';
+import { type KeyEntry, arrangeKeys } from '@/lib/utils/till-keys';
 import type { TileStyle } from '@/stores/posSettingsStore';
 import type { MenuItem } from '@/types/pos';
 
@@ -26,6 +27,8 @@ interface MenuGridProps {
   /** Shown instead of the generic empty state (e.g. no favourites yet). */
   empty?: { title: string; description: string };
   currency?: string;
+  /** The page's arranged keys (order and size); absent, the menu's own order in plain keys. */
+  keys?: KeyEntry[];
 }
 
 // Text keys ~136px: five across beside the ticket on a 10–11" landscape
@@ -33,7 +36,9 @@ interface MenuGridProps {
 // a phone. Photo keys ~152px fit four. An 8px gap is the floor against
 // mis-taps. The page pads below for the floating ticket bar.
 export const GRID = 'grid grid-cols-[repeat(auto-fill,minmax(9.5rem,1fr))] gap-2';
-const COMPACT_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2';
+export const COMPACT_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr))] gap-2';
+/** Arranged keys: a wide or big key spans its cells, and the keys after it fill any gap it leaves (dense flow). */
+export const KEY_FLOW = 'grid-flow-row-dense';
 
 export function MenuGrid({
   items,
@@ -50,6 +55,7 @@ export function MenuGrid({
   colours,
   empty,
   currency,
+  keys,
 }: MenuGridProps) {
   if (isLoading) {
     return (
@@ -92,10 +98,11 @@ export function MenuGrid({
   }
 
   return (
-    <div className={tileStyle === 'compact' ? COMPACT_GRID : GRID}>
-      {items.map((item) => (
+    <div className={cn(tileStyle === 'compact' ? COMPACT_GRID : GRID, KEY_FLOW)}>
+      {arrangeKeys(items, keys).map(({ item, w, h }) => (
         <ProductCard
           key={item.id}
+          size={{ w, h }}
           item={item}
           count={counts[item.id] ?? 0}
           stock={stock?.[item.id]}

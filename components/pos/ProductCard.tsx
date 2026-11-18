@@ -2,6 +2,7 @@ import Image from 'next/image';
 
 import { cn } from '@/lib/utils/cn';
 import { type StockLevel, formatPrice } from '@/lib/utils/pos';
+import type { KeySize } from '@/lib/utils/till-keys';
 import type { TileStyle } from '@/stores/posSettingsStore';
 import type { MenuItem } from '@/types/pos';
 
@@ -26,6 +27,7 @@ export function ProductCard({
   colour,
   onSelect,
   currency,
+  size,
 }: {
   item: MenuItem;
   /** How many are on the ticket already. */
@@ -37,8 +39,12 @@ export function ProductCard({
   colour?: string;
   onSelect: (item: MenuItem) => void;
   currency?: string;
+  /** Its arranged size on the page: a wide or big key fills its cells, a big one with a larger name. */
+  size?: KeySize;
 }) {
   const photo = tileStyle === 'photo';
+  const big = size?.h === 2;
+  const sized = !!size && (size.w > 1 || size.h > 1);
   const out = stock?.level === 'out';
   const stockLabel = stock ? `${stock.ingredient} is ${out ? 'out' : 'low'}` : '';
 
@@ -49,8 +55,9 @@ export function ProductCard({
       aria-pressed={isSelected}
       aria-label={`${item.name}, ${formatPrice(item.price, currency)}${count ? `, ${count} on the ticket` : ''}${stockLabel ? `. ${stockLabel}` : ''}`}
       title={stockLabel || undefined}
+      style={sized ? { gridColumn: `span ${size!.w}`, gridRow: `span ${size!.h}` } : undefined}
       className={cn(
-        'relative flex touch-manipulation select-none flex-col overflow-hidden rounded-md border bg-card text-left transition-colors duration-75',
+        'relative flex h-full touch-manipulation select-none flex-col overflow-hidden rounded-md border bg-card text-left transition-colors duration-75',
         'active:bg-band focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring',
         photo ? 'min-h-28' : 'min-h-20',
         isSelected ? 'border-primary shadow-[inset_0_0_0_1px_var(--primary)]' : 'border-border',
@@ -59,7 +66,8 @@ export function ProductCard({
       {colour && <span aria-hidden="true" className="absolute inset-y-0 left-0 z-10 w-1" style={{ backgroundColor: colour }} />}
 
       {photo && (
-        <span className="block aspect-[16/10] w-full shrink-0 border-b border-border bg-band">
+        // A wider or taller key lets its photo fill the space instead of growing by its ratio.
+        <span className={cn('block w-full border-b border-border bg-band', sized ? 'min-h-16 flex-1' : 'aspect-[16/10] shrink-0')}>
           {item.image && (
             <Image
               width={320}
@@ -73,10 +81,10 @@ export function ProductCard({
         </span>
       )}
 
-      <span className="flex flex-1 flex-col justify-between gap-1.5 py-2.5 pr-2.5 pl-3.5">
+      <span className={cn('flex flex-col justify-between gap-1.5 py-2.5 pr-2.5 pl-3.5', photo && sized ? 'shrink-0' : 'flex-1')}>
         <span
           className={cn(
-            'text-[15px] font-semibold leading-snug',
+            big ? 'text-xl font-semibold leading-snug' : 'text-[15px] font-semibold leading-snug',
             photo ? 'line-clamp-2' : 'line-clamp-3',
             out ? 'text-muted-foreground' : 'text-heading',
             !photo && count > 0 && 'pr-7',
@@ -85,7 +93,7 @@ export function ProductCard({
           {item.name}
         </span>
         <span className="flex items-baseline justify-between gap-2">
-          <span data-figure className="text-sm tabular-nums text-muted-foreground">
+          <span data-figure className={cn('tabular-nums text-muted-foreground', big ? 'text-base' : 'text-sm')}>
             {formatPrice(item.price, currency)}
           </span>
           {stock && (

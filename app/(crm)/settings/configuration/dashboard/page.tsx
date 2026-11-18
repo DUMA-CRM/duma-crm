@@ -1,5 +1,5 @@
-import { DashboardConfiguration } from '@/components/settings/configuration/DashboardConfiguration';
+import { redirect } from 'next/navigation';
 
 export default function DashboardConfigurationPage() {
-  return <DashboardConfiguration />;
+  redirect('/dashboard?edit=1');
 }

@@ -50,6 +50,38 @@ export function stockHealthSummary(rows: readonly StockOverviewLike[], now: Date
   return { items: rows.length, out, low, expiring, value: Math.round(value * 100) / 100, unvalued };
 }
 
+export type StockAttentionReason = 'out' | 'low' | 'expiring';
+
+/**
+ * The items behind the Stock health counts, by name, most urgent first: out,
+ * then low (the emptiest against its par first), then expiring (soonest
+ * first). Each item once, under its worst reason, by the same rules as
+ * `stockHealthSummary`, so the list never disagrees with the figures.
+ */
+export function stockAttention<T extends StockOverviewLike>(
+  rows: readonly T[],
+  now: Date,
+): Array<{ row: T; reason: StockAttentionReason }> {
+  const weekAhead = now.getTime() + 7 * DAY_MS;
+  const out: T[] = [];
+  const low: T[] = [];
+  const expiring: T[] = [];
+  for (const row of rows) {
+    const onHand = Number(row.totalOnHand) || 0;
+    if (onHand <= 0) out.push(row);
+    else if (row.needsReorder && Number(row.reorderLevel) > 0) low.push(row);
+    else if (row.earliestExpiryDate && new Date(row.earliestExpiryDate).getTime() <= weekAhead) expiring.push(row);
+  }
+  const cover = (row: T) => (Number(row.totalOnHand) || 0) / Number(row.reorderLevel);
+  low.sort((a, b) => cover(a) - cover(b));
+  expiring.sort((a, b) => new Date(a.earliestExpiryDate!).getTime() - new Date(b.earliestExpiryDate!).getTime());
+  return [
+    ...out.map((row) => ({ row, reason: 'out' as const })),
+    ...low.map((row) => ({ row, reason: 'low' as const })),
+    ...expiring.map((row) => ({ row, reason: 'expiring' as const })),
+  ];
+}
+
 export interface TeamToday {
   /** Clocked in now. */
   onShift: number;
@@ -241,6 +273,22 @@ export function purchasingSummary(counts: { drafts: number; sent: number; partia
 }
 
 /**
+ * Open deliveries in the order to chase them: late first (expected before now,
+ * most overdue first), then by when they are expected, undated last. `late` is
+ * whole days past the expected time, 0 for a delivery due today or later.
+ */
+export function deliveriesDue<T extends { id: string; expectedAt?: string | null }>(
+  orders: readonly T[],
+  now: Date,
+): Array<{ order: T; lateDays: number }> {
+  const at = (order: T) => (order.expectedAt ? new Date(order.expectedAt).getTime() : Number.POSITIVE_INFINITY);
+  const unique = [...new Map(orders.map((order) => [order.id, order])).values()];
+  return unique
+    .sort((a, b) => at(a) - at(b))
+    .map((order) => ({ order, lateDays: Math.max(0, Math.floor((now.getTime() - at(order)) / DAY_MS)) }));
+}
+
+/**
  * Website content as one reading: what's live leads; review, live edits not
  * yet published and drafts are what wait on someone. Scheduled entries go
  * live by themselves, so they are a status, not a need.
@@ -259,4 +307,16 @@ export function contentSummary(entries: { live: number; scheduled: number; revie
       { key: 'draft', label: 'Drafts', value: entries.draft },
     ]),
   };
+}
+
+/**
+ * One item for the day, the same all day on every screen and a different one
+ * tomorrow: the photo widgets' "picture of the day". Consecutive days walk the
+ * list in order, so nothing repeats until every item has had its day.
+ */
+export function dailyPick<T>(items: readonly T[], dateKey: string): T | undefined {
+  if (items.length === 0) return undefined;
+  const days = Math.floor(Date.parse(`${dateKey}T00:00:00Z`) / DAY_MS);
+  if (Number.isNaN(days)) return items[0];
+  return items[((days % items.length) + items.length) % items.length];
 }

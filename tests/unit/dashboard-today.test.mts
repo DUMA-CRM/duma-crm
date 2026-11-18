@@ -1,7 +1,6 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import { boardLayout } from '../../lib/utils/dashboard-flow.ts';
 import {
   barPercent,
   baselineOrdersByMinute,
@@ -10,54 +9,6 @@ import {
   labourShare,
   sameTimeLastWeek,
 } from '../../lib/utils/today-figures.ts';
-
-const place = (widgetKey: string, width: number) => ({ widgetKey, width });
-
-test('full-width widgets lead; narrower ones balance into the shorter column', () => {
-  const layout = boardLayout(
-    [
-      place('analytics.exceptions', 12),
-      place('analytics.trading', 8),
-      place('analytics.live', 4),
-      place('analytics.kpis', 12),
-      place('inventory.stock-health', 6),
-      place('workforce.team-today', 6),
-    ],
-    2,
-  );
-  assert.deepEqual(
-    layout.full.map((item) => item.widgetKey),
-    ['analytics.exceptions', 'analytics.kpis'],
-  );
-  // trading (10) left, live (5) right, stock (7) to the shorter right (12), team (5) to the left (15).
-  assert.deepEqual(
-    layout.columns.map((column) => column.map((item) => item.widgetKey)),
-    [
-      ['analytics.trading', 'workforce.team-today'],
-      ['analytics.live', 'inventory.stock-health'],
-    ],
-  );
-});
-
-test('one column keeps the saved order of the narrower widgets', () => {
-  const layout = boardLayout([place('a', 6), place('b', 12), place('c', 4), place('d', 8)], 1);
-  assert.deepEqual(
-    layout.full.map((item) => item.widgetKey),
-    ['b'],
-  );
-  assert.deepEqual(
-    layout.columns.map((column) => column.map((item) => item.widgetKey)),
-    [['a', 'c', 'd']],
-  );
-});
-
-test('ties go to the left column so the order still reads across', () => {
-  const layout = boardLayout([place('x', 6), place('y', 6), place('z', 6)], 2, () => 3);
-  assert.deepEqual(
-    layout.columns.map((column) => column.map((item) => item.widgetKey)),
-    [['x', 'z'], ['y']],
-  );
-});
 
 test('a change is a whole percent against a real reference, never against nothing', () => {
   assert.deepEqual(figureChange(110, 100), { percent: 10, direction: 'up' });

@@ -34,16 +34,15 @@ export function DailyTargetControl({ locationId, target }: { locationId: string;
   if (!editing) {
     return (
       <Button
-        type="button"
         variant="outline"
-        size="sm"
+        size="xs"
         onClick={() => {
           setValue(target != null ? String(target) : '');
           setEditing(true);
         }}
       >
         <Target aria-hidden="true" />
-        {target != null ? `Target ${formatMoney(target)}` : 'Set a target'}
+        {target != null ? formatMoney(target) : 'Set target'}
       </Button>
     );
   }
@@ -53,7 +52,7 @@ export function DailyTargetControl({ locationId, target }: { locationId: string;
 
   return (
     <form
-      className="flex flex-wrap items-center gap-1.5"
+      className="relative flex items-center gap-1"
       onSubmit={(event) => {
         event.preventDefault();
         if (valid) save.mutate(parsed);
@@ -72,27 +71,23 @@ export function DailyTargetControl({ locationId, target }: { locationId: string;
         value={value}
         onChange={(event) => setValue(event.target.value)}
         placeholder="No target"
-        className="h-8 w-28 rounded-md border border-input bg-control px-2 text-sm tabular-nums text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
+        className="h-7 w-24 rounded-md border border-input bg-control px-2 text-xs tabular-nums text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15"
       />
-      <button
-        type="submit"
-        disabled={!valid || save.isPending}
-        className="h-8 rounded-md bg-primary px-2.5 text-xs font-semibold text-primary-foreground transition-colors hover:bg-primary-hover disabled:opacity-50"
-      >
+      <Button type="submit" size="xs" disabled={!valid || save.isPending}>
         {save.isPending ? 'Saving' : 'Save'}
-      </button>
-      <button
-        type="button"
+      </Button>
+      <Button
+        variant="ghost"
+        size="xs"
         onClick={() => {
           setEditing(false);
           setError(null);
         }}
-        className="h-8 rounded-md px-2 text-xs font-semibold text-muted-foreground hover:bg-band"
       >
         Cancel
-      </button>
+      </Button>
       {error && (
-        <p role="alert" className="w-full text-xs text-exception">
+        <p role="alert" className="absolute top-full right-0 mt-1 w-48 rounded-md bg-card p-1.5 text-xs text-exception shadow-md">
           {error}
         </p>
       )}

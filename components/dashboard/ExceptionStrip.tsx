@@ -1,23 +1,22 @@
 'use client';
 
-import { AlertTriangle, Boxes, Clock3, PackagePlus, Users } from '@/components/icons';
+import { Boxes, CheckCircle2, Clock3, PackagePlus, Users } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
-import { Bone } from '@/components/shared/Skeleton';
-import { Button } from '@/components/ui/button';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 
 import type { InventoryForecast } from '@/lib/modules/inventory/client';
 import type { RestockRequest } from '@/lib/modules/inventory/client';
 import type { Order } from '@/lib/modules/ordering/client';
 import type { AttendanceIssue, CoverGap } from '@/lib/utils/attendance';
+import { cn } from '@/lib/utils/cn';
 import { type Lateness, ageState, durationLabel } from '@/lib/utils/kitchen-age';
 import { formatInstant } from '@/lib/utils/workspace-time';
 
-/* The one live signal on a page that is otherwise a performance snapshot.
-
-   It stays a single dense row on purpose: a manager reading this mid-service
-   should be able to tell in one glance whether anything needs them, without a
-   sidebar of cards pushing the day's figures below the fold. */
+/* The one live signal on a board that is otherwise a performance snapshot:
+   late orders, cover gaps, attendance, stock running out, urgent restocks. */
 
 interface ExceptionItem {
   key: string;
@@ -123,7 +122,10 @@ export function buildExceptions({
   ];
 }
 
-/** The shared card has two warning strengths; stock is a shortage to act on, so it reads as measured. */
+// The staff overview's card for the states NeedsAttention doesn't draw.
+const CARD = 'overflow-hidden rounded-lg border border-border bg-card shadow-sm';
+
+// The shared strip has two urgencies; stock running out is a warning, not a failure.
 const TONE: Record<ExceptionItem['tone'], NeedsAttentionTone> = {
   exception: 'exception',
   measured: 'measured',
@@ -131,59 +133,54 @@ const TONE: Record<ExceptionItem['tone'], NeedsAttentionTone> = {
 };
 
 /**
- * The dashboard's wording around the shared "needs you" card — the same folded
- * card the staff overview, My HR and every workspace use, so a manager learns
- * one shape for "something needs you" across the product.
- *
- * The card has no loading or failed state of its own, so those are drawn here
- * in its frame: a failed read must never fall through to "nothing needs you".
+ * "Needs you" is the shared Needs attention strips with their fix buttons — the
+ * same as the staff and CMS overviews — so a problem looks the same wherever it
+ * is raised. On the board it is a strip above the widgets, there only while
+ * something needs someone or the checks failed (a failure must never read as
+ * "nothing needs you"). `preview` is edit mode, where it is drawn in every
+ * state so it can be seen and removed; `fill` is the gallery's cell, where it
+ * also takes the cell's height and scrolls past what fits.
  */
 export function ExceptionStrip({
   items,
   loading,
   error,
   onRetry,
+  preview = false,
+  fill = false,
 }: {
   items: ExceptionItem[];
   loading: boolean;
   error: boolean;
   onRetry: () => void;
+  preview?: boolean;
+  fill?: boolean;
 }) {
+  const always = preview || fill;
   if (error)
     return (
-      <div className="flex flex-wrap items-center gap-3 rounded-lg border border-border bg-card px-4 py-3 shadow-sm" role="alert">
-        <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-exception/8 text-exception">
-          <AlertTriangle size={18} aria-hidden="true" />
-        </span>
-        <span className="min-w-0 flex-1">
-          <span className="block text-sm font-semibold text-foreground">The live checks couldn’t run</span>
-          <span className="block text-xs text-muted-foreground">Today’s figures below are unaffected.</span>
-        </span>
-        <Button variant="outline" size="sm" onClick={onRetry}>
-          Try again
-        </Button>
+      <div className={cn(CARD, fill && 'h-full')}>
+        <ErrorState title="The live checks couldn’t run" description="Today’s figures are unaffected." onRetry={onRetry} />
       </div>
     );
-
-  if (loading)
+  if (!always && (loading || items.length === 0)) return null;
+  if (loading) return <ListSkeleton rows={3} label="Checking what needs you" />;
+  if (items.length === 0)
     return (
-      <div
-        className="flex items-center gap-3 rounded-lg border border-border bg-card px-4 py-3.5 shadow-sm"
-        role="status"
-        aria-busy="true"
-        aria-label="Checking what needs you"
-      >
-        <Bone className="size-10 shrink-0" />
-        <span className="min-w-0 flex-1 space-y-1.5">
-          <Bone className="h-3.5 w-32" />
-          <Bone className="h-3 w-64 max-w-full" />
-        </span>
+      <div className={cn(CARD, fill && 'h-full')}>
+        <EmptyState
+          compact
+          kind="done"
+          icon={CheckCircle2}
+          title="Nothing needs you"
+          description="Shows above your dashboard when an order runs late, a shift goes uncovered or stock runs out."
+        />
       </div>
     );
-
   return (
     <NeedsAttention
       label="Needs you"
+      className={fill ? 'h-full overflow-y-auto' : undefined}
       items={items.map((item) => ({
         key: item.key,
         tone: TONE[item.tone],
@@ -192,7 +189,6 @@ export function ExceptionStrip({
         detail: item.detail,
         fix: { label: item.fixLabel, href: item.href },
       }))}
-      // No all-clear banner: when nothing needs anyone the strip steps aside and the figures lead.
     />
   );
 }

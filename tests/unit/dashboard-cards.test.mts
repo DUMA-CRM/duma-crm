@@ -3,8 +3,12 @@ import test from 'node:test';
 
 import {
   contentSummary,
+  dailyPick,
+  deliveriesDue,
   missingShifts,
   purchasingSummary,
+  stockAttention,
+  stockHealthSummary,
   teamTodaySummary,
   topNeeds,
   wholePercents,
@@ -70,4 +74,54 @@ test('content: scheduled is a status, not a need', () => {
     summary.needs.map((need) => need.key),
     ['review', 'draft'],
   );
+});
+
+test('stock attention: each item once under its worst reason, in the order to act on', () => {
+  const row = (name: string, onHand: string, reorderLevel: string, needsReorder: boolean, earliestExpiryDate: string | null = null) => ({
+    name,
+    totalOnHand: onHand,
+    reorderLevel,
+    needsReorder,
+    earliestExpiryDate,
+  });
+  const rows = [
+    row('milk', '4', '10', true, '2026-11-18'), // low and expiring: listed once, as low
+    row('beans', '0', '5', true, '2026-11-19'), // out beats expiring
+    row('flour', '9', '10', true),
+    row('salt', '2', '0', true), // a par of 0 is "none set", not low
+    row('cream', '3', '2', false, '2026-11-20'),
+    row('eggs', '6', '2', false, '2026-11-19'),
+    row('rice', '50', '10', false, '2026-12-30'), // expiring past the week: fine
+  ];
+  assert.deepEqual(
+    stockAttention(rows, NOW).map(({ row, reason }) => `${reason}:${row.name}`),
+    ['out:beans', 'low:milk', 'low:flour', 'expiring:eggs', 'expiring:cream'],
+  );
+  // The list never names more than the counts say.
+  const summary = stockHealthSummary(rows, NOW);
+  const listed = stockAttention(rows, NOW);
+  assert.equal(listed.filter((item) => item.reason === 'out').length, summary.out);
+  assert.equal(listed.filter((item) => item.reason === 'low').length, summary.low);
+});
+
+test('deliveries due: most overdue first, then soonest, undated last, each once', () => {
+  const orders = [
+    { id: 'tomorrow', expectedAt: '2026-11-18T09:00:00Z' },
+    { id: 'undated', expectedAt: null },
+    { id: 'three-days-late', expectedAt: '2026-11-14T09:00:00Z' },
+    { id: 'this-morning', expectedAt: '2026-11-17T08:00:00Z' },
+    { id: 'tomorrow', expectedAt: '2026-11-18T09:00:00Z' }, // in both the sent and part-delivered pages
+  ];
+  assert.deepEqual(
+    deliveriesDue(orders, NOW).map(({ order, lateDays }) => `${order.id}:${lateDays}`),
+    ['three-days-late:3', 'this-morning:0', 'tomorrow:0', 'undated:0'],
+  );
+});
+
+test('daily pick: one photo all day, every photo before any repeats', () => {
+  const photos = ['a', 'b', 'c'];
+  assert.equal(dailyPick(photos, '2026-11-18'), dailyPick(photos, '2026-11-18'));
+  const week = ['2026-11-18', '2026-11-19', '2026-11-20'].map((day) => dailyPick(photos, day));
+  assert.deepEqual([...week].sort(), photos);
+  assert.equal(dailyPick([], '2026-11-18'), undefined);
 });

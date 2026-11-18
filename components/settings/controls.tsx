@@ -227,6 +227,9 @@ export function Fact({
   selected = false,
   tone = 'default',
   surface = 'panel',
+  aside,
+  children,
+  className: tileClassName,
 }: {
   icon: IconComponent;
   label: string;
@@ -247,6 +250,11 @@ export function Fact({
   tone?: 'default' | 'warning' | 'danger';
   /** 'panel' (default) for tiles inside a settings card; 'page' for tiles straight on the page background; 'card' for white tiles, e.g. on a drawer. */
   surface?: 'panel' | 'page' | 'card';
+  /** A small picture at the row's right, beside the figure — a sparkline on a wide tile. */
+  aside?: React.ReactNode;
+  /** What a taller tile shows under the figure's row — the day as a chart, the figures behind it. */
+  children?: React.ReactNode;
+  className?: string;
 }) {
   // Like a marketing feature card: the icon on a small soft tile inside the
   // padding, then a sentence-case label over the value.
@@ -292,8 +300,23 @@ export function Fact({
       )}
     </>
   );
+  const content = children ? (
+    <>
+      <div className="flex items-center gap-3">
+        {body}
+        {aside}
+      </div>
+      <div className="flex min-h-0 flex-1 flex-col">{children}</div>
+    </>
+  ) : (
+    <>
+      {body}
+      {aside}
+    </>
+  );
   const className = cn(
-    'flex items-center gap-3 rounded-lg border px-3.5 py-3',
+    children ? 'flex flex-col gap-3' : 'flex items-center gap-3',
+    'rounded-lg border px-3.5 py-3',
     selected
       ? 'border-primary bg-primary/5'
       : surface === 'page'
@@ -301,6 +324,7 @@ export function Fact({
         : surface === 'card'
           ? 'border-border bg-card shadow-sm'
           : 'border-border bg-band/35',
+    tileClassName,
   );
   const interactive = cn(
     className,
@@ -309,7 +333,7 @@ export function Fact({
   if (href)
     return (
       <Link href={href} className={interactive}>
-        {body}
+        {content}
       </Link>
     );
   if (onSelect)
@@ -320,10 +344,10 @@ export function Fact({
         aria-pressed={selected || undefined}
         className={cn(interactive, 'group', action && 'cursor-pointer')}
       >
-        {body}
+        {content}
       </button>
     );
-  return <div className={className}>{body}</div>;
+  return <div className={className}>{content}</div>;
 }
 
 /**
@@ -522,7 +546,11 @@ export function ChangeRow({
         <span
           className={cn(
             'flex size-10 shrink-0 items-center justify-center rounded-md',
-            tone === 'danger' ? 'bg-exception/10 text-exception' : tone === 'warning' ? 'bg-measured/12 text-measured' : 'bg-primary/8 text-primary',
+            tone === 'danger'
+              ? 'bg-exception/10 text-exception'
+              : tone === 'warning'
+                ? 'bg-measured/12 text-measured'
+                : 'bg-primary/8 text-primary',
           )}
         >
           <Icon size={18} aria-hidden="true" />

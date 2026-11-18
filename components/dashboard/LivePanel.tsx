@@ -2,47 +2,37 @@
 
 import Link from 'next/link';
 
-import { ModuleCard } from '@/components/dashboard/ModuleCards';
-import { ArrowRight, Clock3, Users } from '@/components/icons';
+import { Widget, WidgetCaption, WidgetDot, WidgetFigure, WidgetRow, useFamily } from '@/components/dashboard/widget/Widget';
+import { Activity, Users } from '@/components/icons';
 import { STATUS_META } from '@/components/orders/orderMeta';
-import { MiniBar } from '@/components/shared/MiniBar';
 import { Bone } from '@/components/shared/Skeleton';
 import { StatusDot } from '@/components/shared/StatusDot';
-import type { Tone } from '@/components/shared/tone';
+import { Tooltip } from '@/components/shared/Tooltip';
+import { TONE_FILL } from '@/components/shared/tone';
 
 import { cn } from '@/lib/utils/cn';
 import type { TradingDay } from '@/lib/utils/trading-day';
 
-/* What is happening on the floor right now: the order lanes, each against
-   every active order, and who is on the clock. Live, not today — the figures
-   above count the day; this counts the moment. */
+/* What is happening on the floor right now — live, not today. The count of
+   orders in service leads, split across the lanes in one bar; the longest any
+   order has been waiting says how far behind service is running. Medium names
+   each lane as a row into its screen, and who is on the clock. */
 
-function Row({ href, label, value, total, tone }: { href: string; label: string; value: number; total: number; tone: Tone }) {
-  return (
-    <Link href={href} className="group -mx-2 flex items-center gap-3 rounded-md px-2 py-2 transition-colors hover:bg-band/50">
-      <StatusDot tone={tone} label={label} />
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm text-foreground">{label}</span>
-        <MiniBar value={value} max={Math.max(total, 1)} tone={tone} label={`${value} of ${total} active orders`} className="mt-1.5 h-1" />
-      </span>
-      <span data-figure className={cn('w-8 text-right text-sm font-semibold', tone === 'exception' && value > 0 ? 'text-exception' : 'text-foreground')}>
-        {value}
-      </span>
-      <ArrowRight
-        size={13}
-        className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-        aria-hidden="true"
-      />
-    </Link>
-  );
+/** "12m" / "1h 05m" — how long the oldest active order has been in. */
+function waited(fromIso: string | null, now: number) {
+  if (!fromIso) return null;
+  const minutes = Math.max(0, Math.floor((now - new Date(fromIso).getTime()) / 60_000));
+  return minutes < 60 ? `${minutes}m` : `${Math.floor(minutes / 60)}h ${String(minutes % 60).padStart(2, '0')}m`;
 }
 
 export function LivePanel({
   day,
+  now,
   pendingOrders,
   preparingOrders,
   readyOrders,
   lateCount,
+  oldestActiveAt,
   clockedIn,
   labourOpenShifts,
   loading,
@@ -53,99 +43,176 @@ export function LivePanel({
   showLate = true,
 }: {
   day: TradingDay;
+  now: Date;
   pendingOrders: number;
   preparingOrders: number;
   readyOrders: number;
   lateCount: number;
+  /** When the longest-waiting active order came in; null with nothing in service. */
+  oldestActiveAt: string | null;
   clockedIn: number;
   labourOpenShifts: number;
   loading: boolean;
   /** The live reads failed — say so in place rather than showing zeros. */
   error?: boolean;
   onRetry?: () => void;
-  /** The clocked-in row; off when the workspace runs no Workforce module. */
+  /** The clocked-in count; off when the workspace runs no Workforce module. */
   showStaff?: boolean;
-  /** The Kitchen display is on: its rows open it. Without one they open the Orders page. */
+  /** The Kitchen display is on: its lanes open it. Without one they open the Orders page. */
   kitchenScreen?: boolean;
-  /** The Late row; off when the workspace doesn't flag late orders. */
+  /** The late count; off when the workspace doesn't flag late orders. */
   showLate?: boolean;
 }) {
+  const family = useFamily();
   const inService = day.state === 'trading';
   // Late orders are a subset of these three, so they share the same whole.
-  const activeOrders = pendingOrders + preparingOrders + readyOrders;
-  const rows = showLate ? 4 : 3;
+  const active = pendingOrders + preparingOrders + readyOrders;
+  const kitchen = kitchenScreen ? '/kds' : '/orders';
+  const oldest = waited(oldestActiveAt, now.getTime());
+  const lanes = [
+    { key: 'pending', label: 'Waiting', value: pendingOrders, href: '/orders', fill: TONE_FILL[STATUS_META.pending.tone] },
+    { key: 'preparing', label: 'Preparing', value: preparingOrders, href: kitchen, fill: TONE_FILL[STATUS_META.preparing.tone] },
+    { key: 'ready', label: 'Ready', value: readyOrders, href: '/orders', fill: TONE_FILL[STATUS_META.ready.tone] },
+  ];
+
+  // The lanes as one bar, each its share of what's in service; an empty floor is an empty trough.
+  const laneBar = (
+    <div
+      className="flex h-2 gap-[2px] rounded-full bg-band"
+      role="img"
+      aria-label={lanes.map((lane) => `${lane.value} ${lane.label.toLowerCase()}`).join(', ')}
+    >
+      {active > 0 &&
+        lanes.map((lane) =>
+          lane.value > 0 ? (
+            // Each lane says what it is on hover; the hit area reaches past the 8px bar so it can be found.
+            <Tooltip
+              key={lane.key}
+              side="top"
+              label={`${lane.label} · ${lane.value} ${lane.value === 1 ? 'order' : 'orders'}`}
+              className={cn(
+                'relative h-full first:rounded-l-full last:rounded-r-full before:absolute before:inset-x-0 before:-inset-y-2 before:content-[""]',
+                lane.fill,
+              )}
+              style={{ width: `${(lane.value / active) * 100}%` }}
+            >
+              {null}
+            </Tooltip>
+          ) : null,
+        )}
+    </div>
+  );
+
+  const caption =
+    showLate && lateCount > 0 ? (
+      <>
+        <span className="font-semibold text-exception">{lateCount} late</span>
+        {oldest && (
+          <>
+            {' · oldest '}
+            <span className="font-semibold text-heading tabular-nums">{oldest}</span>
+          </>
+        )}
+      </>
+    ) : active === 0 ? (
+      inService ? (
+        'Nothing in the queue'
+      ) : (
+        'No orders in service'
+      )
+    ) : oldest ? (
+      <>
+        oldest in <span className="font-semibold text-heading tabular-nums">{oldest}</span>
+      </>
+    ) : (
+      'in service'
+    );
+
+  const unit = active === 1 ? 'order' : 'orders';
+  // The figure with its word on one line, the way the module widgets read.
+  const figure = (size: 'bar' | 'small' | 'medium') => (
+    <span className="flex min-w-0 items-baseline gap-1.5">
+      <WidgetFigure value={active} size={size} className="shrink-0" />
+      <span className="truncate text-[13px] text-muted-foreground">{unit}</span>
+    </span>
+  );
+  const staffLine = showStaff && (
+    <Link href="/staff/shifts" className="inline-flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground hover:text-heading">
+      <Users size={12} className="shrink-0 text-success" aria-hidden="true" />
+      <span className="truncate">
+        <span className="font-semibold text-heading tabular-nums">{clockedIn}</span> clocked in
+        {labourOpenShifts > clockedIn && ` · ${labourOpenShifts - clockedIn} still to come`}
+      </span>
+    </Link>
+  );
 
   return (
-    <ModuleCard
-      id="dashboard-live"
-      title="Live now"
-      actions={
-        <span className="inline-flex items-center gap-1.5 text-xs text-muted-foreground">
+    <Widget
+      title="Live"
+      icon={Activity}
+      tint="kitchen"
+      surface="plain"
+      href={kitchen}
+      hrefLabel={kitchenScreen ? 'Open the kitchen display' : 'Open orders'}
+      accessory={
+        <span className="inline-flex items-center gap-1.5 text-[11px] font-medium text-muted-foreground">
           <StatusDot tone={inService ? 'success' : 'muted'} pulse={inService} label="" />
           {inService ? 'In service' : 'Quiet'}
         </span>
       }
       loading={loading}
       skeleton={
-        <div className="space-y-1" role="status" aria-busy="true" aria-label="Loading live orders">
-          {['w-16', 'w-20', 'w-32', 'w-10'].slice(0, rows).map((width) => (
-            <div key={width} className="flex items-center gap-3 py-2" aria-hidden="true">
-              <Bone className="size-2 shrink-0 rounded-full" />
-              <span className="min-w-0 flex-1 space-y-1.5">
-                <Bone className={`h-3.5 ${width}`} />
-                <Bone className="h-1 w-full rounded-full" />
-              </span>
-              <Bone className="h-3.5 w-5 shrink-0" />
-            </div>
-          ))}
+        <div className="mt-auto space-y-2" role="status" aria-busy="true" aria-label="Loading live orders">
+          <Bone className="h-8 w-20 rounded-md" />
+          <Bone className="h-3 w-28 rounded-md" />
+          <Bone className="h-2 w-full rounded-full" />
         </div>
       }
       error={error}
       onRetry={onRetry}
     >
-      <div className="-my-1">
-        <Row href="/orders" label="Waiting" value={pendingOrders} total={activeOrders} tone={STATUS_META.pending.tone} />
-        <Row
-          href={kitchenScreen ? '/kds' : '/orders'}
-          label="Preparing"
-          value={preparingOrders}
-          total={activeOrders}
-          tone={STATUS_META.preparing.tone}
-        />
-        <Row href="/orders" label="Ready to hand over" value={readyOrders} total={activeOrders} tone={STATUS_META.ready.tone} />
-        {showLate && <Row href={kitchenScreen ? '/kds' : '/orders'} label="Late" value={lateCount} total={activeOrders} tone="exception" />}
-
-        {/* Who's on comes from Workforce; a workspace without it has no clock to read. */}
-        {showStaff && (
-          <Link
-            href="/staff/shifts"
-            className="group -mx-2 mt-2 flex items-center gap-3 rounded-md px-2 py-2 transition-colors hover:bg-band/50"
-          >
-            <span className="flex size-8 shrink-0 items-center justify-center rounded-md bg-success/10 text-success" aria-hidden="true">
-              <Users size={15} />
-            </span>
-            <span className="min-w-0 flex-1">
-              <span className="block text-sm text-foreground">
-                <span data-figure className="font-semibold">
-                  {clockedIn}
-                </span>{' '}
-                clocked in
-              </span>
-              {labourOpenShifts > clockedIn && (
-                <span className="flex items-center gap-1 text-xs text-muted-foreground">
-                  <Clock3 size={11} aria-hidden="true" />
-                  {labourOpenShifts} open shifts across your locations
-                </span>
-              )}
-            </span>
-            <ArrowRight
-              size={13}
-              className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-              aria-hidden="true"
-            />
-          </Link>
-        )}
-      </div>
-    </ModuleCard>
+      {family === 'bar' ? (
+        // Half a square: figure and word on one line, the caption under the bar — stacked, they meet the header.
+        <div className="mt-auto flex min-w-0 items-end gap-3">
+          <div className="min-w-0 flex-1">{figure('bar')}</div>
+          <div className="w-[44%] shrink-0">
+            {laneBar}
+            <p className="mt-1.5 truncate text-[11px] leading-4 text-muted-foreground">{caption}</p>
+          </div>
+        </div>
+      ) : family === 'small' ? (
+        <div className="flex min-h-0 flex-1 flex-col justify-end gap-3">
+          <div className="min-w-0">
+            {figure('small')}
+            <WidgetCaption className="mt-1">{caption}</WidgetCaption>
+          </div>
+          {laneBar}
+        </div>
+      ) : (
+        <div className="flex min-h-0 flex-1 gap-4">
+          <div className="flex min-w-0 flex-1 flex-col justify-end gap-3">
+            <div className="min-w-0">
+              {figure('medium')}
+              <WidgetCaption className="mt-1">{caption}</WidgetCaption>
+            </div>
+            {staffLine}
+          </div>
+          <div className="flex w-[52%] min-w-0 shrink-0 flex-col justify-end gap-2">
+            {laneBar}
+            <ul className="min-w-0">
+              {lanes.map((lane) => (
+                <WidgetRow
+                  key={lane.key}
+                  href={lane.href}
+                  mark={<WidgetDot className={lane.fill} />}
+                  title={lane.label}
+                  value={lane.value}
+                />
+              ))}
+            </ul>
+          </div>
+        </div>
+      )}
+    </Widget>
   );
 }

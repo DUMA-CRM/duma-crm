@@ -19,6 +19,7 @@ export interface DashboardWidgetPlacement {
     requiredCapabilities: string[];
     sensitive: 'none' | 'financial' | 'customer' | 'people';
     audiences: Array<'owner' | 'location_manager' | 'frontline_pos' | 'kitchen' | 'hr_manager' | 'marketing_manager'>;
+    sizes: Array<{ width: number; height: number }>;
     freshness: 'live' | 'minute' | 'on_navigation';
     emptyState: string;
     errorState: string;
@@ -38,6 +39,7 @@ export interface ResolvedDashboardLayout {
     personal: { layoutId: string; version: number; widgetCount: number } | null;
   };
   availableWidgets: DashboardWidgetPlacement[];
+  defaultWidgets: DashboardWidgetPlacement[];
   widgets: DashboardWidgetPlacement[];
 }
 
@@ -168,10 +170,20 @@ export const publishPersonalDashboardLayout = (
 export const resetPersonalDashboardLayout = (tenantId: string) =>
   apiFetch<void>(`/dashboard-layouts/personal?tenantId=${encodeURIComponent(tenantId)}`, { method: 'DELETE' });
 
-export const publishDashboardLayout = (tenantId: string, audienceKey: string, name: string) =>
+type WorkspaceWidgetInput = Pick<
+  DashboardWidgetPlacement,
+  'widgetKey' | 'moduleId' | 'gridColumn' | 'gridRow' | 'width' | 'height' | 'configuration'
+>;
+
+export const publishDashboardLayout = (
+  tenantId: string,
+  audienceKey: string,
+  name: string,
+  options: { widgets: WorkspaceWidgetInput[]; clearPersonal?: boolean } = { widgets: [] },
+) =>
   apiFetch<DashboardLayoutRevision>(`/dashboard-layouts/${tenantId}/publish`, {
     method: 'POST',
-    body: JSON.stringify({ audienceKey, name, widgets: [] }),
+    body: JSON.stringify({ audienceKey, name, ...options }),
   });
 
 export const getWorkspaceSetup = (tenantId: string) => apiFetch<WorkspaceSetupSession | null>(`/workspace-setup/${tenantId}`);

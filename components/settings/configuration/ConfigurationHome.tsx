@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { ChefHat, type IconComponent, LayoutDashboard, LayoutGrid, Monitor, QrCode, Receipt, Timer } from '@/components/icons';
+import { ChefHat, type IconComponent, LayoutGrid, Monitor, QrCode, Receipt, Timer } from '@/components/icons';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { RecordGroup } from '@/components/shared/RecordGroup';
@@ -68,13 +68,6 @@ export function ConfigurationHome() {
       group: 'workspace',
       module: 'qr-ordering',
       capabilities: ['qr-ordering:read', 'qr-ordering:write'],
-    },
-    {
-      href: '/settings/configuration/dashboard',
-      title: 'Dashboard',
-      scope: 'Your account',
-      icon: LayoutDashboard,
-      group: 'screens',
     },
     {
       href: '/settings/configuration/pos',

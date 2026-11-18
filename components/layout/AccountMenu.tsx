@@ -1,9 +1,10 @@
 'use client';
 
 import { useTheme } from 'next-themes';
+import Link from 'next/link';
 import { useState, useSyncExternalStore } from 'react';
 
-import { Building2, ChevronsUpDown, LogOut, Monitor, Moon, Sun } from '@/components/icons';
+import { Building2, ChevronsUpDown, LayoutDashboard, LogOut, Monitor, Moon, Sun } from '@/components/icons';
 import { Avatar } from '@/components/shared/Avatar';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Modal } from '@/components/shared/Modal';
@@ -114,6 +115,13 @@ export function AccountMenu() {
               </div>
             ))}
 
+          {context.kind === 'workspace' && (
+            <Link href="/dashboard?edit=1" className={cn(item, 'hidden md:flex')} onClick={() => setOpen(false)}>
+              <LayoutDashboard size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+              Edit dashboard
+            </Link>
+          )}
+
           <div className={cn(item, 'hover:bg-transparent')}>
             {current === 'dark' ? (
               <Moon size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
@@ -141,7 +149,13 @@ export function AccountMenu() {
           </div>
 
           {/* Signing out ends the session on this device, so it reads as a destructive action on hover. */}
-          <button type="button" onClick={() => void logout()} className={cn(item, 'group hover:bg-destructive/10 hover:text-destructive')}>
+          <button
+            type="button"
+            onClick={() => {
+              if (!hasUnsavedWork() || window.confirm('Sign out and discard your unsaved changes?')) void logout();
+            }}
+            className={cn(item, 'group hover:bg-destructive/10 hover:text-destructive')}
+          >
             <LogOut
               size={16}
               aria-hidden="true"

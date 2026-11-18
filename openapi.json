@@ -5521,7 +5521,7 @@
         "summary": "Resolve system, workspace and personal dashboard layers for the signed-in user",
         "responses": {
           "200": {
-            "description": "Personal layout intersected with workspace, module and capability limits"
+            "description": "Resolved dashboard, default arrangement and all eligible gallery widgets"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -5538,13 +5538,66 @@
         "tags": [
           "Dashboard Layouts"
         ],
-        "summary": "Publish a personal hide-and-arrange overlay",
+        "summary": "Publish a personal dashboard arrangement",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "tenantId": {
+                    "type": "string",
+                    "format": "uuid",
+                    "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
+                  },
+                  "widgets": {
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "widgetKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
+                        "gridColumn": {
+                          "type": "number"
+                        },
+                        "gridRow": {
+                          "type": "number"
+                        },
+                        "width": {
+                          "type": "number"
+                        },
+                        "height": {
+                          "type": "number"
+                        }
+                      },
+                      "required": [
+                        "widgetKey",
+                        "gridColumn",
+                        "gridRow",
+                        "width",
+                        "height"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "widgets"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
-            "description": "Personal layout revision constrained to the resolved workspace layer"
+            "description": "Personal layout revision constrained by module, audience and capability"
           },
           "400": {
-            "description": "The personal layout attempts to add or resize an unavailable widget"
+            "description": "invalid_layout for invalid coordinates, overlap, duplicate widgets or unavailable widget sizes"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -5610,9 +5663,96 @@
           "Dashboard Layouts"
         ],
         "summary": "Publish a new immutable workspace dashboard revision",
+        "requestBody": {
+          "required": true,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "audienceKey": {
+                    "type": "string",
+                    "enum": [
+                      "owner",
+                      "location_manager",
+                      "frontline_pos",
+                      "kitchen",
+                      "hr_manager",
+                      "marketing_manager"
+                    ]
+                  },
+                  "name": {
+                    "type": "string",
+                    "minLength": 2,
+                    "maxLength": 120
+                  },
+                  "clearPersonal": {
+                    "description": "Save for your own audience and clear your personal arrangement in the same transaction.",
+                    "type": "boolean"
+                  },
+                  "widgets": {
+                    "default": [],
+                    "maxItems": 50,
+                    "type": "array",
+                    "items": {
+                      "type": "object",
+                      "properties": {
+                        "widgetKey": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 100
+                        },
+                        "moduleId": {
+                          "type": "string",
+                          "minLength": 1,
+                          "maxLength": 64
+                        },
+                        "gridColumn": {
+                          "type": "number"
+                        },
+                        "gridRow": {
+                          "type": "number"
+                        },
+                        "width": {
+                          "type": "number"
+                        },
+                        "height": {
+                          "type": "number"
+                        },
+                        "configuration": {
+                          "default": {},
+                          "type": "object",
+                          "propertyNames": {
+                            "type": "string"
+                          },
+                          "additionalProperties": {}
+                        }
+                      },
+                      "required": [
+                        "widgetKey",
+                        "moduleId",
+                        "gridColumn",
+                        "gridRow",
+                        "width",
+                        "height"
+                      ]
+                    }
+                  }
+                },
+                "required": [
+                  "audienceKey",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
         "responses": {
           "201": {
-            "description": "Published workspace layout revision"
+            "description": "Published workspace layout revision. Saving as team default also clears the editor’s personal arrangement."
+          },
+          "400": {
+            "description": "invalid_layout for invalid coordinates, overlap, duplicate widgets or unavailable widget sizes"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"

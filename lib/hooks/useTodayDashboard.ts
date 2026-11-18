@@ -233,6 +233,10 @@ export function useTodayDashboard() {
     .flatMap((query) => query.data?.data ?? [])
     .filter((order) => isLate(order, now.getTime(), lateness))
     .sort((a, b) => new Date(stageSince(a)).getTime() - new Date(stageSince(b)).getTime());
+  // When the longest-waiting active order came in: how long service is running behind, at a glance.
+  const oldestActiveAt = liveOrderQueries
+    .flatMap((query) => query.data?.data ?? [])
+    .reduce<string | null>((oldest, order) => (!oldest || order.createdAt < oldest ? order.createdAt : oldest), null);
   const criticalStock = (forecast.data ?? []).filter((item) => item.isCritical);
   const urgentRestocks = (restocks.data?.data ?? []).filter((request) => decodeNotes(request.notes).priority === 'urgent');
   const visibleShifts = (activeShifts.data ?? []).filter((shift) => !activeLocationId || shift.locationId === activeLocationId);
@@ -312,6 +316,7 @@ export function useTodayDashboard() {
     preparingOrders: liveOrderQueries[1]?.data?.total ?? 0,
     readyOrders: liveOrderQueries[2]?.data?.total ?? 0,
     lateOrders,
+    oldestActiveAt,
     lateness,
     criticalStock,
     urgentRestocks,

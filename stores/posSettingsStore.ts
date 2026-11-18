@@ -1,6 +1,8 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
+import type { KeyEntry } from '@/lib/utils/till-keys';
+
 export type ScannerMode = 'camera' | 'external';
 /** Items straight away, or big category tiles that open into their items. */
 export type MenuLayout = 'items' | 'categories';
@@ -44,10 +46,14 @@ interface PosSettingsStore extends PosLayout {
   scannerMode: ScannerMode;
   /** Pinned menu item ids, in order, per workspace. */
   pinned: Record<string, string[]>;
+  /** Each menu page's arranged keys (order and size), per workspace, by page: 'favourites', 'all' or a category id. */
+  keyLayouts: Record<string, Record<string, KeyEntry[]>>;
   setScannerMode: (mode: ScannerMode) => void;
   setLayout: (patch: Partial<PosLayout>) => void;
   resetLayout: () => void;
   setPinned: (tenantId: string, ids: string[]) => void;
+  /** Save a page's keys, or null to put it back in menu order. */
+  setKeyLayout: (tenantId: string, page: string, keys: KeyEntry[] | null) => void;
 }
 
 export const usePosSettingsStore = create<PosSettingsStore>()(
@@ -56,10 +62,18 @@ export const usePosSettingsStore = create<PosSettingsStore>()(
       scannerMode: 'camera',
       ...DEFAULT_POS_LAYOUT,
       pinned: {},
+      keyLayouts: {},
       setScannerMode: (scannerMode) => set({ scannerMode }),
       setLayout: (patch) => set(patch),
       resetLayout: () => set(DEFAULT_POS_LAYOUT),
       setPinned: (tenantId, ids) => set((state) => ({ pinned: { ...state.pinned, [tenantId]: ids } })),
+      setKeyLayout: (tenantId, page, keys) =>
+        set((state) => {
+          const pages = { ...state.keyLayouts[tenantId] };
+          if (keys) pages[page] = keys;
+          else delete pages[page];
+          return { keyLayouts: { ...state.keyLayouts, [tenantId]: pages } };
+        }),
     }),
     {
       name: 'pos-settings',
@@ -74,6 +88,7 @@ export const usePosSettingsStore = create<PosSettingsStore>()(
         ({
           ...DEFAULT_POS_LAYOUT,
           pinned: {},
+          keyLayouts: {},
           ...(persisted as object),
           ...(version < 3 ? { tileStyle: 'compact' } : {}),
           ...(version < 4 ? { showSearch: false } : {}),

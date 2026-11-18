@@ -2,12 +2,14 @@
 
 import { useMemo, useState } from 'react';
 
-import { ArrowLeft, Search, Star, X } from '@/components/icons';
+import { ArrowLeft, LayoutGrid, RotateCcw, Search, Star, X } from '@/components/icons';
+import { KeyArranger } from '@/components/pos/KeyArranger';
 import { CategoryGrid, MenuGrid } from '@/components/pos/MenuGrid';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
 import { type StockLevel, categoryColours, categoryTiles, filterMenu } from '@/lib/utils/pos';
+import type { KeyEntry } from '@/lib/utils/till-keys';
 import type { PosLayout } from '@/stores/posSettingsStore';
 import type { MenuItem } from '@/types/pos';
 
@@ -29,6 +31,13 @@ export interface TillMenuProps {
   banner?: React.ReactNode;
   /** Pad the bottom for the floating ticket bar below lg. */
   padForCartBar?: boolean;
+  /** Each page's arranged keys, by page ('favourites', 'all' or a category id); absent, the menu's order. */
+  keyLayouts?: Record<string, KeyEntry[]>;
+  /** Arranging the keys: each page's grid becomes its `KeyArranger`, and nothing sells. */
+  arranging?: boolean;
+  /** Save a page's keys, or null to put it back in menu order. */
+  onKeyLayout?: (page: string, keys: KeyEntry[] | null) => void;
+  onDoneArranging?: () => void;
 }
 
 /**
@@ -39,14 +48,15 @@ export interface TillMenuProps {
 export function TillMenu(props: TillMenuProps) {
   const {
     items, categories, favourites, favouritesLabel, layout, counts, stock, selectedId, onSelectItem, isLoading, isError, onRetry, currency,
-    banner, padForCartBar = true,
+    banner, padForCartBar = true, keyLayouts, arranging = false, onKeyLayout, onDoneArranging,
   } = props;
   // Null until the cashier picks one: the till then opens on Favourites when there are any.
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   // Categories-first: the category whose items are open, or null for the tiles.
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [searchText, setQuery] = useState('');
-  const query = layout.showSearch ? searchText.trim() : '';
+  // Arranging lays out pages, not search results, so a search waits until it's done.
+  const query = layout.showSearch && !arranging ? searchText.trim() : '';
 
   const categoriesFirst = layout.menuLayout === 'categories';
   const showTabs = layout.showCategories && !categoriesFirst;
@@ -60,7 +70,27 @@ export function TillMenu(props: TillMenuProps) {
   const tiles = useMemo(() => categoryTiles(items, categories), [categories, items]);
   const colours = useMemo(() => categoryColours(categories), [categories]);
 
-  const grid = (list: MenuItem[]) => (
+  const pageName = (page: string) =>
+    page === 'favourites' ? favouritesLabel : page === 'all' ? 'All' : (categories.find((c) => c.id === page)?.name ?? 'This page');
+  // The pages on screen, for the arranging bar: what Reset puts back.
+  const shownPages: string[] = [];
+
+  const grid = (list: MenuItem[], page: string) => {
+    shownPages.push(page);
+    if (arranging && onKeyLayout && !query && !isLoading && !isError && list.length > 0) {
+      return (
+        <KeyArranger
+          items={list}
+          keys={keyLayouts?.[page]}
+          onChange={(keys) => onKeyLayout(page, keys)}
+          tileStyle={layout.tileStyle}
+          colours={colours}
+          stock={stock}
+          currency={currency}
+        />
+      );
+    }
+    return (
     <MenuGrid
       items={list}
       counts={counts}
@@ -75,12 +105,14 @@ export function TillMenu(props: TillMenuProps) {
       tileStyle={layout.tileStyle}
       colours={colours}
       currency={currency}
+      keys={query ? undefined : keyLayouts?.[page]}
     />
-  );
+    );
+  };
 
   let body: React.ReactNode;
   if (query || isLoading || isError) {
-    body = grid(visible);
+    body = grid(visible, 'search');
   } else if (categoriesFirst && !openCategory) {
     body = (
       <CategoryGrid
@@ -99,7 +131,7 @@ export function TillMenu(props: TillMenuProps) {
           </Button>
           <h2 className="text-lg font-semibold text-heading">{name}</h2>
         </div>
-        {grid(visible)}
+        {grid(visible, openCategory!)}
       </>
     );
   } else if (!showTabs && favourites.length > 0) {
@@ -107,21 +139,48 @@ export function TillMenu(props: TillMenuProps) {
     body = (
       <>
         <SectionTitle icon={Star}>{favouritesLabel}</SectionTitle>
-        {grid(favourites)}
+        {grid(favourites, 'favourites')}
         <SectionTitle>Everything</SectionTitle>
-        {grid(visible)}
+        {grid(visible, 'all')}
       </>
     );
   } else {
-    body = grid(visible);
+    body = grid(visible, showTabs ? category : 'all');
   }
 
-  const hasTopBar = layout.showSearch || showTabs;
+  const arrangeable = shownPages.filter((page) => page !== 'search');
+  const arrangedHere = arrangeable.some((page) => keyLayouts?.[page]?.length);
+  const arrangeBar = arranging && (
+    // Arranging, said plainly above the keys: which page, how, and the way out.
+    <div className="sticky top-0 z-20 -mx-4 mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur-sm md:-mx-6 md:px-6">
+      <LayoutGrid size={18} aria-hidden="true" className="shrink-0 text-primary" />
+      <p className="min-w-0 flex-1 text-sm text-foreground">
+        {arrangeable.length > 0 ? (
+          <>
+            <span className="font-semibold">Arranging {arrangeable.map(pageName).join(' and ')}.</span>{' '}
+            <span className="text-muted-foreground">Hold a key and drag it; the corner button makes it bigger.</span>
+          </>
+        ) : (
+          <span className="text-muted-foreground">Open a category to arrange its keys.</span>
+        )}
+      </p>
+      {arrangedHere && (
+        <Button variant="ghost" className="h-11" onClick={() => arrangeable.forEach((page) => onKeyLayout?.(page, null))}>
+          <RotateCcw size={16} aria-hidden="true" /> Menu order
+        </Button>
+      )}
+      <Button className="h-11 px-5" onClick={onDoneArranging}>
+        Done
+      </Button>
+    </div>
+  );
+
+  const hasTopBar = (layout.showSearch && !arranging) || showTabs;
   return (
     <div className="flex min-h-0 min-w-0 flex-1 flex-col bg-background">
       {hasTopBar && (
         <div className="shrink-0 border-b border-border bg-card px-4 md:px-6">
-          {layout.showSearch && (
+          {layout.showSearch && !arranging && (
             <div className={cn('relative', showTabs ? 'pt-2.5' : 'py-2.5')}>
               <Search size={18} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground" />
               <input
@@ -174,7 +233,8 @@ export function TillMenu(props: TillMenuProps) {
           )}
         </div>
       )}
-      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-4 md:px-6">
+      <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 md:px-6', arranging ? 'pt-0' : 'pt-4')}>
+        {arrangeBar}
         {banner}
         <div className={padForCartBar ? 'pb-28 lg:pb-6' : 'pb-6'}>{body}</div>
       </div>
