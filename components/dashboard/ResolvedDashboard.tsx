@@ -33,7 +33,6 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { type Cell, type GridSize, compact, normalize } from '@/lib/utils/widget-grid';
 import { useAuthStore } from '@/stores/authStore';
-import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import {
@@ -75,9 +74,7 @@ const MODULE_CARDS: Record<string, ComponentType> = {
 const layoutKey = (tenantId: string | null) => moduleQueryKeys.organization.key('dashboard-layout', 'resolved', tenantId);
 
 function Shell({ children, meta, dirty, wallpaper }: { children: ReactNode; meta?: ReactNode; dirty?: boolean; wallpaper?: string | null }) {
-  // Edit mode passes its draft (null is "none"); otherwise the saved choice.
-  const saved = useUiSettingsStore((state) => state.dashboardWallpaper);
-  const src = dashboardWallpaper(wallpaper === undefined ? saved : wallpaper)?.src;
+  const src = dashboardWallpaper(wallpaper ?? null)?.src;
   return (
     <EditorShell
       title="Today"
@@ -144,8 +141,8 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [saveMenu, setSaveMenu] = useState(false);
-  const savedWallpaper = useUiSettingsStore((state) => state.dashboardWallpaper);
-  const setWallpaper = useUiSettingsStore((state) => state.setDashboardWallpaper);
+  // Saved with the layout: the personal layer's if there is one, else the team's.
+  const savedWallpaper = data.wallpaper ?? null;
   // Picked in edit mode, shown at once, kept on Done and dropped on Cancel like the layout.
   const [wallpaper, setWallpaperDraft] = useState(savedWallpaper);
   const available = useMemo(
@@ -171,7 +168,8 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
   const cells = editing ? editor.cells : saved;
   const canEdit = editing && columns === BOARD_COLUMNS;
   const dirty = editing && editor.isDirty;
-  const changed = dirty || (editing && wallpaper !== savedWallpaper);
+  const wallpaperChanged = editing && wallpaper !== savedWallpaper;
+  const changed = dirty || wallpaperChanged;
   const displayed = canEdit ? cells : saved;
   const has = (key: string) => displayed.some((cell) => cell.key === key);
   // Needs you is a strip across the top of the page, never a cell: the grid packs without it.
@@ -216,16 +214,16 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
               data.defaultWidgets?.find((item) => item.widgetKey === widget.widgetKey)?.configuration ?? widget.configuration;
             return { ...placement, moduleId: widget.moduleId, configuration };
           }),
+          wallpaper,
         });
-      } else if (editor.resetRequested && data.source === 'personal') {
+      } else if (editor.resetRequested && data.source === 'personal' && wallpaper === (data.defaultWallpaper ?? null)) {
         await resetPersonalDashboardLayout(data.tenantId);
-      } else if (dirty) {
-        await publishPersonalDashboardLayout(data.tenantId, placements);
+      } else if (dirty || wallpaperChanged) {
+        // A wallpaper of your own makes the layout your own too, as moving a widget does.
+        await publishPersonalDashboardLayout(data.tenantId, placements, wallpaper);
       }
     },
     onSuccess: async () => {
-      // The wallpaper is this device's, whichever way the layout was saved.
-      setWallpaper(wallpaper);
       await queryClient.invalidateQueries({ queryKey: layoutKey(data.tenantId) });
       closeEdit();
     },
@@ -285,7 +283,7 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
 
   const content = (
     <Shell meta={trading && <TodayMeta chartShowsNow={has('analytics.trading')} />} dirty={changed || save.isPending}
-      wallpaper={editing ? wallpaper : undefined}
+      wallpaper={editing ? wallpaper : savedWallpaper}
     >
       {/* The banners and controls line up with the board, which centres once its cells reach full size. */}
       <div
@@ -304,7 +302,14 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
               <Plus aria-hidden="true" /> Add widget
             </Button>
             <WallpaperPicker value={wallpaper} onChange={setWallpaperDraft} disabled={save.isPending} />
-            <Button variant="ghost" disabled={save.isPending} onClick={editor.reset}>
+            <Button
+              variant="ghost"
+              disabled={save.isPending}
+              onClick={() => {
+                editor.reset();
+                setWallpaperDraft(data.defaultWallpaper ?? null);
+              }}
+            >
               <RotateCcw aria-hidden="true" /> Reset
             </Button>
             <div className="ml-auto flex items-center gap-2">

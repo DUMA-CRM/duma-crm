@@ -41,6 +41,10 @@ export interface ResolvedDashboardLayout {
   availableWidgets: DashboardWidgetPlacement[];
   defaultWidgets: DashboardWidgetPlacement[];
   widgets: DashboardWidgetPlacement[];
+  /** Wallpaper id behind the widgets (lib/dashboard/wallpapers.ts): the personal layer's, else the team's. */
+  wallpaper?: string | null;
+  /** The team's wallpaper — what Reset returns to. */
+  defaultWallpaper?: string | null;
 }
 
 export interface DashboardLayoutRevision {
@@ -161,10 +165,11 @@ export const getResolvedDashboardLayout = (tenantId?: string | null) =>
 export const publishPersonalDashboardLayout = (
   tenantId: string,
   widgets: Array<Pick<DashboardWidgetPlacement, 'widgetKey' | 'gridColumn' | 'gridRow' | 'width' | 'height'>>,
+  wallpaper?: string | null,
 ) =>
   apiFetch(`/dashboard-layouts/personal`, {
     method: 'POST',
-    body: JSON.stringify({ tenantId, widgets }),
+    body: JSON.stringify({ tenantId, widgets, wallpaper }),
   });
 
 export const resetPersonalDashboardLayout = (tenantId: string) =>
@@ -179,7 +184,7 @@ export const publishDashboardLayout = (
   tenantId: string,
   audienceKey: string,
   name: string,
-  options: { widgets: WorkspaceWidgetInput[]; clearPersonal?: boolean } = { widgets: [] },
+  options: { widgets: WorkspaceWidgetInput[]; clearPersonal?: boolean; wallpaper?: string | null } = { widgets: [] },
 ) =>
   apiFetch<DashboardLayoutRevision>(`/dashboard-layouts/${tenantId}/publish`, {
     method: 'POST',

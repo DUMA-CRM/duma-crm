@@ -31,9 +31,6 @@ interface UiSettingsStore {
   /** Reservations' floor maps draw each table's chairs. */
   showChairs: boolean;
   setShowChairs: (show: boolean) => void;
-  /** The dashboard's wallpaper id (lib/dashboard/wallpapers.ts), or null for the plain page. */
-  dashboardWallpaper: string | null;
-  setDashboardWallpaper: (id: string | null) => void;
 }
 
 export const useUiSettingsStore = create<UiSettingsStore>()(
@@ -53,22 +50,20 @@ export const useUiSettingsStore = create<UiSettingsStore>()(
       setBrand: (brand) => set({ brand }),
       showChairs: true,
       setShowChairs: (showChairs) => set({ showChairs }),
-      dashboardWallpaper: null,
-      setDashboardWallpaper: (dashboardWallpaper) => set({ dashboardWallpaper }),
     }),
     {
       // The pre-paint script in app/layout.tsx reads `state.brand` under this key.
       name: UI_SETTINGS_STORAGE_KEY,
-      version: 5,
+      // 6 drops the device's dashboard wallpaper: it is saved with the dashboard layout now.
+      version: 6,
       migrate: (persisted) => {
-        const previous = persisted as Partial<Pick<UiSettingsStore, 'dismissedTips' | 'listViews' | 'brand' | 'brands' | 'showChairs' | 'dashboardWallpaper'>>;
+        const previous = persisted as Partial<Pick<UiSettingsStore, 'dismissedTips' | 'listViews' | 'brand' | 'brands' | 'showChairs'>>;
         return {
           dismissedTips: previous.dismissedTips ?? [],
           listViews: previous.listViews ?? {},
           brands: Object.fromEntries(Object.entries(previous.brands ?? {}).map(([key, value]) => [key, parseBrand(value)])),
           brand: parseBrand(previous.brand),
           showChairs: previous.showChairs ?? true,
-          dashboardWallpaper: previous.dashboardWallpaper ?? null,
         };
       },
     },
