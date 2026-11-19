@@ -1,7 +1,8 @@
 'use client';
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
-import { useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { CashUpButton, CashUpDrawer, useCashUpDay } from '@/components/cash-up/TillCashUp';
 import { AlertTriangle, Building2, Clock, CloudUpload, MapPin, Monitor, WifiOff } from '@/components/icons';
@@ -11,6 +12,7 @@ import { CheckoutFlow, type CheckoutStep } from '@/components/pos/CheckoutFlow';
 import { MenuGrid } from '@/components/pos/MenuGrid';
 import { OrderPanel } from '@/components/pos/OrderPanel';
 import { TillMenu } from '@/components/pos/TillMenu';
+import { TillSettingsDrawer } from '@/components/pos/TillSettings';
 import { MENU_STALE_MS, pence, useTillMenuData } from '@/components/pos/useTillMenuData';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -20,6 +22,7 @@ import { SlideToClockIn } from '@/components/shifts/SlideToClockIn';
 import { Button } from '@/components/ui/button';
 
 import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
+import { useWorkspaceModules } from '@/lib/hooks/useWorkspaceContext';
 import { getMenuItemModifierGroups, getMenuItemModifiers } from '@/lib/modules/catalog/client';
 import { API_PREFIX } from '@/lib/modules/core/client';
 import { getCustomer, getCustomerLoyaltyWallet } from '@/lib/modules/customers/client';
@@ -27,6 +30,8 @@ import { type CreateOrderPayload, createOrder, updateOrderStatus } from '@/lib/m
 import { getLocationsByTenant, getTradingSettings } from '@/lib/modules/organization/client';
 import { type PaymentAttempt, type PaymentMethod, confirmPayment, getPaymentMethods, startPayment } from '@/lib/modules/payments/client';
 import { checkPromotionCode } from '@/lib/modules/promotions/client';
+import { hasCapability } from '@/lib/auth/capabilities';
+import { type TillTeamLayout, getTillTeamLayout, publishTillTeamLayout } from '@/lib/modules/pos/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
 import { openPaidCashDrawer } from '@/lib/pos-hardware/browser';
@@ -44,6 +49,7 @@ import {
   lineKey,
   promoCheckLines,
 } from '@/lib/utils/pos';
+import { teamLayoutFrom, tillSource } from '@/lib/utils/till-team';
 import { validLoyaltyRewards } from '@/lib/utils/pos-loyalty';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
@@ -89,7 +95,16 @@ interface ChargeSession {
 
 // ── Page ──────────────────────────────────────────────────────────────────────
 
+// `useSearchParams` (the till's `?edit=1`) needs a Suspense boundary to prerender, as the dashboard's page has.
 export default function POSPage() {
+  return (
+    <Suspense>
+      <Till />
+    </Suspense>
+  );
+}
+
+function Till() {
   const qc = useQueryClient();
   // Workspace and offline-order preferences are persisted in localStorage.
   // Hold the till behind one neutral frame until React has attached so a hard
@@ -105,6 +120,78 @@ export default function POSPage() {
 
   const layout = usePosSettingsStore();
   const [cart, setCart] = useState<CartItem[]>([]);
+  // Arranging the keys, opened by "Edit till" in the avatar menu (`?edit=1`, as the dashboard's edit is).
+  // Only between sales, so a key can never be dragged with a ticket open.
+  const router = useRouter();
+  const editRequested = useSearchParams().get('edit') === '1';
+  const arranging = editRequested && cart.length === 0;
+  // This device's till settings: a drawer beside the live keys, from the arranging bar.
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const stopArranging = () => {
+    setSettingsOpen(false);
+    router.replace('/pos', { scroll: false });
+  };
+  // Asked with a ticket open, or something reached the ticket (a scan) mid-arrangement: arranging ends and says why.
+  useEffect(() => {
+    if (!editRequested || cart.length === 0) return;
+    toast('error', 'Finish or clear the ticket to edit the till.');
+    router.replace('/pos', { scroll: false });
+  }, [editRequested, cart.length, router]);
+
+  // ── Team layout ──
+  // The location's published layout is where a till starts; a till that arranges its own keeps it
+  // (in this browser) until it chooses the team layout again. Editing always edits this device's copy.
+  const canPublishTill = useAuthStore((state) => hasCapability(state.capabilities, 'menu:write'));
+  const team = useQuery({
+    queryKey: moduleQueryKeys.pos.key('till-layout', locationId),
+    queryFn: () => getTillTeamLayout(locationId!),
+    enabled: !!locationId,
+    staleTime: 60_000,
+  });
+  const teamLayout = team.data?.layout ?? null;
+  const ownTill = !!locationId && !!layout.ownTill[locationId];
+  const tillUsesTeam = tillSource({ hasTeam: !!teamLayout, own: ownTill, arranging }) === 'team';
+  const sellLayout = tillUsesTeam ? { ...layout, ...teamLayout!.settings } : layout;
+  const sellPinned = tillUsesTeam ? teamLayout!.pinned : tenantId ? layout.pinned[tenantId] : undefined;
+  const sellKeys = tillUsesTeam ? teamLayout!.keys : tenantId ? layout.keyLayouts[tenantId] : undefined;
+  // Set while this page itself rewrites the device's layout, so that isn't taken for the cashier arranging.
+  const rewriting = useRef(false);
+  // Opening Edit till on a till that follows the team copies the team layout onto it, to edit; the first
+  // change anyone then makes is what makes the till its own. Looking and pressing Done changes nothing.
+  useEffect(() => {
+    if (!arranging || !locationId || !tenantId) return;
+    const store = usePosSettingsStore.getState();
+    if (teamLayout && !store.ownTill[locationId]) {
+      rewriting.current = true;
+      store.adoptTeamLayout(tenantId, teamLayout);
+      rewriting.current = false;
+    }
+    return usePosSettingsStore.subscribe((state) => {
+      if (!rewriting.current && !state.ownTill[locationId]) state.setOwnTill(locationId, true);
+    });
+  }, [arranging, locationId, tenantId, teamLayout]);
+  const switchToTeamLayout = () => {
+    if (!locationId || !tenantId || !teamLayout) return;
+    rewriting.current = true;
+    layout.adoptTeamLayout(tenantId, teamLayout);
+    layout.setOwnTill(locationId, false);
+    rewriting.current = false;
+    toast('success', 'This till now uses the team layout.');
+  };
+  const saveTeamLayout = useMutation({
+    mutationFn: () =>
+      publishTillTeamLayout(locationId!, teamLayoutFrom(usePosSettingsStore.getState(), tenantId!) as TillTeamLayout),
+    onSuccess: () => {
+      // What was published is this till's layout, so it follows the team from here.
+      rewriting.current = true;
+      layout.setOwnTill(locationId!, false);
+      rewriting.current = false;
+      void qc.invalidateQueries({ queryKey: moduleQueryKeys.pos.key('till-layout', locationId) });
+      toast('success', `Saved as the team layout for ${locationName ?? 'this location'}. Every till here starts from it.`);
+      stopArranging();
+    },
+    onError: (err) => toast('error', (err as Error).message || 'The team layout couldn’t be saved. Try again.'),
+  });
   const [promoCode, setPromoCode] = useState<string | null>(null);
   const posEnabled = useModuleEnabled('pos');
   const promotionsOn = useModuleEnabled('promotions');
@@ -185,12 +272,16 @@ export default function POSPage() {
   }, [flashId]);
 
   // ── Shift gate ──
+  // Only a workspace running Workforce asks staff to clock in; without it the till opens
+  // straight away — and the shifts query must not go out, or the API answers `module_disabled`.
+  const modulesKnown = useWorkspaceModules() !== undefined;
+  const shiftsRequired = useModuleEnabled('workforce');
   const shifts = useQuery({
     queryKey: moduleQueryKeys.workforce.key('shifts-my'),
     queryFn: getMyShifts,
-    enabled: !!tenantId && !!locationId,
+    enabled: !!tenantId && !!locationId && shiftsRequired,
   });
-  const onShift = (shifts.data ?? []).some((s) => !s.clockedOut);
+  const onShift = modulesKnown && (!shiftsRequired || (shifts.data ?? []).some((s) => !s.clockedOut));
 
   const { mutateAsync: doClockIn, isPending: clockingIn } = useMutation({
     mutationFn: () => clockIn({ locationId: locationId! }),
@@ -212,8 +303,8 @@ export default function POSPage() {
   } = useTillMenuData({
     tenantId,
     locationId,
-    layout,
-    pinned: tenantId ? layout.pinned[tenantId] : undefined,
+    layout: sellLayout,
+    pinned: sellPinned,
   });
   const { data: locations = [] } = useQuery({
     queryKey: moduleQueryKeys.organization.key('locations', tenantId),
@@ -788,7 +879,7 @@ export default function POSPage() {
         className="flex-1"
       />
     );
-  } else if (shifts.isLoading) {
+  } else if (!modulesKnown || shifts.isLoading) {
     body = <MenuGrid items={[]} counts={{}} selectedId={null} onSelectItem={() => undefined} isLoading />;
   } else if (shifts.isError && !shifts.data) {
     body = (
@@ -892,7 +983,7 @@ export default function POSPage() {
                 categories={categories}
                 favourites={favourites}
                 favouritesLabel={favouritesLabel}
-                layout={layout}
+                layout={sellLayout}
                 counts={counts}
                 stock={stockStatus}
                 selectedId={customising?.item.id ?? null}
@@ -902,7 +993,23 @@ export default function POSPage() {
                 onRetry={() => void menu.refetch()}
                 currency={currency}
                 banner={banners}
+                keyLayouts={sellKeys}
+                arranging={arranging}
+                onKeyLayout={(page, keys) => tenantId && layout.setKeyLayout(tenantId, page, keys)}
+                onDoneArranging={stopArranging}
+                onOpenSettings={() => setSettingsOpen(true)}
+                onSaveTeam={canPublishTill && locationId ? () => saveTeamLayout.mutate() : undefined}
+                savingTeam={saveTeamLayout.isPending}
               />
+              {arranging && settingsOpen && (
+                <TillSettingsDrawer
+                  onClose={() => setSettingsOpen(false)}
+                  team={team.data}
+                  ownTill={ownTill}
+                  canPublish={canPublishTill}
+                  onUseTeam={switchToTeamLayout}
+                />
+              )}
               <CartBar cart={cart} onOpen={() => usePageSidebarStore.getState().setOpen(true)} currency={currency} />
             </>
           ) : (

@@ -69,7 +69,10 @@ export function ProductCard({
         // A wider or taller key lets its photo fill the space instead of growing by its ratio.
         <span className={cn('block w-full border-b border-border bg-band', sized ? 'min-h-16 flex-1' : 'aspect-[16/10] shrink-0')}>
           {item.image && (
+            // Menu photos come through the API proxy (`/be/…?v=…`): served as they are, as Media files are
+            // elsewhere, rather than through the optimizer, which would refuse the cache-busting query.
             <Image
+              unoptimized
               width={320}
               height={200}
               src={item.image}

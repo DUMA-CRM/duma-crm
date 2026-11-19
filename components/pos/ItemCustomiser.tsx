@@ -66,7 +66,7 @@ export function ItemCustomiser({ item, groups, onAdd, onCancel, currency, editin
       <div className="flex h-14 shrink-0 items-center gap-3 border-b border-border pr-2 pl-4">
         {item.image && (
           <div className="size-9 shrink-0 overflow-hidden rounded-md bg-band">
-            <Image width={36} height={36} src={item.image} alt="" className="size-full object-cover" />
+            <Image unoptimized width={36} height={36} src={item.image} alt="" className="size-full object-cover" />
           </div>
         )}
         <div className="min-w-0 flex-1">

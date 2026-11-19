@@ -27,8 +27,14 @@ test('a size the till does not know falls back to a plain key rather than breaki
 
 test('dropping a key on another moves it there, either direction', () => {
   const layout = keyLayout(arrangeKeys(['a', 'b', 'c', 'd'].map(item), undefined));
-  assert.deepEqual(moveKey(layout, 'a', 'c').map(({ id }) => id), ['b', 'c', 'a', 'd']);
-  assert.deepEqual(moveKey(layout, 'd', 'b').map(({ id }) => id), ['a', 'd', 'b', 'c']);
+  assert.deepEqual(
+    moveKey(layout, 'a', 'c').map(({ id }) => id),
+    ['b', 'c', 'a', 'd'],
+  );
+  assert.deepEqual(
+    moveKey(layout, 'd', 'b').map(({ id }) => id),
+    ['a', 'd', 'b', 'c'],
+  );
   assert.deepEqual(moveKey(layout, 'a', 'missing'), layout);
 });
 

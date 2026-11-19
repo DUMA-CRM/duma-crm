@@ -42,6 +42,7 @@ export function EditorShell({
   subheader,
   flush = false,
   bodyClassName,
+  backdrop,
   dirty = false,
   discardMessage = 'Your changes have not been saved yet. Leaving now discards them.',
   children,
@@ -63,6 +64,8 @@ export function EditorShell({
   flush?: boolean;
   /** Adjust the padded body without changing the surrounding page shell. */
   bodyClassName?: string;
+  /** Painted behind the whole shell, under the body and its scrolling (e.g. the dashboard's wallpaper). */
+  backdrop?: React.ReactNode;
   /** True while the page holds unsaved changes — enables the discard guard. */
   dirty?: boolean;
   discardMessage?: string;
@@ -152,7 +155,12 @@ export function EditorShell({
   return (
     // --header-height is already 0 wherever the bar is hidden, so one calc
     // covers both the portalled and the inline case.
-    <div className="flex flex-col -m-4 md:-m-8 h-[calc(100dvh-var(--header-height))] bg-background">
+    <div className="relative isolate flex flex-col -m-4 md:-m-8 h-[calc(100dvh-var(--header-height))] bg-background">
+      {backdrop && (
+        <div className="absolute inset-0 -z-10 overflow-hidden" aria-hidden="true">
+          {backdrop}
+        </div>
+      )}
       {inBar ? (
         // Null for the first frame only, until the bar registers its slot.
         slot && createPortal(masthead, slot)

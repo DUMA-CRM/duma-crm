@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useSearchParams } from 'next/navigation';
 import { type CSSProperties, type ComponentType, type ReactNode, useEffect, useMemo, useRef, useState } from 'react';
 
-import { ChevronDown, ChevronLeft, LayoutDashboard, Plus, RotateCcw } from '@/components/icons';
+import { Check, ChevronDown, ChevronLeft, ImageIcon, LayoutDashboard, Plus, RotateCcw } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
 import { EditorShell } from '@/components/shared/EditorShell';
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { hasCapability } from '@/lib/auth/capabilities';
+import { DASHBOARD_WALLPAPERS, dashboardWallpaper } from '@/lib/dashboard/wallpapers';
 import { ANALYTICS_WIDGET_KEYS, widgetDefinition } from '@/lib/dashboard/widget-registry';
 import {
   type DashboardWidgetPlacement,
@@ -32,6 +33,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { type Cell, type GridSize, compact, normalize } from '@/lib/utils/widget-grid';
 import { useAuthStore } from '@/stores/authStore';
+import { useUiSettingsStore } from '@/stores/uiSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import {
@@ -72,9 +74,26 @@ const MODULE_CARDS: Record<string, ComponentType> = {
 
 const layoutKey = (tenantId: string | null) => moduleQueryKeys.organization.key('dashboard-layout', 'resolved', tenantId);
 
-function Shell({ children, meta, dirty }: { children: ReactNode; meta?: ReactNode; dirty?: boolean }) {
+function Shell({ children, meta, dirty, wallpaper }: { children: ReactNode; meta?: ReactNode; dirty?: boolean; wallpaper?: string | null }) {
+  // Edit mode passes its draft (null is "none"); otherwise the saved choice.
+  const saved = useUiSettingsStore((state) => state.dashboardWallpaper);
+  const src = dashboardWallpaper(wallpaper === undefined ? saved : wallpaper)?.src;
   return (
-    <EditorShell title="Today" icon={<LayoutDashboard size={20} aria-hidden="true" />} meta={meta} dirty={dirty} bodyClassName="md:px-4">
+    <EditorShell
+      title="Today"
+      icon={<LayoutDashboard size={20} aria-hidden="true" />}
+      meta={meta}
+      dirty={dirty}
+      bodyClassName="md:px-4"
+      backdrop={
+        src && (
+          // Dark mode lays the page's ground over the gradient, so its cream top doesn't glare.
+          <div className="size-full bg-cover bg-center" style={{ backgroundImage: `url(${src})` }}>
+            <div className="size-full dark:bg-background/80" />
+          </div>
+        )
+      }
+    >
       {children}
     </EditorShell>
   );
@@ -125,6 +144,10 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
   const [galleryOpen, setGalleryOpen] = useState(false);
   const [confirmCancel, setConfirmCancel] = useState(false);
   const [saveMenu, setSaveMenu] = useState(false);
+  const savedWallpaper = useUiSettingsStore((state) => state.dashboardWallpaper);
+  const setWallpaper = useUiSettingsStore((state) => state.setDashboardWallpaper);
+  // Picked in edit mode, shown at once, kept on Done and dropped on Cancel like the layout.
+  const [wallpaper, setWallpaperDraft] = useState(savedWallpaper);
   const available = useMemo(
     () => new Map(data.availableWidgets.filter(({ widgetKey }) => widgetDefinition(widgetKey)).map((widget) => [widget.widgetKey, widget])),
     [data.availableWidgets],
@@ -148,6 +171,7 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
   const cells = editing ? editor.cells : saved;
   const canEdit = editing && columns === BOARD_COLUMNS;
   const dirty = editing && editor.isDirty;
+  const changed = dirty || (editing && wallpaper !== savedWallpaper);
   const displayed = canEdit ? cells : saved;
   const has = (key: string) => displayed.some((cell) => cell.key === key);
   // Needs you is a strip across the top of the page, never a cell: the grid packs without it.
@@ -200,18 +224,20 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
       }
     },
     onSuccess: async () => {
+      // The wallpaper is this device's, whichever way the layout was saved.
+      setWallpaper(wallpaper);
       await queryClient.invalidateQueries({ queryKey: layoutKey(data.tenantId) });
       closeEdit();
     },
   });
 
   function cancel() {
-    if (dirty) setConfirmCancel(true);
+    if (changed) setConfirmCancel(true);
     else closeEdit();
   }
 
   useEffect(() => {
-    if (!dirty && !save.isPending) return;
+    if (!changed && !save.isPending) return;
     const current = window.location.href;
     const mayLeave = () => (save.isPending ? false : window.confirm('Leave the dashboard and discard your unsaved changes?'));
     function onLink(event: MouseEvent) {
@@ -240,7 +266,7 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
       document.removeEventListener('click', onLink, true);
       window.removeEventListener('popstate', onBack, true);
     };
-  }, [dirty, save.isPending]);
+  }, [changed, save.isPending]);
 
   const render = (key: string) => {
     const Card = MODULE_CARDS[key];
@@ -258,7 +284,9 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
   );
 
   const content = (
-    <Shell meta={trading && <TodayMeta chartShowsNow={has('analytics.trading')} />} dirty={dirty || save.isPending}>
+    <Shell meta={trading && <TodayMeta chartShowsNow={has('analytics.trading')} />} dirty={changed || save.isPending}
+      wallpaper={editing ? wallpaper : undefined}
+    >
       {/* The banners and controls line up with the board, which centres once its cells reach full size. */}
       <div
         className="mx-auto flex w-full min-w-0 flex-col gap-4"
@@ -275,6 +303,7 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
             <Button variant="outline" disabled={save.isPending} onClick={() => setGalleryOpen(true)}>
               <Plus aria-hidden="true" /> Add widget
             </Button>
+            <WallpaperPicker value={wallpaper} onChange={setWallpaperDraft} disabled={save.isPending} />
             <Button variant="ghost" disabled={save.isPending} onClick={editor.reset}>
               <RotateCcw aria-hidden="true" /> Reset
             </Button>
@@ -549,5 +578,51 @@ function ScaledPreview({ size, boardWidth, children }: { size: GridSize; boardWi
         </div>
       </div>
     </div>
+  );
+}
+
+/** None, then each wallpaper as a swatch of itself. */
+function WallpaperPicker({ value, onChange, disabled }: { value: string | null; onChange: (id: string | null) => void; disabled: boolean }) {
+  const options = [{ id: null, label: 'None', src: null }, ...DASHBOARD_WALLPAPERS];
+  return (
+    <Popover>
+      <PopoverTrigger asChild>
+        <Button variant="ghost" disabled={disabled}>
+          <ImageIcon aria-hidden="true" /> Wallpaper
+        </Button>
+      </PopoverTrigger>
+      <PopoverContent align="start" className="w-auto p-3">
+        <div role="radiogroup" aria-label="Wallpaper" className="grid grid-cols-4 gap-3">
+          {options.map((option) => {
+            const selected = option.id === value;
+            return (
+              <button
+                key={option.id ?? 'none'}
+                type="button"
+                role="radio"
+                aria-checked={selected}
+                onClick={() => onChange(option.id)}
+                className="group/swatch flex flex-col items-center gap-1.5 rounded-md focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-ring"
+              >
+                <span
+                  className={cn(
+                    'relative grid h-12 w-16 place-items-center rounded-md bg-background bg-cover bg-center shadow-[inset_0_0_0_1px_var(--border)]',
+                    selected && 'ring-2 ring-primary ring-offset-2 ring-offset-popover',
+                  )}
+                  style={option.src ? { backgroundImage: `url(${option.src})` } : undefined}
+                >
+                  {selected && (
+                    <span className="grid size-5 place-items-center rounded-full bg-primary text-primary-foreground">
+                      <Check size={12} aria-hidden="true" />
+                    </span>
+                  )}
+                </span>
+                <span className="text-xs text-muted-foreground group-hover/swatch:text-heading">{option.label}</span>
+              </button>
+            );
+          })}
+        </div>
+      </PopoverContent>
+    </Popover>
   );
 }

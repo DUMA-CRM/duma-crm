@@ -1,11 +1,7 @@
 import { redirect } from 'next/navigation';
 
-import { PosConfiguration } from '@/components/settings/configuration/PosConfiguration';
-import { hasCapability } from '@/lib/auth/capabilities';
-import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
-
-export default async function PosConfigurationPage() {
-  const profile = await getCurrentStaffProfile();
-  if (!profile || !hasCapability(profile, 'orders:create')) redirect('/settings/configuration');
-  return <PosConfiguration />;
+// Till settings moved onto the till itself (Edit till → Till settings), where the keys are their own preview.
+// The old address, from bookmarks and help links, lands there.
+export default function PosConfigurationPage() {
+  redirect('/pos?edit=1');
 }

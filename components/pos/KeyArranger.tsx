@@ -59,9 +59,42 @@ export function KeyArranger({
     let lifted = false;
     let current = saved;
     let timer = 0;
+    let frame = 0;
+    let point = origin;
+    const element = event.currentTarget;
+    // The menu scrolls in its own pane; a held key near its top or bottom edge scrolls it.
+    const scroller = (element.closest('.overflow-y-auto') as HTMLElement | null) ?? document.scrollingElement;
+    // Where the key sat when lifted: its offset in the grid (which transforms don't move) and the pane's scroll.
+    const start = { left: element.offsetLeft, top: element.offsetTop, scroll: scroller?.scrollTop ?? 0 };
+    /**
+     * The held key stays under the finger, written straight to the element rather than through React, so it
+     * moves every frame. Its slot changes as the order does, and the pane may scroll; both are taken back out.
+     */
+    const follow = () => {
+      const x = point.x - origin.x - (element.offsetLeft - start.left);
+      const y = point.y - origin.y - (element.offsetTop - start.top) + ((scroller?.scrollTop ?? 0) - start.scroll);
+      element.style.translate = `${x}px ${y}px`;
+    };
+    const autoScroll = () => {
+      if (scroller) {
+        const bounds = scroller === document.scrollingElement ? { top: 0, bottom: window.innerHeight } : scroller.getBoundingClientRect();
+        const edge = 72;
+        const up = Math.max(0, bounds.top + edge - point.y);
+        const down = Math.max(0, point.y - bounds.bottom + edge);
+        if (up || down) {
+          scroller.scrollTop += (Math.min(edge, down) - Math.min(edge, up)) / 4;
+          over(point.x, point.y);
+        }
+      }
+      follow();
+      frame = requestAnimationFrame(autoScroll);
+    };
 
     const lift = () => {
       lifted = true;
+      // Out of hit-testing, so the key under the finger is the one found, not the one held.
+      element.style.pointerEvents = 'none';
+      frame = requestAnimationFrame(autoScroll);
       setDraft({ id, keys: current, from: 'pointer' });
       setAnnouncement(`${nameOf(id)} lifted`);
     };
@@ -75,6 +108,7 @@ export function KeyArranger({
     };
     const onMove = (next: PointerEvent) => {
       if (next.pointerId !== pointerId) return;
+      point = { x: next.clientX, y: next.clientY };
       if (lifted) return over(next.clientX, next.clientY);
       // A touch that travels before the hold is a scroll; a mouse that travels is a drag.
       if (Math.hypot(next.clientX - origin.x, next.clientY - origin.y) > 8) {
@@ -99,11 +133,14 @@ export function KeyArranger({
     function cleanup() {
       stop.current = null;
       window.clearTimeout(timer);
+      cancelAnimationFrame(frame);
       window.removeEventListener('pointermove', onMove);
       window.removeEventListener('pointerup', onUp);
       window.removeEventListener('pointercancel', onUp);
       window.removeEventListener('keydown', escape);
       document.removeEventListener('touchmove', preventScroll, true);
+      element.style.translate = '';
+      element.style.pointerEvents = '';
       setDraft(null);
     }
 
@@ -139,7 +176,8 @@ export function KeyArranger({
       setAnnouncement(`${nameOf(id)} put back`);
       return;
     }
-    const step = event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : 0;
+    const step =
+      event.key === 'ArrowLeft' || event.key === 'ArrowUp' ? -1 : event.key === 'ArrowRight' || event.key === 'ArrowDown' ? 1 : 0;
     if (!step) return;
     event.preventDefault();
     const index = draft.keys.findIndex((entry) => entry.id === id);
@@ -165,7 +203,8 @@ export function KeyArranger({
           return (
             <motion.div
               key={entry.id}
-              layout={reducedMotion ? false : 'position'}
+              // The held key follows the finger itself; the others glide to their new slots.
+              layout={reducedMotion || held ? false : 'position'}
               transition={{ type: 'spring', stiffness: 520, damping: 42 }}
               data-key={entry.id}
               role="button"
@@ -179,7 +218,7 @@ export function KeyArranger({
               className={cn(
                 'relative min-w-0 cursor-grab touch-manipulation rounded-md outline-2 outline-offset-2 outline-border outline-dashed select-none',
                 'focus-visible:outline-solid focus-visible:outline-ring',
-                held && 'z-10 cursor-grabbing opacity-90 shadow-lg outline-solid outline-primary',
+                held && 'z-30 scale-[1.03] cursor-grabbing shadow-lg outline-solid outline-primary will-change-[translate]',
               )}
             >
               {/* The key as it sells, held still: a tap here never rings anything up. */}

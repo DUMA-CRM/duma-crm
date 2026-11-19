@@ -7,7 +7,7 @@
   },
   "servers": [
     {
-      "url": "http://localhost:7777",
+      "url": "http://localhost:3000",
       "description": "Local v1"
     }
   ],
@@ -3555,10 +3555,10 @@
           "Reservations"
         ],
         "summary": "Get a location’s floor plan",
-        "description": "The areas in order, each with its active tables. Positions are in floor-plan units on a 1200 × 800 canvas.",
+        "description": "The areas in order, each with its active tables (and their chairs, null for automatic) and its fixtures — windows, the entrance, the bar. Positions are in floor-plan units on a 1200 × 800 canvas.",
         "responses": {
           "200": {
-            "description": "Areas and their tables"
+            "description": "Areas, their tables and their fixtures"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -3627,7 +3627,7 @@
           "Reservations"
         ],
         "summary": "Delete a floor-plan area",
-        "description": "Only an area with no tables on the floor. Removed tables that never held a booking are deleted with it; one that did is kept for its bookings’ history, no longer in any area.",
+        "description": "Only an area with no tables on the floor. Its fixtures go with it. Removed tables that never held a booking are deleted with it; one that did is kept for its bookings’ history, no longer in any area.",
         "responses": {
           "200": {
             "description": "Deleted"
@@ -3742,20 +3742,102 @@
         ]
       }
     },
+    "/v1/reservations/fixtures": {
+      "post": {
+        "operationId": "postV1ReservationsFixtures",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Add a fixture to the floor plan",
+        "description": "A window, wall, entrance, bar or other thing on the floor that isn’t a table. The location is the area’s.",
+        "responses": {
+          "201": {
+            "description": "Created"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "An area the caller can’t reach"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/reservations/fixtures/{id}": {
+      "patch": {
+        "operationId": "patchV1ReservationsFixturesById",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Change a floor fixture",
+        "responses": {
+          "200": {
+            "description": "Saved"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1ReservationsFixturesById",
+        "tags": [
+          "Reservations"
+        ],
+        "summary": "Remove a floor fixture",
+        "responses": {
+          "200": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/reservations/floor/layout": {
       "put": {
         "operationId": "putV1ReservationsFloorLayout",
         "tags": [
           "Reservations"
         ],
-        "summary": "Save table positions",
-        "description": "Where every moved table now sits, in one write — the floor-plan editor’s Save.",
+        "summary": "Save table and fixture positions",
+        "description": "Where every moved table and fixture now sits, in one write — the floor-plan editor’s Save. Either list may be left out, not both. `saved` counts both.",
         "responses": {
           "200": {
             "description": "Saved"
           },
           "400": {
-            "description": "A table that isn’t on this floor plan"
+            "description": "A table or fixture that isn’t on this floor plan"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
@@ -5771,6 +5853,104 @@
             },
             "in": "path",
             "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/till-layouts/{locationId}": {
+      "get": {
+        "operationId": "getV1TillLayoutsByLocationId",
+        "tags": [
+          "Till Layouts"
+        ],
+        "summary": "A location's team till layout",
+        "description": "Null when nothing has been published for the location. Requires orders:create.",
+        "responses": {
+          "200": {
+            "description": "{ layout, updatedAt, updatedBy }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not your location"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "locationId",
+            "required": true
+          }
+        ]
+      },
+      "put": {
+        "operationId": "putV1TillLayoutsByLocationId",
+        "tags": [
+          "Till Layouts"
+        ],
+        "summary": "Publish a location's team till layout",
+        "description": "Replaces the layout every till at the location starts from. Requires menu:write.",
+        "responses": {
+          "200": {
+            "description": "{ layout, updatedAt, updatedBy }"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not your location"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "locationId",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1TillLayoutsByLocationId",
+        "tags": [
+          "Till Layouts"
+        ],
+        "summary": "Remove a location's team till layout",
+        "description": "Tills at the location fall back to the menu order and default settings. Requires menu:write.",
+        "responses": {
+          "204": {
+            "description": "Removed (or there was none)"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not your location"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "locationId",
             "required": true
           }
         ]
@@ -11359,7 +11539,7 @@
           "MCP"
         ],
         "summary": "media list",
-        "description": "Search media. Scope media:read. GET /v1/manage/cms/assets. Uses the key creator's current permissions within this workspace.",
+        "description": "Search shared workspace media and return asset metadata with file URLs. Scope media:read. GET /v1/manage/cms/assets. Uses the key creator's current permissions within this workspace.",
         "security": [
           {
             "cmsApiKey": []
@@ -16064,17 +16244,23 @@
         "tags": [
           "Orders"
         ],
-        "summary": "Soft delete order",
-        "description": "Sets deletedAt — record retained for audit. store_manager+ only.",
+        "summary": "Delete a cancelled order",
+        "description": "Permanently deletes a cancelled order with its items, payments, refunds and receipts. Only when the workspace has turned on `allowOrderDeletion` in trading settings. Cancelling already gave the stock back and reversed any promotion, loyalty or referral; stock movements and emails keep their rows with the order link cleared. The audit log keeps a snapshot.",
         "responses": {
           "200": {
             "description": "{ success: true, deletedAt: string }"
+          },
+          "204": {
+            "description": "Deleted"
+          },
+          "400": {
+            "description": "The order is not cancelled"
           },
           "401": {
             "description": "Unauthorized — missing or invalid bearer token"
           },
           "403": {
-            "description": "Forbidden"
+            "description": "Forbidden, or deleting orders is turned off for this workspace"
           },
           "404": {
             "description": "Not found"
@@ -27839,7 +28025,7 @@
           "CMS"
         ],
         "summary": "Upload a media asset",
-        "description": "multipart/form-data with `file` (max 25 MB) and optional title, altText, folder, tags (comma separated).",
+        "description": "Multipart with `file` and optional title, altText, folder and tags. For a streamed upload, send the raw file as application/octet-stream and an `X-Duma-Media-Upload` header containing URI-encoded JSON with fileName, mimeType and optional title, altText and folder.",
         "responses": {
           "201": {
             "description": "Asset"

@@ -2,10 +2,11 @@
 
 import { useMemo, useState } from 'react';
 
-import { ArrowLeft, LayoutGrid, RotateCcw, Search, Star, X } from '@/components/icons';
+import { ArrowLeft, ChevronDown, LayoutGrid, RotateCcw, Search, Settings, Star, X } from '@/components/icons';
 import { KeyArranger } from '@/components/pos/KeyArranger';
 import { CategoryGrid, MenuGrid } from '@/components/pos/MenuGrid';
 import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { cn } from '@/lib/utils/cn';
 import { type StockLevel, categoryColours, categoryTiles, filterMenu } from '@/lib/utils/pos';
@@ -38,6 +39,11 @@ export interface TillMenuProps {
   /** Save a page's keys, or null to put it back in menu order. */
   onKeyLayout?: (page: string, keys: KeyEntry[] | null) => void;
   onDoneArranging?: () => void;
+  /** Open this device's till settings, from the arranging bar. */
+  onOpenSettings?: () => void;
+  /** Publish this till's layout for its location — beside Done, for those who may (`menu:write`). */
+  onSaveTeam?: () => void;
+  savingTeam?: boolean;
 }
 
 /**
@@ -47,9 +53,30 @@ export interface TillMenuProps {
  */
 export function TillMenu(props: TillMenuProps) {
   const {
-    items, categories, favourites, favouritesLabel, layout, counts, stock, selectedId, onSelectItem, isLoading, isError, onRetry, currency,
-    banner, padForCartBar = true, keyLayouts, arranging = false, onKeyLayout, onDoneArranging,
+    items,
+    categories,
+    favourites,
+    favouritesLabel,
+    layout,
+    counts,
+    stock,
+    selectedId,
+    onSelectItem,
+    isLoading,
+    isError,
+    onRetry,
+    currency,
+    banner,
+    padForCartBar = true,
+    keyLayouts,
+    arranging = false,
+    onKeyLayout,
+    onDoneArranging,
+    onOpenSettings,
+    onSaveTeam,
+    savingTeam = false,
   } = props;
+  const [saveMenu, setSaveMenu] = useState(false);
   // Null until the cashier picks one: the till then opens on Favourites when there are any.
   const [activeCategory, setActiveCategory] = useState<string | null>(null);
   // Categories-first: the category whose items are open, or null for the tiles.
@@ -91,22 +118,22 @@ export function TillMenu(props: TillMenuProps) {
       );
     }
     return (
-    <MenuGrid
-      items={list}
-      counts={counts}
-      selectedId={selectedId}
-      onSelectItem={onSelectItem}
-      isLoading={isLoading}
-      isError={isError}
-      onRetry={onRetry}
-      query={query}
-      onClearSearch={() => setQuery('')}
-      stock={stock}
-      tileStyle={layout.tileStyle}
-      colours={colours}
-      currency={currency}
-      keys={query ? undefined : keyLayouts?.[page]}
-    />
+      <MenuGrid
+        items={list}
+        counts={counts}
+        selectedId={selectedId}
+        onSelectItem={onSelectItem}
+        isLoading={isLoading}
+        isError={isError}
+        onRetry={onRetry}
+        query={query}
+        onClearSearch={() => setQuery('')}
+        stock={stock}
+        tileStyle={layout.tileStyle}
+        colours={colours}
+        currency={currency}
+        keys={query ? undefined : keyLayouts?.[page]}
+      />
     );
   };
 
@@ -116,7 +143,10 @@ export function TillMenu(props: TillMenuProps) {
   } else if (categoriesFirst && !openCategory) {
     body = (
       <CategoryGrid
-        tiles={[...(favourites.length > 0 ? [{ id: 'favourites', name: favouritesLabel, count: favourites.length, image: '' }] : []), ...tiles]}
+        tiles={[
+          ...(favourites.length > 0 ? [{ id: 'favourites', name: favouritesLabel, count: favourites.length, image: '' }] : []),
+          ...tiles,
+        ]}
         colours={colours}
         onOpen={setOpenCategory}
       />
@@ -151,8 +181,13 @@ export function TillMenu(props: TillMenuProps) {
   const arrangeable = shownPages.filter((page) => page !== 'search');
   const arrangedHere = arrangeable.some((page) => keyLayouts?.[page]?.length);
   const arrangeBar = arranging && (
-    // Arranging, said plainly above the keys: which page, how, and the way out.
-    <div className="sticky top-0 z-20 -mx-4 mb-4 flex flex-wrap items-center gap-x-3 gap-y-2 border-b border-border bg-card/95 px-4 py-2.5 backdrop-blur-sm md:-mx-6 md:px-6">
+    // Arranging, said plainly above the keys — which page, how, and the way out — on a card that floats
+    // in reach while the keys scroll under it, as the dashboard's edit bar does.
+    <div
+      role="group"
+      aria-label="Arrange keys"
+      className="sticky top-2 z-20 mb-6 flex flex-wrap items-center gap-x-3 gap-y-2 rounded-lg border border-border bg-card/95 py-1.5 pr-1.5 pl-3.5 shadow-sm backdrop-blur-sm"
+    >
       <LayoutGrid size={18} aria-hidden="true" className="shrink-0 text-primary" />
       <p className="min-w-0 flex-1 text-sm text-foreground">
         {arrangeable.length > 0 ? (
@@ -169,9 +204,43 @@ export function TillMenu(props: TillMenuProps) {
           <RotateCcw size={16} aria-hidden="true" /> Menu order
         </Button>
       )}
-      <Button className="h-11 px-5" onClick={onDoneArranging}>
-        Done
-      </Button>
+      {onOpenSettings && (
+        <Button variant="outline" className="h-11" onClick={onOpenSettings}>
+          <Settings size={16} aria-hidden="true" /> Till settings
+        </Button>
+      )}
+      {/* Done, and beside it — as on the dashboard — saving this arrangement for the whole location. */}
+      <div className="flex items-center">
+        <Button className={cn('h-11 px-5', onSaveTeam && 'rounded-r-none')} onClick={onDoneArranging} disabled={savingTeam}>
+          {savingTeam ? 'Saving…' : 'Done'}
+        </Button>
+        {onSaveTeam && (
+          <Popover open={saveMenu} onOpenChange={setSaveMenu}>
+            <PopoverTrigger asChild>
+              <Button
+                size="icon"
+                disabled={savingTeam}
+                aria-label="More save options"
+                className="size-11 rounded-l-none border-l border-primary-foreground/25"
+              >
+                <ChevronDown aria-hidden="true" />
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="end" className="w-auto p-1">
+              <Button
+                variant="ghost"
+                className="h-11 w-full justify-start"
+                onClick={() => {
+                  setSaveMenu(false);
+                  onSaveTeam();
+                }}
+              >
+                Save as team layout
+              </Button>
+            </PopoverContent>
+          </Popover>
+        )}
+      </div>
     </div>
   );
 
@@ -182,7 +251,11 @@ export function TillMenu(props: TillMenuProps) {
         <div className="shrink-0 border-b border-border bg-card px-4 md:px-6">
           {layout.showSearch && !arranging && (
             <div className={cn('relative', showTabs ? 'pt-2.5' : 'py-2.5')}>
-              <Search size={18} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground" />
+              <Search
+                size={18}
+                aria-hidden="true"
+                className="pointer-events-none absolute top-1/2 left-3.5 -translate-y-1/2 text-muted-foreground"
+              />
               <input
                 type="search"
                 value={searchText}
@@ -193,7 +266,13 @@ export function TillMenu(props: TillMenuProps) {
                 className="h-11 w-full rounded-md border border-input bg-control pr-12 pl-10 text-base text-foreground outline-none placeholder:text-muted-foreground focus:border-ring focus:outline-2 focus:outline-ring/30 [&::-webkit-search-cancel-button]:hidden"
               />
               {searchText && (
-                <Button variant="ghost" size="icon" onClick={() => setQuery('')} aria-label="Clear search" className="absolute top-1/2 right-0 size-11 -translate-y-1/2 text-muted-foreground">
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  onClick={() => setQuery('')}
+                  aria-label="Clear search"
+                  className="absolute top-1/2 right-0 size-11 -translate-y-1/2 text-muted-foreground"
+                >
                   <X size={18} />
                 </Button>
               )}
@@ -201,8 +280,16 @@ export function TillMenu(props: TillMenuProps) {
           )}
           {showTabs && (
             // 56px with the bar's border, the ticket header's height, so the two rules meet in one line.
-            <div role="tablist" aria-label="Menu categories" className="-mx-4 flex h-[calc(3.5rem-1px)] items-center gap-1 overflow-x-auto px-4 [scrollbar-width:none] md:-mx-6 md:px-6">
-              {[...(favourites.length > 0 ? [{ id: 'favourites', name: favouritesLabel }] : []), { id: 'all', name: 'All' }, ...categories].map((tab) => {
+            <div
+              role="tablist"
+              aria-label="Menu categories"
+              className="-mx-4 flex h-[calc(3.5rem-1px)] items-center gap-1 overflow-x-auto px-4 [scrollbar-width:none] md:-mx-6 md:px-6"
+            >
+              {[
+                ...(favourites.length > 0 ? [{ id: 'favourites', name: favouritesLabel }] : []),
+                { id: 'all', name: 'All' },
+                ...categories,
+              ].map((tab) => {
                 const active = !query && category === tab.id;
                 return (
                   <button
@@ -223,7 +310,9 @@ export function TillMenu(props: TillMenuProps) {
                     {tab.id === 'favourites' ? (
                       <Star size={13} aria-hidden="true" />
                     ) : (
-                      colours[tab.id] && <span aria-hidden="true" className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: colours[tab.id] }} />
+                      colours[tab.id] && (
+                        <span aria-hidden="true" className="size-2 shrink-0 rounded-[2px]" style={{ backgroundColor: colours[tab.id] }} />
+                      )
                     )}
                     {tab.name}
                   </button>
@@ -233,7 +322,7 @@ export function TillMenu(props: TillMenuProps) {
           )}
         </div>
       )}
-      <div className={cn('min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-4 md:px-6', arranging ? 'pt-0' : 'pt-4')}>
+      <div className="min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pt-4 pb-4 md:px-6">
         {arrangeBar}
         {banner}
         <div className={padForCartBar ? 'pb-28 lg:pb-6' : 'pb-6'}>{body}</div>

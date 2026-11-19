@@ -48,12 +48,20 @@ interface PosSettingsStore extends PosLayout {
   pinned: Record<string, string[]>;
   /** Each menu page's arranged keys (order and size), per workspace, by page: 'favourites', 'all' or a category id. */
   keyLayouts: Record<string, Record<string, KeyEntry[]>>;
+  /**
+   * Locations where this device has its own arrangement. Anywhere else it follows the location's team layout
+   * when one is published; arranging on the device makes it its own until "Use team layout".
+   */
+  ownTill: Record<string, true>;
   setScannerMode: (mode: ScannerMode) => void;
   setLayout: (patch: Partial<PosLayout>) => void;
   resetLayout: () => void;
   setPinned: (tenantId: string, ids: string[]) => void;
   /** Save a page's keys, or null to put it back in menu order. */
   setKeyLayout: (tenantId: string, page: string, keys: KeyEntry[] | null) => void;
+  setOwnTill: (locationId: string, own: boolean) => void;
+  /** Copy a team layout onto this device — the keys, favourites and sell-screen settings; never the scanner. */
+  adoptTeamLayout: (tenantId: string, layout: { settings: PosLayout; pinned: string[]; keys: Record<string, KeyEntry[]> }) => void;
 }
 
 export const usePosSettingsStore = create<PosSettingsStore>()(
@@ -63,6 +71,7 @@ export const usePosSettingsStore = create<PosSettingsStore>()(
       ...DEFAULT_POS_LAYOUT,
       pinned: {},
       keyLayouts: {},
+      ownTill: {},
       setScannerMode: (scannerMode) => set({ scannerMode }),
       setLayout: (patch) => set(patch),
       resetLayout: () => set(DEFAULT_POS_LAYOUT),
@@ -74,6 +83,20 @@ export const usePosSettingsStore = create<PosSettingsStore>()(
           else delete pages[page];
           return { keyLayouts: { ...state.keyLayouts, [tenantId]: pages } };
         }),
+      setOwnTill: (locationId, own) =>
+        set((state) => {
+          const next = { ...state.ownTill };
+          if (own) next[locationId] = true;
+          else delete next[locationId];
+          return { ownTill: next };
+        }),
+      adoptTeamLayout: (tenantId, layout) =>
+        set((state) => ({
+          ...DEFAULT_POS_LAYOUT,
+          ...layout.settings,
+          pinned: { ...state.pinned, [tenantId]: layout.pinned },
+          keyLayouts: { ...state.keyLayouts, [tenantId]: layout.keys },
+        })),
     }),
     {
       name: 'pos-settings',
@@ -89,6 +112,7 @@ export const usePosSettingsStore = create<PosSettingsStore>()(
           ...DEFAULT_POS_LAYOUT,
           pinned: {},
           keyLayouts: {},
+          ownTill: {},
           ...(persisted as object),
           ...(version < 3 ? { tileStyle: 'compact' } : {}),
           ...(version < 4 ? { showSearch: false } : {}),

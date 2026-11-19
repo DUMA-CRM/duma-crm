@@ -2,9 +2,10 @@
 
 import { useTheme } from 'next-themes';
 import Link from 'next/link';
+import { usePathname } from 'next/navigation';
 import { useState, useSyncExternalStore } from 'react';
 
-import { Building2, ChevronsUpDown, LayoutDashboard, LogOut, Monitor, Moon, Sun } from '@/components/icons';
+import { Building2, ChevronsUpDown, LayoutDashboard, LayoutGrid, LogOut, Monitor, Moon, Sun } from '@/components/icons';
 import { Avatar } from '@/components/shared/Avatar';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Modal } from '@/components/shared/Modal';
@@ -44,6 +45,7 @@ export function AccountMenu() {
   const [open, setOpen] = useState(false);
   const isPlatformAccount = useAuthStore((state) => state.role === 'super_admin');
   const { context, workspace } = useWorkspaceContext();
+  const pathname = usePathname();
   // Which workspace this tab is in: the sidebar no longer names it.
   const where = context.kind === 'platform' ? 'DUMA Admin' : context.kind === 'workspace' ? workspace?.name : undefined;
   // DUMA Admin and DUMA's own workspace are ours, not a client's.
@@ -115,10 +117,17 @@ export function AccountMenu() {
               </div>
             ))}
 
-          {context.kind === 'workspace' && (
+          {/* The page's own edit, only on that page: the dashboard's widgets, the till's keys. */}
+          {context.kind === 'workspace' && pathname === '/dashboard' && (
             <Link href="/dashboard?edit=1" className={cn(item, 'hidden md:flex')} onClick={() => setOpen(false)}>
               <LayoutDashboard size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
               Edit dashboard
+            </Link>
+          )}
+          {context.kind === 'workspace' && pathname === '/pos' && (
+            <Link href="/pos?edit=1" className={item} onClick={() => setOpen(false)}>
+              <LayoutGrid size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+              Edit till
             </Link>
           )}
 

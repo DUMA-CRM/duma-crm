@@ -14,16 +14,18 @@ import {
   RotateCcw,
   ScanLine,
   Search,
+  Settings,
   Star,
   Tags,
   Trash2,
   TrendingUp,
+  Users,
   X,
 } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { TillHardwareSummary } from '@/components/settings/connectors/TillHardwareConnector';
 import { ChangeRow, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
+import { Drawer } from '@/components/shared/Drawer';
 import { ChoiceCards, NumberStepper } from '@/components/shared/FormParts';
 import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
@@ -31,9 +33,10 @@ import { Button } from '@/components/ui/button';
 import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
 import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { getMenuCategories, getMenuItems } from '@/lib/modules/catalog/client';
+import type { TillTeamLayoutResponse } from '@/lib/modules/pos/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { cn } from '@/lib/utils/cn';
 import { formatPrice, movePinned, togglePinned } from '@/lib/utils/pos';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import {
   DEFAULT_POS_LAYOUT,
@@ -45,8 +48,6 @@ import {
   usePosSettingsStore,
 } from '@/stores/posSettingsStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
-
-import { ConfigurationBodySkeleton, ConfigurationFoot, PreviewFrame, useMounted } from './shared';
 
 const LAYOUTS: { value: MenuLayout; label: string; icon: typeof Tags }[] = [
   { value: 'items', label: 'Items first', icon: LayoutGrid },
@@ -75,13 +76,28 @@ const labelOf = <T extends string>(options: readonly { value: T; label: string }
 type Row = 'menuLayout' | 'tileStyle' | 'favourites' | 'topCount' | 'pinned' | 'scanner';
 
 /**
- * This till's sell screen. Laid out like Settings → Account: each setting a row
- * whose value is the content — a choice opens under its row and applies on the
- * pick, a switch sits at the row's edge — with the live sell screen in the rail.
- * Nothing to save: the store applies every change at once.
+ * This till's settings, opened from its edit mode: each setting a row whose
+ * value is the content — a choice opens under its row and applies on the pick,
+ * a switch sits at the row's edge. The till itself is the preview: the drawer
+ * isn't modal, so every change shows on the keys beside it at once. Nothing to
+ * save: the store applies every change, on this device.
  */
-export function PosConfiguration() {
-  const mounted = useMounted();
+export function TillSettingsDrawer({
+  onClose,
+  team,
+  ownTill = false,
+  canPublish = false,
+  onUseTeam,
+}: {
+  onClose: () => void;
+  /** The location's team layout, when the till could read it. */
+  team?: TillTeamLayoutResponse;
+  /** This till has its own arrangement rather than the team's. */
+  ownTill?: boolean;
+  /** May publish the team layout (`menu:write`) — then the hint says how. */
+  canPublish?: boolean;
+  onUseTeam?: () => void;
+}) {
   const settings = usePosSettingsStore();
   const { tenantId } = useWorkspaceStore();
   const capabilities = useAuthStore((state) => state.capabilities);
@@ -101,8 +117,6 @@ export function PosConfiguration() {
     setOpen(null);
   };
 
-  if (!mounted) return <ConfigurationBodySkeleton label="Loading till settings" />;
-
   const categoriesFirst = settings.menuLayout === 'categories';
   /** An on/off setting: its state as the value, the switch at the right edge. */
   const switchRow = (
@@ -121,9 +135,56 @@ export function PosConfiguration() {
   );
 
   return (
-    <SettingsTabBody narrowAside stickyAside aside={<TillPreview layout={settings} pinnedCount={pinned.length} />}>
-      {/* Two stacked columns, not paired rows: a short card never leaves a gap beside a tall one. */}
-      <div className="grid items-start gap-5 xl:grid-cols-2">
+    <Drawer
+      title="Till settings"
+      description="This device’s sell screen. Changes show on the till as you make them."
+      icon={Settings}
+      modal={false}
+      onClose={onClose}
+      bodyClassName="px-5 py-5 sm:px-6"
+      footer={
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">Saved on this device.</p>
+          <Button variant="outline" onClick={settings.resetLayout} disabled={isDefault} className="gap-2">
+            <RotateCcw size={15} aria-hidden="true" /> Reset layout to defaults
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-5">
+        {team && (
+          <SettingsSection title="Team layout">
+            <div>
+              <ChangeRow
+                icon={Users}
+                label={team.layout ? (ownTill ? 'This till has its own layout' : 'This till uses the team layout') : 'No team layout yet'}
+                value={
+                  team.layout ? (
+                    <>
+                      <span className="truncate">Published{team.updatedBy ? ` by ${team.updatedBy}` : ''}</span>
+                      {team.updatedAt && (
+                        <ValueAside>
+                          · {formatInstant(team.updatedAt, { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                        </ValueAside>
+                      )}
+                    </>
+                  ) : canPublish ? (
+                    <ValueMissing>Arrange this till, then Save as team layout beside Done</ValueMissing>
+                  ) : (
+                    <ValueMissing>A manager can publish one for every till here</ValueMissing>
+                  )
+                }
+                trailing={
+                  team.layout && ownTill && onUseTeam ? (
+                    <Button variant="outline" onClick={onUseTeam}>
+                      Use team layout
+                    </Button>
+                  ) : undefined
+                }
+              />
+            </div>
+          </SettingsSection>
+        )}
         <div className="flex min-w-0 flex-col gap-5">
           <SettingsSection title="Sell screen" footnote="Flagged items still sell — the stock count can lag behind the shelf.">
             <div>
@@ -286,13 +347,7 @@ export function PosConfiguration() {
           </SettingsSection>
         </div>
       </div>
-
-      <ConfigurationFoot storage="Saved on this device.">
-        <Button variant="outline" onClick={settings.resetLayout} disabled={isDefault} className="gap-2">
-          <RotateCcw size={15} aria-hidden="true" /> Reset layout to defaults
-        </Button>
-      </ConfigurationFoot>
-    </SettingsTabBody>
+    </Drawer>
   );
 }
 
@@ -426,83 +481,5 @@ function PinnedPicker({ pinned, onChange }: { pinned: string[]; onChange: (ids: 
         )}
       </div>
     </div>
-  );
-}
-
-// ── Preview ──────────────────────────────────────────────────────────────────
-
-const PREVIEW_KEYS = ['var(--key-1)', 'var(--key-2)', 'var(--key-3)', 'var(--key-4)'];
-
-/** A schematic of the sell screen, redrawn as the settings change. */
-function TillPreview({ layout, pinnedCount }: { layout: PosLayout; pinnedCount: number }) {
-  const favourites = layout.favourites !== 'off' && (layout.favourites === 'top' || pinnedCount > 0);
-  const categoriesFirst = layout.menuLayout === 'categories';
-  const compact = layout.tileStyle === 'compact';
-  const tiles = compact ? 15 : 8;
-  return (
-    <PreviewFrame>
-      <div aria-hidden="true" className="flex aspect-[4/3] overflow-hidden rounded-lg border border-border bg-background shadow-sm">
-        <div className="flex min-w-0 flex-1 flex-col">
-          {(layout.showSearch || (layout.showCategories && !categoriesFirst)) && (
-            <div className="shrink-0 space-y-1 border-b border-border bg-card p-1.5">
-              {layout.showSearch && <div className="h-3 rounded-sm border border-input bg-control" />}
-              {layout.showCategories && !categoriesFirst && (
-                <div className="flex gap-1">
-                  {favourites && <div className="h-2.5 w-7 rounded-sm bg-band" />}
-                  {PREVIEW_KEYS.slice(0, 4).map((colour, index) => (
-                    <div
-                      key={colour}
-                      className={cn('flex h-2.5 w-8 items-center gap-0.5 rounded-sm px-0.5', !favourites && index === 0 && 'bg-band')}
-                    >
-                      <span className="size-1 rounded-[1px]" style={{ backgroundColor: colour }} />
-                      <span className="h-0.5 flex-1 rounded bg-muted-foreground/40" />
-                    </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-          {categoriesFirst ? (
-            <div className="grid flex-1 grid-cols-2 content-start gap-1 p-1.5">
-              {['Coffee', 'Bakery', 'Cold', 'Food', 'Retail'].slice(0, 4).map((name, index) => (
-                <div key={name} className="relative h-9 overflow-hidden rounded-sm border border-border bg-card">
-                  <span className="absolute inset-y-0 left-0 w-0.5" style={{ backgroundColor: PREVIEW_KEYS[index] }} />
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className={cn('grid flex-1 content-start gap-1 p-1.5', compact ? 'grid-cols-5' : 'grid-cols-4')}>
-              {Array.from({ length: tiles }).map((_, index) => (
-                <div key={index} className="relative overflow-hidden rounded-sm border border-border bg-card">
-                  <span
-                    className="absolute inset-y-0 left-0 z-10 w-0.5"
-                    style={{ backgroundColor: PREVIEW_KEYS[Math.floor(index / 5) % PREVIEW_KEYS.length] }}
-                  />
-                  {!compact && <div className="aspect-[16/10] border-b border-border bg-band" />}
-                  <div className={cn('space-y-0.5 py-1 pr-1 pl-1.5', compact && 'py-1.5')}>
-                    <div className="h-1 w-3/4 rounded bg-foreground/40" />
-                    <div className="flex items-center justify-between">
-                      <div className="h-1 w-1/3 rounded bg-muted-foreground/40" />
-                      {layout.stockHighlight && (index === 2 || index === 6) && (
-                        <div className={cn('h-1 w-1.5 rounded', index === 2 ? 'bg-measured' : 'bg-exception')} />
-                      )}
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        <div className="flex w-[30%] shrink-0 flex-col gap-1 border-l border-border bg-card p-1.5">
-          <div className="h-1.5 w-1/2 rounded bg-foreground/50" />
-          <div className="mt-1 h-1 w-full rounded bg-border" />
-          <div className="h-1 w-5/6 rounded bg-border" />
-          <div className="mt-auto flex gap-0.5">
-            <div className="h-3.5 w-1/4 rounded-sm border border-edge" />
-            <div className="h-3.5 flex-1 rounded-sm bg-primary" />
-          </div>
-        </div>
-      </div>
-    </PreviewFrame>
   );
 }

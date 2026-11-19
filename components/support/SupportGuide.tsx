@@ -595,13 +595,13 @@ const playbooks: Playbook[] = [
     cause: 'This till is set to the wrong scanner, the camera is blocked, or the code is not a DUMA loyalty code.',
     icon: Users,
     steps: [
-      'Check Settings → Configuration → Till → Loyalty scanner on that device: Camera or USB scanner.',
+      'On that device, open the till, choose Edit till in your account menu, then Till settings → Loyalty scanner: Camera or USB scanner.',
       'If the camera is blocked, allow camera access for DUMA in the browser.',
       'Search the customer by name, phone or email instead.',
       'Create a new customer only after searching, so you do not make a duplicate.',
     ],
-    href: '/settings/configuration/pos',
-    linkLabel: 'Open till settings',
+    href: '/pos?edit=1',
+    linkLabel: 'Open the till',
   },
   {
     symptom: 'Loyalty points look wrong',

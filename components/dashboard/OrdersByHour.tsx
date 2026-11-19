@@ -211,9 +211,6 @@ export function OrdersByHour({
 
       {/* The same hours as a table, for screen readers. */}
       <table className="sr-only">
-        <caption>
-          Orders by hour today, {ordersWord(totalSoFar)} so far, busiest {clock(busiest)}
-        </caption>
         <thead>
           <tr>
             <th scope="col">Hour</th>

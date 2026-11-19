@@ -217,7 +217,7 @@ const pages: Record<ModuleId, readonly string[]> = {
   ],
   ordering: ['/orders', '/settings/configuration/orders'],
   kds: ['/kds', '/settings/configuration/kitchen'],
-  pos: ['/pos', '/settings/configuration/pos'],
+  pos: ['/pos'],
   'qr-ordering': ['/order/[token]', '/settings/qr-ordering'],
   payments: ['/cash-up'],
   inventory: ['/inventory', '/inventory/items/[id]', '/inventory/restock-requests', '/inventory/stocktakes', '/inventory/units/[id]'],
