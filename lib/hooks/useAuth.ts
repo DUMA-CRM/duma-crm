@@ -7,7 +7,8 @@ import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { resetAnalytics, track } from '@/lib/analytics/client';
-import { signIn, signOut, startGoogleSignIn } from '@/lib/modules/identity/client';
+import { signIn, signInForChatGpt, signOut, startGoogleSignIn } from '@/lib/modules/identity/client';
+import { chatgptOAuthDestination, chatgptOAuthQuery } from '@/lib/utils/chatgpt-connection';
 import { signInDestination } from '@/lib/utils/sign-in';
 import { useAuthStore } from '@/stores/authStore';
 import { useLoginIntroStore } from '@/stores/loginIntroStore';
@@ -25,6 +26,15 @@ export function useAuth() {
     setIsLoading(true);
     setError(null);
     try {
+      const oauthQuery = chatgptOAuthQuery(window.location.search);
+      if (oauthQuery) {
+        const result = await signInForChatGpt(email, password, oauthQuery);
+        const destination = result.redirect && chatgptOAuthDestination(result.url, window.location.origin);
+        if (!destination) throw new Error('Start the DUMA connection again in ChatGPT.');
+        window.location.replace(destination);
+        return;
+      }
+
       const session = await signIn(email, password);
       setUser(session.user);
       track('user_signed_in', undefined, { beforeNavigation: true });
@@ -50,7 +60,10 @@ export function useAuth() {
     setError(null);
     try {
       const { origin } = window.location;
-      const url = await startGoogleSignIn(`${origin}${destinationFromLocation()}`, `${origin}/sign-in`);
+      const oauthQuery = chatgptOAuthQuery(window.location.search);
+      const errorCallback = new URL('/sign-in', origin);
+      if (oauthQuery) errorCallback.search = oauthQuery;
+      const url = await startGoogleSignIn(`${origin}${destinationFromLocation()}`, errorCallback.href, oauthQuery);
       track('google_sign_in_started', undefined, { beforeNavigation: true });
       window.location.assign(url);
     } catch {

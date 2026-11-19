@@ -11,21 +11,33 @@ import { Faq, FeatureCard, SecondaryButton } from '@/components/marketing/sectio
 import { buttonVariants } from '@/components/ui/button';
 
 import { API_ORIGIN, MCP_TOOL_COUNT, RATE_LIMITS, mcpToolGroups } from '@/lib/marketing/developers';
+import { CONTACT_EMAIL } from '@/lib/marketing/site';
 import { marketingMetadata } from '@/lib/marketing/metadata';
 import { breadcrumbSchema } from '@/lib/marketing/schema';
 
 export const metadata: Metadata = marketingMetadata({
   title: 'MCP Server: Connect an AI Assistant to Your Business | DUMA',
   description:
-    'Connect an AI assistant to DUMA. Set up Claude Code, Cursor or another MCP client, choose workspace permissions, and explore the available tools.',
+    'Connect an AI assistant to DUMA. Connect from ChatGPT, or set up Claude Code, Cursor and other MCP clients with a workspace key.',
   path: '/developers/mcp',
 });
 
 const MCP_URL = `${API_ORIGIN}/v1/mcp`;
 const MCP_LIMIT = RATE_LIMITS.find((limit) => limit.api === 'MCP server')!.perMinute;
 
+function chatGptListing(): string | null {
+  try {
+    const url = new URL(process.env.NEXT_PUBLIC_CHATGPT_PLUGIN_URL ?? '');
+    return url.origin === 'https://chatgpt.com' && url.pathname.startsWith('/plugins/') && !url.username && !url.password
+      ? url.href : null;
+  } catch {
+    return null;
+  }
+}
+
 const TOC = [
-  { href: '#connect', label: 'Connect' },
+  { href: '#chatgpt', label: 'ChatGPT' },
+  { href: '#connect', label: 'API key setup' },
   { href: '#permissions', label: 'Permissions' },
   { href: '#tools', label: 'Tools' },
   { href: '#troubleshooting', label: 'Connection help' },
@@ -61,6 +73,7 @@ const PROMPTS = [
 
 /** /developers/mcp — a marketing-style hero over a docs-style guide. */
 export default function McpPage() {
+  const listing = chatGptListing();
   return (
     <>
       <JsonLd
@@ -73,13 +86,13 @@ export default function McpPage() {
         <DocsHero
           lead="Your workspace,"
           mark="connected to AI."
-          facts={[`${MCP_TOOL_COUNT} tools`, 'Streamable HTTP', 'Workspace API keys']}
+          facts={[`${MCP_TOOL_COUNT} API key tools`, 'ChatGPT sign-in', 'Streamable HTTP']}
           actions={
             <>
               <Link href="/settings/developers" className={buttonVariants({ size: 'touch' })}>
                 Create a workspace key <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
-              <SecondaryButton href="#tools">Browse {MCP_TOOL_COUNT} tools</SecondaryButton>
+              <SecondaryButton href="#chatgpt">Connect in ChatGPT</SecondaryButton>
             </>
           }
         >
@@ -87,8 +100,27 @@ export default function McpPage() {
           you need in plain language.
         </DocsHero>
 
+        <section className="pt-12" aria-labelledby="chatgpt">
+          <H2 id="chatgpt">Connect DUMA in ChatGPT</H2>
+          <p className={`${prose} mt-3`}>
+            {listing
+              ? 'Open DUMA in the ChatGPT Plugins directory, select Install and then Connect, and sign in with your DUMA account.'
+              : 'When DUMA appears in your ChatGPT Plugins directory, select Install and then Connect, and sign in with your DUMA account.'}
+            {' '}Review your workspace and select Allow access to finish.
+          </p>
+          <p className={`${prose} mt-3`}>
+            You can ask ChatGPT to look up products for sale or summarize published website content. Access depends on your DUMA workspace
+            permissions and enabled modules. You can disconnect at any time in ChatGPT’s plugin settings.
+          </p>
+          {listing && (
+            <Link href={listing} className={buttonVariants({ size: 'touch', className: 'mt-5' })}>
+              Open DUMA in ChatGPT <ArrowRight className="size-4" aria-hidden="true" />
+            </Link>
+          )}
+        </section>
+
         <section className="pt-12" aria-labelledby="connect">
-          <H2 id="connect">Connect in three steps</H2>
+          <H2 id="connect">Connect with a workspace API key</H2>
           <ol className="mt-6">
             <SetupStep number={1} title="Create a workspace key">
               <p className="mt-1.5 text-pretty leading-relaxed text-[var(--mkt-ink-2)]">
@@ -173,6 +205,10 @@ export default function McpPage() {
 
         <section className="pt-12 pb-10" aria-labelledby="troubleshooting">
           <H2 id="troubleshooting">Connection help</H2>
+          <p className={`${prose} mt-3`}>
+            Need help connecting DUMA to ChatGPT or another assistant? Email{' '}
+            <a href={`mailto:${CONTACT_EMAIL}`} className="font-medium text-primary hover:underline">{CONTACT_EMAIL}</a>.
+          </p>
           <div className="mt-4">
             <Faq
               items={[

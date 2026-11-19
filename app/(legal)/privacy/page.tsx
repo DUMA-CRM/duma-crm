@@ -15,7 +15,7 @@ export const metadata: Metadata = marketingMetadata({
 
 export default function PrivacyPage() {
   return (
-    <LegalDocument title="Privacy Policy" updated="6 November 2026">
+    <LegalDocument title="Privacy Policy" updated="19 November 2026">
       <p>
         DUMA is business software for cafés, restaurants, bars, bakeries and shops — till, kitchen display, stock, people, customer records,
         reporting and guest QR ordering. This policy explains what personal data we handle, why, and the choices you have.
@@ -102,6 +102,15 @@ export default function PrivacyPage() {
           content tools. They receive the request a user makes and the data needed to answer it. Some of these models
           are offered free of charge and their providers may retain or use prompts, so do not include personal data in
           an assistant request unless it is needed.
+        </li>
+        <li>
+          OpenAI, when you connect DUMA to ChatGPT. When ChatGPT uses the connection, DUMA shares the workspace name,
+          account and workspace identifiers, available permissions and the catalogue or published website content returned
+          by the tools you use. DUMA
+          records the account, workspace, allowed access and authorization timestamps, and stores renewal tokens as
+          one-way hashes. Access tokens expire after 10 minutes. You can disconnect in ChatGPT’s plugin settings or
+          contact us about connection records. OpenAI handles your chats and tool results under your ChatGPT settings
+          and its <a href="https://openai.com/policies/privacy-policy/">privacy policy</a>.
         </li>
         <li>A storage bucket (for example Amazon S3 or Cloudflare R2), only if a business connects its own for website assets.</li>
         <li>

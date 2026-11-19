@@ -27,6 +27,14 @@ const nextConfig: NextConfig = {
         ],
       },
       {
+        source: '/connect/chatgpt',
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      },
+      {
+        source: '/sign-in',
+        headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
+      },
+      {
         // The guest QR page, and only it, may be framed — by this app alone — so
         // QR ordering settings can show the real page in its phone preview. Later
         // matches override earlier ones for the same key.

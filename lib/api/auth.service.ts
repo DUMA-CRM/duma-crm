@@ -51,13 +51,37 @@ export async function signIn(email: string, password: string): Promise<AuthSessi
   });
 }
 
+export async function signInForChatGpt(email: string, password: string, oauthQuery: string) {
+  return apiFetch<{ url?: string; redirect?: boolean }>('/auth/sign-in/email', {
+    method: 'POST',
+    body: JSON.stringify({ email, password, oauth_query: oauthQuery }),
+  });
+}
+
+export interface ChatGptWorkspace {
+  tenantId: string;
+  name: string;
+  scopes: Array<'catalog:read' | 'content:read'>;
+}
+
+export function getChatGptWorkspace() {
+  return apiFetch<ChatGptWorkspace>('/auth/oauth2/chatgpt/workspace');
+}
+
+export function consentToChatGpt(oauthQuery: string, accept: boolean, workspaceId?: string) {
+  return apiFetch<{ url?: string; redirect?: boolean }>('/auth/oauth2/consent', {
+    method: 'POST',
+    body: JSON.stringify({ oauth_query: oauthQuery, accept, workspaceId }),
+  });
+}
+
 // Start "Sign in with Google". Returns Google's consent URL; Google comes back
 // through /be to the API, which sets the session cookie and redirects to
 // `callbackURL`, or to `errorCallbackURL?error=CODE`. Both must be absolute.
-export async function startGoogleSignIn(callbackURL: string, errorCallbackURL: string): Promise<string> {
+export async function startGoogleSignIn(callbackURL: string, errorCallbackURL: string, oauthQuery?: string): Promise<string> {
   const { url } = await apiFetch<{ url: string; redirect: boolean }>('/auth/sign-in/social', {
     method: 'POST',
-    body: JSON.stringify({ provider: 'google', callbackURL, errorCallbackURL }),
+    body: JSON.stringify({ provider: 'google', callbackURL, errorCallbackURL, oauth_query: oauthQuery }),
   });
   return url;
 }

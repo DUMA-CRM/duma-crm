@@ -9,6 +9,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import { useAuth } from '@/lib/hooks/useAuth';
+import { chatgptOAuthQuery } from '@/lib/utils/chatgpt-connection';
 import { googleSignInError } from '@/lib/utils/sign-in';
 
 /** Google's four-colour "G", as its brand guidelines require on a sign-in button. */
@@ -50,6 +51,7 @@ function SignInForm() {
   // Google comes back here with ?error=CODE when it can't sign someone in.
   const googleError = urlErrorDismissed ? null : googleSignInError(searchParams.get('error'));
   const busy = isLoading || isGoogleLoading;
+  const connectingChatGpt = Boolean(chatgptOAuthQuery(searchParams.toString()));
 
   useEffect(() => {
     if (!sessionExpired) return;
@@ -87,10 +89,12 @@ function SignInForm() {
   return (
     <div>
       <div className="mb-7 text-center">
-        <h1 className="text-2xl font-semibold tracking-headline text-foreground sm:text-3xl">Welcome back</h1>
+        <h1 className="text-2xl font-semibold tracking-headline text-foreground sm:text-3xl">
+          {connectingChatGpt ? 'Sign in to connect ChatGPT' : 'Welcome back'}
+        </h1>
       </div>
 
-      <form className="space-y-4" onSubmit={handleSubmit}>
+      <form method="post" className="space-y-4" onSubmit={handleSubmit}>
         {sessionExpired && (
           <p role="status" className="rounded-md border border-rule bg-band px-3 py-2 text-sm text-foreground">
             Your session expired. Sign in again to continue.
