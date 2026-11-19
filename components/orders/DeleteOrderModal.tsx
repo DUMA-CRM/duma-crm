@@ -19,7 +19,7 @@ import { invalidateOrder } from './StatusMenu';
 
 /**
  * Whether to offer deleting an order: it is cancelled, the viewer can refund, and the workspace allows it
- * (Settings → Trading, same key). The API checks all three again — this only decides whether to show it.
+ * (Orders → Edit orders; stored with the trading settings, same key). The API checks all three again — this only decides whether to show it.
  */
 export function useMayDeleteOrder(status: OrderStatus | undefined): boolean {
   const capabilities = useAuthStore((state) => state.capabilities);

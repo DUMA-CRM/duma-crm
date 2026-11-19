@@ -37,6 +37,7 @@ import { DeleteOrdersModal, useMayDeleteOrder } from '@/components/orders/Delete
 import { NewOrderModal } from '@/components/orders/NewOrderModal';
 import { OrderDrawer } from '@/components/orders/OrderDrawer';
 import { OrderRowMenu } from '@/components/orders/OrderRowMenu';
+import { OrdersSettingsDrawer } from '@/components/orders/OrdersSettings';
 import { StatusMenu } from '@/components/orders/StatusMenu';
 import { FULFILMENT_LABEL, LIVE_STATUSES, SOURCE_META, STATUS_META, optionLabel } from '@/components/orders/orderMeta';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
@@ -452,6 +453,15 @@ function OrdersPageContent() {
   const words = useCatalogWords();
   const searchParams = useSearchParams();
   const { locationId: headerLocationId, tenantId } = useWorkspaceStore();
+  // The workspace's order rules, opened by "Edit orders" in the avatar menu (`?edit=1`). Closing drops only
+  // that parameter, so the list keeps its filters.
+  const editingSettings = searchParams.get('edit') === '1';
+  const closeSettings = () => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete('edit');
+    const query = next.toString();
+    router.replace(query ? `/orders?${query}` : '/orders', { scroll: false });
+  };
   // A report's drill-down names its own scope — a site id, or `all` — which
   // overrides the header's location until cleared, so the orders shown add up
   // to the figure that was clicked.
@@ -1393,6 +1403,7 @@ function OrdersPageContent() {
           onNext={selectedIndex >= 0 && selectedIndex < orders.length - 1 ? () => open(orders[selectedIndex + 1].id, 'instant') : undefined}
         />
       )}
+      {editingSettings && <OrdersSettingsDrawer onClose={closeSettings} />}
     </EditorShell>
   );
 }

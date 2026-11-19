@@ -10,6 +10,7 @@ import {
   Play,
   Receipt,
   RotateCcw,
+  Settings,
   SlidersHorizontal,
   Sun,
   Type,
@@ -17,16 +18,14 @@ import {
   VolumeX,
 } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
-import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { ChangeRow, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
+import { Drawer } from '@/components/shared/Drawer';
 import { ChoiceCards } from '@/components/shared/FormParts';
 import { Button } from '@/components/ui/button';
 
 import { CHIME_SOUNDS, chime } from '@/lib/utils/chime';
 import { cn } from '@/lib/utils/cn';
 import { DEFAULT_KDS_DISPLAY, type KdsCardSize, type KdsDisplay, type KdsLayout, type KdsTextSize, useKdsStore } from '@/stores/kdsStore';
-
-import { ConfigurationBodySkeleton, ConfigurationFoot, PreviewFrame, useMounted } from './shared';
 
 const LAYOUTS: { value: KdsLayout; label: string; icon: typeof LayoutGrid }[] = [
   { value: 'lanes', label: 'Lanes', icon: LayoutDashboard },
@@ -47,13 +46,13 @@ const labelOf = <T extends string>(options: readonly { value: T; label: string }
 type Row = 'layout' | 'textSize' | 'cardSize' | 'sound';
 
 /**
- * The kitchen screen on this device. Laid out like Settings → Account: each
+ * This device's kitchen screen settings, opened from its edit mode: each
  * setting a row whose value is the content — a choice opens under its row and
- * applies on the pick, a switch sits at the row's edge — with the live screen
- * in the rail. Nothing to save: the store applies every change at once.
+ * applies on the pick, a switch sits at the row's edge. The board itself is the
+ * preview: the drawer isn't modal, so every change shows on the live tickets
+ * beside it. Nothing to save: the store applies every change, on this device.
  */
-export function KitchenConfiguration() {
-  const mounted = useMounted();
+export function KitchenSettingsDrawer({ onClose }: { onClose: () => void }) {
   const settings = useKdsStore();
   const set = (patch: Partial<KdsDisplay>) => settings.setDisplay(patch);
   const isDefault = (Object.keys(DEFAULT_KDS_DISPLAY) as (keyof KdsDisplay)[]).every((key) => settings[key] === DEFAULT_KDS_DISPLAY[key]);
@@ -65,8 +64,6 @@ export function KitchenConfiguration() {
     set(patch);
     setOpen(null);
   };
-
-  if (!mounted) return <ConfigurationBodySkeleton label="Loading kitchen screen settings" />;
 
   const sound = CHIME_SOUNDS.find((entry) => entry.value === settings.sound) ?? CHIME_SOUNDS[0];
   /** An on/off setting: its state as the value, the switch at the right edge. */
@@ -87,9 +84,23 @@ export function KitchenConfiguration() {
   );
 
   return (
-    <SettingsTabBody narrowAside stickyAside aside={<KitchenPreview display={settings} />}>
-      {/* Two stacked columns, not paired rows: a short card never leaves a gap beside a tall one. */}
-      <div className="grid items-start gap-5 xl:grid-cols-2">
+    <Drawer
+      title="Kitchen screen settings"
+      description="This device’s kitchen screen. Changes show on the board as you make them."
+      icon={Settings}
+      modal={false}
+      onClose={onClose}
+      bodyClassName="px-5 py-5 sm:px-6"
+      footer={
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <p className="text-xs text-muted-foreground">Saved on this device.</p>
+          <Button variant="outline" onClick={settings.resetDisplay} disabled={isDefault} className="gap-2">
+            <RotateCcw size={15} aria-hidden="true" /> Reset to defaults
+          </Button>
+        </div>
+      }
+    >
+      <div className="flex flex-col gap-5">
         <div className="flex min-w-0 flex-col gap-5">
           <SettingsSection title="Screen" footnote="Some browsers can’t keep the screen awake — set the tablet’s auto-lock to Never.">
             <div>
@@ -234,134 +245,6 @@ export function KitchenConfiguration() {
           </SettingsSection>
         </div>
       </div>
-
-      <ConfigurationFoot storage="Saved on this device.">
-        <Button variant="outline" onClick={settings.resetDisplay} disabled={isDefault} className="gap-2">
-          <RotateCcw size={15} aria-hidden="true" /> Reset to defaults
-        </Button>
-      </ConfigurationFoot>
-    </SettingsTabBody>
-  );
-}
-
-// ── Preview ──────────────────────────────────────────────────────────────────
-
-// A quiet sketch, not a screenshot: soft tints, a few tickets, room between them.
-// Theme tokens, so it follows the app's own light or dark mode.
-const palette = {
-  ground: 'bg-background',
-  frame: 'border-border',
-  lane: 'bg-background',
-  card: 'bg-card',
-  ink: 'bg-foreground/20',
-  faint: 'bg-foreground/10',
-};
-
-type Tone = 'ok' | 'approaching' | 'crashed';
-type Sample = { tone: Tone; lane: number; items: number; age: number };
-const SAMPLE: Sample[] = [
-  { tone: 'approaching', lane: 0, items: 2, age: 70 },
-  { tone: 'ok', lane: 0, items: 1, age: 20 },
-  { tone: 'crashed', lane: 1, items: 2, age: 100 },
-  { tone: 'ok', lane: 2, items: 1, age: 35 },
-];
-// The lanes' marks, as on the board (`LANE_DOT`).
-const LANE_TOP = ['var(--key-1)', 'var(--key-5)', 'var(--momentum)'];
-const TONE_EDGE: Record<Tone, string> = { ok: 'border-border', approaching: 'border-measured/60', crashed: 'border-exception' };
-// The header is the status: neutral, then amber, then filled red.
-const TONE_HEAD: Record<Tone, string> = { ok: '', approaching: 'bg-measured/18', crashed: 'bg-exception' };
-const TONE_BAR: Record<Tone, string> = { ok: 'bg-momentum/45', approaching: 'bg-measured/55', crashed: 'bg-exception/55' };
-
-/** A schematic of the kitchen screen, redrawn as the settings change. */
-function KitchenPreview({ display }: { display: KdsDisplay }) {
-  const tiles = display.layout === 'tiles';
-  const ticket = (sample: Sample, index: number) => (
-    <PreviewTicket key={index} {...sample} display={display} strikeFirst={sample.tone === 'approaching'} />
-  );
-  return (
-    <PreviewFrame>
-      <div
-        aria-hidden="true"
-        className={cn('flex aspect-[4/3] flex-col overflow-hidden rounded-lg border shadow-sm', palette.frame, palette.ground)}
-      >
-        {
-          <div className="flex h-5 shrink-0 items-center gap-2 border-b border-border bg-card px-2">
-            <div className={cn('h-1.5 w-12 rounded-full', palette.ink)} />
-            <div className="ml-auto flex items-center gap-2">
-              <div className="size-1.5 rounded-full bg-momentum/60" />
-              <div className={cn('h-1.5 w-8 rounded-full', palette.faint)} />
-              <div className={cn('h-1.5 w-8 rounded-full', palette.faint)} />
-            </div>
-          </div>
-        }
-        <div className="flex min-h-0 flex-1">
-          {tiles ? (
-            <div className="grid min-w-0 flex-1 grid-cols-3 content-start gap-2 p-2">{SAMPLE.map(ticket)}</div>
-          ) : (
-            <div className="grid min-w-0 flex-1 grid-cols-3 gap-px bg-border">
-              {[0, 1, 2].map((lane) => (
-                <div key={lane} className={cn('flex min-h-0 flex-col overflow-hidden', palette.lane)}>
-                  <div className="flex h-4 shrink-0 items-center gap-1 border-b border-border bg-card px-1.5">
-                    <span className="size-1.5 rounded-[1px]" style={{ backgroundColor: LANE_TOP[lane] }} />
-                    <span className={cn('h-1 w-1/3 rounded-full', palette.ink)} />
-                  </div>
-                  <div className="flex flex-col gap-1.5 p-1.5">
-                    {SAMPLE.map((sample, index) => (sample.lane === lane ? ticket(sample, index) : null))}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-          {display.showAllDay && (
-            <div className={cn('flex w-[20%] shrink-0 flex-col gap-2.5 border-l border-border p-2', palette.card)}>
-              <div className={cn('h-1.5 w-2/3 rounded-full', palette.ink)} />
-              {[75, 55, 65].map((width) => (
-                <div key={width} className={cn('h-1 rounded-full', palette.faint)} style={{ width: `${width}%` }} />
-              ))}
-            </div>
-          )}
-        </div>
-      </div>
-    </PreviewFrame>
-  );
-}
-
-function PreviewTicket({ tone, items, age, display, strikeFirst }: Sample & { display: KdsDisplay; strikeFirst: boolean }) {
-  const compact = display.cardSize === 'compact';
-  // Text size scales the whole ticket on the real screen; here it scales the lines.
-  const scale = { standard: 1, large: 1.3, xlarge: 1.6 }[display.textSize];
-  const line = 4 * scale;
-  return (
-    <div className={cn('flex shrink-0 flex-col overflow-hidden rounded-sm border', palette.card, TONE_EDGE[tone])}>
-      <div className={cn('border-b border-border', TONE_HEAD[tone], compact ? 'px-1.5 pt-1.5' : 'px-2 pt-2')}>
-        <div className="flex items-center justify-between gap-2">
-          <div
-            className={cn('rounded-full', tone === 'crashed' ? 'bg-on-fill/80' : palette.ink)}
-            style={{ height: line * 1.2, width: '45%' }}
-          />
-          <div
-            className={cn('rounded-full', tone === 'crashed' ? 'bg-on-fill/60' : palette.faint)}
-            style={{ height: line * 1.2, width: '20%' }}
-          />
-        </div>
-        <div className={cn('mt-1.5 h-0.5 overflow-hidden', compact ? '-mx-1.5' : '-mx-2', palette.faint)}>
-          <div className={cn('h-full', tone === 'crashed' ? 'bg-on-fill/70' : TONE_BAR[tone])} style={{ width: `${age}%` }} />
-        </div>
-      </div>
-      <div className={cn('flex flex-col', compact ? 'gap-1.5 p-1.5' : 'gap-2 p-2')}>
-        {Array.from({ length: items }).map((_, index) => {
-          const struck = display.tapToStrike && strikeFirst && index === 0;
-          return (
-            <div key={index} className={cn('space-y-1', struck && 'opacity-35')}>
-              <div className={cn('relative rounded-full', palette.ink)} style={{ height: line, width: index === 0 ? '70%' : '55%' }}>
-                {struck && <div className="absolute inset-x-0 top-1/2 h-px bg-foreground/60" />}
-              </div>
-              {index === 0 && !compact && display.showModifiers && <div className={cn('h-1 w-2/5 rounded-full', palette.faint)} />}
-              {index === 0 && <div className="h-1 w-1/4 rounded-full bg-exception/35" />}
-            </div>
-          );
-        })}
-      </div>
-    </div>
+    </Drawer>
   );
 }

@@ -46,6 +46,8 @@ export function ReservationsWorkspace() {
   const { tab, panel } = resolveReservationsTab(searchParams.get('tab'), { canDrawFloor, canSetRules });
   const setTab = (next: ReservationsTab) => {
     const query = new URLSearchParams(searchParams.toString());
+    // Arranging the overview ends with leaving it, rather than waiting on its return.
+    query.delete('edit');
     if (next === 'overview') query.delete('tab');
     else query.set('tab', next);
     const search = query.toString();

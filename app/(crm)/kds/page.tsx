@@ -2,7 +2,8 @@
 
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
-import { useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { useRouter, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
 
 import {
   AlertTriangle,
@@ -20,6 +21,7 @@ import {
   X,
 } from '@/components/icons';
 import { KdsTicket, KdsTicketSkeleton, LANE_DOT, LANE_LABEL } from '@/components/kds/KdsTicket';
+import { KitchenSettingsDrawer } from '@/components/kds/KitchenSettings';
 import { useMounted } from '@/components/settings/configuration/shared';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { Bone } from '@/components/shared/Skeleton';
@@ -97,10 +99,23 @@ const subscribeOnline = (notify: () => void) => {
   };
 };
 
+// `useSearchParams` (the screen's `?edit=1`) needs a Suspense boundary to prerender, as the till's page has.
 export default function KdsPage() {
+  return (
+    <Suspense>
+      <Kitchen />
+    </Suspense>
+  );
+}
+
+function Kitchen() {
   const queryClient = useQueryClient();
   const { locationId } = useWorkspaceStore();
   const display = useKdsStore();
+  // This device's screen settings, opened by "Edit kitchen screen" in the avatar menu (`?edit=1`): a drawer
+  // beside the live board, which is its preview. Closing it leaves edit mode.
+  const router = useRouter();
+  const editing = useSearchParams().get('edit') === '1';
   const mounted = useMounted();
   const online = useSyncExternalStore(
     subscribeOnline,
@@ -579,6 +594,7 @@ export default function KdsPage() {
           </div>
         )}
       </div>
+      {editing && <KitchenSettingsDrawer onClose={() => router.replace('/kds', { scroll: false })} />}
     </EditorShell>
   );
 }

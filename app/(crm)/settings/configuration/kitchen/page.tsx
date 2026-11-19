@@ -1,11 +1,7 @@
 import { redirect } from 'next/navigation';
 
-import { KitchenConfiguration } from '@/components/settings/configuration/KitchenConfiguration';
-import { hasCapability } from '@/lib/auth/capabilities';
-import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
-
-export default async function KitchenConfigurationPage() {
-  const profile = await getCurrentStaffProfile();
-  if (!profile || !hasCapability(profile, 'orders:status')) redirect('/settings/configuration');
-  return <KitchenConfiguration />;
+// Kitchen screen settings moved onto the screen itself (Edit kitchen screen), where the board is their preview.
+// The old address, from bookmarks and help links, lands there.
+export default function KitchenConfigurationPage() {
+  redirect('/kds?edit=1');
 }

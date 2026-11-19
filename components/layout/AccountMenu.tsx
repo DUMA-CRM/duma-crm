@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { usePathname } from 'next/navigation';
 import { useState, useSyncExternalStore } from 'react';
 
-import { Building2, ChevronsUpDown, LayoutDashboard, LayoutGrid, LogOut, Monitor, Moon, Sun } from '@/components/icons';
+import { Building2, ChefHat, ChevronsUpDown, LayoutDashboard, LayoutGrid, LogOut, Monitor, Moon, Receipt, Sun } from '@/components/icons';
 import { Avatar } from '@/components/shared/Avatar';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Modal } from '@/components/shared/Modal';
@@ -117,11 +117,30 @@ export function AccountMenu() {
               </div>
             ))}
 
-          {/* The page's own edit, only on that page: the dashboard's widgets, the till's keys. */}
+          {/* The page's own edit, only on that page: the dashboard's widgets, the till's keys, the kitchen screen, the order rules, the reservations overview. */}
           {context.kind === 'workspace' && pathname === '/dashboard' && (
             <Link href="/dashboard?edit=1" className={cn(item, 'hidden md:flex')} onClick={() => setOpen(false)}>
               <LayoutDashboard size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
               Edit dashboard
+            </Link>
+          )}
+          {context.kind === 'workspace' && pathname === '/reservations' && (
+            // Opens the Overview tab (no `tab`) in its edit mode.
+            <Link href="/reservations?edit=1" className={cn(item, 'hidden md:flex')} onClick={() => setOpen(false)}>
+              <LayoutDashboard size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+              Edit overview
+            </Link>
+          )}
+          {context.kind === 'workspace' && pathname === '/orders' && (
+            <Link href="/orders?edit=1" className={item} onClick={() => setOpen(false)}>
+              <Receipt size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+              Edit orders
+            </Link>
+          )}
+          {context.kind === 'workspace' && pathname === '/kds' && (
+            <Link href="/kds?edit=1" className={item} onClick={() => setOpen(false)}>
+              <ChefHat size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+              Edit kitchen screen
             </Link>
           )}
           {context.kind === 'workspace' && pathname === '/pos' && (

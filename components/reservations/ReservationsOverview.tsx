@@ -1,8 +1,8 @@
 'use client';
 
 import { type UseQueryResult, useQuery } from '@tanstack/react-query';
-import { motion, useReducedMotion } from 'motion/react';
-import { useMemo } from 'react';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
+import { useMemo, useState } from 'react';
 
 import { InfoRow, InfoRows } from '@/components/cms/rows';
 import {
@@ -11,6 +11,7 @@ import {
   Clock,
   Info,
   LayoutGrid,
+  Plus,
   Repeat,
   RotateCcw,
   Timer,
@@ -23,14 +24,25 @@ import { Fact } from '@/components/settings/controls';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { NeedsAttention, type NeedsAttentionItem } from '@/components/shared/NeedsAttention';
-import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone, FactSkeleton } from '@/components/shared/Skeleton';
+import { Tooltip } from '@/components/shared/Tooltip';
+import { BOARD_COLUMNS, WidgetGrid, boardMetrics } from '@/components/shared/widget-grid/WidgetGrid';
+import { useGridEditor } from '@/components/shared/widget-grid/useGridEditor';
+import { Button } from '@/components/ui/button';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type Booking, type WaitlistEntry, getBookings, getFloorPlan, getWaitlist } from '@/lib/modules/reservations/client';
 import { floorUsage } from '@/lib/utils/floor-status';
 import { SOURCE_LABELS, minutesBetween, minutesLabel, seatsAtMost, slotOf } from '@/lib/utils/reservations';
 import { lateBookings, waitlistOverview } from '@/lib/utils/reservations-lists';
+import {
+  DEFAULT_OVERVIEW_LAYOUT,
+  OVERVIEW_CARDS,
+  OVERVIEW_COLUMNS,
+  type OverviewCardKey,
+  readOverviewLayout,
+} from '@/lib/utils/reservations-overview-layout';
 import {
   BOOKINGS_LIMIT,
   BUSY_SHARE,
@@ -50,7 +62,10 @@ import {
   todayGlance,
   unconfirmedToday,
 } from '@/lib/utils/reservations-stats';
+import type { Cell } from '@/lib/utils/widget-grid';
 import { resolvedTimeZone, workspaceDateKey, workspaceTimeZone } from '@/lib/utils/workspace-time';
+import { useAuthStore } from '@/stores/authStore';
+import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { CoversHeatGrid } from './overview/CoversHeatGrid';
 import { ShareBars } from './overview/ShareBars';
@@ -76,7 +91,6 @@ const plural = (count: number, one: string, many: string) => `${count} ${count =
  * rule (which statuses count) is written down and tested.
  */
 export function ReservationsOverview({ locationId, onOpenHost }: { locationId: string; onOpenHost?: (target?: HostTarget) => void }) {
-  const reduceMotion = useReducedMotion();
   const now = useMinuteClock();
   const timeZone = workspaceTimeZone();
   const today = workspaceDateKey(now, timeZone);
@@ -125,47 +139,205 @@ export function ReservationsOverview({ locationId, onOpenHost }: { locationId: s
       />
     );
 
-  return (
-    <motion.div
-      className="flex flex-col gap-5"
-      initial={reduceMotion ? false : 'hidden'}
-      animate="shown"
-      variants={{ shown: { transition: { staggerChildren: reduceMotion ? 0 : 0.06 } } }}
-    >
-      <Today
-        bookings={split.today}
-        tables={tables}
-        waitlist={waitlist}
-        now={now}
+  const today_ = todayFigures({
+    bookings: split.today,
+    tables,
+    waitlist,
+    now,
+    today,
+    truncated: all.length >= BOOKINGS_LIMIT,
+    onOpenHost: openHost,
+  });
+  const tiles = Object.fromEntries(Object.entries(today_.tiles).map(([key, node]) => [key, () => node])) as Record<
+    keyof typeof today_.tiles,
+    () => React.ReactNode
+  >;
+  const cards: Record<OverviewCardKey, () => React.ReactNode> = {
+    ...tiles,
+    week: () => (
+      <NextDays
+        bookings={split.ahead}
+        days={range.ahead}
+        seats={seatsAtMost(tables)}
         today={today}
-        truncated={all.length >= BOOKINGS_LIMIT}
-        onOpenHost={openHost}
+        onOpenDay={openHost ? (date) => openHost({ tab: 'bookings', date }) : undefined}
       />
+    ),
+    hours: () => <BusiestHours bookings={split.past} />,
+    quality: () => <Quality bookings={split.past} tableCount={tables.length} />,
+    guests: () => <Guests bookings={split.past} />,
+  };
 
-      {/* Two stacked columns, not paired rows: a short card never leaves a gap beside a tall one. */}
-      <div className="grid items-start gap-5 xl:grid-cols-2">
-        <div className="flex min-w-0 flex-col gap-5">
-          <NextDays
-            bookings={split.ahead}
-            days={range.ahead}
-            seats={seatsAtMost(tables)}
-            today={today}
-            onOpenDay={openHost ? (date) => openHost({ tab: 'bookings', date }) : undefined}
-          />
-          <Quality bookings={split.past} tableCount={tables.length} />
+  return (
+    <div className="flex flex-col gap-5">
+      <NeedsAttention items={today_.attention} label="Needs attention today" />
+      <OverviewBoard cards={cards} />
+    </div>
+  );
+}
+
+// ─── The board ────────────────────────────────────────────────────────────────
+
+/**
+ * A person's arrangement of the overview, kept per workspace in their browser. It is a preference about
+ * their own screen — nothing anyone else sees — and if it is ever lost the overview is simply the default.
+ */
+function useOverviewLayout() {
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const userId = useAuthStore((state) => state.user?.id ?? null);
+  const key = tenantId && userId ? `duma:reservations-overview:${tenantId}:${userId}` : null;
+  const read = () => {
+    try {
+      return key ? readOverviewLayout(window.localStorage.getItem(key)) : null;
+    } catch {
+      return null;
+    }
+  };
+  const [saved, setSaved] = useState<Cell[] | null>(() => (typeof window === 'undefined' ? null : read()));
+  const save = (cells: Cell[] | null) => {
+    setSaved(cells);
+    try {
+      if (!key) return;
+      if (cells) window.localStorage.setItem(key, JSON.stringify(cells));
+      else window.localStorage.removeItem(key);
+    } catch {
+      // Storage refused (a private window): the arrangement lasts until the page closes.
+    }
+  };
+  return [saved, save] as const;
+}
+
+/**
+ * The overview's cards on the dashboard's grid. "Edit overview" in the avatar menu (`?edit=1`) arranges it the
+ * same way: drag, resize at the corner, remove with the badge, add back from the bar; Done keeps it, Cancel
+ * puts it back. Editing needs the four-column board, a tablet's width or more; a phone reads it in two.
+ */
+function OverviewBoard({ cards }: { cards: Record<OverviewCardKey, () => React.ReactNode> }) {
+  const router = useRouter();
+  const pathname = usePathname();
+  const searchParams = useSearchParams();
+  const editing = searchParams.get('edit') === '1';
+  const [saved, save] = useOverviewLayout();
+  const editor = useGridEditor(saved ?? DEFAULT_OVERVIEW_LAYOUT, DEFAULT_OVERVIEW_LAYOUT, saved !== null, OVERVIEW_COLUMNS);
+  const [boardWidth, setBoardWidth] = useState<number | null>(null);
+  const canEdit = editing && boardWidth !== null && boardMetrics(boardWidth).columns === BOARD_COLUMNS;
+  const [adding, setAdding] = useState(false);
+  const layout = editing ? editor.cells : (saved ?? DEFAULT_OVERVIEW_LAYOUT);
+  const hidden = (Object.keys(OVERVIEW_CARDS) as OverviewCardKey[]).filter((key) => !layout.some((cell) => cell.key === key));
+
+  const leave = () => {
+    const next = new URLSearchParams(searchParams.toString());
+    next.delete('edit');
+    const query = next.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
+  const done = () => {
+    if (editor.resetRequested) save(null);
+    else if (editor.isDirty) save(editor.cells);
+    editor.cancel();
+    leave();
+  };
+  const cancel = () => {
+    editor.cancel();
+    leave();
+  };
+
+  const widgets = Object.fromEntries(
+    (Object.keys(OVERVIEW_CARDS) as OverviewCardKey[]).map((key) => [
+      key,
+      { label: OVERVIEW_CARDS[key].label, sizes: OVERVIEW_CARDS[key].sizes, render: cards[key] },
+    ]),
+  );
+
+  return (
+    <div className="flex flex-col gap-4">
+      {canEdit && (
+        // The edit controls stay in reach over the board while you scroll, as on the dashboard.
+        <div
+          className="sticky top-2 z-30 flex items-center gap-2 rounded-lg border border-border bg-card/95 p-1.5 shadow-sm backdrop-blur-sm"
+          role="group"
+          aria-label="Edit overview"
+        >
+          <Popover open={adding} onOpenChange={setAdding}>
+            <PopoverTrigger asChild>
+              <Button variant="outline" disabled={hidden.length === 0}>
+                <Plus aria-hidden="true" /> Add card
+              </Button>
+            </PopoverTrigger>
+            <PopoverContent align="start" className="w-56 p-1">
+              {hidden.map((key) => (
+                <Button
+                  key={key}
+                  variant="ghost"
+                  className="w-full justify-start"
+                  onClick={() => {
+                    editor.add(key, OVERVIEW_CARDS[key].sizes[0]!);
+                    setAdding(false);
+                  }}
+                >
+                  {OVERVIEW_CARDS[key].label}
+                </Button>
+              ))}
+            </PopoverContent>
+          </Popover>
+          <Button variant="ghost" onClick={editor.reset}>
+            <RotateCcw aria-hidden="true" /> Reset
+          </Button>
+          <div className="ml-auto flex items-center gap-2">
+            <Button variant="ghost" onClick={cancel}>
+              Cancel
+            </Button>
+            <Button onClick={done}>Done</Button>
+          </div>
         </div>
-        <div className="flex min-w-0 flex-col gap-5">
-          <BusiestHours bookings={split.past} />
-          <Guests bookings={split.past} />
-        </div>
-      </div>
-    </motion.div>
+      )}
+      {editing && boardWidth !== null && !canEdit && (
+        <p className="text-sm text-muted-foreground">Widen the window to arrange the overview.</p>
+      )}
+      <WidgetGrid
+        widgets={widgets}
+        layout={layout}
+        editing={canEdit}
+        onChange={editor.change}
+        onRemove={editor.remove}
+        onMeasure={setBoardWidth}
+      />
+      {layout.length === 0 && (
+        <p className="py-12 text-center text-sm text-muted-foreground">
+          {canEdit
+            ? 'Add a card to build your overview.'
+            : 'Every card is hidden. Choose Edit overview in your account menu to add them back.'}
+        </p>
+      )}
+    </div>
+  );
+}
+
+/** A tall card on the board: its title, the reading filling the cell, and how it's counted behind the info mark. */
+function OverviewCard({ title, note, children }: { title: string; note: string; children: React.ReactNode }) {
+  return (
+    <section aria-label={title} className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+      <header className="flex shrink-0 items-center gap-1.5 px-5 pt-4">
+        <h2 className="text-base font-semibold tracking-title text-heading">{title}</h2>
+        <Tooltip label={note} side="bottom" wrap>
+          <span
+            tabIndex={0}
+            aria-label={`How ${title.toLowerCase()} is counted`}
+            className="grid size-6 place-items-center rounded-sm text-muted-foreground"
+          >
+            <Info size={14} aria-hidden="true" />
+          </span>
+        </Tooltip>
+      </header>
+      <div className="min-h-0 flex-1 overflow-y-auto px-5 pt-3 pb-4">{children}</div>
+    </section>
   );
 }
 
 // ─── Today at a glance ────────────────────────────────────────────────────────
 
-function Today({
+/** Today's figures: what needs someone (the strip above the board) and each figure as its own tile. */
+function todayFigures({
   bookings,
   tables,
   waitlist,
@@ -181,7 +353,10 @@ function Today({
   today: string;
   truncated: boolean;
   onOpenHost?: (target?: HostTarget) => void;
-}) {
+}): {
+  attention: NeedsAttentionItem[];
+  tiles: Record<'covers' | 'to-come' | 'walk-ins' | 'no-shows' | 'waitlist' | 'tables-free', React.ReactNode>;
+} {
   const timeZone = workspaceTimeZone();
   const glance = todayGlance(bookings);
   const usage = floorUsage(tables, bookings, now);
@@ -244,11 +419,15 @@ function Today({
       : []),
   ];
 
-  return (
-    <>
-      <NeedsAttention items={attention} label="Needs attention today" />
-      <dl className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3" aria-label="Today at a glance">
-        <Fact surface="page" icon={Users} label="Covers" value={`${glance.coversSeated} of ${glance.coversBooked}`} hint="seated so far" />
+  // Each figure is the product's stat tile, a board row tall — the same `Fact` the dashboard's figures are.
+  const tile = (fact: React.ReactNode) => <dl className="grid h-full">{fact}</dl>;
+  return {
+    attention,
+    tiles: {
+      covers: tile(
+        <Fact surface="page" icon={Users} label="Covers" value={`${glance.coversSeated} of ${glance.coversBooked}`} hint="seated so far" />,
+      ),
+      'to-come': tile(
         <Fact
           surface="page"
           icon={CalendarClock}
@@ -256,15 +435,19 @@ function Today({
           value={glance.toCome}
           hint={guests(glance.toComeCovers)}
           onSelect={openBookings}
-        />
-        <Fact surface="page" icon={UserPlus} label="Walk-ins" value={glance.walkIns} hint={guests(glance.walkInCovers)} />
+        />,
+      ),
+      'walk-ins': tile(<Fact surface="page" icon={UserPlus} label="Walk-ins" value={glance.walkIns} hint={guests(glance.walkInCovers)} />),
+      'no-shows': tile(
         <Fact
           surface="page"
           icon={UserMinus}
           label="No-shows"
           value={glance.noShows}
           hint={glance.noShows ? guests(glance.noShowCovers) : 'none today'}
-        />
+        />,
+      ),
+      waitlist: tile(
         <Fact
           surface="page"
           icon={Clock}
@@ -281,7 +464,9 @@ function Today({
           }
           tone={waitlist.isError ? 'warning' : 'default'}
           onSelect={waitlist.isError ? () => void waitlist.refetch() : openWaitlist}
-        />
+        />,
+      ),
+      'tables-free': tile(
         <Fact
           surface="page"
           icon={LayoutGrid}
@@ -289,10 +474,10 @@ function Today({
           value={usage.tablesTotal ? `${usage.tablesTotal - usage.tables} of ${usage.tablesTotal}` : '—'}
           hint={usage.tablesTotal ? `${guests(usage.covers)} at tables` : 'no floor plan yet'}
           onSelect={onOpenHost ? () => onOpenHost() : undefined}
-        />
-      </dl>
-    </>
-  );
+        />,
+      ),
+    },
+  };
 }
 
 // ─── The next seven days ──────────────────────────────────────────────────────
@@ -312,20 +497,18 @@ function NextDays({
 }) {
   const rows = coversByDay(bookings, days, seats, workspaceTimeZone());
   return (
-    <RecordGroup
-      card
-      id="reservations-overview-week"
+    <OverviewCard
       title="Next 7 days"
-      footnote={
-        <>
-          Covers booked, cancellations and no-shows left out. Lunch starts before 4pm, dinner from 4pm.
-          {seats > 0 && ` Busy: lunch or dinner fills ${Math.round(BUSY_SHARE * 100)}% of the floor’s ${seats} seats.`}
-          {onOpenDay && ' Tap a day to open it in Host.'}
-        </>
-      }
+      note={[
+        'Covers booked, cancellations and no-shows left out. Lunch starts before 4pm, dinner from 4pm.',
+        seats > 0 && `Busy: lunch or dinner fills ${Math.round(BUSY_SHARE * 100)}% of the floor’s ${seats} seats.`,
+        onOpenDay && 'Tap a day to open it in Host.',
+      ]
+        .filter(Boolean)
+        .join(' ')}
     >
       <WeekCovers days={rows} today={today} onOpenDay={onOpenDay} />
-    </RecordGroup>
+    </OverviewCard>
   );
 }
 
@@ -336,11 +519,9 @@ function Quality({ bookings, tableCount }: { bookings: Booking[]; tableCount: nu
   const { lateness } = quality;
   const minutes = (value: number | null) => (value === null ? '—' : `${Math.round(value)} min`);
   return (
-    <RecordGroup
-      card
-      id="reservations-overview-quality"
+    <OverviewCard
       title="Service quality"
-      footnote="Last 30 days, not counting today. Time at the table runs from seated to finished; a party on two tables turns both. Late means seated after the booked time. Walk-ins are never late, no-shows or cancellations."
+      note="Last 30 days, not counting today. Time at the table runs from seated to finished; a party on two tables turns both. Late means seated after the booked time. Walk-ins are never late, no-shows or cancellations."
     >
       {bookings.length === 0 ? (
         <p className="py-2 text-sm text-muted-foreground">No bookings in the last 30 days.</p>
@@ -386,7 +567,7 @@ function Quality({ bookings, tableCount }: { bookings: Booking[]; tableCount: nu
           </InfoRow>
         </InfoRows>
       )}
-    </RecordGroup>
+    </OverviewCard>
   );
 }
 
@@ -400,14 +581,12 @@ function BusiestHours({ bookings }: { bookings: Booking[] }) {
   const grid = coversHeatGrid(bookings, workspaceTimeZone());
   const any = grid.some((row) => row.some((value) => value > 0));
   return (
-    <RecordGroup
-      card
-      id="reservations-overview-hours"
+    <OverviewCard
       title="Busiest hours"
-      footnote={`Covers by the hour bookings start, last 30 days, cancellations and no-shows left out. Times in ${resolvedTimeZone().replaceAll('_', ' ')}.`}
+      note={`Covers by the hour bookings start, last 30 days, cancellations and no-shows left out. Times in ${resolvedTimeZone().replaceAll('_', ' ')}.`}
     >
       {any ? <CoversHeatGrid grid={grid} /> : <p className="py-2 text-sm text-muted-foreground">No covers in the last 30 days.</p>}
-    </RecordGroup>
+    </OverviewCard>
   );
 }
 
@@ -418,11 +597,9 @@ function Guests({ bookings }: { bookings: Booking[] }) {
   const parties = partyMix(bookings);
   const repeat = repeatGuests(bookings);
   return (
-    <RecordGroup
-      card
-      id="reservations-overview-guests"
+    <OverviewCard
       title="Guests"
-      footnote="Last 30 days, cancellations left out. Repeat guests are bookings by a customer booked more than once in that time; a booking not linked to a customer can’t be recognised."
+      note="Last 30 days, cancellations left out. Repeat guests are bookings by a customer booked more than once in that time; a booking not linked to a customer can’t be recognised."
     >
       {repeat.total === 0 ? (
         <p className="py-2 text-sm text-muted-foreground">No bookings in the last 30 days.</p>
@@ -449,7 +626,7 @@ function Guests({ bookings }: { bookings: Booking[] }) {
           </div>
         </div>
       )}
-    </RecordGroup>
+    </OverviewCard>
   );
 }
 

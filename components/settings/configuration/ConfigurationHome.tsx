@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { ChefHat, type IconComponent, LayoutGrid, QrCode, Receipt, Timer } from '@/components/icons';
+import { type IconComponent, LayoutGrid, QrCode, Receipt } from '@/components/icons';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { RecordGroup } from '@/components/shared/RecordGroup';
@@ -19,7 +19,7 @@ type Destination = {
   href: string;
   title: string;
   icon: IconComponent;
-  group: 'workspace' | 'screens';
+  group: 'workspace';
   /** Where a screen's settings are kept — the one thing its title can't say. */
   scope?: string;
   capabilities?: Capability[];
@@ -55,28 +55,12 @@ export function ConfigurationHome() {
       capabilities: ['settings:write'],
     },
     {
-      href: '/settings/configuration/orders',
-      title: 'Orders',
-      icon: Timer,
-      group: 'workspace',
-      module: 'ordering',
-    },
-    {
       href: '/settings/qr-ordering',
       title: 'QR ordering',
       icon: QrCode,
       group: 'workspace',
       module: 'qr-ordering',
       capabilities: ['qr-ordering:read', 'qr-ordering:write'],
-    },
-    {
-      href: '/settings/configuration/kitchen',
-      title: 'Kitchen screen',
-      scope: 'This device',
-      icon: ChefHat,
-      group: 'screens',
-      module: 'kds',
-      capabilities: ['orders:status'],
     },
   ];
   const allowed = destinations.filter((item) => !item.capabilities || hasAnyCapability(capabilities, ...item.capabilities));
@@ -85,8 +69,8 @@ export function ConfigurationHome() {
   if (!tenantId) return <p className="text-sm text-muted-foreground">Choose a workspace to see its operations settings.</p>;
 
   const groups = [
+    // The till's, the kitchen screen's and the order rules moved onto their own pages (Edit till / kitchen screen / orders).
     { id: 'workspace', title: 'Workspace' },
-    { id: 'screens', title: 'Screens' },
   ] as const;
 
   return (
@@ -98,7 +82,7 @@ export function ConfigurationHome() {
           onRetry={() => void modules.refetch()}
         />
       )}
-      {/* Two short lists side by side: what the workspace shares | how your own screens look. */}
+      {/* What the workspace shares. Each device's screen settings live on that screen, in its edit mode. */}
       <div className="grid items-start gap-5 lg:grid-cols-2">
         {groups.map((group) => {
           const items = allowed.filter((item) => item.group === group.id && (!item.module || enabled.has(item.module)));

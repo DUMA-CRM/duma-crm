@@ -213,8 +213,6 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
   const activeArea = active ? SETTINGS_AREAS.find((area) => area.id === active.area) : undefined;
   const isOperationsDetail = activeArea?.id === 'operations' && pathname !== '/settings/configuration';
   const pageTitles: Record<string, string> = {
-    '/settings/configuration/orders': 'Orders',
-    '/settings/configuration/kitchen': 'Kitchen screen',
     '/settings/profile': 'Profile & appearance',
     '/settings/security': 'Sign-in & active sessions',
     '/settings/roles': 'Roles & access',
