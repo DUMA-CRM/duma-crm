@@ -2,9 +2,11 @@ import Link from 'next/link';
 
 import { Mascot, type MascotFeeling } from '@/components/ai/Mascot';
 import type { IconComponent } from '@/components/icons';
+import { Sticker } from '@/components/shared/Sticker';
 import { Button } from '@/components/ui/button';
 
 import type { ExpressionId } from '@/lib/mascot/engine/expressions';
+import type { StickerId } from '@/lib/stickers';
 import { cn } from '@/lib/utils/cn';
 
 /* Why a region is empty, which decides how it should read:
@@ -31,6 +33,8 @@ interface EmptyStateProps {
   action?: EmptyStateAction;
   /** For the cramped places — a dashboard tile, a drawer section. */
   compact?: boolean;
+  /** The DUMA cat in place of the mascot, where a screen has its own sticker (stock: `inventory`). See UI-ADR-053. */
+  sticker?: StickerId;
   className?: string;
 }
 
@@ -62,19 +66,33 @@ const TINT: Record<EmptyStateKind, string> = {
    It sits straight on the page. Never wrap it in a bordered card of its own:
    an empty box drawn around "nothing here" is noise. A panel that already
    exists for other content (a dashboard tile) may hold one. */
-export function EmptyState({ icon: Icon, title, description, kind = 'start', action, compact = false, className }: EmptyStateProps) {
+export function EmptyState({
+  icon: Icon,
+  title,
+  description,
+  kind = 'start',
+  action,
+  compact = false,
+  sticker,
+  className,
+}: EmptyStateProps) {
   const size = compact ? 68 : 112;
 
   return (
     <div className={cn('flex flex-col items-center justify-center px-6 text-center', compact ? 'py-8' : 'py-14', className)}>
-      <MascotGlyph
-        icon={Icon}
-        size={size}
-        expression={FACE[kind]}
-        feeling={kind === 'done' ? 'happy' : 'neutral'}
-        tint={TINT[kind]}
-        className={compact ? 'mb-2' : 'mb-3'}
-      />
+      {sticker || kind === 'search' ? (
+        // "Nothing matches" is always the cat looking in an empty box; any other kind keeps the mascot unless a screen asks.
+        <Sticker name={sticker ?? 'searching'} size={size} className={compact ? 'mb-2' : 'mb-3'} />
+      ) : (
+        <MascotGlyph
+          icon={Icon}
+          size={size}
+          expression={FACE[kind]}
+          feeling={kind === 'done' ? 'happy' : 'neutral'}
+          tint={TINT[kind]}
+          className={compact ? 'mb-2' : 'mb-3'}
+        />
+      )}
       <p className="text-sm font-semibold text-heading">{title}</p>
       {description && <p className="mt-1.5 max-w-[48ch] text-sm leading-6 text-muted-foreground">{description}</p>}
       {action && <EmptyStateButton action={action} primary={kind === 'start'} compact={compact} />}

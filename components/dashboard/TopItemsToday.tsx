@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import type { CSSProperties } from 'react';
 
 import { Widget, WidgetBar, WidgetCaption, useFamily, useRows } from '@/components/dashboard/widget/Widget';
 import { Award, Coffee, Tag, Trophy } from '@/components/icons';
@@ -45,8 +46,12 @@ export function TopItemsToday({
   const Fallback = tools.kitchen ? Coffee : Tag;
 
   const family = useFamily();
-  const rowsFit = useRows(family === 'large' ? 46 : 38);
   const top = rows[0];
+  // From medium up the best seller leads with its photo, the way a food diary leads with the plate.
+  const hero = family === 'medium' || family === 'large' || family === 'extraLarge';
+  const heroPx = family === 'medium' ? 56 : 80;
+  const rowsFit = useRows(family === 'large' ? 46 : 38, hero ? heroPx + 12 : 0);
+  const listed = hero ? rows.slice(1, 1 + rowsFit) : rows.slice(0, rowsFit);
 
   return (
     <Widget
@@ -105,53 +110,92 @@ export function TopItemsToday({
           </div>
         </div>
       ) : (
-        <ol className="flex min-h-0 flex-1 flex-col gap-1.5">
-          {rows.slice(0, rowsFit).map((row, index) => (
-            <li key={`${row.menuItemId}-${row.name}`} className="flex items-center gap-2.5">
-              {family === 'large' && (
-                <span className="w-3 shrink-0 text-right text-[11px] font-semibold text-muted-foreground tabular-nums">{index + 1}</span>
-              )}
-              <Thumb
-                src={photo.get(row.menuItemId)}
-                fallback={Fallback}
-                className={cn('rounded-md', family === 'large' ? 'size-9' : 'size-7')}
-              />
+        <div className="flex min-h-0 flex-1 flex-col gap-3">
+          {hero && top && (
+            <div className="flex min-w-0 items-center gap-3">
+              <Thumb src={photo.get(top.menuItemId)} fallback={Fallback} className="rounded-lg" style={{ width: heroPx, height: heroPx }} />
               <div className="min-w-0 flex-1">
-                <p className="flex items-center gap-1 text-[13px] leading-[18px] text-heading">
-                  <span className="truncate font-medium">{row.name}</span>
-                  {index === 0 && <Award size={12} className="shrink-0 text-stock" aria-label="Best seller" />}
+                <p className="flex items-center gap-1 text-[11px] font-semibold text-stock">
+                  <Award size={12} className="shrink-0" aria-hidden="true" /> Best seller today
                 </p>
-                {family === 'large' ? (
-                  <span className="mt-1 block">
-                    <WidgetBar value={quantity(row)} max={best} className="bg-stock" label={`${quantity(row)} sold`} />
-                  </span>
-                ) : (
-                  <span className="block truncate text-[11px] leading-4 text-muted-foreground tabular-nums">
-                    {formatMoney(Number(row.totalRevenue ?? 0))} · {row.orderCount === 1 ? '1 order' : `${row.orderCount} orders`}
-                  </span>
-                )}
+                <p className="truncate text-[17px] leading-6 font-semibold text-heading">{top.name}</p>
+                <p className="truncate text-[12px] text-muted-foreground tabular-nums">
+                  {formatMoney(Number(top.totalRevenue ?? 0))} · {top.orderCount === 1 ? '1 order' : `${top.orderCount} orders`}
+                </p>
               </div>
-              <p className="shrink-0 text-right leading-tight">
-                <span className="block text-[13px] font-semibold text-heading tabular-nums">{quantity(row)}</span>
-                {family === 'large' && (
-                  <span className="text-[11px] text-muted-foreground tabular-nums">{formatMoney(Number(row.totalRevenue ?? 0))}</span>
-                )}
+              <p className="shrink-0 text-right leading-none">
+                <span className="text-[28px] font-semibold tracking-[-0.035em] text-heading tabular-nums">{quantity(top)}</span>
+                <span className="mt-1 block text-[11px] text-muted-foreground">sold</span>
               </p>
-            </li>
-          ))}
-        </ol>
+            </div>
+          )}
+          <ol className="flex min-h-0 flex-1 flex-col gap-1.5">
+            {listed.map((row, position) => {
+              const index = hero ? position + 1 : position;
+              return (
+                <li key={`${row.menuItemId}-${row.name}`} className="flex items-center gap-2.5">
+                  {family === 'large' && (
+                    <span className="w-3 shrink-0 text-right text-[11px] font-semibold text-muted-foreground tabular-nums">
+                      {index + 1}
+                    </span>
+                  )}
+                  <Thumb
+                    src={photo.get(row.menuItemId)}
+                    fallback={Fallback}
+                    className={cn('rounded-md', family === 'large' ? 'size-9' : 'size-7')}
+                  />
+                  <div className="min-w-0 flex-1">
+                    <p className="flex items-center gap-1 text-[13px] leading-[18px] text-heading">
+                      <span className="truncate font-medium">{row.name}</span>
+                      {index === 0 && <Award size={12} className="shrink-0 text-stock" aria-label="Best seller" />}
+                    </p>
+                    {family === 'large' ? (
+                      <span className="mt-1 block">
+                        <WidgetBar value={quantity(row)} max={best} className="bg-stock" label={`${quantity(row)} sold`} />
+                      </span>
+                    ) : (
+                      <span className="block truncate text-[11px] leading-4 text-muted-foreground tabular-nums">
+                        {formatMoney(Number(row.totalRevenue ?? 0))} · {row.orderCount === 1 ? '1 order' : `${row.orderCount} orders`}
+                      </span>
+                    )}
+                  </div>
+                  <p className="shrink-0 text-right leading-tight">
+                    <span className="block text-[13px] font-semibold text-heading tabular-nums">{quantity(row)}</span>
+                    {family === 'large' && (
+                      <span className="text-[11px] text-muted-foreground tabular-nums">{formatMoney(Number(row.totalRevenue ?? 0))}</span>
+                    )}
+                  </p>
+                </li>
+              );
+            })}
+          </ol>
+        </div>
       )}
     </Widget>
   );
 }
 
 /** The item's photo, or a quiet tile when it has none. */
-function Thumb({ src, fallback: Fallback, className }: { src: string | null | undefined; fallback: typeof Coffee; className: string }) {
+function Thumb({
+  src,
+  fallback: Fallback,
+  className,
+  style,
+}: {
+  src: string | null | undefined;
+  fallback: typeof Coffee;
+  className: string;
+  style?: CSSProperties;
+}) {
   return src ? (
     // eslint-disable-next-line @next/next/no-img-element
-    <img src={src} alt="" className={cn('shrink-0 bg-band object-cover', className)} />
+    <img src={src} alt="" className={cn('shrink-0 bg-band object-cover', className)} style={style} />
   ) : (
-    <span className={cn('flex shrink-0 items-center justify-center bg-band text-muted-foreground', className)} aria-hidden="true">
+    <span
+      className={cn('flex shrink-0 items-center justify-center bg-band text-muted-foreground', className)}
+      style={style}
+      aria-hidden="true"
+    >
       <Fallback size={15} />
     </span>
   );

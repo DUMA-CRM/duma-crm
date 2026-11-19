@@ -13,6 +13,7 @@ const permissions = {
 
 function ChatGptConsent() {
   const query = chatgptOAuthQuery(useSearchParams().toString());
+  const manage = new URLSearchParams(query).get('scope')?.split(' ').includes('duma:manage') ?? false;
   const [workspace, setWorkspace] = useState<ChatGptWorkspace | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [pending, setPending] = useState(false);
@@ -20,14 +21,14 @@ function ChatGptConsent() {
   useEffect(() => {
     if (!query) return;
     let active = true;
-    void getChatGptWorkspace().then(
+    void getChatGptWorkspace(manage).then(
       (result) => { if (active) setWorkspace(result); },
       (failure: unknown) => {
         if (active) setError(failure instanceof Error ? failure.message : 'Could not load your DUMA workspace.');
       },
     );
     return () => { active = false; };
-  }, [query]);
+  }, [query, manage]);
 
   async function submit(accept: boolean) {
     if (!query || pending || (accept && !workspace)) return;
@@ -51,7 +52,7 @@ function ChatGptConsent() {
       {query && !workspace && !error && <p role="status">Loading your workspace…</p>}
       {workspace && (
         <>
-          <p>Allow ChatGPT read access to <strong>{workspace.name}</strong>?</p>
+          <p>Allow ChatGPT {workspace.manage ? "to manage" : "read access to"} <strong>{workspace.name}</strong>?</p>
           <ul className="list-disc space-y-2 pl-5 text-sm text-muted-foreground">
             {(Object.keys(permissions) as Array<keyof typeof permissions>).map((scope) => (
               <li key={scope}>
@@ -59,7 +60,13 @@ function ChatGptConsent() {
               </li>
             ))}
           </ul>
-          <p className="text-sm text-muted-foreground">DUMA checks your current workspace permissions each time ChatGPT reads data.</p>
+          {workspace.manage && (
+            <p className="text-sm text-muted-foreground">
+              Management access can read private workspace data, create and edit records, publish content, and delete items within
+              your DUMA permissions. DUMA asks you to approve destructive changes before they run.
+            </p>
+          )}
+          <p className="text-sm text-muted-foreground">DUMA checks your current workspace permissions on every action.</p>
           <p className="text-sm text-muted-foreground">You can disconnect DUMA in ChatGPT’s plugin settings.</p>
         </>
       )}

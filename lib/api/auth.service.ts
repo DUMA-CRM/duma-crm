@@ -61,11 +61,28 @@ export async function signInForChatGpt(email: string, password: string, oauthQue
 export interface ChatGptWorkspace {
   tenantId: string;
   name: string;
-  scopes: Array<'catalog:read' | 'content:read'>;
+  scopes: string[];
+  manage?: boolean;
 }
 
-export function getChatGptWorkspace() {
-  return apiFetch<ChatGptWorkspace>('/auth/oauth2/chatgpt/workspace');
+export function getChatGptWorkspace(manage = false) {
+  return apiFetch<ChatGptWorkspace>('/auth/oauth2/chatgpt/workspace' + (manage ? '?manage=true' : ''));
+}
+
+export interface ChatGptActionApproval {
+  action: string;
+  target: string | null;
+  preview: string;
+  workspace: string;
+  approved: boolean;
+}
+
+export function getChatGptActionApproval(id: string) {
+  return apiFetch<ChatGptActionApproval>('/auth/oauth2/chatgpt/approvals/' + encodeURIComponent(id));
+}
+
+export function approveChatGptAction(id: string) {
+  return apiFetch<{ approved: true }>('/auth/oauth2/chatgpt/approvals/' + encodeURIComponent(id), { method: 'POST' });
 }
 
 export function consentToChatGpt(oauthQuery: string, accept: boolean, workspaceId?: string) {

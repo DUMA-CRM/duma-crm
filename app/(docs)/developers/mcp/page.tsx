@@ -89,10 +89,21 @@ export default function McpPage() {
           facts={[`${MCP_TOOL_COUNT} API key tools`, 'ChatGPT sign-in', 'Streamable HTTP']}
           actions={
             <>
-              <Link href="/settings/developers" className={buttonVariants({ size: 'touch' })}>
-                Create a workspace key <ArrowRight className="size-4" aria-hidden="true" />
-              </Link>
-              <SecondaryButton href="#chatgpt">Connect in ChatGPT</SecondaryButton>
+              {listing ? (
+                <>
+                  <Link href={listing} className={buttonVariants({ size: 'touch' })}>
+                    Install ChatGPT plugin <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                  <SecondaryButton href="#connect">Set up with an API key</SecondaryButton>
+                </>
+              ) : (
+                <>
+                  <Link href="/settings/developers" className={buttonVariants({ size: 'touch' })}>
+                    Create a workspace key <ArrowRight className="size-4" aria-hidden="true" />
+                  </Link>
+                  <SecondaryButton href="#chatgpt">ChatGPT setup</SecondaryButton>
+                </>
+              )}
             </>
           }
         >
@@ -112,11 +123,6 @@ export default function McpPage() {
             You can ask ChatGPT to look up products for sale or summarize published website content. Access depends on your DUMA workspace
             permissions and enabled modules. You can disconnect at any time in ChatGPT’s plugin settings.
           </p>
-          {listing && (
-            <Link href={listing} className={buttonVariants({ size: 'touch', className: 'mt-5' })}>
-              Open DUMA in ChatGPT <ArrowRight className="size-4" aria-hidden="true" />
-            </Link>
-          )}
         </section>
 
         <section className="pt-12" aria-labelledby="connect">

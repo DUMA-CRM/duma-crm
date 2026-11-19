@@ -30,6 +30,7 @@ import { useRotaChanges } from '@/components/scheduling/useRotaChanges';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { Sticker } from '@/components/shared/Sticker';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { ClockOutDialog } from '@/components/shifts/ClockOutDialog';
 import { SlideToClockIn } from '@/components/shifts/SlideToClockIn';
@@ -401,6 +402,9 @@ export function MyRota() {
   const activeBreakMins = activeBreak ? activeBreak.to - activeBreak.from : 0;
   const dialBreakSpan = activeBreak ? { from: activeBreak.from / activePlannedMinutes, to: activeBreak.to / activePlannedMinutes } : null;
   const breakStartsAt = myActive && activeBreak ? new Date(new Date(myActive.clockedIn).getTime() + activeBreak.from * 60000) : null;
+  // Inside the scheduled break right now: the only "on break" there is, since a break is placed, not clocked.
+  const onBreak = !!(onShiftWithPlan && activeBreak && clockedMins >= activeBreak.from && clockedMins < activeBreak.to);
+  const breakEndsAt = breakStartsAt ? new Date(breakStartsAt.getTime() + activeBreakMins * 60000) : null;
 
   const dialLabel = onShiftWithPlan
     ? `${Math.round((clockedMins / activePlannedMinutes) * 100)}% of your ${fmtHrs(activePlannedMinutes)} shift elapsed${
@@ -628,7 +632,11 @@ export function MyRota() {
                     {breakStartsAt && (
                       <span className="flex items-center gap-1.5">
                         <span className="size-2 rounded-sm bg-stock" aria-hidden="true" />
-                        {fmtHrs(activeBreakMins)} break from {fmtTime(breakStartsAt)}
+                        {onBreak && breakEndsAt ? (
+                          <span className="font-semibold text-foreground">Break time · back at {fmtTime(breakEndsAt)}</span>
+                        ) : (
+                          `${fmtHrs(activeBreakMins)} break from ${fmtTime(breakStartsAt)}`
+                        )}
                       </span>
                     )}
                     {overrunMins > 0 && <span className="font-semibold text-exception">{fmtHrs(overrunMins)} past your finish</span>}
@@ -650,6 +658,8 @@ export function MyRota() {
                 </>
               )}
             </div>
+
+            {onBreak && <Sticker name="break" size={72} className="hidden sm:block" />}
 
             <div className="sm:shrink-0">
               {myActive ? (

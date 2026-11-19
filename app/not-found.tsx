@@ -1,18 +1,14 @@
 import Link from 'next/link';
 
-import { Coffee } from '@/components/icons';
+import { Sticker } from '@/components/shared/Sticker';
 
 export default function NotFound() {
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center gap-4 px-6 text-center bg-background">
-      <div className="w-16 h-16 rounded-full bg-muted flex items-center justify-center">
-        <Coffee size={28} className="text-muted-foreground" aria-hidden="true" />
-      </div>
+      <Sticker name="cat" size={140} priority />
       <div>
-        <h1 className="text-xl font-semibold text-heading">Page not found</h1>
-        <p className="mt-1 max-w-[60ch] text-base leading-6 text-muted-foreground">
-          The page you&apos;re looking for doesn&apos;t exist or has moved.
-        </p>
+        <h1 className="text-xl font-semibold text-heading">This page isn&apos;t here</h1>
+        <p className="mt-1 max-w-[60ch] text-base leading-6 text-muted-foreground">It may have moved, or the link is out of date.</p>
       </div>
       <Link
         href="/dashboard"

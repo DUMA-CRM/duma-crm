@@ -22,6 +22,7 @@ import { clockIn, getMyShifts } from '@/lib/modules/workforce/client';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
+import { greeting } from '@/lib/utils/day-story';
 import { relativeTime } from '@/lib/utils/relative-time';
 import { formatInstant, workspaceDateKey, zonedParts, zonedToInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
@@ -39,12 +40,6 @@ function minutesBetween(start: string, end: string) {
   const [eh, em] = end.split(':').map(Number);
   if ([sh, sm, eh, em].some(Number.isNaN)) return 0;
   return eh * 60 + em - (sh * 60 + sm);
-}
-
-function greeting(h: number) {
-  if (h < 12) return 'Good morning';
-  if (h < 18) return 'Good afternoon';
-  return 'Good evening';
 }
 
 /** Monday 00:00 at the business, this week. */

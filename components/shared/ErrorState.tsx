@@ -1,7 +1,8 @@
 'use client';
 
-import { AlertTriangle, RefreshCw } from '@/components/icons';
+import { RefreshCw } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
+import { Sticker } from '@/components/shared/Sticker';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
@@ -16,13 +17,14 @@ import { cn } from '@/lib/utils/cn';
    that can fail should reach for this rather than falling through to its
    empty state. */
 export function ErrorState({
-  icon: Icon = AlertTriangle,
+  icon: Icon,
   title = 'This couldn’t be loaded',
   description = 'Check your connection, then try again.',
   onRetry,
   retryLabel = 'Try again',
   className,
 }: {
+  /** What failed to load, as a glyph at the cat's shoulder — the cat says *that* it failed, the glyph says *what*. */
   icon?: IconComponent;
   title?: string;
   description?: string;
@@ -32,8 +34,9 @@ export function ErrorState({
 }) {
   return (
     <div className={cn('flex flex-col items-center justify-center px-6 py-14 text-center', className)} role="alert">
-      <div className="mb-4 flex size-12 items-center justify-center rounded-md bg-exception/10 text-exception">
-        <Icon size={22} aria-hidden="true" />
+      <div className="relative mb-3">
+        <Sticker name="error" size={96} />
+        {Icon && <Icon size={20} className="absolute top-0 left-0 text-exception" aria-hidden="true" />}
       </div>
       <p className="text-sm font-semibold text-heading">{title}</p>
       {description && <p className="mt-1.5 max-w-[60ch] text-sm leading-6 text-muted-foreground">{description}</p>}

@@ -2,7 +2,7 @@
 
 import { DailyTargetControl } from '@/components/dashboard/DailyTargetControl';
 import { Widget, WidgetBar, WidgetCaption, WidgetFigure, useFamily } from '@/components/dashboard/widget/Widget';
-import { WidgetCurve, WidgetFacts } from '@/components/dashboard/widget/parts';
+import { WidgetCurve, WidgetFacts, WidgetRing } from '@/components/dashboard/widget/parts';
 import { LineChart } from '@/components/icons';
 import { Bone } from '@/components/shared/Skeleton';
 import { DeltaBadge } from '@/components/shared/StatCard';
@@ -11,6 +11,7 @@ import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import type { DayBaseline, HourlyVolume } from '@/lib/modules/analytics/client';
 import { cn } from '@/lib/utils/cn';
 import { axisTicks, daySeries } from '@/lib/utils/day-series';
+import { comparisonWait } from '@/lib/utils/day-story';
 import { MIN_BASELINE_SAMPLES, type Pace, type TargetProgress } from '@/lib/utils/pace';
 import { weekdayName } from '@/lib/utils/today-figures';
 import { type TradingDay, axisHours, axisNowMinutes } from '@/lib/utils/trading-day';
@@ -92,7 +93,7 @@ export function TakenTodayPanel({
       />
     ) : showToday ? (
       pace.sampleCount < MIN_BASELINE_SAMPLES ? (
-        'No typical day to compare with yet'
+        comparisonWait(pace.sampleCount, MIN_BASELINE_SAMPLES, weekday)
       ) : (
         'Too early to compare'
       )
@@ -140,16 +141,24 @@ export function TakenTodayPanel({
     </div>
   );
 
+  // The target as a ring, the way a fitness goal closes: the share in the middle, what's left beside it.
+  const targetPercent = target ? Math.round(target.progress * 100) : 0;
   const targetLine = target && (
-    <div className="mt-2 min-w-0">
-      <WidgetBar
-        value={target.progress * 100}
-        max={100}
-        className={target.ahead ? 'bg-success' : 'bg-stock'}
-        label={`${Math.round(target.progress * 100)}% of the ${money(target.target)} target`}
-      />
-      <p className="mt-1 truncate text-[11px] text-muted-foreground tabular-nums">
-        <span className="font-semibold text-heading">{Math.round(target.progress * 100)}%</span> of {money(target.target)} target
+    <div className={cn('flex min-w-0 items-center gap-2.5', family === 'medium' ? 'mt-2' : 'mt-3')}>
+      <WidgetRing
+        value={target.progress}
+        tint={target.progress >= 1 || target.ahead ? 'team' : 'stock'}
+        size={family === 'medium' ? 38 : 46}
+        thickness={5}
+        label={`${targetPercent}% of the ${money(target.target)} target`}
+      >
+        <span className="text-[11px] font-semibold text-heading tabular-nums">{targetPercent}%</span>
+      </WidgetRing>
+      <p className="min-w-0 text-[12px] leading-4 text-muted-foreground">
+        <span className="block truncate font-semibold text-heading tabular-nums">
+          {target.progress >= 1 ? 'Target hit 🎉' : `${money(target.target - takenSoFar)} to go`}
+        </span>
+        <span className="block truncate tabular-nums">of a {money(target.target)} target</span>
       </p>
     </div>
   );

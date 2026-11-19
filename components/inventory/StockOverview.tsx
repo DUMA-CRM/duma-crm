@@ -373,6 +373,7 @@ export function StockOverview({
           <EmptyState
             icon={Package}
             kind={hasFilters ? 'search' : 'start'}
+            sticker={hasFilters ? undefined : 'inventory'}
             title={hasFilters ? 'Nothing matches' : 'No stock at this location yet'}
             description={
               hasFilters

@@ -687,6 +687,7 @@ function CountSheet({
           <EmptyState
             icon={view === 'todo' ? Check : Search}
             kind={view === 'todo' && !q ? 'done' : 'search'}
+            sticker={view === 'todo' && !q ? 'celebration' : undefined}
             title={view === 'todo' && !q ? 'Everything is counted' : 'Nothing matches'}
             description={
               view === 'todo' && !q ? 'Review the differences, then apply the stocktake.' : 'Try another search or show all items.'

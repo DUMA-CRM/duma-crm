@@ -9,13 +9,22 @@ import { OrdersByHour } from '@/components/dashboard/OrdersByHour';
 import { TakenTodayPanel } from '@/components/dashboard/TakenTodayPanel';
 import { TodayFigure, isTodayFigure } from '@/components/dashboard/TodayFigure';
 import { TopItemsToday } from '@/components/dashboard/TopItemsToday';
-import { Widget } from '@/components/dashboard/widget/Widget';
+import { Widget, isSlim, useFamily } from '@/components/dashboard/widget/Widget';
 import { AlertTriangle, ArrowRight, LineChart } from '@/components/icons';
+import { Bone } from '@/components/shared/Skeleton';
+import { Sticker } from '@/components/shared/Sticker';
+import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 
 import { widgetDefinition } from '@/lib/dashboard/widget-registry';
 import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { type TodayDashboard, useTodayDashboard } from '@/lib/hooks/useTodayDashboard';
+import { type StickerId } from '@/lib/stickers';
+import { type DayMood, dayMood, daySummary, dayWins } from '@/lib/utils/day-story';
+import { MIN_BASELINE_SAMPLES } from '@/lib/utils/pace';
+import { weekdayName } from '@/lib/utils/today-figures';
+import { cn } from '@/lib/utils/cn';
 import { tradingDayLabel } from '@/lib/utils/trading-day';
+import { useAuthStore } from '@/stores/authStore';
 
 /* The trading panels (Analytics' widgets) share one read of today: the same
  * trading day, the same pace, the same live orders. The provider mounts that
@@ -98,6 +107,105 @@ export function TodayBanners() {
   );
 }
 
+/** The cat for each mood of the day: hello before open, at the laptop through service, studying a slow day, cheering a win, asleep when shut. A win after close says thanks instead. */
+const MOOD_STICKER: Record<DayMood, StickerId> = {
+  ready: 'welcome',
+  steady: 'working',
+  curious: 'analytics',
+  proud: 'celebration',
+  sleepy: 'sleeping',
+};
+
+/**
+ * Your day, as a widget: hello, how today is going in one sentence, and the
+ * day's small wins, with the DUMA cat to match. It reads the same
+ * figures as the widgets around it and claims nothing they don't hold. A strip
+ * across the board says it in a line; a medium card has room for the wins.
+ */
+export function TodayGreeting() {
+  const dashboard = useToday();
+  const money = useFormatMoney();
+  const family = useFamily();
+  const name = useAuthStore((state) => state.user?.name ?? null);
+  const { mounted, tradingDay: day, metrics, pace, baseline, target, topItems, yesterdayMetrics, history } = dashboard;
+  const strip = isSlim(family);
+  const card = cn(
+    'flex h-full min-h-0 overflow-hidden rounded-lg border border-border bg-card shadow-sm',
+    strip ? 'items-center gap-3.5 px-4 py-2' : 'flex-col p-4',
+  );
+
+  if (!mounted || dashboard.loading.core) {
+    return (
+      <section className={card} role="status" aria-busy="true" aria-label="Loading your day">
+        <Bone className={cn('shrink-0 rounded-full', strip ? 'size-12' : 'size-20')} />
+        <div className={cn('min-w-0 flex-1 space-y-2', !strip && 'mt-auto')}>
+          <Bone className="h-5 w-48 rounded-md" />
+          <Bone className="h-3.5 w-64 max-w-full rounded-md" />
+        </div>
+      </section>
+    );
+  }
+  if (dashboard.errors.core) return <Widget title="Your day" icon={LineChart} error onRetry={() => void dashboard.refresh()} />;
+
+  const weekday = weekdayName(day.weekday);
+  const typicalDay =
+    (baseline?.sampleCount ?? 0) >= MIN_BASELINE_SAMPLES && baseline!.dailyMedianRevenue > 0 ? baseline!.dailyMedianRevenue : null;
+  const paceDelta = pace.available ? pace.delta : null;
+  const wins = dayWins({ today: day.date, state: day.state, takenToday: metrics.revenue, history, target: target?.target ?? null, weekday });
+  const { greeting, line } = daySummary({
+    firstName: name?.split(' ')[0] ?? null,
+    state: day.state,
+    nowMinutes: day.nowMinutes,
+    weekday,
+    opensAt: day.hours?.open ?? null,
+    takenToday: metrics.revenue,
+    orders: metrics.orders,
+    paceDelta,
+    typicalDay,
+    target: target?.target ?? null,
+    topItem: topItems[0]?.name ?? null,
+    yesterday: yesterdayMetrics?.revenue || null,
+    money,
+  });
+  const mood = dayMood({
+    state: day.state,
+    takenToday: metrics.revenue,
+    target: target?.target ?? null,
+    paceDelta,
+    typicalByNow: pace.available ? pace.expectedByNow : null,
+    wins,
+  });
+  // A strip has room for the strongest win only.
+  const shown = strip ? wins.slice(0, 1) : wins;
+
+  return (
+    <section aria-label="Your day" className={card}>
+      <Sticker name={mood === 'proud' && day.state === 'after-close' ? 'thanks' : MOOD_STICKER[mood]} size={strip ? 64 : 88} className={strip ? '-my-2' : '-mt-1 -ml-1'} />
+      <div className={cn('min-w-0 flex-1', !strip && 'mt-3')}>
+        <h2 className={cn('truncate font-semibold tracking-[-0.015em] text-heading', strip ? 'text-[17px] leading-6' : 'text-xl leading-7')}>
+          {greeting}
+        </h2>
+        <p className={cn('text-muted-foreground', strip ? 'truncate text-[13px] leading-[18px]' : 'mt-1 line-clamp-3 text-sm leading-5')}>
+          {line}
+        </p>
+      </div>
+      {shown.length > 0 && (
+        <ul className={cn('flex gap-2', strip ? 'shrink-0' : 'mt-auto flex-wrap pt-3')} aria-label="Today’s wins">
+          {shown.map((win) => (
+            <li
+              key={win.id}
+              className="inline-flex items-center gap-1.5 rounded-full bg-band px-3 py-1 text-[12px] font-medium whitespace-nowrap text-heading"
+            >
+              <span aria-hidden="true">{win.emoji}</span>
+              {win.text}
+            </li>
+          ))}
+        </ul>
+      )}
+    </section>
+  );
+}
+
 /** What needs someone right now, from today's operations read. */
 const needsYouItems = (dashboard: TodayDashboard, kitchenScreen: boolean) =>
   buildExceptions({
@@ -156,6 +264,8 @@ export function TodayWidget({
   }
 
   switch (widgetKey) {
+    case 'analytics.greeting':
+      return <TodayGreeting />;
     case 'analytics.exceptions':
       return (
         <ExceptionStrip

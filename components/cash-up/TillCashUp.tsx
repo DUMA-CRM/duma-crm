@@ -32,6 +32,7 @@ import { FormSection } from '@/components/shared/FormParts';
 import { MiniBar } from '@/components/shared/MiniBar';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Bone, ListSkeleton, LoadingState } from '@/components/shared/Skeleton';
+import { Sticker } from '@/components/shared/Sticker';
 import { TONE_TINT, type Tone } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
@@ -896,15 +897,20 @@ function ClosedSummary({
     >
       <div className="space-y-5">
         <div className="flex flex-col items-center px-4 py-4 text-center">
-          <span
-            className={cn(
-              'flex size-14 items-center justify-center rounded-2xl',
-              balanced ? BALANCE_LOOK.balanced.tile : total > 0 ? BALANCE_LOOK.over.tile : BALANCE_LOOK.short.tile,
-            )}
-            aria-hidden="true"
-          >
-            {balanced ? <CheckCircle2 size={26} /> : <AlertTriangle size={26} />}
-          </span>
+          {balanced ? (
+            // The day's one true "done": the till counted out exactly.
+            <Sticker name="thanks" size={112} className="-mt-2 -mb-1" />
+          ) : (
+            <span
+              className={cn(
+                'flex size-14 items-center justify-center rounded-2xl',
+                total > 0 ? BALANCE_LOOK.over.tile : BALANCE_LOOK.short.tile,
+              )}
+              aria-hidden="true"
+            >
+              <AlertTriangle size={26} />
+            </span>
+          )}
           <p className="mt-3 text-lg font-semibold text-foreground">
             {balanced ? 'Balanced to the penny' : `${total > 0 ? 'Over' : 'Short'} by ${money(Math.abs(total) / 100)}`}
           </p>

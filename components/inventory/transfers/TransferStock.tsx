@@ -376,6 +376,7 @@ export function ItemTransfersSection({
             compact
             className="flex-1"
             kind={status === 'all' ? 'start' : status === 'pending' ? 'done' : 'search'}
+            sticker={status === 'all' ? 'inventory' : undefined}
             title={status === 'all' ? 'No transfers yet' : `Nothing ${STATUS[status].label.toLowerCase()}`}
             description={
               status === 'all'

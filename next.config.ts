@@ -27,7 +27,7 @@ const nextConfig: NextConfig = {
         ],
       },
       {
-        source: '/connect/chatgpt',
+        source: '/connect/chatgpt/:path*',
         headers: [{ key: 'Referrer-Policy', value: 'no-referrer' }],
       },
       {

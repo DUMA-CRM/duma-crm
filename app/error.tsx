@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState, useSyncExternalStore, useTransition } from 'react';
 
 import { AlertTriangle, Clock, CloudOff, Lock, LogIn, RefreshCw, RotateCcw, Search, Server, Timer, WifiOff } from '@/components/icons';
+import { Sticker } from '@/components/shared/Sticker';
 
 import { type ErrorKind, describeError } from '@/lib/utils/error-message';
 
@@ -96,9 +97,15 @@ export default function ErrorPage({ error, retry: retrySegment }: { error: Error
 
   return (
     <div className="min-h-dvh flex flex-col items-center justify-center gap-4 px-6 text-center bg-background">
-      <div className={`w-16 h-16 rounded-full flex items-center justify-center ${isFault ? 'bg-destructive/6' : 'bg-muted'}`}>
-        <Icon size={28} className={isFault ? 'text-destructive' : 'text-muted-foreground'} aria-hidden="true" />
-      </div>
+      {isFault ? (
+        <Sticker name="error" size={140} priority />
+      ) : description.kind === 'session' ? (
+        <Sticker name="sleeping" size={140} priority />
+      ) : (
+        <div className="w-16 h-16 rounded-full flex items-center justify-center bg-muted">
+          <Icon size={28} className="text-muted-foreground" aria-hidden="true" />
+        </div>
+      )}
 
       <div>
         <h1 ref={headingRef} tabIndex={-1} className="text-xl font-semibold text-heading outline-none">

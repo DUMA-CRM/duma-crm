@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { ArrowRight, Loader2 } from '@/components/icons';
+import { Sticker } from '@/components/shared/Sticker';
 import { Button } from '@/components/ui/button';
 
 import { ApiError } from '@/lib/api/client';
@@ -162,8 +163,13 @@ export function Provisioning({ onEditDetails }: ProvisioningProps) {
   const activeIndex = STAGES.findIndex((entry) => entry.id === stage);
   return (
     <div className="mx-auto w-full max-w-md" aria-live="polite">
-      <p className="text-label uppercase text-muted-foreground">Almost there</p>
-      <h1 className="mt-3 text-2xl font-semibold tracking-headline text-heading">Setting up {draft.businessName.trim()}</h1>
+      <div className="flex items-center gap-4">
+        <div className="min-w-0 flex-1">
+          <p className="text-label uppercase text-muted-foreground">Almost there</p>
+          <h1 className="mt-3 text-2xl font-semibold tracking-headline text-heading">Setting up {draft.businessName.trim()}</h1>
+        </div>
+        <Sticker name="working" size={88} priority />
+      </div>
       <ol className="mt-8 space-y-4">
         {STAGES.map((entry, index) => {
           const done = index < activeIndex;
@@ -272,11 +278,10 @@ function Ready({ firstName, landing, onPrimary, onSecondary }: ReadyProps) {
         initial={reduceMotion ? false : { scale: 0.6, opacity: 0 }}
         animate={{ scale: 1, opacity: 1 }}
         transition={{ type: 'spring', stiffness: 260, damping: 20 }}
-        className="flex size-16 items-center justify-center rounded-full bg-success text-success-foreground"
       >
-        <DrawnCheck className="size-8" />
+        <Sticker name="welcome" size={140} priority />
       </motion.span>
-      <motion.h1 {...appear(0.2)} className="mt-8 text-3xl font-semibold leading-[1.1] tracking-display text-foreground sm:text-4xl">
+      <motion.h1 {...appear(0.2)} className="mt-4 text-3xl font-semibold leading-[1.1] tracking-display text-foreground sm:text-4xl">
         Welcome to DUMA{firstName ? `, ${firstName}` : ''}.
       </motion.h1>
       <motion.p {...appear(0.3)} className="mt-4 max-w-[44ch] text-sm leading-6 text-muted-foreground">

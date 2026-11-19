@@ -18,6 +18,7 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatCompact, getDateWindow } from '@/lib/utils/dashboard';
 import { amountsByHour, axisTicks, daySeries, hourLabel } from '@/lib/utils/day-series';
+import { comparisonWait } from '@/lib/utils/day-story';
 import { MIN_BASELINE_SAMPLES, baselineByMinute } from '@/lib/utils/pace';
 import {
   type FigureChange,
@@ -57,8 +58,8 @@ const FIGURES: Record<TodayFigureKey, { icon: IconComponent; label: string; href
 export const isTodayFigure = (key: string): key is TodayFigureKey => key in FIGURES;
 
 /** "▲ 4% vs a typical Thursday" — green up, amber down, a plain word when level. */
-function Change({ change, basis }: { change: FigureChange; basis: string }) {
-  if (change.percent === null) return <span>No comparison yet</span>;
+function Change({ change, basis, waiting }: { change: FigureChange; basis: string; waiting: string }) {
+  if (change.percent === null) return <span>{waiting}</span>;
   if (change.direction === 'flat') return <span>Level with {basis}</span>;
   const up = change.direction === 'up';
   return (
@@ -123,6 +124,14 @@ export function TodayFigure({ figure, dashboard }: { figure: TodayFigureKey; das
   const typicalAov = typicalOrders && typicalRevenue !== null ? typicalRevenue / typicalOrders : null;
   const weekday = weekdayName(day.weekday);
   const basis = `a typical ${weekday}`;
+  // Why there's nothing to compare with, in words: the day isn't under way, or there aren't enough of its weekday yet.
+  const waiting = !showToday
+    ? day.state === 'before-open'
+      ? 'Not open yet'
+      : 'Closed today'
+    : hasHistory
+      ? 'Too early to compare'
+      : comparisonWait(baseline?.sampleCount ?? 0, MIN_BASELINE_SAMPLES, weekday);
 
   const buckets = axisHours(day);
   const orders = figure === 'analytics.orders';
@@ -180,7 +189,7 @@ export function TodayFigure({ figure, dashboard }: { figure: TodayFigureKey; das
   switch (figure) {
     case 'analytics.net-sales':
       value = money(metrics.revenue);
-      hint = <Change change={figureChange(metrics.revenue, typicalRevenue)} basis={basis} />;
+      hint = <Change change={figureChange(metrics.revenue, typicalRevenue)} basis={basis} waiting={waiting} />;
       facts = [
         pace.available && { label: 'Typical by now', value: money(pace.expectedByNow) },
         day.state === 'trading' && pace.projected !== null && { label: 'On pace for', value: money(pace.projected) },
@@ -189,7 +198,7 @@ export function TodayFigure({ figure, dashboard }: { figure: TodayFigureKey; das
       break;
     case 'analytics.orders':
       value = formatCompact(metrics.orders);
-      hint = <Change change={figureChange(metrics.orders, typicalOrders)} basis={basis} />;
+      hint = <Change change={figureChange(metrics.orders, typicalOrders)} basis={basis} waiting={waiting} />;
       facts = [
         typicalOrders !== null && { label: 'Typical by now', value: Math.round(typicalOrders) },
         busiest && { label: 'Busiest hour', value: hourLabel(busiest.hour) },
@@ -198,7 +207,7 @@ export function TodayFigure({ figure, dashboard }: { figure: TodayFigureKey; das
       break;
     case 'analytics.average-order':
       value = money(metrics.averageOrderValue, 2);
-      hint = <Change change={figureChange(metrics.averageOrderValue, typicalAov)} basis={basis} />;
+      hint = <Change change={figureChange(metrics.averageOrderValue, typicalAov)} basis={basis} waiting={waiting} />;
       facts = [
         { label: 'Orders', value: formatCompact(metrics.orders) },
         { label: 'Net sales', value: money(metrics.revenue) },
@@ -208,9 +217,10 @@ export function TodayFigure({ figure, dashboard }: { figure: TodayFigureKey; das
       value = loading.labour ? '…' : ratio !== null ? `${ratio.toFixed(0)}% of sales` : labour ? money(labour.estimatedCost) : '—';
       hint = labour
         ? [
-            `${labour.paidHours.toFixed(1)}h · ${labour.headcount} on shift`,
-            labour.uncostedHours > 0 ? `${labour.uncostedHours.toFixed(1)}h unrostered` : null,
-            labour.staffMissingPayData > 0 ? `${labour.staffMissingPayData} without pay data` : null,
+            labour.headcount === 1 ? '1 person on shift' : `${labour.headcount} people on shift`,
+            labour.paidHours >= 0.1 ? `${labour.paidHours.toFixed(1)}h paid` : null,
+            labour.uncostedHours >= 0.1 ? `${labour.uncostedHours.toFixed(1)}h off the rota` : null,
+            labour.staffMissingPayData > 0 ? `${labour.staffMissingPayData} missing a pay rate` : null,
           ]
             .filter(Boolean)
             .join(' · ')

@@ -4,6 +4,7 @@
   "private": true,
   "packageManager": "pnpm@9.0.0",
   "scripts": {
+    "stickers": "python3 scripts/prepare-stickers.py",
     "postinstall": "node scripts/copy-excalidraw-fonts.mjs",
     "dev": "next dev",
     "build": "next build",

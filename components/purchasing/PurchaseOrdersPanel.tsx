@@ -878,6 +878,7 @@ export function PurchaseOrdersPanel({
                 : 'Try another status or supplier.'
             }
             kind={statusFilter === 'all' && supplierFilter === 'all' ? 'start' : 'search'}
+            sticker={statusFilter === 'all' && supplierFilter === 'all' ? 'inventory' : undefined}
             action={
               statusFilter === 'all' && supplierFilter === 'all'
                 ? undefined

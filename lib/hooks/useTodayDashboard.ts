@@ -38,6 +38,9 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 /** The clock only drives a marker and a couple of labels — twice a minute is plenty. */
 const CLOCK_TICK_MS = 30_000;
 
+/** How far back the small wins look: two months of same weekdays. */
+const HISTORY_DAYS = 56;
+
 /**
  * Everything the manager dashboard reads, in one place.
  *
@@ -159,6 +162,24 @@ export function useTodayDashboard() {
       });
     },
     enabled: ready && tradingDay.state === 'closed-today',
+  });
+
+  // The last eight weeks, a row a day, for the greeting's small wins: a best day, a run over target.
+  // It ends at today's midnight, so it changes once a day.
+  const history = useQuery({
+    queryKey: moduleQueryKeys.analytics.key('today-history', dateKey, scopeKey, timeZone),
+    queryFn: () => {
+      const window = getDateWindow('today', timeZone);
+      const from = new Date(window.from);
+      from.setUTCDate(from.getUTCDate() - HISTORY_DAYS);
+      return getOrderAnalytics({
+        from: from.toISOString(),
+        to: window.from,
+        ...(activeLocationId ? { locationId: activeLocationId } : {}),
+      });
+    },
+    ...serverCache('baseline'),
+    enabled: ready && secondaryEnabled,
   });
 
   // The same weekday last week up to this wall-clock time — the comparison Square and Toast lead with.
@@ -305,6 +326,8 @@ export function useTodayDashboard() {
     yesterdayMetrics: tradingDay.state === 'closed-today' ? orderMetrics(yesterday.data) : null,
     /** Taken by this time on the same weekday last week; null until known (or before open). */
     lastWeekMetrics: comparesLastWeek && lastWeek.data ? orderMetrics(lastWeek.data) : null,
+    /** Earlier days' takings, a row a day; empty until read. Dates are the API's UTC calendar days. */
+    history: (history.data?.daily ?? []).map((day) => ({ date: String(day.date).slice(0, 10), revenue: Number(day.revenue ?? 0) })),
 
     // Two different questions: what was paid out today, and how much of today's
     // own takings came back. Both matter, and they are rarely the same number.

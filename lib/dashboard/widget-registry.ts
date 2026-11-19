@@ -34,6 +34,17 @@ const widget = (
 
 export const DASHBOARD_WIDGETS: readonly DashboardWidgetDefinition[] = [
   widget({
+    key: 'analytics.greeting',
+    description: 'Start with hello, how the day is going in a sentence, and its small wins.',
+    moduleId: 'analytics',
+    label: 'Your day',
+    requiredCapabilities: ['analytics:read'],
+    sensitive: 'financial',
+    audiences: ['owner', 'location_manager'],
+    freshness: 'minute',
+    deepLink: '/reports/sales-summary',
+  }),
+  widget({
     key: 'analytics.exceptions',
     description: 'See late orders, cover gaps and stock running out, the moment they happen.',
     moduleId: 'analytics',

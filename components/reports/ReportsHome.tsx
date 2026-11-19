@@ -22,6 +22,7 @@ import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Bone, LoadingState } from '@/components/shared/Skeleton';
+import { Sticker } from '@/components/shared/Sticker';
 import { useWorkspaceCurrency, useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Input } from '@/components/ui/input';
 
@@ -558,9 +559,11 @@ function WorthKnowing({
         Worth knowing
       </h2>
       {!loading && total === 0 ? (
-        <p className="rounded-lg border border-dashed border-rule/60 px-4 py-8 text-center text-sm text-muted-foreground">
-          No sales in these dates.
-        </p>
+        <div className="flex flex-col items-center rounded-lg border border-dashed border-rule/60 px-4 py-6 text-center">
+          <Sticker name="analytics" size={88} />
+          <p className="mt-2 text-sm font-medium text-heading">No sales in these dates</p>
+          <p className="mt-0.5 text-sm text-muted-foreground">Try a wider range.</p>
+        </div>
       ) : (
         <ul className="overflow-hidden rounded-lg border border-border bg-card">
           {rows.map((row) => (

@@ -11,7 +11,7 @@ import { Tooltip } from '@/components/shared/Tooltip';
 import { TONE_FILL } from '@/components/shared/tone';
 
 import { cn } from '@/lib/utils/cn';
-import type { TradingDay } from '@/lib/utils/trading-day';
+import { type TradingDay, tradingDayLabel } from '@/lib/utils/trading-day';
 
 /* What is happening on the floor right now — live, not today. The count of
    orders in service leads, split across the lanes in one bar; the longest any
@@ -69,6 +69,8 @@ export function LivePanel({
   const active = pendingOrders + preparingOrders + readyOrders;
   const kitchen = kitchenScreen ? '/kds' : '/orders';
   const oldest = waited(oldestActiveAt, now.getTime());
+  // Shut with nothing left in service: no lanes of zeros, just that it's quiet and when it opens.
+  const calm = active === 0 && (day.state === 'before-open' || day.state === 'after-close' || day.state === 'closed-today');
   const lanes = [
     { key: 'pending', label: 'Waiting', value: pendingOrders, href: '/orders', fill: TONE_FILL[STATUS_META.pending.tone] },
     { key: 'preparing', label: 'Preparing', value: preparingOrders, href: kitchen, fill: TONE_FILL[STATUS_META.preparing.tone] },
@@ -171,7 +173,16 @@ export function LivePanel({
       error={error}
       onRetry={onRetry}
     >
-      {family === 'bar' ? (
+      {calm ? (
+        <div className={cn('mt-auto flex min-w-0', family === 'bar' ? 'items-baseline gap-2.5' : 'flex-col gap-1')}>
+          <p className="shrink-0 text-[17px] leading-6 font-semibold text-heading">
+            {day.state === 'before-open' ? 'Getting ready' : 'All quiet'}
+          </p>
+          <WidgetCaption className="truncate">{tradingDayLabel(day)}</WidgetCaption>
+          {/* Someone still on the clock after close is worth seeing. */}
+          {family !== 'bar' && clockedIn > 0 && <span className="mt-2">{staffLine}</span>}
+        </div>
+      ) : family === 'bar' ? (
         // Half a square: figure and word on one line, the caption under the bar — stacked, they meet the header.
         <div className="mt-auto flex min-w-0 items-end gap-3">
           <div className="min-w-0 flex-1">{figure('bar')}</div>
