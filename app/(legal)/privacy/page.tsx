@@ -105,9 +105,13 @@ export default function PrivacyPage() {
         </li>
         <li>
           OpenAI, when you connect DUMA to ChatGPT. When ChatGPT uses the connection, DUMA shares the workspace name,
-          account and workspace identifiers, available permissions and the catalogue or published website content returned
-          by the tools you use. DUMA
-          records the account, workspace, allowed access and authorization timestamps, and stores renewal tokens as
+          account and workspace identifiers, available permissions and the data returned by the tools you use.
+          Read access covers the catalogue and published website content. If you separately authorize management access,
+          the tools you use can also share CMS drafts, workspace notes, media and metadata, location and business
+          settings, and storefront order details such as payment status and delivery addresses. DUMA uses the account’s
+          current permissions to process changes requested through ChatGPT. For destructive changes, DUMA stores a
+          preview of the requested action for up to 10 minutes so you can review and approve it in DUMA.
+          DUMA records the account, workspace, allowed access and authorization timestamps, and stores renewal tokens as
           one-way hashes. Access tokens expire after 10 minutes. You can disconnect in ChatGPT’s plugin settings or
           contact us about connection records. OpenAI handles your chats and tool results under your ChatGPT settings
           and its <a href="https://openai.com/policies/privacy-policy/">privacy policy</a>.

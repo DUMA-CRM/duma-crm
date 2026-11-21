@@ -2,7 +2,7 @@ import assert from 'node:assert/strict';
 import test from 'node:test';
 
 import { chatgptOAuthDestination, chatgptOAuthQuery } from '../../lib/utils/chatgpt-connection.ts';
-import { googleSignInError, signInDestination } from '../../lib/utils/sign-in.ts';
+import { googleLinkError, googleSignInError, signInDestination } from '../../lib/utils/sign-in.ts';
 
 const origin = 'https://app.duma-business.com';
 
@@ -46,4 +46,10 @@ test('ChatGPT sign-in only returns to DUMA consent or a known ChatGPT callback',
     'https://chatgpt.com/share/test', 'javascript:alert(1)']) {
     assert.equal(chatgptOAuthDestination(target, origin), null, target);
   }
+});
+
+test('googleLinkError explains a Google account already used by someone else', () => {
+  assert.equal(googleLinkError(null), null);
+  assert.match(googleLinkError('account_already_linked_to_different_user') ?? '', /another DUMA account/);
+  assert.match(googleLinkError('something_new') ?? '', /couldn’t be connected/);
 });

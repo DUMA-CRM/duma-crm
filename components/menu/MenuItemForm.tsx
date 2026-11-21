@@ -661,7 +661,7 @@ export function MenuItemForm({
 
   const photo = tools.kitchen && (
     <RecordGroup card id="item-photo" title="Photo" actions={<SectionInfo label="Shown on the till tile, the QR menu and online." />}>
-      <ItemImageField value={imageUrl} onChange={setImageUrl} itemName={name} error={show('image')} layout="stacked" />
+      <ItemImageField value={imageUrl} onChange={setImageUrl} itemName={name} itemId={item?.id} error={show('image')} layout="stacked" />
     </RecordGroup>
   );
   const glance = tools.retail && item && (

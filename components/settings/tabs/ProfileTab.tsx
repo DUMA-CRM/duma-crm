@@ -1,5 +1,6 @@
 'use client';
 
+import { useMutation } from '@tanstack/react-query';
 import { useTheme } from 'next-themes';
 import { useState, useSyncExternalStore } from 'react';
 
@@ -30,6 +31,7 @@ import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';
 
 import { useCurrentWorkspace } from '@/lib/hooks/useCurrentWorkspace';
+import { sendVerificationEmail } from '@/lib/modules/identity/client';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { usePwaStore } from '@/stores/pwaStore';
@@ -60,10 +62,19 @@ export function ProfileTab() {
   const role = useAuthStore((state) => state.role);
   const { tenant, location } = useCurrentWorkspace();
   const { theme, setTheme } = useTheme();
+  const verification = useMutation({
+    mutationFn: (email: string) => sendVerificationEmail(email, `${window.location.origin}/verify-email`),
+    meta: { silentError: true },
+  });
 
   return (
     <SettingsTabBody>
-      <SettingsSection>
+      <SettingsSection actions={user && !user.emailVerified && (
+        <Button type="button" variant="outline" size="sm" disabled={verification.isPending}
+          onClick={() => verification.mutate(user.email)}>
+          {verification.isPending ? 'Sending…' : verification.isSuccess && verification.variables === user.email ? 'Resend email' : 'Verify email'}
+        </Button>
+      )}>
         <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:text-left">
           <Avatar name={user?.name} email={user?.email} size="xl" />
           <div className="min-w-0">
@@ -79,6 +90,16 @@ export function ProfileTab() {
                 />
               )}
             </p>
+            {user && !user.emailVerified && (
+              <>
+                {verification.isSuccess && verification.variables === user.email && (
+                  <p role="status" className="mt-3 text-sm text-muted-foreground">Check your inbox for a verification link.</p>
+                )}
+                {verification.isError && verification.variables === user.email && (
+                  <p role="alert" className="mt-3 text-sm text-destructive">The verification email couldn’t be sent. Try again in a minute.</p>
+                )}
+              </>
+            )}
           </div>
         </div>
         <dl className="mt-6 grid gap-3 sm:grid-cols-2">

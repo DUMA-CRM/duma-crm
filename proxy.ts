@@ -118,6 +118,9 @@ export function proxy(req: NextRequest) {
     return NextResponse.redirect(url, 301);
   }
 
+  // The app frame handler authorizes the workspace and supplies its own per-app CSP.
+  if (pathname.startsWith('/api/marketplace-frame/')) return NextResponse.next();
+
   const hasSession = hasSessionCookie(req.cookies.getAll());
   // Which routes need a session, and which are public: lib/utils/public-paths.ts.
   // Unauthenticated user visiting an app section → send to sign-in. An unknown

@@ -213,3 +213,111 @@ export const revokePlatformAdmin = (id: string, reason: string) =>
     workspaceId: 'platform',
     body: JSON.stringify({ reason }),
   });
+
+export interface UserDirectoryFilters {
+  q: string;
+  verification: 'all' | 'verified' | 'unverified';
+  status: 'all' | 'active' | 'suspended';
+  membership: 'all' | 'member' | 'none';
+  sort: 'newest' | 'oldest' | 'last_sign_in' | 'name';
+}
+
+export interface PlatformUser {
+  id: string;
+  name: string;
+  email: string;
+  image: string | null;
+  emailVerified: boolean;
+  createdAt: string;
+  workspace: string | null;
+  workspaceId: string | null;
+  role: string | null;
+  memberActive: boolean | null;
+  activationPending: boolean | null;
+  canResetPassword: boolean;
+  /** better-auth provider ids: `credential`, `google`, … */
+  providers: string[];
+  platformAdmin: boolean;
+  lastSignInAt: string | null;
+  suspendedAt: string | null;
+}
+
+export const getPlatformUsers = (filters: UserDirectoryFilters, page: number, signal?: AbortSignal) =>
+  apiFetch<{ users: PlatformUser[]; hasNext: boolean; total: number; pageSize: number }>(
+    `/platform/users?${new URLSearchParams({ ...filters, page: String(page) })}`,
+    { workspaceId: 'platform', signal },
+  );
+
+export interface PlatformUserSession {
+  id: string;
+  createdAt: string;
+  updatedAt: string;
+  expiresAt: string;
+  ipAddress: string | null;
+  userAgent: string | null;
+  current: boolean;
+}
+
+export interface PlatformUserDetail {
+  user: { id: string; name: string; email: string; image: string | null; emailVerified: boolean; createdAt: string; updatedAt: string };
+  methods: { id: string; providerId: string; hasPassword: boolean; createdAt: string; canUnlink: boolean }[];
+  membership: {
+    workspaceId: string;
+    workspace: string;
+    workspaceStatus: string;
+    role: string;
+    roleName: string | null;
+    scope: string;
+    locationCount: number | null;
+    isActive: boolean;
+    activationPending: boolean;
+    joinedAt: string;
+  } | null;
+  platformRoles: { id: string; role: string; grantedAt: string }[];
+  sessions: PlatformUserSession[];
+  /** ChatGPT and other OAuth clients holding a live grant. */
+  connectedApps: number;
+  lastSignInAt: string | null;
+  suspension: { at: string; reason: string; by: string | null } | null;
+  isSelf: boolean;
+  /** Why each destructive action is refused, or null when it is allowed — the API's own rule. */
+  blockers: { suspend: string | null; delete: string | null };
+}
+
+const userPath = (id: string) => `/platform/users/${encodeURIComponent(id)}`;
+const platform = { workspaceId: 'platform' as const };
+
+export const getPlatformUser = (id: string, signal?: AbortSignal) =>
+  apiFetch<PlatformUserDetail>(userPath(id), { ...platform, signal });
+
+export const renamePlatformUser = (id: string, name: string) =>
+  apiFetch<{ id: string; name: string }>(userPath(id), { ...platform, method: 'PATCH', body: JSON.stringify({ name }) });
+
+type UserRef = { id: string; email: string };
+
+export const updatePlatformUserVerification = (user: UserRef, verified: boolean) =>
+  apiFetch<{ id: string; emailVerified: boolean }>(`${userPath(user.id)}/verification`,
+    { ...platform, method: 'PATCH', body: JSON.stringify({ email: user.email, verified }) });
+
+export const sendPlatformUserPasswordReset = (user: UserRef) =>
+  apiFetch<{ sent: true }>(`${userPath(user.id)}/password-reset`,
+    { ...platform, method: 'POST', body: JSON.stringify({ email: user.email }) });
+
+export const suspendPlatformUser = (user: UserRef, reason: string) =>
+  apiFetch<{ suspended: true; sessionsEnded: number }>(`${userPath(user.id)}/suspend`,
+    { ...platform, method: 'POST', body: JSON.stringify({ email: user.email, reason }) });
+
+export const unsuspendPlatformUser = (id: string, reason: string) =>
+  apiFetch<{ suspended: false }>(`${userPath(id)}/unsuspend`, { ...platform, method: 'POST', body: JSON.stringify({ reason }) });
+
+export const endPlatformUserSession = (id: string, sessionId: string) =>
+  apiFetch<{ ended: number }>(`${userPath(id)}/sessions/${encodeURIComponent(sessionId)}`, { ...platform, method: 'DELETE' });
+
+export const endAllPlatformUserSessions = (id: string) =>
+  apiFetch<{ ended: number }>(`${userPath(id)}/sessions`, { ...platform, method: 'DELETE' });
+
+export const unlinkPlatformUserMethod = (id: string, methodId: string) =>
+  apiFetch<{ unlinked: true }>(`${userPath(id)}/methods/${encodeURIComponent(methodId)}`, { ...platform, method: 'DELETE' });
+
+export const deletePlatformUser = (user: UserRef) =>
+  apiFetch<{ deleted: true }>(userPath(user.id), { ...platform, method: 'DELETE', body: JSON.stringify({ email: user.email }) });

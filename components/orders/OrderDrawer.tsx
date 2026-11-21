@@ -5,6 +5,7 @@ import Link from 'next/link';
 import { useEffect, useRef, useState } from 'react';
 
 import { copyText } from '@/components/cms/shared';
+import { ExtensionSlot } from '@/components/marketplace/ExtensionSlot';
 import { SendEmailModal } from '@/components/email/SendEmailModal';
 import {
   ArrowUpRight,
@@ -590,6 +591,8 @@ export function OrderDrawer({
           </section>
 
           {/* The order's note: added or changed whenever there's something worth keeping. */}
+          <ExtensionSlot surface="order.detail" recordKey={data.id} total={data.totalAmount}
+            formattedTotal={money(data.totalAmount)} />
           <OrderNote key={data.notes ?? ''} orderId={data.id} notes={data.notes} canEdit={canNote} />
 
           <FoldSection

@@ -103,6 +103,31 @@ export async function startGoogleSignIn(callbackURL: string, errorCallbackURL: s
   return url;
 }
 
+/** A way to sign in: `credential` (password) or a provider such as `google`. */
+export interface LinkedAccount {
+  id: string;
+  providerId: string;
+  accountId: string;
+  createdAt: string;
+  scopes?: string[];
+}
+
+export const listLinkedAccounts = () => apiFetch<LinkedAccount[]>('/auth/list-accounts');
+
+// Connect Google to the signed-in account. Same round trip as sign-in: Google
+// comes back through /be and the API redirects to `callbackURL`, or to
+// `errorCallbackURL?error=CODE`. Needs a recent sign-in (SESSION_NOT_FRESH).
+export async function startGoogleLink(callbackURL: string, errorCallbackURL: string): Promise<string> {
+  const { url } = await apiFetch<{ url: string; redirect: boolean }>('/auth/link-social', {
+    method: 'POST',
+    body: JSON.stringify({ provider: 'google', callbackURL, errorCallbackURL }),
+  });
+  return url;
+}
+
+export const unlinkAccount = (providerId: string, accountId: string) =>
+  apiFetch<{ status: boolean }>('/auth/unlink-account', { method: 'POST', body: JSON.stringify({ providerId, accountId }) });
+
 export interface WorkspaceSignupInput {
   businessName: string;
   workspaceSlug: string;

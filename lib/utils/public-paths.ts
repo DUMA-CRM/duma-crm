@@ -69,7 +69,7 @@ export const PUBLIC_PATHS: readonly string[] = [...APP_PUBLIC_PATHS, ...MARKETIN
 const APP_SECTIONS = [
   'admin', 'audit-log', 'automation', 'cash-up', 'communications', 'compliance', 'content', 'customers', 'dashboard', 'forms', 'inventory', 'kds', 'menu',
   'my-hr', 'notes', 'operations', 'orders', 'pos', 'promotions', 'reports', 'reservations', 'scheduling', 'settings', 'staff', 'support', 'training', 'updates',
-  'api', 'md',
+  'api', 'md', 'apps', 'app-publisher',
 ];
 
 /** Whether a path without a session should be sent to sign-in: it is an app section, not a public page or an unknown URL. */

@@ -111,6 +111,13 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
     anyOf: ['settings:write'],
   },
   {
+    href: '/settings/installed-apps',
+    label: 'Installed apps',
+    icon: Plug,
+    area: 'operations',
+    anyOf: [],
+  },
+  {
     href: '/settings/modules',
     label: 'Modules',
     icon: LayoutGrid,

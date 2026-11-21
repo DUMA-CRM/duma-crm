@@ -1,8 +1,8 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { type UseQueryResult, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 
 import {
   Globe,
@@ -30,32 +30,51 @@ import { Input } from '@/components/ui/input';
 import { MIN_PASSWORD_LENGTH, passwordLengthHint } from '@/lib/auth/password-policy';
 import { ApiError } from '@/lib/modules/core/client';
 import {
+  type LinkedAccount,
   type Session,
   changeEmail,
   changePassword,
   getSession,
+  listLinkedAccounts,
   listSessions,
+  requestPasswordReset,
   revokeOtherSessions,
   revokeSession,
+  startGoogleLink,
+  unlinkAccount,
 } from '@/lib/modules/identity/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { canReadSessionList } from '@/lib/utils/session-freshness';
+import { googleLinkError } from '@/lib/utils/sign-in';
+import { formatInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+const accountsKey = moduleQueryKeys.identity.key('auth', 'accounts');
+
+/** Where "Sign in again" returns to, for a change that needs a recent sign-in. */
+const recentSignInHref = () => `/sign-in?next=${encodeURIComponent(window.location.pathname)}&reason=recent-sign-in`;
+const notFresh = (error: unknown) => error instanceof ApiError && error.status === 403 && error.code === 'SESSION_NOT_FRESH';
 
 export function SecurityTab() {
   const [open, setOpen] = useState<'email' | 'password' | null>(null);
   const toggle = (row: 'email' | 'password') => setOpen((current) => (current === row ? null : row));
+  const accounts = useQuery({ queryKey: accountsKey, queryFn: listLinkedAccounts, meta: { silentError: true } });
 
   return (
     <SettingsTabBody>
       <SettingsSection title="Sign-in">
         <div>
           <EmailRow open={open === 'email'} onToggle={() => toggle('email')} onDone={() => setOpen(null)} />
-          <PasswordRow open={open === 'password'} onToggle={() => toggle('password')} onDone={() => setOpen(null)} />
+          <PasswordRow
+            hasPassword={accounts.data ? accounts.data.some((account) => account.providerId === 'credential') : true}
+            open={open === 'password'}
+            onToggle={() => toggle('password')}
+            onDone={() => setOpen(null)}
+          />
+          <GoogleRow accounts={accounts} />
         </div>
       </SettingsSection>
       <ActiveSessionsSection />
@@ -134,7 +153,34 @@ function EmailRow({ open, onToggle, onDone }: { open: boolean; onToggle: () => v
   );
 }
 
-function PasswordRow({ open, onToggle, onDone }: { open: boolean; onToggle: () => void; onDone: () => void }) {
+function PasswordRow({ hasPassword, ...props }: { hasPassword: boolean; open: boolean; onToggle: () => void; onDone: () => void }) {
+  return hasPassword ? <ChangePasswordRow {...props} /> : <SetPasswordRow />;
+}
+
+/** Signs in with Google only: a password is set through the same emailed link as a reset. */
+function SetPasswordRow() {
+  const email = useAuthStore((state) => state.user?.email);
+  const send = useMutation({
+    mutationFn: () => requestPasswordReset(email!, `${window.location.origin}/reset-password`),
+    onSuccess: () => toast('success', `Check ${email} for a link to set your password.`),
+    onError: (error) => toast('error', error.message),
+  });
+  return (
+    <ChangeRow
+      icon={KeyRound}
+      label="Password"
+      value={<span className="text-muted-foreground">Not set — you sign in with Google</span>}
+      trailing={
+        <Button variant="outline" size="sm" disabled={!email || send.isPending || send.isSuccess} onClick={() => send.mutate()}>
+          {send.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+          {send.isSuccess ? 'Email sent' : 'Set a password'}
+        </Button>
+      }
+    />
+  );
+}
+
+function ChangePasswordRow({ open, onToggle, onDone }: { open: boolean; onToggle: () => void; onDone: () => void }) {
   const queryClient = useQueryClient();
   const [current, setCurrent] = useState('');
   const [next, setNext] = useState('');
@@ -220,6 +266,98 @@ function PasswordRow({ open, onToggle, onDone }: { open: boolean; onToggle: () =
         </div>
       </form>
     </ChangeRow>
+  );
+}
+
+/** Google's "G" in its own four colours, sized like the other row icons. */
+const GoogleLogo: IconComponent = ({ size = 18 }) => (
+  <svg viewBox="0 0 48 48" width={size} height={size} aria-hidden="true">
+    <path fill="#EA4335" d="M24 9.5c3.54 0 6.71 1.22 9.21 3.6l6.85-6.85C35.9 2.38 30.47 0 24 0 14.62 0 6.51 5.38 2.56 13.22l7.98 6.19C12.43 13.72 17.74 9.5 24 9.5z" />
+    <path fill="#4285F4" d="M46.98 24.55c0-1.57-.15-3.09-.38-4.55H24v9.02h12.94c-.58 2.96-2.26 5.48-4.78 7.18l7.73 6c4.51-4.18 7.09-10.36 7.09-17.65z" />
+    <path fill="#FBBC05" d="M10.53 28.59c-.48-1.45-.76-2.99-.76-4.59s.27-3.14.76-4.59l-7.98-6.19C.92 16.46 0 20.12 0 24c0 3.88.92 7.54 2.56 10.78l7.97-6.19z" />
+    <path fill="#34A853" d="M24 48c6.48 0 11.93-2.13 15.89-5.81l-7.73-6c-2.15 1.45-4.92 2.3-8.16 2.3-6.26 0-11.57-4.22-13.47-9.91l-7.98 6.19C6.51 42.62 14.62 48 24 48z" />
+  </svg>
+);
+
+/**
+ * Connect or disconnect Google. Connecting leaves for Google and comes back to
+ * this page with `?linked=google` or `?error=CODE`. Disconnecting the only way
+ * to sign in is refused — set a password first.
+ */
+function GoogleRow({ accounts }: { accounts: UseQueryResult<LinkedAccount[]> }) {
+  const qc = useQueryClient();
+  const [stale, setStale] = useState(false);
+  const google = accounts.data?.find((account) => account.providerId === 'google');
+  const onlyWay = Boolean(google) && accounts.data?.length === 1;
+
+  // The round trip back from Google: say what happened once, then tidy the URL.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const linked = params.get('linked') === 'google';
+    const error = linked ? null : googleLinkError(params.get('error'));
+    if (!linked && !error) return;
+    if (linked) toast('success', 'Google connected. You can now sign in with it.');
+    else toast('error', error!);
+    params.delete('linked');
+    params.delete('error');
+    const query = params.toString();
+    window.history.replaceState(null, '', `${window.location.pathname}${query ? `?${query}` : ''}`);
+    void qc.invalidateQueries({ queryKey: accountsKey });
+  }, [qc]);
+
+  const connect = useMutation({
+    mutationFn: () => {
+      const here = new URL(window.location.href);
+      here.search = '';
+      return startGoogleLink(`${here.href}?linked=google`, here.href);
+    },
+    onSuccess: (url) => window.location.assign(url),
+    onError: (error) => (notFresh(error) ? setStale(true) : toast('error', error.message)),
+  });
+  const disconnect = useMutation({
+    mutationFn: () => unlinkAccount('google', google!.accountId),
+    onSuccess: () => {
+      void qc.invalidateQueries({ queryKey: accountsKey });
+      toast('success', 'Google disconnected.');
+    },
+    onError: (error) => (notFresh(error) ? setStale(true) : toast('error', error.message)),
+  });
+
+  return (
+    <ChangeRow
+      icon={GoogleLogo}
+      label="Google"
+      value={
+        accounts.isPending ? <span className="text-muted-foreground">Checking…</span>
+          : accounts.isError ? <span className="text-muted-foreground">Couldn’t check</span>
+            : stale ? <span className="text-muted-foreground">Sign in again to change this</span>
+              : google ? <span>Connected <span className="font-normal text-muted-foreground">since {formatInstant(google.createdAt, { dateStyle: 'medium' })}</span></span>
+                : <span className="text-muted-foreground">Not connected</span>
+      }
+      trailing={
+        accounts.isError ? (
+          <Button variant="ghost" size="sm" onClick={() => void accounts.refetch()}>Retry</Button>
+        ) : stale ? (
+          <Button variant="outline" size="sm" onClick={() => window.location.assign(recentSignInHref())}>Sign in again</Button>
+        ) : google ? (
+          <Button
+            variant="ghost"
+            size="sm"
+            disabled={onlyWay || disconnect.isPending}
+            title={onlyWay ? 'Set a password first — Google is your only way to sign in.' : undefined}
+            onClick={() => disconnect.mutate()}
+          >
+            {disconnect.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            Disconnect
+          </Button>
+        ) : accounts.isSuccess ? (
+          <Button variant="outline" size="sm" disabled={connect.isPending} onClick={() => connect.mutate()}>
+            {connect.isPending && <Loader2 className="animate-spin" aria-hidden="true" />}
+            Connect
+          </Button>
+        ) : undefined
+      }
+    />
   );
 }
 

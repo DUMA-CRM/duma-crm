@@ -42,6 +42,14 @@ const nextConfig: NextConfig = {
         headers: [{ key: 'X-Frame-Options', value: 'SAMEORIGIN' }],
       },
       {
+        source: '/api/marketplace-frame/:path*',
+        headers: [
+          { key: 'X-Frame-Options', value: 'SAMEORIGIN' },
+          { key: 'Referrer-Policy', value: 'no-referrer' },
+          { key: 'Permissions-Policy', value: 'camera=(), microphone=(), geolocation=(), payment=(), usb=(), clipboard-read=(), clipboard-write=()' },
+        ],
+      },
+      {
         // A hosted form is meant to be framed into any website. X-Frame-Options
         // can't say "anyone", so this value is deliberately not one browsers
         // recognise (they ignore it) and proxy.ts's `frame-ancestors *` rules.

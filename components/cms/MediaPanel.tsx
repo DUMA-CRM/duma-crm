@@ -40,6 +40,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { ActionButton, CopyButton, useDoneBeat } from '@/components/ui/action-button';
+import { ExtensionSlot } from '@/components/marketplace/ExtensionSlot';
 import { Button } from '@/components/ui/button';
 import {
   ContextMenu,
@@ -1399,6 +1400,15 @@ export function AssetDrawer({
                 </span>
               )}
             </div>
+            {access.canWrite && (isImage(asset.mimeType) || isVideo(asset.mimeType)) && (
+              <ExtensionSlot surface="media.preview" recordKey={asset.id}
+                source={{ url: assetPreviewSrc(asset), name: asset.fileName }}
+                saveImage={async (file) => {
+                  await uploadCmsAsset(file, { folder: asset.folder ?? undefined }, tenantId);
+                  await invalidateCms(queryClient);
+                  onChanged?.();
+                }} />
+            )}
             <div className="flex flex-wrap items-center gap-1.5">
               {[
                 asset.fileName.split('.').pop()?.toUpperCase() ?? asset.mimeType,

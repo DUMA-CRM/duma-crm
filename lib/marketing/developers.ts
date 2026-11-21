@@ -284,6 +284,7 @@ export function docsNav(): DocsNavSection[] {
             { href: '/developers', label: 'Overview' },
             { href: '/developers/mcp', label: 'MCP' },
             { href: '/developers/webhooks', label: 'Webhooks' },
+            { href: '/developers/apps', label: 'Build an app' },
           ],
         },
       ],

@@ -100,6 +100,7 @@ export const mainNavItems: NavItem[] = [
   { module: 'people', label: 'Staff', href: '/staff', icon: UsersRound, capabilities: ['staff:read', 'hr.people:read'] },
   // Everyone's own rota and HR — beside the team they belong to, not at the
   // top of a manager's nav. The team rota and shift cover live in Staff.
+  { module: 'organization', label: 'Apps', href: '/apps', icon: Package },
   { module: 'workforce', label: 'My rota', href: '/scheduling', icon: CalendarDays },
   { module: 'people', label: 'My HR', href: '/my-hr', icon: HeartHandshake },
   // Workspaces and locations are a tab of Settings — organisation structure is

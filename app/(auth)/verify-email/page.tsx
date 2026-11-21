@@ -36,10 +36,10 @@ function Result() {
         <p className="text-sm text-muted-foreground">
           {isEmailChange
             ? 'Start the change again from Settings → Security.'
-            : 'Sign in and use “Resend email” on the banner at the top of the page.'}
+            : 'Sign in and use “Verify email” in your profile settings to request another link.'}
         </p>
-        <Link href={isEmailChange ? '/settings/security' : '/dashboard'} className="mt-5 inline-block font-semibold text-primary">
-          {isEmailChange ? 'Go to security settings' : 'Continue to DUMA'}
+        <Link href={isEmailChange ? '/settings/security' : '/settings/profile'} className="mt-5 inline-block font-semibold text-primary">
+          {isEmailChange ? 'Go to security settings' : 'Go to profile settings'}
         </Link>
       </>
     );

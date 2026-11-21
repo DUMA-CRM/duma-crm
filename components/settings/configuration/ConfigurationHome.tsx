@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { type IconComponent, LayoutGrid, QrCode, Receipt } from '@/components/icons';
+import { type IconComponent, LayoutGrid, Package, QrCode, Receipt } from '@/components/icons';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { RecordGroup } from '@/components/shared/RecordGroup';
@@ -40,6 +40,12 @@ export function ConfigurationHome() {
     staleTime: 30_000,
   });
   const destinations: Destination[] = [
+    {
+      href: '/settings/installed-apps',
+      title: 'Installed apps',
+      icon: Package,
+      group: 'workspace',
+    },
     {
       href: '/settings/modules',
       title: 'Modules',

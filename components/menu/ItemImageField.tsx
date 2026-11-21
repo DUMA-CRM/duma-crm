@@ -5,6 +5,7 @@ import { useRef, useState } from 'react';
 
 import { canEncode, encodeImage } from '@/components/cms/imageEncode';
 import { ImageIcon, Link2, Loader2, Trash2, UploadCloud } from '@/components/icons';
+import { ExtensionSlot } from '@/components/marketplace/ExtensionSlot';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -34,12 +35,14 @@ export function ItemImageField({
   value,
   onChange,
   itemName,
+  itemId,
   error,
   layout = 'row',
 }: {
   value: string;
   onChange: (url: string) => void;
   itemName: string;
+  itemId?: string;
   error?: string;
   /** `stacked` for a sidebar card: the photo full width, its buttons under it. */
   layout?: 'row' | 'stacked';
@@ -84,6 +87,9 @@ export function ItemImageField({
     if (file) upload.mutate(file);
   };
   const src = value.trim() && !broken ? proxiedImage(value.trim()) : null;
+
+  const pluginSource = src && /^\/be\/v1\/(?:menu-items\/images|cms\/delivery\/assets)\/[\da-f-]{36}\/file(?:\/[a-z0-9._~!$&'()*+,;=:@%-]+)?$/i.test(src)
+    ? { url: src, name: 'menu-photo' } : undefined;
 
   const stacked = layout === 'stacked';
   const dropProps = {
@@ -218,6 +224,10 @@ export function ItemImageField({
           leftIcon={<Link2 size={14} />}
           error={error ?? (broken && value.trim() ? 'That link didn’t load as an image.' : undefined)}
         />
+      )}
+      {canUpload && (
+        <ExtensionSlot surface="menu.photo" recordKey={itemId} source={pluginSource}
+          saveImage={(file) => upload.mutateAsync(file)} />
       )}
     </div>
   );
