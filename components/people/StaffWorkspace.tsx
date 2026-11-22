@@ -5,11 +5,12 @@ import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
 import { HelpdeskBoard, type HelpdeskFilters } from '@/components/helpdesk/HelpdeskBoard';
-import { Banknote, CalendarDays, CalendarRange, CircleHelp, Clock, LayoutDashboard, Lock, Plus, UsersRound } from '@/components/icons';
+import { Banknote, CalendarDays, CalendarRange, CircleHelp, Clock, LayoutDashboard, Lock, Mail, Plus, UsersRound } from '@/components/icons';
 import { PayrollWorkspace } from '@/components/payroll/PayrollWorkspace';
 import { LeaveInbox } from '@/components/people/HrInbox';
 import { OnboardingPage } from '@/components/people/OnboardingPage';
 import { StaffDirectory } from '@/components/people/StaffDirectory';
+import { InviteDialog } from '@/components/people/StaffInvitations';
 import { StaffOverview } from '@/components/people/StaffOverview';
 import { ShiftsWorkspace } from '@/components/scheduling/ShiftsWorkspace';
 import { EditorShell } from '@/components/shared/EditorShell';
@@ -64,6 +65,7 @@ export function StaffWorkspace({ tab, initialTicket = null }: { tab: StaffTab; i
   const canCorrectHours = hasCapability(capabilities, 'shifts:write');
 
   const [onboarding, setOnboarding] = useState(false);
+  const [inviting, setInviting] = useState(false);
   const [newShift, setNewShift] = useState<'planned' | 'worked' | null>(null);
   const [leaveStatus, setLeaveStatus] = useState('pending');
   // Every status: the board shows them as columns. Defaulting to 'open' hid everything already being worked.
@@ -163,10 +165,17 @@ export function StaffWorkspace({ tab, initialTicket = null }: { tab: StaffTab; i
       icon={<UsersRound size={20} aria-hidden="true" />}
       actions={
         active === 'team' && canOnboard ? (
-          <Button className="h-9 gap-1.5" onClick={() => setOnboarding(true)}>
-            <Plus size={15} />
-            <span className="hidden md:inline">Onboard</span>
-          </Button>
+          <div className="flex items-center gap-2">
+            {/* Access only — for someone who already has a DUMA account, or HR details that can wait. */}
+            <Button variant="outline" className="h-9 gap-1.5" onClick={() => setInviting(true)}>
+              <Mail size={15} />
+              <span className="hidden md:inline">Invite</span>
+            </Button>
+            <Button className="h-9 gap-1.5" onClick={() => setOnboarding(true)}>
+              <Plus size={15} />
+              <span className="hidden md:inline">Onboard</span>
+            </Button>
+          </div>
         ) : active === 'rota' && (canWriteRota || canCorrectHours) ? (
           <div className="flex items-center gap-2">
             {canCorrectHours && (
@@ -234,6 +243,8 @@ export function StaffWorkspace({ tab, initialTicket = null }: { tab: StaffTab; i
       )}
 
       {active === 'payroll' && <PayrollWorkspace />}
+
+      {inviting && tenantId && <InviteDialog tenantId={tenantId} onClose={() => setInviting(false)} />}
 
       {/* Full-screen onboarding, then straight into the new record */}
       {onboarding && tenantId && (

@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { InfoRow, InfoRows, RowWarning } from '@/components/cms/rows';
 import {
@@ -12,7 +12,6 @@ import {
   Clock3,
   Copy,
   Fingerprint,
-  Globe,
   KeyRound,
   Link2,
   Loader2,
@@ -20,7 +19,9 @@ import {
   Mail,
   Monitor,
   Pencil,
+  Plus,
   Plug,
+  Search,
   ShieldCheck,
   ShieldOff,
   Smartphone,
@@ -39,20 +40,27 @@ import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Select } from '@/components/ui/select';
 
 import {
   type PlatformUserDetail,
+  type PlatformUserMembership,
+  addPlatformUserMembership,
   deletePlatformUser,
   endAllPlatformUserSessions,
   endPlatformUserSession,
+  getMembershipOptions,
   getPlatformUser,
+  removePlatformUserMembership,
   renamePlatformUser,
   sendPlatformUserPasswordReset,
   suspendPlatformUser,
   unlinkPlatformUserMethod,
   unsuspendPlatformUser,
+  updatePlatformUserMembership,
   updatePlatformUserVerification,
 } from '@/lib/api/platform.service';
+import { useTenants } from '@/lib/hooks/useTenants';
 import { useWorkspaceSwitch } from '@/lib/hooks/useWorkspaceSwitch';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
@@ -65,7 +73,9 @@ type Detail = PlatformUserDetail;
 type Dialog =
   | { kind: 'rename' | 'verify' | 'unverify' | 'reset' | 'suspend' | 'unsuspend' | 'end-all' | 'delete' }
   | { kind: 'end-session'; sessionId: string; label: string }
-  | { kind: 'unlink'; methodId: string; label: string };
+  | { kind: 'unlink'; methodId: string; label: string }
+  | { kind: 'add-membership' }
+  | { kind: 'change-membership' | 'toggle-membership' | 'remove-membership'; membership: PlatformUserMembership };
 
 const date = (iso: string) => formatInstant(iso, { dateStyle: 'medium' });
 
@@ -139,6 +149,175 @@ function RenameModal({ detail, onClose }: { detail: Detail; onClose: () => void 
   );
 }
 
+type Scope = PlatformUserMembership['scope'];
+
+/**
+ * Add an account to a workspace, or change its role there. Adding picks the
+ * workspace first; role and locations come from that workspace's own list.
+ * A membership's current locations are only known as a count, so they are
+ * replaced only when a location is picked.
+ */
+function MembershipModal({ detail, membership, onClose }: { detail: Detail; membership?: PlatformUserMembership; onClose: () => void }) {
+  const userId = detail.user.id;
+  const [tenantId, setTenantId] = useState(membership?.workspaceId ?? '');
+  const [workspaceName, setWorkspaceName] = useState(membership?.workspace ?? '');
+  const [query, setQuery] = useState('');
+  const [role, setRole] = useState(membership?.role ?? '');
+  const [scope, setScope] = useState<Scope>(membership?.scope ?? 'global');
+  const [locationIds, setLocationIds] = useState<string[] | null>(null);
+  const [notify, setNotify] = useState(true);
+  const { tenants, isLoading: tenantsLoading, isError: tenantsError, refetch: refetchTenants } = useTenants({ enabled: !membership });
+  const joined = useMemo(() => new Set(detail.memberships.map((entry) => entry.workspaceId)), [detail.memberships]);
+  const candidates = useMemo(() => {
+    const q = query.trim().toLowerCase();
+    return tenants.filter((tenant) => !joined.has(tenant.id) && (!q || `${tenant.name} ${tenant.slug}`.toLowerCase().includes(q))).slice(0, 50);
+  }, [joined, query, tenants]);
+  const options = useQuery({
+    queryKey: moduleQueryKeys.identity.key('membership-options', tenantId),
+    queryFn: ({ signal }) => getMembershipOptions(tenantId, signal),
+    enabled: Boolean(tenantId),
+    meta: { silentError: true },
+  });
+
+  const add = useAccountAction(userId, () => addPlatformUserMembership(userId, {
+    tenantId, role, scope, locationIds: scope === 'location' ? locationIds : null, notify,
+  }), (result) => `Added to ${workspaceName}${(result as { notified: boolean }).notified ? ' — they’ve been emailed.' : '.'}`, onClose);
+  const change = useAccountAction(userId, () => updatePlatformUserMembership(userId, tenantId, {
+    role,
+    scope,
+    // Untouched locations stay as they are; a switch to all locations clears them.
+    ...(scope !== 'location' ? { locationIds: null } : locationIds ? { locationIds } : {}),
+  }), `Access in ${workspaceName} updated.`, onClose);
+  const action = membership ? change : add;
+
+  const needsLocations = scope === 'location' && (locationIds ? locationIds.length === 0 : membership?.scope !== 'location');
+  const unchanged = membership && role === membership.role && scope === membership.scope && !locationIds;
+  const pickedLocations = locationIds ?? [];
+  const scopeOptions = [
+    { value: 'global', label: 'All locations' },
+    ...(scope === 'franchise' ? [{ value: 'franchise', label: 'Franchise' }] : []),
+    { value: 'location', label: 'Specific locations' },
+  ];
+
+  return (
+    <Modal title={membership ? `Access in ${membership.workspace}` : 'Add to workspace'} onClose={() => { if (!action.isPending) onClose(); }}>
+      {!tenantId ? (
+        <div className="space-y-3">
+          <Input
+            value={query}
+            onChange={(event) => setQuery(event.target.value)}
+            placeholder="Search workspaces…"
+            aria-label="Search workspaces"
+            leftIcon={<Search size={14} aria-hidden="true" />}
+            autoFocus
+          />
+          {tenantsLoading ? (
+            <ListSkeleton rows={4} label="Loading workspaces" />
+          ) : tenantsError ? (
+            <ErrorState title="Workspaces couldn’t be loaded" onRetry={() => void refetchTenants()} />
+          ) : candidates.length === 0 ? (
+            <p className="px-1 py-2 text-sm text-muted-foreground">{query ? 'No workspace matches that search.' : 'They are already in every workspace.'}</p>
+          ) : (
+            <ul className="flex max-h-[50dvh] flex-col gap-1.5 overflow-y-auto" aria-label="Workspaces">
+              {candidates.map((tenant) => (
+                <li key={tenant.id}>
+                  <button
+                    type="button"
+                    onClick={() => { setTenantId(tenant.id); setWorkspaceName(tenant.name); }}
+                    className="flex w-full items-center gap-3 rounded-lg border border-border px-3 py-2.5 text-left outline-none hover:bg-band/45 focus-visible:outline-2 focus-visible:outline-ring"
+                  >
+                    <Building2 size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
+                    <span className="min-w-0 flex-1">
+                      <span className="block truncate text-sm font-semibold text-foreground">{tenant.name}</span>
+                      <span className="block truncate text-xs text-muted-foreground">{tenant.slug}</span>
+                    </span>
+                    {tenant.status !== 'active' && <Badge variant="muted">{tenant.status === 'winding_down' ? 'Winding down' : 'Inactive'}</Badge>}
+                  </button>
+                </li>
+              ))}
+            </ul>
+          )}
+        </div>
+      ) : (
+        <form className="space-y-4" onSubmit={(event) => { event.preventDefault(); action.mutate(undefined); }}>
+          {!membership && (
+            <div className="flex items-center justify-between gap-3 rounded-md bg-band/65 px-3 py-2.5 text-sm">
+              <span className="flex min-w-0 items-center gap-2 font-semibold text-foreground"><Building2 size={14} aria-hidden="true" /><span className="truncate">{workspaceName}</span></span>
+              <Button type="button" variant="ghost" size="sm" onClick={() => { setTenantId(''); setRole(''); setLocationIds(null); }}>Change</Button>
+            </div>
+          )}
+          {options.isPending ? (
+            <ListSkeleton rows={3} label="Loading roles" />
+          ) : options.isError ? (
+            <ErrorState title="Roles couldn’t be loaded" description={options.error.message} onRetry={() => void options.refetch()} />
+          ) : (
+            <>
+              <label className="block text-sm font-medium text-foreground">
+                Role
+                <Select
+                  className="mt-1.5"
+                  ariaLabel="Role"
+                  value={role}
+                  placeholder="Choose a role"
+                  options={options.data.roles.map((entry) => ({ value: entry.key, label: entry.name }))}
+                  onValueChange={setRole}
+                />
+              </label>
+              <label className="block text-sm font-medium text-foreground">
+                Locations
+                <Select className="mt-1.5" ariaLabel="Locations" value={scope} options={scopeOptions} onValueChange={(value) => setScope(value as Scope)} />
+              </label>
+              {scope === 'location' && (
+                <fieldset className="space-y-2">
+                  <legend className="text-xs text-muted-foreground">
+                    {membership?.scope === 'location' && !locationIds
+                      ? `Currently ${membership.locationCount ?? 0} ${membership.locationCount === 1 ? 'location' : 'locations'}. Pick to replace them.`
+                      : 'Pick at least one.'}
+                  </legend>
+                  {options.data.locations.length === 0 ? (
+                    <p className="text-sm text-muted-foreground">This workspace has no locations yet.</p>
+                  ) : (
+                    <div className="grid gap-1.5 sm:grid-cols-2">
+                      {options.data.locations.map((location) => {
+                        const checked = pickedLocations.includes(location.id);
+                        return (
+                          <label key={location.id} className="flex cursor-pointer items-center gap-2 rounded-md border border-border px-2.5 py-2 text-sm hover:bg-band/45">
+                            <input
+                              type="checkbox"
+                              checked={checked}
+                              onChange={() => setLocationIds(checked ? pickedLocations.filter((id) => id !== location.id) : [...pickedLocations, location.id])}
+                              className="size-4 accent-primary"
+                            />
+                            <span className="truncate">{location.name}</span>
+                          </label>
+                        );
+                      })}
+                    </div>
+                  )}
+                </fieldset>
+              )}
+              {!membership && (
+                <label className="flex items-center gap-2 text-sm text-foreground">
+                  <input type="checkbox" checked={notify} onChange={(event) => setNotify(event.target.checked)} className="size-4 accent-primary" />
+                  Email {detail.user.email} about it
+                </label>
+              )}
+            </>
+          )}
+          {action.error && <p role="alert" className="text-sm text-exception">{action.error.message}</p>}
+          <div className="flex justify-end gap-2">
+            <Button type="button" variant="outline" disabled={action.isPending} onClick={onClose}>Cancel</Button>
+            <Button type="submit" disabled={action.isPending || !options.isSuccess || !role || needsLocations || Boolean(unchanged)}>
+              {action.isPending && <Loader2 size={14} className="animate-spin" aria-hidden="true" />}
+              {membership ? 'Save' : 'Add to workspace'}
+            </Button>
+          </div>
+        </form>
+      )}
+    </Modal>
+  );
+}
+
 /** Every dialog the page can open, each with its own copy and call. */
 function AccountDialog({ dialog, detail, onClose }: { dialog: Dialog; detail: Detail; onClose: () => void }) {
   const router = useRouter();
@@ -158,6 +337,10 @@ function AccountDialog({ dialog, detail, onClose }: { dialog: Dialog; detail: De
     (result) => `Signed out of ${(result as { ended: number }).ended} ${(result as { ended: number }).ended === 1 ? 'session' : 'sessions'}.`, onClose);
   const unlink = useAccountAction(user.id, (methodId: string) => unlinkPlatformUserMethod(user.id, methodId), 'Sign-in method disconnected.', onClose);
   const remove = useAccountAction(user.id, () => deletePlatformUser(ref), 'Account deleted.', () => router.push('/admin/users'));
+  const target = 'membership' in dialog ? dialog.membership : null;
+  const toggle = useAccountAction(user.id, () => updatePlatformUserMembership(user.id, target!.workspaceId, { isActive: !target!.isActive }),
+    target?.isActive ? `Access to ${target.workspace} paused.` : `Access to ${target?.workspace} restored.`, onClose);
+  const leave = useAccountAction(user.id, () => removePlatformUserMembership(user.id, target!.workspaceId), `Removed from ${target?.workspace}.`, onClose);
 
   const confirm = (props: { title: string; message: React.ReactNode; label: string; pending: boolean; error: Error | null; run: () => void; confirmText?: string }) => (
     <ConfirmModal
@@ -222,6 +405,25 @@ function AccountDialog({ dialog, detail, onClose }: { dialog: Dialog; detail: De
         title: `Disconnect ${dialog.label}?`, message: `${user.name} can no longer sign in with ${dialog.label} until they connect it again.`,
         label: 'Disconnect', pending: unlink.isPending, error: unlink.error, run: () => unlink.mutate(dialog.methodId),
       });
+    case 'add-membership':
+      return <MembershipModal detail={detail} onClose={onClose} />;
+    case 'change-membership':
+      return <MembershipModal detail={detail} membership={dialog.membership} onClose={onClose} />;
+    case 'toggle-membership':
+      return confirm({
+        title: dialog.membership.isActive ? `Deactivate in ${dialog.membership.workspace}?` : `Reactivate in ${dialog.membership.workspace}?`,
+        message: dialog.membership.isActive
+          ? `${user.name} keeps their place in ${dialog.membership.workspace} but cannot work in it until reactivated. Their other workspaces are untouched.`
+          : `${user.name} can work in ${dialog.membership.workspace} again with their current role.`,
+        label: dialog.membership.isActive ? 'Deactivate' : 'Reactivate',
+        pending: toggle.isPending, error: toggle.error, run: () => toggle.mutate(undefined),
+      });
+    case 'remove-membership':
+      return confirm({
+        title: `Remove from ${dialog.membership.workspace}?`,
+        message: `${user.name} loses access to ${dialog.membership.workspace}. Their account, other workspaces and the history they left there stay.`,
+        label: 'Remove', pending: leave.isPending, error: leave.error, run: () => leave.mutate(undefined),
+      });
     case 'delete':
       return confirm({
         title: `Delete ${user.name}’s account?`,
@@ -264,7 +466,7 @@ function SignInSection({ detail, open }: { detail: Detail; open: (dialog: Dialog
   const password = detail.methods.find((method) => method.providerId === 'credential' && method.hasPassword);
   const others = detail.methods.filter((method) => method.providerId !== 'credential');
   return (
-    <SettingsSection title="Sign-in methods" footnote="Google signs in an existing account only; DUMA never creates one from it.">
+    <SettingsSection title="Sign-in methods" footnote="A Google sign-in with this address opens this account.">
       <InfoRows>
         <InfoRow icon={KeyRound} title="Password" description={password ? `Set ${date(password.createdAt)}` : 'Not set — signs in another way'}>
           <Button variant="ghost" size="sm" onClick={() => open({ kind: 'reset' })}>{password ? 'Send reset' : 'Send set-password link'}</Button>
@@ -319,6 +521,47 @@ function SessionsSection({ detail, open }: { detail: Detail; open: (dialog: Dial
   );
 }
 
+function membershipLine(member: PlatformUserMembership): string {
+  const places = member.scope !== 'location' || member.locationCount === null
+    ? 'All locations'
+    : `${member.locationCount} ${member.locationCount === 1 ? 'location' : 'locations'}`;
+  return [member.roleName ?? member.role, places, `joined ${date(member.joinedAt)}`].join(' · ');
+}
+
+function WorkspacesSection({ detail, open }: { detail: Detail; open: (dialog: Dialog) => void }) {
+  const switchTo = useWorkspaceSwitch();
+  return (
+    <SettingsSection
+      title="Workspaces"
+      actions={<Button variant="outline" className="h-9" onClick={() => open({ kind: 'add-membership' })}><Plus size={14} aria-hidden="true" />Add to workspace</Button>}
+    >
+      {detail.memberships.length === 0 ? (
+        <p className="text-sm text-muted-foreground">Not a member of any workspace. They see “ask your manager to add you” when they sign in.</p>
+      ) : (
+        <InfoRows>
+          {detail.memberships.map((member) => (
+            <InfoRow key={member.workspaceId} icon={Building2} title={member.workspace} description={membershipLine(member)} tone={member.isActive ? undefined : 'warning'} wrap>
+              {!member.isActive ? <Badge variant="muted">Inactive</Badge> : member.activationPending && <Badge variant="warning">Invited</Badge>}
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => void switchTo({ kind: 'workspace', tenantId: member.workspaceId, locationId: null }, { href: `/staff/${encodeURIComponent(detail.user.id)}` })}
+              >
+                Staff record
+              </Button>
+              <Button variant="ghost" size="sm" onClick={() => open({ kind: 'change-membership', membership: member })}>Change</Button>
+              <Button variant="ghost" size="sm" onClick={() => open({ kind: 'toggle-membership', membership: member })}>{member.isActive ? 'Deactivate' : 'Reactivate'}</Button>
+              <Button variant="ghost" size="icon-sm" aria-label={`Remove from ${member.workspace}`} onClick={() => open({ kind: 'remove-membership', membership: member })}>
+                <Trash2 aria-hidden="true" />
+              </Button>
+            </InfoRow>
+          ))}
+        </InfoRows>
+      )}
+    </SettingsSection>
+  );
+}
+
 function DangerSection({ detail, open }: { detail: Detail; open: (dialog: Dialog) => void }) {
   const suspended = Boolean(detail.suspension);
   return (
@@ -352,34 +595,8 @@ function DangerSection({ detail, open }: { detail: Detail; open: (dialog: Dialog
 }
 
 function Aside({ detail }: { detail: Detail }) {
-  const switchTo = useWorkspaceSwitch();
-  const member = detail.membership;
   return (
     <>
-      <SettingsSection title="Workspace">
-        {member ? (
-          <InfoRows>
-            <InfoRow icon={Building2} title={member.workspace} description={member.roleName ?? member.role}>
-              <Badge variant={!member.isActive ? 'muted' : member.activationPending ? 'warning' : 'success'}>
-                {!member.isActive ? 'Deactivated' : member.activationPending ? 'Invited' : 'Active'}
-              </Badge>
-            </InfoRow>
-            <InfoRow icon={Globe} title="Locations">
-              <span className="text-sm text-foreground">{member.scope !== 'location' || member.locationCount === null ? 'All' : member.locationCount}</span>
-            </InfoRow>
-            <InfoRow icon={Calendar} title="Joined workspace"><span className="text-sm text-foreground">{date(member.joinedAt)}</span></InfoRow>
-            <Button
-              variant="outline"
-              className="w-full"
-              onClick={() => void switchTo({ kind: 'workspace', tenantId: member.workspaceId, locationId: null }, { href: `/staff/${encodeURIComponent(detail.user.id)}` })}
-            >
-              Open their staff record
-            </Button>
-          </InfoRows>
-        ) : (
-          <p className="text-sm text-muted-foreground">Not a member of any workspace.</p>
-        )}
-      </SettingsSection>
       <SettingsSection title="Platform access">
         {detail.platformRoles.length > 0 ? (
           <InfoRows>
@@ -404,7 +621,7 @@ function Aside({ detail }: { detail: Detail }) {
 
 /**
  * DUMA Admin → Users → one account. Modelled on an identity provider's user
- * page: profile, how they sign in, where they are signed in, their workspace,
+ * page: profile, the workspaces they belong to, how they sign in, where they are signed in,
  * and suspension or deletion. The API decides what is allowed (`blockers`);
  * the buttons only reflect it.
  */
@@ -439,6 +656,7 @@ export function AdminUserDetail({ userId }: { userId: string }) {
           )}
           <SettingsTabBody narrowAside aside={<Aside detail={detail!} />}>
             <ProfileSection detail={detail!} open={setDialog} />
+            <WorkspacesSection detail={detail!} open={setDialog} />
             <SignInSection detail={detail!} open={setDialog} />
             <SessionsSection detail={detail!} open={setDialog} />
             <DangerSection detail={detail!} open={setDialog} />

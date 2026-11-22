@@ -5,6 +5,7 @@ import { Popover } from 'radix-ui';
 import { type ReactNode, useMemo, useState } from 'react';
 
 import { Search, SlidersHorizontal, Users, X } from '@/components/icons';
+import { PendingInvitations } from '@/components/people/StaffInvitations';
 import { Avatar, fmtMoney, roleConfig } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -68,6 +69,10 @@ export function StaffDirectory() {
   const money = hasCapability(
     useAuthStore((s) => s.capabilities),
     'hr.sensitive:read',
+  );
+  const canInvite = hasCapability(
+    useAuthStore((s) => s.capabilities),
+    'staff:onboard',
   );
   const { tenantId } = useWorkspaceStore();
 
@@ -300,6 +305,8 @@ export function StaffDirectory() {
           </div>
         )}
       </div>
+
+      {tenantId && canInvite && <PendingInvitations tenantId={tenantId} />}
 
       {isLoading ? (
         <ListSkeleton rows={6} avatar label="Loading the team" />

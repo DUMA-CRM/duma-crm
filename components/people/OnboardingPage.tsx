@@ -1176,8 +1176,8 @@ function Done({
         <Em>{first}</Em> is on the team.
       </h1>
       <p className="mt-2 max-w-[56ch] text-sm leading-6 text-muted-foreground">
-        We’ve emailed a single-use link to <span className="font-medium text-foreground">{result.email}</span> so they can set a password
-        and sign in.
+        We’ve emailed <span className="font-medium text-foreground">{result.email}</span> a link to join — they set a password, or sign in
+        if they already use DUMA.
       </p>
 
       <section className="mt-10">

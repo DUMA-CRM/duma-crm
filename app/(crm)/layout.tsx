@@ -5,6 +5,7 @@ import { ContextBoundary } from '@/components/layout/ContextBoundary';
 import { EmailVerificationBanner } from '@/components/layout/EmailVerificationBanner';
 import { Header } from '@/components/layout/Header';
 import { LoginIntro } from '@/components/layout/LoginIntro';
+import { NoWorkspace } from '@/components/layout/NoWorkspace';
 import { Sidebar } from '@/components/layout/Sidebar';
 import { AnalyticsIdentity } from '@/components/providers/AnalyticsIdentity';
 import { AuthInitializer } from '@/components/providers/AuthInitializer';
@@ -42,6 +43,11 @@ export default async function CRMLayout({ children }: { children: React.ReactNod
   // administrator's context lives in the tab (sessionStorage), which the server
   // cannot see: their shell renders neutral until the tab says where it is.
   const account = profile?.platform ? 'platform' : profile ? 'member' : 'none';
+
+  // Signed in, but in no workspace yet (self-registered, or removed from their
+  // last one): nothing tenant-scoped can render, so they get the screen that
+  // says who to ask and lists invitations for their confirmed address.
+  if (account === 'none') return <NoWorkspace email={session.user.email} name={session.user.name} />;
   const seed =
     account === 'member' ? await apiFetch<WorkspaceContextResponse>('/workspace-context', { cookieHeader }).catch(() => null) : null;
 

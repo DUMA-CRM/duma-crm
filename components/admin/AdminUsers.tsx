@@ -60,7 +60,7 @@ function UserRow({ user }: { user: PlatformUser }) {
         <span className="flex min-w-0 flex-wrap items-center gap-x-1.5">
           <span className="truncate">{user.email}</span>
           <span aria-hidden="true">·</span>
-          <span>{user.workspace ?? 'No workspace'}</span>
+          <span>{user.workspace ?? 'No workspace'}{user.workspaceCount > 1 && ` +${user.workspaceCount - 1}`}</span>
           {user.providers.length > 0 && (
             <>
               <span aria-hidden="true">·</span>

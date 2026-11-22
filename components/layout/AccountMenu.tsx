@@ -20,6 +20,7 @@ import { hasUnsavedWork } from '@/lib/utils/unsaved-work';
 import { useAuthStore } from '@/stores/authStore';
 
 import { type Target, WorkspacePickerList } from './ContextSwitcher';
+import { MemberWorkspaces } from './MemberWorkspaces';
 
 const subscribe = () => () => {};
 type Theme = 'light' | 'dark' | 'system';
@@ -110,11 +111,7 @@ export function AccountMenu() {
                 <ChevronsUpDown size={14} aria-hidden="true" className="shrink-0 text-muted-foreground" />
               </button>
             ) : (
-              <div className={cn(item, 'hover:bg-transparent')}>
-                <Building2 size={16} aria-hidden="true" className="shrink-0 text-muted-foreground" />
-                <span className="min-w-0 flex-1 truncate">{where}</span>
-                {internal && <Badge variant="reference">Internal</Badge>}
-              </div>
+              <MemberWorkspaces open={open} fallbackName={where} itemClass={item} />
             ))}
 
           {/* The page's own edit, only on that page: the dashboard's widgets, the till's keys, the kitchen screen, the order rules, the reservations overview. */}

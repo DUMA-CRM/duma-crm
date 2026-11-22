@@ -229,8 +229,10 @@ export interface PlatformUser {
   image: string | null;
   emailVerified: boolean;
   createdAt: string;
+  /** The primary membership (active first, then oldest); `workspaceCount` says how many in all. */
   workspace: string | null;
   workspaceId: string | null;
+  workspaceCount: number;
   role: string | null;
   memberActive: boolean | null;
   activationPending: boolean | null;
@@ -258,21 +260,26 @@ export interface PlatformUserSession {
   current: boolean;
 }
 
+export interface PlatformUserMembership {
+  workspaceId: string;
+  workspace: string;
+  workspaceStatus: string;
+  role: string;
+  roleName: string | null;
+  scope: 'global' | 'franchise' | 'location';
+  locationCount: number | null;
+  isActive: boolean;
+  activationPending: boolean;
+  joinedAt: string;
+}
+
 export interface PlatformUserDetail {
   user: { id: string; name: string; email: string; image: string | null; emailVerified: boolean; createdAt: string; updatedAt: string };
   methods: { id: string; providerId: string; hasPassword: boolean; createdAt: string; canUnlink: boolean }[];
-  membership: {
-    workspaceId: string;
-    workspace: string;
-    workspaceStatus: string;
-    role: string;
-    roleName: string | null;
-    scope: string;
-    locationCount: number | null;
-    isActive: boolean;
-    activationPending: boolean;
-    joinedAt: string;
-  } | null;
+  /** The primary membership — `memberships[0]`. */
+  membership: PlatformUserMembership | null;
+  /** Every workspace the account belongs to, active first. */
+  memberships: PlatformUserMembership[];
   platformRoles: { id: string; role: string; grantedAt: string }[];
   sessions: PlatformUserSession[];
   /** ChatGPT and other OAuth clients holding a live grant. */
@@ -321,3 +328,29 @@ export const unlinkPlatformUserMethod = (id: string, methodId: string) =>
 
 export const deletePlatformUser = (user: UserRef) =>
   apiFetch<{ deleted: true }>(userPath(user.id), { ...platform, method: 'DELETE', body: JSON.stringify({ email: user.email }) });
+
+// ── Workspace memberships ────────────────────────────────────────────────────
+
+export interface MembershipOptions {
+  roles: { key: string; name: string }[];
+  locations: { id: string; name: string }[];
+}
+
+export interface MembershipInput {
+  role: string;
+  scope: 'global' | 'franchise' | 'location';
+  locationIds?: string[] | null;
+}
+
+export const getMembershipOptions = (tenantId: string, signal?: AbortSignal) =>
+  apiFetch<MembershipOptions>(`/platform/workspaces/${encodeURIComponent(tenantId)}/membership-options`, { ...platform, signal });
+
+/** Adds an existing account straight into a workspace (or reactivates it there with this role). */
+export const addPlatformUserMembership = (id: string, input: MembershipInput & { tenantId: string; notify: boolean }) =>
+  apiFetch<{ ok: true; notified: boolean }>(`${userPath(id)}/memberships`, { ...platform, method: 'POST', body: JSON.stringify(input) });
+
+export const updatePlatformUserMembership = (id: string, tenantId: string, input: Partial<MembershipInput> & { isActive?: boolean }) =>
+  apiFetch<{ ok: true }>(`${userPath(id)}/memberships/${encodeURIComponent(tenantId)}`, { ...platform, method: 'PATCH', body: JSON.stringify(input) });
+
+export const removePlatformUserMembership = (id: string, tenantId: string) =>
+  apiFetch<{ ok: true }>(`${userPath(id)}/memberships/${encodeURIComponent(tenantId)}`, { ...platform, method: 'DELETE' });

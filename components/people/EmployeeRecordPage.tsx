@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
 import { Banknote, CalendarDays, Clock, LayoutDashboard, Loader2, Pencil, TrendingUp, UserRound } from '@/components/icons';
@@ -12,10 +13,12 @@ import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { SectionTabs } from '@/components/shared/SectionTabs';
+import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Bone, FactSkeleton } from '@/components/shared/Skeleton';
 import { SectionSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 
+import { removeStaffMember } from '@/lib/api/workspaces.service';
 import { type Capability, hasCapability } from '@/lib/auth/capabilities';
 import { type StaffProfile, updateStaff } from '@/lib/modules/identity/client';
 import { getEmployee, getEmployeeHours, offboardEmployee } from '@/lib/modules/people/client';
@@ -88,6 +91,23 @@ export function EmployeeRecordPage({
   // Owned here (not the parent) so the confirm dialog sits with this record view.
   const [offboardOpen, setOffboardOpen] = useState(false);
   const [section, setSection] = useState<RecordSection>('overview');
+  const router = useRouter();
+  const myId = useAuthStore((s) => s.user?.id ?? null);
+  const [removeOpen, setRemoveOpen] = useState(false);
+
+  // Ends access to this workspace only. The API refuses the last owner (409)
+  // and roles above the caller's (403); its message says which.
+  const remove = useMutation({
+    mutationFn: () => removeStaffMember(userId),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.identity.key('staff') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('hr-employees') });
+      setRemoveOpen(false);
+      toast('success', 'Removed from this workspace.');
+      router.push('/staff/team');
+    },
+    onError: (err) => toast('error', (err as Error).message || 'They weren’t removed. Try again.'),
+  });
 
   const offboard = useMutation({
     mutationFn: () => offboardEmployee(userId),
@@ -167,6 +187,12 @@ export function EmployeeRecordPage({
                     Reactivate account
                   </Button>
                 )}
+            {canChangeAccess && userId !== myId && (
+              <Button variant="ghost" onClick={() => setRemoveOpen(true)} className="h-9 text-destructive hover:text-destructive">
+                <span className="hidden md:inline">Remove from workspace</span>
+                <span className="md:hidden">Remove</span>
+              </Button>
+            )}
           </>
         )
       }
@@ -287,6 +313,22 @@ export function EmployeeRecordPage({
           isPending={offboard.isPending}
           onConfirm={() => offboard.mutate()}
           onClose={() => setOffboardOpen(false)}
+        />
+      )}
+      {member && removeOpen && (
+        <ConfirmModal
+          title={`Remove ${member.name ?? member.email ?? 'this person'} from the workspace?`}
+          message={
+            <>
+              This ends their access to this workspace only. Their DUMA account, any other workspaces they belong to, and this workspace’s
+              history — orders, shifts, HR records — all stay.
+            </>
+          }
+          confirmLabel="Remove"
+          pendingLabel="Removing…"
+          isPending={remove.isPending}
+          onConfirm={() => remove.mutate()}
+          onClose={() => setRemoveOpen(false)}
         />
       )}
     </EditorShell>
