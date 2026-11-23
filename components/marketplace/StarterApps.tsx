@@ -2,6 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 
+import { RowWarning } from '@/components/cms/rows';
 import { Input } from '@/components/ui/input';
 import { type VatContext, computeCosting } from '@/lib/menu/costing';
 import { priceForTargetMargin } from '@/lib/utils/margin-calculator';
@@ -34,12 +35,39 @@ function NumberField({ label, value, onChange, step = '1', max = 1_000_000, min 
 
 function CalculatorLayout({ fields, children }: { fields: ReactNode; children: ReactNode }) {
   return (
-    <div className="grid max-w-4xl items-start gap-4 lg:grid-cols-[1.2fr_1fr]">
-      <div className="space-y-4 rounded-lg border border-border bg-card p-5">{fields}</div>
-      <section aria-label="Results" aria-live="polite" className="space-y-3 rounded-lg border border-border bg-card p-5">
-        {children}
+    <div className="grid items-start gap-5 lg:grid-cols-[minmax(0,1fr)_22rem]">
+      <section aria-labelledby="calculator-inputs" className="min-w-0">
+        <h2 id="calculator-inputs" className="mb-2 px-1 text-base font-semibold tracking-title text-heading">Inputs</h2>
+        <div className="space-y-4 rounded-lg border border-border bg-card px-5 py-4 shadow-sm">{fields}</div>
+      </section>
+      <section aria-labelledby="calculator-results" aria-live="polite" className="min-w-0 lg:sticky lg:top-4">
+        <h2 id="calculator-results" className="mb-2 px-1 text-base font-semibold tracking-title text-heading">Result</h2>
+        <div className="space-y-4 rounded-lg border border-border bg-card px-5 py-4 shadow-sm">{children}</div>
       </section>
     </div>
+  );
+}
+
+function Headline({ label, value, sub }: { label: string; value: string; sub?: string }) {
+  return (
+    <div>
+      <p className="text-label font-semibold uppercase text-muted-foreground">{label}</p>
+      <p className="mt-1 font-mono text-metric font-semibold tracking-tight text-heading tabular-nums">{value}</p>
+      {sub && <p className="mt-0.5 text-sm text-muted-foreground">{sub}</p>}
+    </div>
+  );
+}
+
+function Readout({ rows }: { rows: { label: string; value: string; strong?: boolean }[] }) {
+  return (
+    <dl className="space-y-2 border-t border-border pt-3 text-sm">
+      {rows.map(({ label, value, strong }) => (
+        <div key={label} className={`flex justify-between gap-3 ${strong ? 'font-semibold text-heading' : ''}`}>
+          <dt className={strong ? undefined : 'text-muted-foreground'}>{label}</dt>
+          <dd className="font-mono tabular-nums">{value}</dd>
+        </div>
+      ))}
+    </dl>
   );
 }
 
@@ -68,20 +96,17 @@ export function MarketplaceMarginCalculator() {
           <NumberField label="Target gross margin (%)" value={target} onChange={setTarget} step="0.1" max={99} />
         </div>
         <label className="flex items-center gap-2 text-sm">
-          <input type="checkbox" checked={includesTax} onChange={(event) => setIncludesTax(event.target.checked)} />
+          <input type="checkbox" className="size-4 accent-primary" checked={includesTax} onChange={(event) => setIncludesTax(event.target.checked)} />
           Selling price includes tax
         </label>
       </>
     )}>
-      <div>
-        <h2 className="text-sm font-medium text-muted-foreground">Gross margin</h2>
-        <p className="mt-1 text-3xl font-semibold tabular-nums">{costing && costing.netRevenue > 0 ? `${number.format(costing.marginPct)}%` : '—'}</p>
-      </div>
-      <dl className="space-y-2 border-t border-border pt-3 text-sm">
-        <div className="flex justify-between gap-3"><dt>Revenue excluding tax</dt><dd>{costing ? money.format(costing.netRevenue) : '—'}</dd></div>
-        <div className="flex justify-between gap-3"><dt>Gross profit per sale</dt><dd>{costing ? money.format(costing.margin) : '—'}</dd></div>
-        <div className="flex justify-between gap-3 font-medium"><dt>Price at target margin</dt><dd>{requiredPrice === null ? '—' : money.format(requiredPrice)}</dd></div>
-      </dl>
+      <Headline label="Gross margin" value={costing && costing.netRevenue > 0 ? `${number.format(costing.marginPct)}%` : '—'} />
+      <Readout rows={[
+        { label: 'Revenue excluding tax', value: costing ? money.format(costing.netRevenue) : '—' },
+        { label: 'Gross profit per sale', value: costing ? money.format(costing.margin) : '—' },
+        { label: 'Price at target margin', value: requiredPrice === null ? '—' : money.format(requiredPrice), strong: true },
+      ]} />
       {requiredPrice !== null && <p className="text-xs text-muted-foreground">{includesTax ? 'Target price includes tax.' : 'Target price excludes tax.'}</p>}
     </CalculatorLayout>
   );
@@ -118,18 +143,15 @@ export function StockReorderPlanner() {
         </div>
       </>
     )}>
-      <div>
-        <h2 className="text-sm font-medium text-muted-foreground">Suggested order</h2>
-        <p className="mt-1 text-3xl font-semibold tabular-nums">{result ? `${number.format(result.units)} units` : '—'}</p>
-        {result && <p className="mt-1 text-sm text-muted-foreground">{number.format(result.packs)} supplier {result.packs === 1 ? 'pack' : 'packs'}</p>}
-      </div>
+      <Headline label="Suggested order" value={result ? `${number.format(result.units)} units` : '—'}
+        sub={result ? `${number.format(result.packs)} supplier ${result.packs === 1 ? 'pack' : 'packs'}` : undefined} />
       {result ? (
         <>
-          <dl className="space-y-2 border-t border-border pt-3 text-sm">
-            <div className="flex justify-between gap-3"><dt>Total stock needed</dt><dd>{number.format(result.target)} units</dd></div>
-            <div className="flex justify-between gap-3"><dt>Coverage from stock on hand</dt><dd>{result.daysOnHand === null ? 'No usage' : `${number.format(result.daysOnHand)} days`}</dd></div>
-          </dl>
-          {result.mayRunOut && <p className="rounded-md bg-amber-100 p-3 text-sm text-amber-900 dark:bg-amber-950 dark:text-amber-200">Current stock may run out before delivery. Check when your incoming units will arrive.</p>}
+          <Readout rows={[
+            { label: 'Total stock needed', value: `${number.format(result.target)} units` },
+            { label: 'Coverage from stock on hand', value: result.daysOnHand === null ? 'No usage' : `${number.format(result.daysOnHand)} days` },
+          ]} />
+          {result.mayRunOut && <RowWarning>Current stock may run out before delivery. Check when your incoming units will arrive.</RowWarning>}
         </>
       ) : <p className="text-sm text-muted-foreground">Enter whole counts and days, a pack size of at least one, and up to three decimal places for daily usage.</p>}
     </CalculatorLayout>

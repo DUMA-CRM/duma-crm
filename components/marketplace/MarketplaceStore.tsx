@@ -1,251 +1,209 @@
 'use client';
 
-import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import Link from 'next/link';
+import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
-import { Modal } from '@/components/shared/Modal';
+import { Package, Search } from '@/components/icons';
+import { EditorShell } from '@/components/shared/EditorShell';
+import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
+import { Bone } from '@/components/shared/Skeleton';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import {
-  APP_PLACEMENTS, type InstallCredentials, type Listing, type StoreApp, changeInstallation, getMarketplace, listingImageUrl, marketplaceKey,
-} from '@/lib/api/marketplace.service';
+
+import { type StoreApp, getMarketplace, marketplaceKey } from '@/lib/api/marketplace.service';
 import { useWorkspaceContext } from '@/lib/hooks/useWorkspaceContext';
-import { toast } from '@/lib/toast';
+import { ACTION_LABEL, type AppTone, appPlaces, appState, matchesAppSearch, primaryAction, shownRelease, storeTabs } from '@/lib/utils/marketplace';
 
-import { ListingIcon, ListingImageView } from './ListingMedia';
+import { type InstallKind, useInstallFlow } from './InstallFlow';
+import { ListingIcon } from './ListingMedia';
 
-export function AppPermissions({ item }: { item: Listing }) {
+type Tab = 'discover' | 'installed';
+
+export const TONE_BADGE: Record<AppTone, 'success' | 'warning' | 'destructive' | 'reference' | 'muted'> = {
+  success: 'success',
+  warning: 'warning',
+  exception: 'destructive',
+  info: 'reference',
+  muted: 'muted',
+};
+
+export const aboutHref = (slug: string) => `/apps/${encodeURIComponent(slug)}/about`;
+export const openHref = (slug: string) => `/apps/${encodeURIComponent(slug)}`;
+
+export function useMarketplace(options: { refetchInterval?: number } = {}) {
+  const { workspace } = useWorkspaceContext();
+  const workspaceId = workspace?.id;
+  return useQuery({
+    queryKey: marketplaceKey(workspaceId),
+    queryFn: () => getMarketplace(workspaceId!),
+    enabled: Boolean(workspaceId),
+    meta: { silentError: true },
+    ...options,
+  });
+}
+
+function AppCard({ app, canManage, installedTab, onAction }: {
+  app: StoreApp;
+  canManage: boolean;
+  installedTab: boolean;
+  onAction: (kind: InstallKind) => void;
+}) {
+  const release = shownRelease(app, installedTab);
+  if (!release) return null;
+  const name = app.storeListing?.name ?? release.name;
+  const state = appState(app);
+  const action = primaryAction(app, canManage);
+  const places = appPlaces(release);
   return (
-    <ul className="list-disc space-y-1 pl-5 text-sm">
-      {item.builtin && <li>Add a workspace page. Calculator inputs stay on the page.</li>}
-      {item.pageOrigin && <li>Add a workspace page from {item.pageOrigin}</li>}
-      {item.extensions?.map(({ surface, title, origin }) => (
-        <li key={surface}>{title} · {APP_PLACEMENTS[surface].access} · {origin}</li>
+    <li className="group relative flex min-w-0 flex-col rounded-lg border border-border bg-card p-4 shadow-sm transition-[border-color,box-shadow] hover:border-rule/60 hover:shadow-md focus-within:border-rule/60">
+      <div className="flex items-start gap-3">
+        <ListingIcon appId={app.id} imageId={app.storeListing?.icon} builtin={release.builtin} />
+        <div className="min-w-0 flex-1">
+          <h3 className="truncate text-sm font-semibold text-heading">
+            {/* The whole card opens the listing; the action button sits above this link. */}
+            <Link href={aboutHref(app.slug)} className="after:absolute after:inset-0 after:rounded-lg focus-visible:outline-none focus-visible:after:outline-2 focus-visible:after:outline-ring">
+              {name}
+            </Link>
+          </h3>
+          <p className="truncate text-xs text-muted-foreground">{release.builtin ? 'Built by DUMA' : app.publisher}</p>
+        </div>
+        {state && <Badge variant={TONE_BADGE[state.tone]}>{state.label}</Badge>}
+      </div>
+      <p className="mt-3 line-clamp-2 min-h-10 text-sm leading-5 text-muted-foreground">{app.storeListing?.description ?? release.description}</p>
+      <div className="mt-4 flex items-center justify-between gap-3">
+        <span className="min-w-0 truncate text-xs text-muted-foreground">{places.join(' · ')}</span>
+        {action && (
+          action === 'open' ? (
+            <Button asChild size="sm" variant="outline" className="relative z-10 shrink-0">
+              <Link href={openHref(app.slug)}>Open</Link>
+            </Button>
+          ) : (
+            <Button size="sm" variant={action === 'install' ? 'default' : 'outline'} className="relative z-10 shrink-0" onClick={() => onAction(action)}>
+              {ACTION_LABEL[action]}
+            </Button>
+          )
+        )}
+      </div>
+    </li>
+  );
+}
+
+function CardsSkeleton() {
+  return (
+    <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3" aria-busy="true" aria-label="Loading apps">
+      {Array.from({ length: 6 }, (_, index) => (
+        <li key={index} className="rounded-lg border border-border bg-card p-4 shadow-sm">
+          <div className="flex items-start gap-3">
+            <Bone className="size-12 rounded-xl" />
+            <span className="flex-1 space-y-1.5 pt-1">
+              <Bone className="h-3.5 w-32" />
+              <Bone className="h-3 w-20" />
+            </span>
+          </div>
+          <Bone className="mt-4 h-3 w-full" />
+          <Bone className="mt-2 h-3 w-2/3" />
+          <div className="mt-5 flex justify-between">
+            <Bone className="h-3 w-24" />
+            <Bone className="h-8 w-16" />
+          </div>
+        </li>
       ))}
-      {item.scopes.includes('cms.published:read') && <li>Read metadata for published Content entries</li>}
-      {item.webhookOrigin && <li>Send {item.events.join(', ')} notifications to {item.webhookOrigin}</li>}
     </ul>
   );
 }
 
-export function InstallationKeys({ credentials, onClose }: { credentials: InstallCredentials; onClose: () => void }) {
-  const values = [
-    { label: 'Installation ID', value: credentials.installationId },
-    { label: 'Installation token', value: credentials.token },
-    { label: 'Webhook signing secret', value: credentials.webhookSecret },
-  ];
+function CardGrid({ title, apps, ...props }: { title?: string; apps: StoreApp[]; canManage: boolean; installedTab: boolean; onAction: (app: StoreApp, kind: InstallKind) => void }) {
   return (
-    <Modal title="Installation credentials" onClose={onClose}>
-      <div className="space-y-4">
-        <p className="text-sm text-muted-foreground">Save these in the app’s server settings. The token and signing secret are shown once.</p>
-        {values.map(({ label, value }) => value && (
-          <div key={label} className="space-y-1.5">
-            <label className="text-sm font-medium" htmlFor={label.replaceAll(' ', '-')}>{label}</label>
-            <div className="flex items-center gap-2">
-              <Input id={label.replaceAll(' ', '-')} className="font-mono" value={value} readOnly />
-              <Button type="button" variant="outline" onClick={() => {
-                void navigator.clipboard.writeText(value).then(() => toast('success', 'Copied.'), () => toast('error', 'Select and copy the value.'));
-              }}>Copy</Button>
-            </div>
-          </div>
+    <section aria-label={title} className="space-y-2">
+      {title && <h2 className="px-1 text-base font-semibold tracking-title text-heading">{title}</h2>}
+      <ul className="grid gap-4 sm:grid-cols-2 xl:grid-cols-3">
+        {apps.map((app) => (
+          <AppCard key={app.id} app={app} canManage={props.canManage} installedTab={props.installedTab} onAction={(kind) => props.onAction(app, kind)} />
         ))}
-        <Button onClick={onClose}>Done</Button>
-      </div>
-    </Modal>
+      </ul>
+    </section>
   );
 }
 
-type Confirmation = { app: StoreApp; action: 'activate' | 'disable' | 'uninstall'; release?: Listing; test?: boolean; label: string };
-
-export function MarketplaceStore({ installedOnly = false }: { installedOnly?: boolean }) {
-  const { workspace } = useWorkspaceContext();
-  const workspaceId = workspace?.id;
-  const client = useQueryClient();
-  const [confirm, setConfirm] = useState<Confirmation | null>(null);
-  const [credentials, setCredentials] = useState<InstallCredentials | null>(null);
-  const [detailId, setDetailId] = useState<string>();
+/** Apps: the store's Discover tab and this workspace's Installed tab. A card opens the app’s listing. */
+export function MarketplaceStore() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const params = useSearchParams();
+  const tab: Tab = params.get('tab') === 'installed' ? 'installed' : 'discover';
   const [search, setSearch] = useState('');
-  const store = useQuery({
-    queryKey: marketplaceKey(workspaceId), queryFn: () => getMarketplace(workspaceId!),
-    enabled: Boolean(workspaceId), meta: { silentError: true }, refetchOnWindowFocus: true,
-  });
-  const change = useMutation({
-    mutationFn: ({ app, action, release, test }: Confirmation) => {
-      const current = app.installation;
-      return changeInstallation(workspaceId!, app.slug, action === 'activate'
-        ? { action, releaseId: release!.id, expectedRevision: current?.revision ?? null, ...(test ? { test } : {}) }
-        : { action, expectedRevision: current!.revision });
-    },
-    onSuccess: (result) => {
-      setConfirm(null);
-      if (result.token) setCredentials(result);
-      else toast('success', confirm?.action === 'activate' && !confirm.app.installation ? 'App installed.' : 'Installation updated.');
-      void client.invalidateQueries({ queryKey: marketplaceKey(workspaceId) });
-    },
-    onError: () => void client.invalidateQueries({ queryKey: marketplaceKey(workspaceId) }),
-  });
-  const detail = store.data?.apps.find((app) => app.id === detailId);
-  const detailRelease = detail && ((installedOnly ? detail.installation?.release : detail.latest) ?? detail.testRelease ?? detail.installation?.release);
-  const apps = store.data?.apps.filter((app) => (installedOnly ? app.installation : app.latest || app.testRelease) && (
-    !search.trim() || [app.slug, app.publisher, app.storeListing?.name, app.storeListing?.description, app.latest?.name, app.testRelease?.name, app.installation?.release.name]
-      .some((value) => value?.toLowerCase().includes(search.trim().toLowerCase()))
-  )) ?? [];
-
-  function choose(selection: Confirmation) {
-    change.reset();
-    setConfirm(selection);
-  }
+  const store = useMarketplace({ refetchInterval: 60_000 });
+  const flow = useInstallFlow();
+  const tabs = store.data ? storeTabs(store.data.apps) : null;
+  const visible = tabs?.[tab].filter((app) => matchesAppSearch(app, search)) ?? [];
+  const searching = search.trim().length > 0;
+  // Discover leads with DUMA's own tools when it isn't searching.
+  const builtIn = visible.filter((app) => shownRelease(app)?.builtin);
+  const partners = visible.filter((app) => !shownRelease(app)?.builtin);
+  const grouped = tab === 'discover' && !searching && builtIn.length > 0 && partners.length > 0;
+  const setTab = (next: Tab) => router.replace(next === 'installed' ? `${pathname}?tab=installed` : pathname, { scroll: false });
+  const gridProps = {
+    canManage: store.data?.canManage ?? false,
+    installedTab: tab === 'installed',
+    onAction: (app: StoreApp, kind: InstallKind) => flow.start({ app, kind }),
+  };
 
   return (
-    <div className="mx-auto max-w-5xl space-y-6">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-semibold tracking-title">{installedOnly ? 'Installed apps' : 'App Store'}</h1>
-          <p className="mt-1 text-sm text-muted-foreground">{installedOnly ? 'Manage apps connected to this workspace.' : 'Add widgets, tools, and integrations to your workspace.'}</p>
-        </div>
-        <div className="flex flex-wrap gap-2">
-          <Button asChild variant="outline"><Link href="/app-publisher">Publisher dashboard</Link></Button>
-          <Button asChild variant="outline"><Link href={installedOnly ? '/apps' : '/settings/installed-apps'}>{installedOnly ? 'Browse App Store' : 'Installed apps'}</Link></Button>
-        </div>
-      </header>
-      {!installedOnly && store.data && (
-        <Input aria-label="Search apps" placeholder="Search apps" value={search} onChange={(event) => setSearch(event.target.value)} className="max-w-sm" />
-      )}
-      {store.isError ? (
-        <div className="space-y-2" role="alert">
-          <p>{store.error.message}</p>
-          <Button variant="outline" onClick={() => void store.refetch()}>Try again</Button>
-        </div>
-      ) : store.isPending ? <p role="status">Loading apps…</p> : apps.length === 0 ? (
-        <p className="rounded-lg border border-dashed border-border p-6 text-sm text-muted-foreground">
-          {search ? 'No apps match your search.' : installedOnly ? 'This workspace has no installed apps.' : 'No apps are available yet.'}
-        </p>
-      ) : (
-        <div className="grid gap-4 md:grid-cols-2">
-          {apps.map((app) => {
-            const current = app.installation;
-            const item = (installedOnly ? current?.release : app.latest) ?? app.testRelease ?? current?.release;
-            if (!item) return null;
-            const copy = app.storeListing ?? item;
-            const cover = app.storeListing?.screenshots[0];
-            const update = current && app.latest && current.release.id !== app.latest.id;
-            return (
-              <article key={app.id} className="flex min-w-0 flex-col gap-4 rounded-lg border border-border bg-card p-5">
-                <div className="flex items-center gap-3">
-                  <ListingIcon appId={app.id} imageId={app.storeListing?.icon} builtin={item.builtin} />
-                  <div className="min-w-0">
-                    <h2 className="break-words text-lg font-semibold">{copy.name}</h2>
-                    <p className="break-words text-sm text-muted-foreground">{app.publisher}</p>
-                    {current && <p className="text-xs text-muted-foreground">
-                      {app.suspended ? 'Suspended' : current.status === 'active' ? 'Installed' : 'Disabled'}{current.test ? ' · Test' : ''}
-                    </p>}
-                    {!current && !app.latest && app.testRelease && <p className="text-xs text-muted-foreground">Submitted for review</p>}
-                  </div>
-                </div>
-                <p className="line-clamp-3 whitespace-pre-wrap break-words text-sm text-muted-foreground">{copy.description}</p>
-                {cover && !installedOnly && (
-                  <button type="button" className="block w-full overflow-hidden rounded-lg border border-border bg-band focus-visible:outline-2 focus-visible:outline-ring"
-                    aria-label={`View screenshots of ${copy.name}`} onClick={() => setDetailId(app.id)}>
-                    <ListingImageView src={listingImageUrl(app.id, cover)} alt="" className="aspect-video w-full object-contain" />
-                  </button>
-                )}
-                <div className="mt-auto flex flex-wrap gap-2">
-                  <Button variant="outline" onClick={() => setDetailId(app.id)}>View details</Button>
-                  {current?.canOpen && <Button asChild><Link href={`/apps/${app.slug}`}>Open app</Link></Button>}
-                  {store.data.canManage && !app.suspended && app.latest && (!current || update || current.test) && (
-                    <Button variant={current?.canOpen ? 'outline' : 'default'} onClick={() => choose({ app, action: 'activate', release: app.latest!, label: current ? 'Update app' : 'Install app' })}>
-                      {current ? 'Update' : 'Install'}
-                    </Button>
-                  )}
-                  {store.data.canManage && app.testRelease && (!current || current.test) && (
-                    <Button variant="outline" onClick={() => choose({ app, action: 'activate', release: app.testRelease!, test: true, label: 'Test this release' })}>
-                      Test release
-                    </Button>
-                  )}
-                  {store.data.canManage && current && (
-                    <>
-                      {current.status === 'active' && (
-                        <Button variant="outline" onClick={() => choose({ app, action: 'disable', label: 'Disable app' })}>Disable</Button>
-                      )}
-                      {!app.suspended && !current.test && (current.status === 'disabled' || !current.release.builtin) && (
-                        <Button variant="outline" onClick={() => choose({ app, action: 'activate', release: current.release, label: current.status === 'disabled' ? 'Enable app' : 'Rotate credentials' })}>
-                          {current.status === 'disabled' ? 'Enable' : 'Rotate credentials'}
-                        </Button>
-                      )}
-                      <Button variant="ghost" onClick={() => choose({ app, action: 'uninstall', label: 'Uninstall app' })}>Uninstall</Button>
-                    </>
-                  )}
-                </div>
-              </article>
-            );
-          })}
-        </div>
-      )}
-      {detail && detailRelease && (
-        <Modal title={detail.storeListing?.name ?? detailRelease.name} description={detail.publisher}
-          size="2xl" onClose={() => setDetailId(undefined)}>
-          <div className="space-y-5">
-            <div className="flex items-start gap-3">
-              <ListingIcon appId={detail.id} imageId={detail.storeListing?.icon} builtin={detailRelease.builtin} />
-              <div className="min-w-0">
-                <p className="text-xs text-muted-foreground">Version {detailRelease.version}</p>
-                <p className="mt-1 whitespace-pre-wrap break-words text-sm">{detail.storeListing?.description ?? detailRelease.description}</p>
-              </div>
-            </div>
-            {Boolean(detail.storeListing?.screenshots.length) && (
-              <section className="space-y-2" aria-label="Screenshots">
-                <h2 className="font-semibold">Screenshots</h2>
-                <div className="grid gap-3 sm:grid-cols-2">
-                  {detail.storeListing?.screenshots.map((id, index) => (
-                    <ListingImageView key={id + index} src={listingImageUrl(detail.id, id)} alt={`Screenshot ${index + 1}`}
-                      className="aspect-video w-full rounded-lg border border-border bg-band object-contain" />
-                  ))}
-                </div>
-              </section>
-            )}
-            <section className="space-y-2">
-              <h2 className="font-semibold">Permissions</h2>
-              <AppPermissions item={detailRelease} />
-              <div className="flex flex-wrap gap-4 text-sm">
-                <a className="underline" href={detail.storeListing?.supportUrl ?? detailRelease.supportUrl} target="_blank" rel="noreferrer">Support</a>
-                <a className="underline" href={detail.storeListing?.privacyUrl ?? detailRelease.privacyUrl} target="_blank" rel="noreferrer">Privacy policy</a>
-              </div>
-            </section>
-            {detail.installation?.canOpen && <Button asChild><Link href={`/apps/${detail.slug}`}>Open app</Link></Button>}
-            {store.data?.canManage && detail.latest && (!detail.installation || detail.installation.test ||
-                detail.installation.release.id !== detail.latest.id) && (
-              <Button onClick={() => {
-                setDetailId(undefined);
-                choose({ app: detail, action: 'activate', release: detail.latest!, label: detail.installation ? 'Update app' : 'Install app' });
-              }}>{detail.installation ? 'Update' : 'Install'}</Button>
-            )}
+    <EditorShell
+      title="Apps"
+      icon={<Package size={18} aria-hidden="true" />}
+      actions={<Button asChild variant="outline" size="sm"><Link href="/developers/apps">Build an app</Link></Button>}
+    >
+      <div className="mx-auto w-full max-w-6xl space-y-5">
+        <div className="flex flex-wrap items-center gap-2">
+          <SegmentedControl
+            ariaLabel="Show"
+            value={tab}
+            onChange={setTab}
+            options={[
+              { value: 'discover', label: 'Discover' },
+              { value: 'installed', label: tabs ? `Installed · ${tabs.installed.length}` : 'Installed' },
+            ]}
+          />
+          <div className="ml-auto w-full sm:w-72">
+            <Input type="search" aria-label="Search apps" placeholder="Search apps" value={search} maxLength={120}
+              leftIcon={<Search size={14} aria-hidden="true" />} onChange={(event) => setSearch(event.target.value)} />
           </div>
-        </Modal>
-      )}
-      {confirm && (
-        <Modal title={confirm.label} onClose={() => { if (!change.isPending) setConfirm(null); }}>
-          <div className="space-y-4 break-words">
-            {confirm.release ? (
-              <>
-                <p><strong>{confirm.app.storeListing?.name ?? confirm.release.name}</strong> will be available in {workspace?.name}.</p>
-                <AppPermissions item={confirm.release} />
-                {confirm.app.installation && !confirm.release.builtin && <p className="text-sm text-muted-foreground">This issues fresh credentials. Update the app’s server settings to reconnect it.</p>}
-              </>
-            ) : (
-              <p className="text-sm">{confirm.app.installation?.release.builtin
-                ? 'This app will be removed from the workspace’s Apps menu.'
-                : 'DUMA will revoke this app’s credentials and stop its pages, widgets, and notifications. Check the publisher’s privacy policy for data it already received.'}</p>
-            )}
-            {change.error && <p className="text-sm text-exception" role="alert">{change.error.message}</p>}
-            <div className="flex flex-wrap gap-2">
-              <Button disabled={change.isPending} variant={confirm.action === 'uninstall' ? 'destructive' : 'default'} onClick={() => change.mutate(confirm)}>{confirm.label}</Button>
-              <Button disabled={change.isPending} variant="outline" onClick={() => setConfirm(null)}>Cancel</Button>
-            </div>
+        </div>
+
+        {store.isPending ? (
+          <CardsSkeleton />
+        ) : store.isError ? (
+          <ErrorState icon={Package} title="Apps couldn’t be loaded" description={store.error.message} onRetry={() => void store.refetch()} />
+        ) : visible.length === 0 ? (
+          searching ? (
+            <EmptyState icon={Package} kind="search" title="No apps match" description="Try another name or publisher."
+              action={{ label: 'Clear search', onClick: () => setSearch('') }} />
+          ) : tab === 'installed' ? (
+            <EmptyState icon={Package} title="No apps installed" description="Apps you install appear here and in the sidebar."
+              action={{ label: 'Discover apps', onClick: () => setTab('discover') }} />
+          ) : (
+            <EmptyState icon={Package} title="No apps yet" description="Apps for this workspace will appear here." />
+          )
+        ) : grouped ? (
+          <div className="space-y-8">
+            <CardGrid title="From DUMA" apps={builtIn} {...gridProps} />
+            <CardGrid title="From partners" apps={partners} {...gridProps} />
           </div>
-        </Modal>
-      )}
-      {credentials && <InstallationKeys credentials={credentials} onClose={() => { setCredentials(null); change.reset(); }} />}
-    </div>
+        ) : (
+          <CardGrid apps={visible} {...gridProps} />
+        )}
+
+        {store.data && !store.data.canManage && (
+          <p className="px-1 text-xs text-muted-foreground">A workspace admin installs and removes apps.</p>
+        )}
+      </div>
+      {flow.dialogs}
+    </EditorShell>
   );
 }

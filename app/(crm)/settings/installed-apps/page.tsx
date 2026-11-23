@@ -1,5 +1,5 @@
-import { MarketplaceStore } from '@/components/marketplace/MarketplaceStore';
+import { InstalledApps } from '@/components/marketplace/InstalledApps';
 
 export default function InstalledAppsPage() {
-  return <MarketplaceStore installedOnly />;
+  return <InstalledApps />;
 }

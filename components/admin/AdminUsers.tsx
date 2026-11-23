@@ -114,13 +114,12 @@ export function AdminUsers() {
     >
       <div className="mx-auto w-full max-w-5xl space-y-4">
         <div className="flex flex-wrap items-center gap-2">
-          <div className="relative min-w-60 flex-1">
-            <Search size={14} aria-hidden="true" className="pointer-events-none absolute top-1/2 left-3 -translate-y-1/2 text-muted-foreground" />
+          <div className="min-w-60 flex-1">
             <Input
               type="search"
               aria-label="Search by name, email or user ID"
               placeholder="Search by name, email or user ID"
-              className="pl-8"
+              leftIcon={<Search size={14} aria-hidden="true" />}
               value={filters.q}
               maxLength={320}
               onChange={(event) => set('q', event.target.value)}

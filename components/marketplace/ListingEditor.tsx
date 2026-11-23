@@ -1,19 +1,25 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useRef, useState } from 'react';
 
 import { canEncode, encodeImage } from '@/components/cms/imageEncode';
+import { TEXTAREA_CLASS } from '@/components/cms/shared';
+import { ImagePlus, Loader2, X } from '@/components/icons';
+import { FormSection, ModalActions } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { FieldLabel } from '@/components/ui/label';
+
+import {
+  type ListingImage, type PublisherApp, listingImageUrl, marketplaceRootKey, publisherKey, reviewKey, saveListing,
+} from '@/lib/api/marketplace.service';
 import { toast } from '@/lib/toast';
-import { type ListingImage, type PublisherApp, listingImageUrl, saveListing } from '@/lib/api/marketplace.service';
+import { cn } from '@/lib/utils/cn';
 
 import { ListingImageView } from './ListingMedia';
 
 const formats = ['image/png', 'image/jpeg', 'image/webp'];
-const field = 'block w-full rounded-md border border-border bg-background px-3 py-2 text-sm focus-visible:outline-2 focus-visible:outline-ring';
 
 async function prepareImage(file: File, icon: boolean): Promise<ListingImage> {
   if (!formats.includes(file.type)) throw new Error('Choose a PNG, JPEG, or WebP image.');
@@ -34,7 +40,8 @@ async function prepareImage(file: File, icon: boolean): Promise<ListingImage> {
   throw new Error('The image could not be compressed enough. Try a smaller image.');
 }
 
-function ImageField({ appId, label, image, icon = false, onChange, onBusy }: {
+/** One image slot: the picture (or an add tile) as the file button, a remove button over it. */
+function ImageSlot({ appId, label, image, icon = false, onChange, onBusy }: {
   appId: string;
   label: string;
   image: ListingImage | null;
@@ -42,6 +49,7 @@ function ImageField({ appId, label, image, icon = false, onChange, onBusy }: {
   onChange: (value: ListingImage | null) => void;
   onBusy: (busy: boolean) => void;
 }) {
+  const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const src = image ? ('id' in image ? listingImageUrl(appId, image.id) : `data:${image.mimeType};base64,${image.data}`) : null;
@@ -60,19 +68,55 @@ function ImageField({ appId, label, image, icon = false, onChange, onBusy }: {
   }
 
   return (
-    <div className="space-y-2 rounded-lg border border-border p-3">
-      {src && <ListingImageView src={src} alt={label}
-        className={icon ? 'size-20 rounded-xl object-cover' : 'aspect-video w-full rounded-md bg-band object-contain'} />}
-      <label className="block space-y-1 text-sm font-medium">{label}
-        <Input type="file" accept={formats.join(',')} disabled={busy} onChange={(event) => {
-          const file = event.currentTarget.files?.[0];
-          event.currentTarget.value = '';
-          if (file) void pick(file);
-        }} />
-      </label>
-      {busy && <p role="status" className="text-xs text-muted-foreground">Preparing image…</p>}
-      {src && <Button type="button" variant="ghost" size="sm" disabled={busy} onClick={() => onChange(null)}>Remove {label.toLowerCase()}</Button>}
-      {error && <p role="alert" className="text-sm text-exception">{error}</p>}
+    <div className="min-w-0 space-y-1.5">
+      <div className={cn('group relative', icon ? 'size-24' : 'aspect-video w-full')}>
+        <button
+          type="button"
+          disabled={busy}
+          onClick={() => input.current?.click()}
+          aria-label={src ? `Replace ${label.toLowerCase()}` : `Add ${label.toLowerCase()}`}
+          className={cn(
+            'grid size-full place-items-center overflow-hidden border transition-colors focus-visible:outline-2 focus-visible:outline-ring',
+            icon ? 'rounded-2xl' : 'rounded-lg',
+            src ? 'border-border bg-band' : 'border-dashed border-rule/60 bg-band/30 text-muted-foreground hover:border-rule hover:bg-band/60',
+          )}
+        >
+          {busy ? (
+            <Loader2 size={18} className="animate-spin text-muted-foreground" aria-hidden="true" />
+          ) : src ? (
+            <ListingImageView src={src} alt="" className={cn('size-full', icon ? 'object-cover' : 'object-contain')} />
+          ) : (
+            <span className="flex flex-col items-center gap-1 text-xs font-medium">
+              <ImagePlus size={18} aria-hidden="true" />
+              {icon ? 'Icon' : 'Add'}
+            </span>
+          )}
+        </button>
+        {src && !busy && (
+          <button
+            type="button"
+            onClick={() => onChange(null)}
+            aria-label={`Remove ${label.toLowerCase()}`}
+            className="absolute top-1.5 right-1.5 grid size-6 place-items-center rounded-md border border-border bg-card/90 text-muted-foreground opacity-0 shadow-sm transition-opacity group-hover:opacity-100 hover:text-exception focus-visible:opacity-100 focus-visible:outline-2 focus-visible:outline-ring pointer-coarse:opacity-100"
+          >
+            <X size={12} aria-hidden="true" />
+          </button>
+        )}
+        <input
+          ref={input}
+          type="file"
+          className="sr-only"
+          tabIndex={-1}
+          aria-hidden="true"
+          accept={formats.join(',')}
+          onChange={(event) => {
+            const file = event.currentTarget.files?.[0];
+            event.currentTarget.value = '';
+            if (file) void pick(file);
+          }}
+        />
+      </div>
+      {error && <p role="alert" className="text-xs text-exception">{error}</p>}
     </div>
   );
 }
@@ -83,6 +127,7 @@ export function ListingEditor({ app, publisher, admin = false, onClose }: {
   admin?: boolean;
   onClose: () => void;
 }) {
+  const formId = useId();
   const query = useQueryClient();
   const [current] = useState(app.storeListing);
   const [initial] = useState(() => current ?? (app.releases.find((release) => release.status === 'published') ?? app.releases[0])?.manifest);
@@ -106,38 +151,54 @@ export function ListingEditor({ app, publisher, admin = false, onClose }: {
       }, admin);
     },
     onSuccess: () => {
-      void query.invalidateQueries({ queryKey: ['app-publisher'] });
-      void query.invalidateQueries({ queryKey: ['marketplace-review'] });
-      void query.invalidateQueries({ queryKey: ['organization', 'marketplace'] });
+      void query.invalidateQueries({ queryKey: publisherKey });
+      void query.invalidateQueries({ queryKey: reviewKey });
+      void query.invalidateQueries({ queryKey: marketplaceRootKey });
       toast('success', 'Listing saved.');
       onClose();
     },
   });
   return (
-    <Modal title="Edit App Store listing" description={`Published by ${publisher}`} size="xl"
-      onClose={() => { if (!save.isPending) onClose(); }}>
-      <form className="space-y-4" onSubmit={(event) => {
+    <Modal
+      title="Edit store listing"
+      description={`${app.slug} · ${publisher}`}
+      size="xl"
+      onClose={() => { if (!save.isPending) onClose(); }}
+      footer={(
+        <ModalActions form={formId} submitLabel="Save listing" pendingLabel="Saving…" pending={save.isPending}
+          disabled={processing > 0} onCancel={onClose} />
+      )}
+    >
+      <form id={formId} className="space-y-5" onSubmit={(event) => {
         event.preventDefault();
         if (!processing && !save.isPending) save.mutate(new FormData(event.currentTarget));
       }}>
-        <div className="grid gap-3 sm:grid-cols-2">
-          <label className="space-y-1 text-sm sm:col-span-2">App name<Input name="name" required minLength={2} maxLength={120} defaultValue={initial?.name} /></label>
-          <label className="space-y-1 text-sm">Support URL<Input name="supportUrl" type="url" required defaultValue={initial?.supportUrl} /></label>
-          <label className="space-y-1 text-sm">Privacy policy URL<Input name="privacyUrl" type="url" required defaultValue={initial?.privacyUrl} /></label>
-        </div>
-        <label className="block space-y-1 text-sm">Description
-          <textarea className={field} name="description" required rows={4} minLength={10} maxLength={2000} defaultValue={initial?.description} />
-        </label>
-        <ImageField appId={app.id} label="App icon" icon image={icon} onChange={setIcon} onBusy={setBusy} />
-        <fieldset className="grid gap-3 sm:grid-cols-2">
-          <legend className="mb-2 text-sm font-medium">Screenshots (up to 4)</legend>
-          {screenshots.map((image, index) => (
-            <ImageField key={index} appId={app.id} label={`Screenshot ${index + 1}`} image={image} onBusy={setBusy}
-              onChange={(next) => setScreenshots((images) => images.map((entry, position) => position === index ? next : entry))} />
-          ))}
-        </fieldset>
+        <FormSection title="Listing" framed={false}>
+          <div className="flex items-start gap-4">
+            <ImageSlot appId={app.id} label="App icon" icon image={icon} onChange={setIcon} onBusy={setBusy} />
+            <div className="min-w-0 flex-1">
+              <Input label="App name" name="name" required minLength={2} maxLength={120} defaultValue={initial?.name} />
+            </div>
+          </div>
+          <div className="space-y-1.5">
+            <FieldLabel htmlFor={`${formId}-description`} required>Description</FieldLabel>
+            <textarea id={`${formId}-description`} className={TEXTAREA_CLASS} name="description" required rows={5} minLength={10} maxLength={2000}
+              defaultValue={initial?.description} />
+          </div>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <Input label="Support URL" name="supportUrl" type="url" required placeholder="https://" defaultValue={initial?.supportUrl} />
+            <Input label="Privacy policy URL" name="privacyUrl" type="url" required placeholder="https://" defaultValue={initial?.privacyUrl} />
+          </div>
+        </FormSection>
+        <FormSection title="Screenshots" framed={false} note="Up to four, 16:9 works best. Images are compressed in your browser before upload.">
+          <div className="grid grid-cols-2 gap-3">
+            {screenshots.map((image, index) => (
+              <ImageSlot key={index} appId={app.id} label={`Screenshot ${index + 1}`} image={image} onBusy={setBusy}
+                onChange={(next) => setScreenshots((images) => images.map((entry, position) => position === index ? next : entry))} />
+            ))}
+          </div>
+        </FormSection>
         {save.error && <p role="alert" className="text-sm text-exception">{save.error.message}</p>}
-        <Button disabled={save.isPending || processing > 0}>{save.isPending ? 'Saving…' : 'Save listing'}</Button>
       </form>
     </Modal>
   );

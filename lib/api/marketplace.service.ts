@@ -1,4 +1,4 @@
-import { apiFetch } from './client';
+import { BROWSER_API_PREFIX, apiFetch } from './client';
 
 export const APP_EVENTS = ['entry.published', 'entry.unpublished', 'entry.deleted', 'asset.changed'] as const;
 export const APP_PLACEMENTS = {
@@ -36,7 +36,7 @@ export type ListingImage = { id: string } | { mimeType: string; data: string };
 export type ListingUpdate = ListingText & { expectedRevision: number; icon: ListingImage | null; screenshots: ListingImage[] };
 
 export function listingImageUrl(appId: string, imageId: string) {
-  return `/be/v1/marketplace/media/${appId}/${imageId}`;
+  return `${BROWSER_API_PREFIX}/v1/marketplace/media/${encodeURIComponent(appId)}/${encodeURIComponent(imageId)}`;
 }
 
 export type StoreApp = {
@@ -64,6 +64,8 @@ export type Release = {
   testInstructions: string;
   status: 'submitted' | 'changes_requested' | 'published' | 'superseded';
   reviewNote: string | null;
+  submittedAt: string;
+  reviewedAt: string | null;
 };
 export type PublisherApp = {
   id: string;
@@ -88,6 +90,10 @@ const post = (body: unknown, workspaceId?: string) => ({
 });
 
 export const marketplaceKey = (workspaceId: string | undefined) => ['organization', 'marketplace', workspaceId] as const;
+/** Every workspace's store, for a change made outside one (a review decision, a listing edit). */
+export const marketplaceRootKey = ['organization', 'marketplace'] as const;
+export const publisherKey = ['app-publisher'] as const;
+export const reviewKey = ['marketplace-review'] as const;
 export const getMarketplace = (workspaceId: string) =>
   apiFetch<{ canManage: boolean; apps: StoreApp[] }>('/marketplace', { workspaceId });
 

@@ -17,9 +17,12 @@ const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:7777';
 
 const isServer = typeof window === 'undefined';
 
+/** The same-origin proxy path. For an address the browser loads but the server may render (an `<img src>`), so both agree. */
+export const BROWSER_API_PREFIX = '/be';
+
 // Base prefix WITHOUT the `/v1` suffix — exported for callers that build their
 // own paths (e.g. the receipt download in the orders page).
-export const API_PREFIX = isServer ? API_ORIGIN : '/be';
+export const API_PREFIX = isServer ? API_ORIGIN : BROWSER_API_PREFIX;
 const API_BASE = `${API_PREFIX}/v1`;
 
 /**
