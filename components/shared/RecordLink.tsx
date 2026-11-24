@@ -38,13 +38,13 @@ export function RecordLink({
  * capability that record's route guards on, so the name stays plain text
  * instead of leading to a 403. Mirrors the route layouts: /staff
  * (staff:read | hr.people:read), /inventory (stock:read), /menu
- * (menu:write | recipes:write), /customers (customers:read).
+ * (menu:read | menu:write | recipes:write), /customers (customers:read).
  */
 export function useRecordHrefs() {
   const capabilities = useAuthStore((state) => state.capabilities);
   const staff = hasAnyCapability(capabilities, 'staff:read', 'hr.people:read');
   const stock = hasCapability(capabilities, 'stock:read');
-  const menu = hasAnyCapability(capabilities, 'menu:write', 'recipes:write');
+  const menu = hasAnyCapability(capabilities, 'menu:read', 'menu:write', 'recipes:write');
   const customers = hasCapability(capabilities, 'customers:read');
   return {
     staff: (userId: string | null | undefined) => (staff && userId ? `/staff/${userId}` : null),

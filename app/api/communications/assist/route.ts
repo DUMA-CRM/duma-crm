@@ -4,6 +4,8 @@ import { consumeAgentBudget } from '@/lib/api/agent-state.service';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { getMyStaffProfile } from '@/lib/modules/identity/client';
 
+import { requestWorkspaceId } from '../../_lib/request-guards';
+
 // ---------------------------------------------------------------------------
 // POST /api/communications/assist — Ask DUMA for email templates: the
 // plain-text version written from the HTML (`plain-text`), and the inbox
@@ -42,7 +44,7 @@ export async function POST(request: Request) {
   if (!profile) return fail('Your session has expired. Sign in again.', 401);
   if (!hasCapability(profile, 'email:write')) return fail('You need permission to edit email templates to use Ask DUMA here.', 403);
 
-  const budget = await consumeAgentBudget(cookieHeader);
+  const budget = await consumeAgentBudget(cookieHeader, requestWorkspaceId(request.headers, profile.tenantId));
   if (!budget.allowed) return fail('You’ve used today’s AI allowance. It resets tomorrow.', 429);
 
   try {

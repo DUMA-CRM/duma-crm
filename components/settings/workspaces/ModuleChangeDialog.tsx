@@ -121,7 +121,6 @@ export function ModuleChangeDialog({ preview, onClose }: { preview: ModuleChange
     onSuccess: async () => {
       await Promise.all([
         queryClient.invalidateQueries({ queryKey: WORKSPACE_CONTEXT_KEY }),
-        queryClient.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenant-modules', tenantId) }),
         queryClient.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId) }),
       ]);
       toast('success', `${copy.name} is ${turningOff ? 'off' : 'on'}.`);

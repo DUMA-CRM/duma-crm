@@ -4,6 +4,15 @@ export default async function SettingsConnectorsLayout({ children }: { children:
   // Media storage is a connector too: its credentials are CMS integration keys.
   // Google Drive is each person's own, for Notes — so anyone who writes notes gets here,
   // and sees only the connectors their capabilities allow (the grid filters per card).
-  await requireAnyCapability('settings:write', 'email.connections:write', 'payments.connections:write', 'cms.keys:write', 'notes:write');
+  // Social accounts (marketing.connections:write) are connections too — a marketing
+  // manager who connects Instagram used to be bounced to the dashboard.
+  await requireAnyCapability(
+    'settings:write',
+    'email.connections:write',
+    'payments.connections:write',
+    'marketing.connections:write',
+    'cms.keys:write',
+    'notes:write',
+  );
   return children;
 }

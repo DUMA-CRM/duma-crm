@@ -17,7 +17,7 @@ target; where they differ from the Account files, **they win**:
   the reference for a settings page: `ChangeRow`s with no separators, a draft
   kept with its SaveBar, Cancel restoring the row's value, a live preview in
   the aside, hints cut to the rules the preview can't show.
-- **My HR** (`components/people/my-hr/Overview.tsx`, `TimeOffPanel.tsx`,
+- **My work** (`components/people/my-hr/Overview.tsx`, `TimeOffPanel.tsx`,
   `DocumentsPanel.tsx`) — a person's own profile; titled lists as `RecordGroup`.
 - **Staff record** (`components/people/record/OverviewPanels.tsx`) — a record
   someone else edits.

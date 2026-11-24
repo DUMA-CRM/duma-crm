@@ -1,10 +1,26 @@
 import Image from 'next/image';
+import { memo } from 'react';
 
 import { cn } from '@/lib/utils/cn';
 import { type StockLevel, formatPrice } from '@/lib/utils/pos';
 import type { KeySize } from '@/lib/utils/till-keys';
 import type { TileStyle } from '@/stores/posSettingsStore';
 import type { MenuItem } from '@/types/pos';
+
+interface ProductCardProps {
+  item: MenuItem;
+  /** How many are on the ticket already. */
+  count: number;
+  isSelected: boolean;
+  stock?: { level: StockLevel; ingredient: string };
+  tileStyle?: TileStyle;
+  /** The category's key colour (a CSS colour); none draws no bar. */
+  colour?: string;
+  onSelect: (item: MenuItem) => void;
+  currency?: string;
+  /** Its arranged size on the page: a wide or big key fills its cells, a big one with a larger name. */
+  size?: KeySize;
+}
 
 /**
  * A menu key, drawn the way a working till draws one: flat, its category's
@@ -18,7 +34,7 @@ import type { MenuItem } from '@/types/pos';
  * still sells — the count on the system is often behind the shelf, and the
  * cashier is looking at the shelf.
  */
-export function ProductCard({
+export const ProductCard = memo(function ProductCard({
   item,
   count,
   isSelected,
@@ -28,20 +44,7 @@ export function ProductCard({
   onSelect,
   currency,
   size,
-}: {
-  item: MenuItem;
-  /** How many are on the ticket already. */
-  count: number;
-  isSelected: boolean;
-  stock?: { level: StockLevel; ingredient: string };
-  tileStyle?: TileStyle;
-  /** The category's key colour (a CSS colour); none draws no bar. */
-  colour?: string;
-  onSelect: (item: MenuItem) => void;
-  currency?: string;
-  /** Its arranged size on the page: a wide or big key fills its cells, a big one with a larger name. */
-  size?: KeySize;
-}) {
+}: ProductCardProps) {
   const photo = tileStyle === 'photo';
   const big = size?.h === 2;
   const sized = !!size && (size.w > 1 || size.h > 1);
@@ -116,5 +119,26 @@ export function ProductCard({
         </span>
       )}
     </button>
+  );
+}, sameKey);
+
+/**
+ * A till tap re-renders the grid; only the key whose count, selection or stock
+ * changed should repaint. `size` is rebuilt by `arrangeKeys` on every render,
+ * so it is compared by value.
+ */
+function sameKey(prev: ProductCardProps, next: ProductCardProps) {
+  return (
+    prev.item === next.item &&
+    prev.count === next.count &&
+    prev.isSelected === next.isSelected &&
+    prev.stock?.level === next.stock?.level &&
+    prev.stock?.ingredient === next.stock?.ingredient &&
+    prev.tileStyle === next.tileStyle &&
+    prev.colour === next.colour &&
+    prev.onSelect === next.onSelect &&
+    prev.currency === next.currency &&
+    prev.size?.w === next.size?.w &&
+    prev.size?.h === next.size?.h
   );
 }

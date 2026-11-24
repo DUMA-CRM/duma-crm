@@ -50,14 +50,14 @@ If it says **No location selected**, choose the site you are standing in from th
 
 There is no eat-in/takeaway choice, table number or manual discount on the till. Items marked **Low** or **Out** are showing a stock warning, if this till has stock warnings turned on.
 
-> How the sell screen looks — categories or items first, favourites, photo or compact tiles, the search bar — is set per device in **Settings → Configuration → Till**.
+> How the sell screen looks — categories or items first, favourites, photo or compact tiles, the search bar — is set per device in **Settings → Operations → Till**.
 
 ## Add the customer before you charge
 
 Tap **Add a customer** on the ticket, then:
 
 - **Name, phone or email** — search for an existing customer. Always search before creating one; a duplicate splits their history and points.
-- **Scan loyalty code** — scan the QR code in their app or on their card. Whether this till uses the camera or a USB scanner is set in **Settings → Configuration → Till → Loyalty scanner**.
+- **Scan loyalty code** — scan the QR code in their app or on their card. Whether this till uses the camera or a USB scanner is set in **Settings → Operations → Till → Loyalty scanner**.
 - **New customer** — first name, last name and phone (email optional), then **Create and add to ticket**.
 
 Once added, the ticket header shows the customer and their points balance.
@@ -89,7 +89,7 @@ Tap **Charge £…**, then choose how the customer pays under **Take payment**:
 
 When it is done, use **Print receipt** or **New sale**. Split payments are not supported, and refunds are made from **Orders**, not the till.
 
-Card readers are added per location in **Settings → Connectors → Card payments**.
+Card readers are added per location in **Settings → Connections → Card payments**.
 
 ## When the internet drops
 
@@ -120,11 +120,11 @@ Opening and closing the trading day also happens on the till, from the **Cash up
 ## Before you open
 
 1. Confirm the **location picker** at the bottom of the sidebar shows the site you are standing in. Orders, clock-ins, stock and cash-up all follow it.
-2. **Clock in** — slide to clock in on **My rota**, or on the till itself, which stays locked until you are on shift.
+2. **Clock in** — slide to clock in on **My work → Rota**, or on the till itself, which stays locked until you are on shift.
 3. On the till, use **Cash up → Open the day** and count the float into the drawer.
 4. Read **Needs you** on the Dashboard. Late orders, rota gaps and stock running out are cheaper to deal with now than mid-rush.
 5. Put the **Kitchen** screen on the kitchen tablet and tap it once so the order chime can play.
-6. Check each till’s loyalty scanner choice in **Settings → Configuration → Till** if a device has changed.
+6. Check each till’s loyalty scanner choice in **Settings → Operations → Till** if a device has changed.
 
 > If the location is wrong, orders, stock movements and reports are all recorded against the wrong site. It is the single most common cause of “the numbers look wrong”.
 
@@ -157,7 +157,7 @@ Use **Log waste** on the stock item at the moment a breakage, spill or expiry ha
 2. **Orders and Kitchen** — is anything still New, Preparing or Ready that should be collected or cancelled?
 3. **Cash up** — on the till, **Close the day**: count the drawer, enter the card terminal total, explain any difference.
 4. **Stock** — anything running out or expiring that tomorrow needs? Use **Request more** now.
-5. **Clock out** on My rota.
+5. **Clock out** in My work.
 
 Five minutes at close saves the argument at the end of the week.`,
   },
@@ -221,13 +221,13 @@ Ask DUMA: “Has today been cashed up?” reads the cash-up status for the selec
   },
   {
     slug: 'run-the-kitchen-screen',
-    title: 'Run the kitchen screen (KDS)',
+    title: 'Run the kitchen screen',
     summary:
       'How tickets move through New, Preparing and Ready on the Kitchen display, what Late means, recall and undo, the order chime, and setting up the kitchen screen per device.',
     category: 'Service',
     readMinutes: 5,
     updated: '2026-10-05',
-    body: `**Kitchen** in the sidebar is the kitchen display system (KDS). It shows paid orders for the selected location, oldest first, and is the shared source of truth between counter and kitchen. You need permission to update order status to open it.
+    body: `**Kitchen** in the sidebar is the kitchen display. It shows paid orders for the selected location, oldest first, and is the shared source of truth between counter and kitchen. You need permission to update order status to open it.
 
 ## The three stages
 
@@ -260,7 +260,7 @@ When the screen is offline, tickets stay visible but buttons do nothing until it
 
 ## Set up the kitchen screen
 
-Open **Settings → Configuration → Kitchen screen** on the kitchen device. Choices are saved on that device and apply straight away:
+Open **Settings → Operations → Kitchen screen** on the kitchen device. Choices are saved on that device and apply straight away:
 
 - **Layout** — Lanes (New, Preparing and Ready side by side) or Tiles (one grid with stage tabs).
 - **Ticket size** and **Text size** — larger text fits fewer tickets.
@@ -286,7 +286,7 @@ Each location has an **Order workflow** in **Settings → Workspace → Location
 
 1. **Menu** — items, prices, categories and modifiers are correct and on the menu.
 2. **Location** — the timezone and opening hours in **Settings → Workspace → Locations** match the shop. Checkout uses the location clock, not the customer’s phone.
-3. **Card payment** — add **Online checkout (Stripe)** in **Settings → Connectors → Card payments** if guests will pay by card.
+3. **Card payment** — add **Online checkout (Stripe)** in **Settings → Connections → Card payments** if guests will pay by card.
 4. **Cash** — decide whether staff will take cash at the counter. Cash orders stay out of the kitchen until approved.
 
 ## Configure the guest page
@@ -325,7 +325,7 @@ Ask DUMA: **“Why can’t a customer order here now?”** It checks the selecte
 | New orders are paused | Turn off Pause new orders and save |
 | Store is closed | Correct the location hours, or wait until it opens |
 | Trading hours are missing | Add hours in Settings → Workspace → Locations |
-| Stripe Online is not connected | Add Online checkout (Stripe) in Settings → Connectors |
+| Stripe Online is not connected | Add Online checkout (Stripe) in Settings → Connections |
 | No working payment method | Turn on cash or set up card payment |
 
 Customers can still browse while the store is closed or ordering is paused, but checkout stays unavailable.
@@ -526,7 +526,7 @@ The **Compliance** tab shows email consent as **Opted in**, **Opted out** (recei
 
 ## The four requirements
 
-1. **A connected mailbox.** Email is sent from your own address — Gmail/Google Workspace, Microsoft 365 or another provider (SMTP) — connected in **Settings → Connectors → Email**.
+1. **A connected mailbox.** Email is sent from your own address — Gmail/Google Workspace, Microsoft 365 or another provider (SMTP) — connected in **Settings → Connections → Email**.
 2. **A template.** The email itself: subject and body, with variables filled in when it sends.
 3. **An automation.** The rule that decides *when* the template goes out.
 4. **Someone who may receive it.** A customer with an email address, who has opted in for marketing and is not suppressed. Receipts and order updates still go to opted-out customers.
@@ -661,8 +661,8 @@ The **Before their first shift** checklist covers right to work, the written sta
 
 ## First week
 
-- Plan their shifts in **Staff → Rota & shifts** and publish them, so they appear in **My rota**. Drafts are visible only to managers.
-- Point them at **My HR** for leave, attendance queries, documents and payslips.
+- Plan their shifts in **Staff → Rota & shifts** and publish them, so they appear in **My work → Rota**. Drafts are visible only to managers.
+- Point them at **My work** for leave, attendance queries, documents and payslips.
 
 ## Someone leaving
 
@@ -670,20 +670,20 @@ Use **Offboard** on their record. They can no longer sign in, but their record, 
   },
   {
     slug: 'use-my-rota-and-clock-in',
-    title: 'Use My rota: shifts, clocking in and out',
+    title: 'Use My work: shifts, clocking in and out',
     summary:
       'See your week of shifts and leave, slide to clock in, clock out at the end of a shift, check worked hours and estimated pay, and spot new or changed shifts.',
     category: 'People',
     readMinutes: 5,
     updated: '2026-10-05',
-    body: `**My rota** in the sidebar shows your own shifts and is where you clock in and out. Everyone can open it.
+    body: `**My work** in the sidebar shows your own shifts on its **Rota** tab and is where you clock in and out. Everyone can open it.
 
 ## Your week
 
 The calendar shows one week. Use **Previous week**, **This week** and **Next week** (or the ← and → keys), or **Go to a date** to jump to any week.
 
 - Each shift shows its time and location. Empty days show **Off**.
-- Approved leave shows as a solid card and leave awaiting approval as a dashed one. Request leave in **My HR → Time off**.
+- Approved leave shows as a solid card and leave awaiting approval as a dashed one. Request leave in **My work → Time off**.
 - **New** and **Changed** badges mark shifts that are new or moved since you last looked on this device.
 
 Tap a shift to open its details: when and where, your role, the break, paid time, estimated pay, any **Note from your manager**, and **On the clock** — the clock-ins recorded against it.
@@ -705,7 +705,7 @@ Use **Clock out**, then confirm in **End of Shift**. Breaks are not started or s
 
 ## If something is wrong
 
-- **A shift you worked shows Not clocked** — tell your manager, or open the day in **My HR → Attendance** and use **Query this day**.
+- **A shift you worked shows Not clocked** — tell your manager, or open the day in **My work → Attendance** and use **Query this day**.
 - **A shift or location looks wrong** — ask your manager; they change the rota in Staff.
 - There is no shift swap in DUMA yet — arrange swaps with your manager.
 
@@ -713,13 +713,13 @@ Ask DUMA: “When is my next shift?” or “What hours have I worked this week?
   },
   {
     slug: 'use-my-hr',
-    title: 'Use My HR for your own work details and payslips',
+    title: 'Use My work for your own details and payslips',
     summary:
       'Update your address, emergency contact and bank details, request time off, check attendance, read payslips and documents, and ask HR privately. Expense claims are not handled in DUMA.',
     category: 'People',
     readMinutes: 5,
     updated: '2026-10-05',
-    body: `**My HR** is the self-service workspace for information about **you**. Everyone can open it. It has five tabs: **Overview**, **Time off**, **Attendance**, **Documents** and **Requests**.
+    body: `**My work** is the self-service workspace for information about **you**. Everyone can open it. Beside **Rota** it has five tabs: **Overview**, **Time off**, **Attendance**, **Documents** and **Helpdesk**.
 
 ## Overview
 
@@ -729,7 +729,7 @@ Use **Edit your details** to update your **Home address**, **Emergency contact**
 
 ## Time off
 
-Shows your balances for the leave year, upcoming leave and history. **Request time off** asks for the type of leave (with what is left), the first and last day, the day length (full days or a half day at either end) and an optional note. Your manager decides in Staff → Leave, and approved leave appears on My rota.
+Shows your balances for the leave year, upcoming leave and history. **Request time off** asks for the type of leave (with what is left), the first and last day, the day length (full days or a half day at either end) and an optional note. Your manager decides in Staff → Time off, and approved leave appears on your rota in My work.
 
 ## Attendance
 
@@ -751,7 +751,7 @@ DUMA does not handle expense claims. Ask your manager or HR how expenses work in
 
 Ask DUMA can read your own profile, attendance and notices, and can prepare a leave request, an HR request or a change to your details for you to confirm. Try “What needs my attention?”, “Book Friday off” or “Update my emergency contact”.
 
-> Your personal HR information follows the same access rules as My HR. Other employees cannot use Ask DUMA to read it.`,
+> Your personal HR information follows the same access rules as My work. Other employees cannot use Ask DUMA to read it.`,
   },
   {
     slug: 'read-your-reports',
@@ -855,7 +855,7 @@ The panels available to managers are:
 
 ## Choose your panels
 
-Open **Settings → Configuration → Dashboard**. Only panels your access allows are listed.
+Open **Settings → Operations → Dashboard**. Only panels your access allows are listed.
 
 - Use the eye toggle to show or hide a panel, and **Move up** / **Move down** to reorder.
 - **Quick layouts** apply a preset: **Balanced** (the default overview), **Service first** (live work before figures), **Essentials** (a quieter daily view) or **Numbers first** (performance at the top).
@@ -904,7 +904,7 @@ In **Settings → Workspace → Locations**, add each site with its address, **T
 
 **Settings → Workspace** shows a readiness checklist until the workspace is confirmed ready (it also appears as the **Workspace readiness** dashboard panel). **Check readiness** reads the modules you use and lists what is left before service, each with a **Fix** link. Nothing is ticked by hand. When it reads **Ready for service**, use **Confirm ready**. The checklist comes back if a later change breaks something.
 
-A good order to work in: trading details and VAT (**Trading & tax**), locations and hours, the menu, card payments and email (**Connectors**), then your team.
+A good order to work in: trading details and VAT (**Receipts & tax**), locations and hours, the menu, card payments and email (**Connections**), then your team.
 
 ## Invite your team
 
@@ -914,17 +914,17 @@ DUMA is invite-only — staff cannot sign themselves up. Add each person with **
 
 - Passwords need at least 12 characters. A password manager is best.
 - **Forgot password?** on the sign-in page emails a single-use reset link.
-- Change your password in **Settings → Security**; it signs your other devices out.
+- Change your password in **Settings → Account**; it signs your other devices out.
 
 ## Install DUMA on a device
 
-Use **Settings → Profile → Install the app**. On iPad or iPhone, use the browser’s Share menu and **Add to Home Screen**. Installing is worth it for dedicated till and kitchen tablets.`,
+Use **Settings → Account → Install the app**. On iPad or iPhone, use the browser’s Share menu and **Add to Home Screen**. Installing is worth it for dedicated till and kitchen tablets.`,
   },
   {
     slug: 'admin-security-and-compliance',
     title: 'Administer DUMA safely: settings, access and security',
     summary:
-      'A map of the Settings tabs — Workspace, Roles & access, Modules, Trading & tax, Connectors, Security — plus audit log, compliance and where each admin job lives.',
+      'A map of the Settings tabs — Account, Workspace, Modules, Operations, Receipts & tax, Connections, Roles & access — plus audit log, compliance and where each admin job lives.',
     category: 'Workspace',
     readMinutes: 7,
     updated: '2026-10-08',
@@ -934,14 +934,14 @@ Use **Settings → Profile → Install the app**. On iPad or iPhone, use the bro
 
 | Job | Page |
 | --- | --- |
-| Your theme, installing the app | Settings → Profile |
-| Your email, password and signed-in devices | Settings → Security |
-| Till, Kitchen screen and Dashboard layout | Settings → Configuration |
+| Your theme, installing the app | Settings → Account |
+| Your email, password and signed-in devices | Settings → Account |
+| Till, Kitchen screen and Dashboard layout | Settings → Operations |
 | Business name, timezone, brand colour, locations, opening hours, order workflow, daily targets | Settings → Workspace |
 | Roles and what each one may do | Settings → Roles & access |
 | Which tools the workspace uses | Settings → Modules |
-| Receipt details, VAT and menu prices | Settings → Trading & tax |
-| Email mailbox, card readers and online card checkout | Settings → Connectors |
+| Receipt details, VAT and menu prices | Settings → Receipts & tax |
+| Email mailbox, card readers and online card checkout | Settings → Connections |
 | QR ordering for a location | Settings → QR ordering |
 | Payroll schedule | Staff → Payroll → Payroll settings |
 | Customer and staff data requests | Compliance |
@@ -960,13 +960,13 @@ Roles are listed as **Built in** or **Custom**. Built-in roles cannot be edited.
 
 Pay, bank and statutory details sit behind their own sensitive HR permission, so a role can manage the team and the rota without seeing pay.
 
-## Security
+## Account and sign-in
 
-**Settings → Security** lets you change your email and password — changing the password signs your other devices out — and lists your signed-in **Devices**, each with **Sign out**. Check it if you were signed out unexpectedly or use a shared tablet.
+**Settings → Account** lets you change your email and password — changing the password signs your other devices out — and lists your signed-in **Devices**, each with **Sign out**. Check it if you were signed out unexpectedly or use a shared tablet.
 
 ## Connections and secrets
 
-Set up payment and email connections only in **Settings → Connectors**. Test with the intended location and device before service. Ask DUMA and support may explain connection state, but secrets belong only in the connection form — never paste keys or passwords into a chat or support request.
+Set up payment and email connections only in **Settings → Connections**. Test with the intended location and device before service. Ask DUMA and support may explain connection state, but secrets belong only in the connection form — never paste keys or passwords into a chat or support request.
 
 ## Audit evidence
 

@@ -3,7 +3,7 @@
 import { useMutation, useQueries, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useRef, useState, useSyncExternalStore } from 'react';
+import { Suspense, useCallback, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import {
   AlertTriangle,
@@ -28,9 +28,10 @@ import { Bone } from '@/components/shared/Skeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Button } from '@/components/ui/button';
 
+import { getOrdersWithItems } from '@/lib/api/orders-live.service';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { useWakeLock } from '@/lib/hooks/useWakeLock';
-import { type Order, type OrderItem, type OrderStatus, getOrder, getOrders, updateOrderStatus } from '@/lib/modules/ordering/client';
+import { type Order, type OrderItem, type OrderStatus, getOrder, updateOrderStatus } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { dismissToast, toast } from '@/lib/toast';
 import { chime, unlockAudio } from '@/lib/utils/chime';
@@ -57,14 +58,14 @@ const LANE_EMPTY: Record<KdsLane, string> = { pending: 'No new orders', preparin
 
 const laneKey = (locationId: string, status: KdsLane) => moduleQueryKeys.ordering.key('kds-orders', locationId, status);
 
-/** Every page of a lane, then only what belongs on the screen (paid and released). */
+/** Every page of a lane, with its items, then only what belongs on the screen (paid and released). */
 async function getLaneOrders(locationId: string, status: KdsLane): Promise<Order[]> {
   // Not filtered to paid on the server: an order taken by hand is made now and paid later. isOnScreen decides.
-  const first = await getOrders({ page: 1, limit: 100, locationId, status });
+  const first = await getOrdersWithItems({ page: 1, limit: 100, locationId, status });
   const rest =
     first.pages > 1
       ? await Promise.all(
-          Array.from({ length: first.pages - 1 }, (_, index) => getOrders({ page: index + 2, limit: 100, locationId, status })),
+          Array.from({ length: first.pages - 1 }, (_, index) => getOrdersWithItems({ page: index + 2, limit: 100, locationId, status })),
         )
       : [];
   const now = Date.now();
@@ -75,6 +76,10 @@ async function getLaneOrders(locationId: string, status: KdsLane): Promise<Order
     .filter((order) => isOnScreen(order, now) && !seen.has(order.id) && seen.add(order.id))
     .sort((a, b) => a.createdAt.localeCompare(b.createdAt));
 }
+
+/** Each fallback detail read as items-or-error; stable (module scope) so React Query keeps the result by reference. */
+const combineDetails = (results: Array<{ data?: { items?: OrderItem[] }; isError: boolean }>) =>
+  results.map((result) => ({ items: result.data ? (result.data.items ?? []) : undefined, isError: result.isError }));
 
 /** The ticket moved on another screen between this one's last poll and the tap. */
 class StaleTicket extends Error {
@@ -156,36 +161,45 @@ function Kitchen() {
       queryKey: laneKey(locationId ?? 'none', status),
       queryFn: () => getLaneOrders(locationId!, status),
       enabled: Boolean(locationId),
+      // Polls only while the screen is visible; a hidden tab catches up on focus.
       refetchInterval: POLL_INTERVAL_MS,
-      refetchIntervalInBackground: true,
       staleTime: 5_000,
     })),
   });
+  const [newData, preparingData, readyData] = laneQueries.map((query) => query.data);
   const lanes = KDS_LANES.map((status, index) => ({ status, query: laneQueries[index], orders: laneQueries[index].data ?? [] }));
-  const live = lanes
-    .flatMap((lane) => lane.orders.map((order) => ({ order, lane: lane.status })))
-    .sort((a, b) => a.order.createdAt.localeCompare(b.order.createdAt));
+  // Derived once per poll result, not on every 5-second clock tick.
+  const live = useMemo(
+    () =>
+      [
+        ...(newData ?? []).map((order) => ({ order, lane: 'pending' as const })),
+        ...(preparingData ?? []).map((order) => ({ order, lane: 'preparing' as const })),
+        ...(readyData ?? []).map((order) => ({ order, lane: 'ready' as const })),
+      ].sort((a, b) => a.order.createdAt.localeCompare(b.order.createdAt)),
+    [newData, preparingData, readyData],
+  );
   const lastSync = Math.max(0, ...laneQueries.map((query) => query.dataUpdatedAt));
   const syncProblem = !online || laneQueries.some((query) => query.isError);
 
-  // The list returns rows without items, so each live ticket reads its own detail (N+1 — no bulk endpoint).
-  const detailQueries = useQueries({
-    queries: live.map(({ order }) => ({
-      queryKey: moduleQueryKeys.ordering.key('order', order.id),
-      queryFn: () => getOrder(order.id),
-      enabled: !Array.isArray(order.items),
+  // The list carries each ticket's items (`include=items`). Only a row without them — an API
+  // that predates the include — falls back to reading its own detail.
+  const missingItems = useMemo(() => live.filter(({ order }) => !Array.isArray(order.items)).map(({ order }) => order.id), [live]);
+  const fallbackItems = useQueries({
+    queries: missingItems.map((id) => ({
+      queryKey: moduleQueryKeys.ordering.key('order', id),
+      queryFn: () => getOrder(id),
       staleTime: 60_000,
     })),
+    combine: combineDetails,
   });
-  const detail = new Map<string, { items?: OrderItem[]; isError: boolean; refetch: () => void }>();
-  live.forEach(({ order }, index) => {
-    const query = detailQueries[index];
-    detail.set(order.id, {
-      items: Array.isArray(order.items) ? order.items : query?.data ? (query.data.items ?? []) : undefined,
-      isError: !!query?.isError,
-      refetch: () => void query?.refetch(),
-    });
-  });
+  const detail = useMemo(() => {
+    const map = new Map<string, { items?: OrderItem[]; isError: boolean }>();
+    const fallback = new Map(missingItems.map((id, index) => [id, fallbackItems[index]]));
+    for (const { order } of live) {
+      map.set(order.id, Array.isArray(order.items) ? { items: order.items, isError: false } : (fallback.get(order.id) ?? { isError: false }));
+    }
+    return map;
+  }, [live, missingItems, fallbackItems]);
 
   // Chime for tickets that weren't there on the last poll — and start over when the location changes,
   // so switching queues doesn't ring for every order already waiting.
@@ -256,12 +270,38 @@ function Kitchen() {
     },
   });
 
-  const bump = (order: Order, lane: KdsLane) => move.mutate({ id: order.id, name: ticketName(order), from: lane, to: NEXT_STATUS[lane] });
+  // Stable, so the memoised tickets skip re-rendering when nothing about them changed.
+  const { mutate } = move;
+  const bump = useCallback(
+    (order: Order, lane: KdsLane) => mutate({ id: order.id, name: ticketName(order), from: lane, to: NEXT_STATUS[lane] }),
+    [mutate],
+  );
   /** Back one stage from the board itself (the ticket's menu), not only from Recall. */
-  const stepBack = (order: Order, lane: KdsLane) => {
-    const back = PREVIOUS_STATUS[lane];
-    if (back) move.mutate({ id: order.id, name: ticketName(order), from: lane, to: back });
-  };
+  const stepBack = useCallback(
+    (order: Order, lane: KdsLane) => {
+      const back = PREVIOUS_STATUS[lane];
+      if (back) mutate({ id: order.id, name: ticketName(order), from: lane, to: back });
+    },
+    [mutate],
+  );
+  const toggleItem = useCallback(
+    (itemId: string) =>
+      setStruck((current) => {
+        const next = new Set(current);
+        if (next.has(itemId)) next.delete(itemId);
+        else next.add(itemId);
+        return next;
+      }),
+    [],
+  );
+  // A ticket whose items didn't load: its detail read, or (when the list carried them) the lanes.
+  const retryItems = useCallback(
+    (orderId: string) => {
+      void queryClient.refetchQueries({ queryKey: moduleQueryKeys.ordering.key('order', orderId) });
+      void queryClient.refetchQueries({ queryKey: moduleQueryKeys.ordering.key('kds-orders') });
+    },
+    [queryClient],
+  );
   const moveBack = (entry: RecentBump) => {
     const back = PREVIOUS_STATUS[entry.to];
     if (!back) return;
@@ -287,8 +327,10 @@ function Kitchen() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lastMove]);
 
-  const toBeMade = live.filter(({ lane }) => lane !== 'ready').map(({ order }) => ({ items: detail.get(order.id)?.items }));
-  const allDayLines = allDay(toBeMade);
+  const allDayLines = useMemo(
+    () => allDay(live.filter(({ lane }) => lane !== 'ready').map(({ order }) => ({ items: detail.get(order.id)?.items }))),
+    [live, detail],
+  );
 
   const ticket = ({ order, lane }: { order: Order; lane: KdsLane }, showStage: boolean) => {
     const d = detail.get(order.id);
@@ -303,18 +345,11 @@ function Kitchen() {
         showStage={showStage}
         struck={struck}
         bumping={bumping.has(order.id)}
-        onToggleItem={(itemId) =>
-          setStruck((current) => {
-            const next = new Set(current);
-            if (next.has(itemId)) next.delete(itemId);
-            else next.add(itemId);
-            return next;
-          })
-        }
-        onBump={() => bump(order, lane)}
-        onBack={PREVIOUS_STATUS[lane] ? () => stepBack(order, lane) : undefined}
+        onToggleItem={toggleItem}
+        onBump={bump}
+        onBack={PREVIOUS_STATUS[lane] ? stepBack : undefined}
         orderHref={canOpenOrders ? `/orders?order=${encodeURIComponent(order.id)}&location=all` : undefined}
-        onRetryItems={() => d?.refetch()}
+        onRetryItems={retryItems}
       />
     );
   };

@@ -40,12 +40,41 @@ interface LineLike {
   unitCost: string;
 }
 
+const lineCents = (quantity: string | number, unitCost: string | number) => Math.round((Number(quantity) || 0) * (Number(unitCost) || 0) * 100);
+
+/** One line's value — quantity × unit cost, to the penny. */
+export const lineValue = (quantity: string | number, unitCost: string | number): number => lineCents(quantity, unitCost) / 100;
+
 /** The order's value, summed in cents so a long order has no float artefacts. */
-export function orderTotal(lines: LineLike[] = []): number {
-  return (
-    lines.reduce((cents, line) => cents + Math.round((Number(line.quantityOrdered) || 0) * (Number(line.unitCost) || 0) * 100), 0) / 100
-  );
+export function orderTotal(lines: Pick<LineLike, 'quantityOrdered' | 'unitCost'>[] = []): number {
+  return lines.reduce((cents, line) => cents + lineCents(line.quantityOrdered, line.unitCost), 0) / 100;
 }
+
+/** A line being typed into the new-order form. */
+export interface DraftOrderLine {
+  stockItemId: string;
+  quantity: string;
+  unitCost: string;
+}
+
+/**
+ * The lines the form would send: an item chosen, a quantity above zero and a
+ * cost of zero or more. A blank cost reads as zero, as it always has.
+ */
+export const sendableLines = <L extends DraftOrderLine>(lines: L[]): L[] =>
+  lines.filter((line) => line.stockItemId && Number(line.quantity) > 0 && Number(line.unitCost) >= 0);
+
+/** The new order's total, from the lines it would send. */
+export const draftOrderTotal = (lines: DraftOrderLine[]): number =>
+  orderTotal(sendableLines(lines).map((line) => ({ quantityOrdered: line.quantity, unitCost: line.unitCost })));
+
+/**
+ * What is still to arrive on a line; never negative (an over-delivery is
+ * complete, not owed back). In thousandths, so 2.3 ordered less 1.1 received
+ * pre-fills the receive box with 1.2, not 1.1999999999999997.
+ */
+export const outstandingQuantity = (line: Pick<LineLike, 'quantityOrdered' | 'quantityReceived'>): number =>
+  Math.max(0, Math.round((Number(line.quantityOrdered) || 0) * 1000) - Math.round((Number(line.quantityReceived) || 0) * 1000)) / 1000;
 
 /** How much of the order has arrived, 0–1, by quantity across lines (capped per line). */
 export function receivedShare(lines: LineLike[] = []): number {

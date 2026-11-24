@@ -338,7 +338,8 @@ export function safeHref(url: string | null | undefined): string | null {
   const value = (url ?? '').trim();
   if (!value) return null;
   if (/^(https?:|mailto:|tel:)/i.test(value)) return value;
-  if (/^(\/(?!\/)|#|\?|\.\.?\/)/.test(value)) return value;
+  // `//host` and `/\host` are both protocol-relative to a browser — another site.
+  if (/^(\/(?![/\\])|#|\?|\.\.?\/)/.test(value)) return value;
   return null;
 }
 
@@ -346,7 +347,7 @@ export function safeHref(url: string | null | undefined): string | null {
 export function safeImageSrc(url: string | null | undefined): string | null {
   const value = (url ?? '').trim();
   if (/^https?:\/\//i.test(value)) return value;
-  if (/^\/(?!\/)/.test(value)) return value;
+  if (/^\/(?![/\\])/.test(value)) return value;
   return null;
 }
 

@@ -109,21 +109,20 @@ rules most often missed:
 - **A root-relative `Location` from the API breaks behind the proxy.** The
   browser resolves it against *our* origin and loses `/be`. Never rely on an API
   redirect; call the canonical path.
-- **The endpoint you call must exist.** `@duma-crm/api` is a declared dependency
-  imported nowhere, so drift compiles cleanly. `tests/api-contract.test.mts`
-  catches renamed and removed paths against `openapi.json` — keep that file
-  fresh (`pnpm openapi:export` from `duma-api`) or the test passes against a
-  fossil.
+- **The endpoint you call must exist.** Nothing type-checks an API path and no
+  test checks one either (`tests/api-contract.test.mts` never existed — audit
+  2026-11-24). Grep `duma-api/src/routes/` and the mount in `src/app.ts` for
+  every path you add or change.
 - **Money stays a `string`.** Parse only for arithmetic. Margin goes through
   `lib/menu/costing.ts` — **the one place** it is calculated.
-- **Do not "fix" the VAT divergence.** `costing.ts` honours `vatRegistered` and
-  the API does not, on purpose and with a comment. The API is the wrong one.
-- **`POST /orders` is not idempotent** despite the `Idempotency-Key` the offline
-  queue sends. Do not assume replay is safe.
+- **VAT:** `costing.ts` and the API (`src/lib/order-tax.ts`) both honour
+  `vatRegistered`; keep them in step.
+- **`POST /orders` honours `Idempotency-Key`** (a replay returns the first
+  order). Refunds take one per refund draft.
 - **Never delete a queued offline sale on failure.** Classify it — see
   `lib/utils/offline-order-sync.ts`. It is financial data.
-- **Invalidate after every mutation.** Query keys are hand-written literals with
-  no factory, so a renamed key silently stops invalidating. There are **no
+- **Invalidate after every mutation.** Build keys with `moduleQueryKeys`; a key
+  nobody writes any more silently invalidates nothing. There are **no
   optimistic updates** anywhere; keep it that way for money.
 - **Put pure logic in `lib/utils/`** so it can be tested — that is the only
   reason a test suite exists here. Keep hooks thin.
@@ -134,14 +133,13 @@ rules most often missed:
 ## Step 5 — Validate
 
 ```bash
-pnpm check    # lint + typecheck + test + build
+pnpm check    # test + lint + typecheck + build
 ```
 
 All four must pass; CI runs exactly these. Note what they do **not** cover:
-there are no component tests, no E2E, and nothing that talks to a running API.
-`tests/api-contract.test.mts` is a static scan and is the only thing standing
-between you and a cross-layer break — if you changed an API call and it did not
-run, you have not validated the change.
+there are no component tests, no E2E, nothing that talks to a running API, and
+no check of API paths. If you changed an API call, you have validated it only
+once you have found the route in `duma-api/src/routes/`.
 
 ## Step 6 — Update Obsidian
 

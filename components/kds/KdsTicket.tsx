@@ -1,7 +1,7 @@
 'use client';
 
 import { useRouter } from 'next/navigation';
-import { useEffect, useLayoutEffect, useRef, useState } from 'react';
+import { memo, useEffect, useLayoutEffect, useRef, useState } from 'react';
 
 import { AlertTriangle, ArrowRight, Bell, CheckCircle2, Clock, ExternalLink, Flame, Loader2, RotateCcw, Smartphone } from '@/components/icons';
 import { FULFILMENT_LABEL, SOURCE_META, STATUS_META } from '@/components/orders/orderMeta';
@@ -84,7 +84,13 @@ const ARM_MS = 2000;
 /** "No onion", "Without sugar", "Remove foam": the lines a kitchen must not miss. */
 const isNegative = (name: string) => /^(no|without|remove|hold)\b/i.test(name.trim());
 
-export function KdsTicket({
+/**
+ * Memoised: the board re-renders on every poll, and a ticket whose order,
+ * items and state are unchanged (React Query keeps unchanged rows by
+ * reference) skips it. The handlers take the order, so the board passes the
+ * same function to every ticket.
+ */
+export const KdsTicket = memo(function KdsTicket({
   order,
   lane,
   items,
@@ -109,12 +115,12 @@ export function KdsTicket({
   struck: Set<string>;
   bumping: boolean;
   onToggleItem: (itemId: string) => void;
-  onBump: () => void;
+  onBump: (order: Order, lane: KdsLane) => void;
   /** Back one stage — none in the first lane. */
-  onBack?: () => void;
+  onBack?: (order: Order, lane: KdsLane) => void;
   /** The order on the Orders screen, when this person may open it. */
   orderHref?: string;
-  onRetryItems: () => void;
+  onRetryItems: (orderId: string) => void;
 }) {
   // Tap, then tap again, moves the ticket on (Toast and Lightspeed use a double tap): the
   // first tap arms the header and says "Tap again"; a lone stray tap in a busy kitchen does nothing.
@@ -131,7 +137,7 @@ export function KdsTicket({
     if (at - lastTap.current < ARM_MS) {
       lastTap.current = 0;
       setArmed(false);
-      onBump();
+      onBump(order, lane);
       return;
     }
     lastTap.current = at;
@@ -270,7 +276,7 @@ export function KdsTicket({
         {itemsError ? (
           <div className="m-3 flex items-center justify-between gap-3 rounded-md border border-exception/50 bg-exception/6 px-3 py-2">
             <p className="text-sm font-semibold text-exception">Items didn’t load</p>
-            <Button variant="outline" onClick={onRetryItems} className="h-11">
+            <Button variant="outline" onClick={() => onRetryItems(order.id)} className="h-11">
               Retry
             </Button>
           </div>
@@ -374,11 +380,11 @@ export function KdsTicket({
       </ContextMenuTrigger>
       <ContextMenuContent>
         <ContextMenuLabel>{name}</ContextMenuLabel>
-        <ContextMenuItem icon={action.icon} disabled={bumping} onSelect={onBump}>
+        <ContextMenuItem icon={action.icon} disabled={bumping} onSelect={() => onBump(order, lane)}>
           {action.label}
         </ContextMenuItem>
         {onBack && previous && (
-          <ContextMenuItem icon={RotateCcw} disabled={bumping} onSelect={onBack}>
+          <ContextMenuItem icon={RotateCcw} disabled={bumping} onSelect={() => onBack(order, lane)}>
             Back to {previous}
           </ContextMenuItem>
         )}
@@ -393,7 +399,7 @@ export function KdsTicket({
       </ContextMenuContent>
     </ContextMenu>
   );
-}
+});
 
 const ITEM_W = ['w-3/4', 'w-1/2', 'w-2/3'];
 

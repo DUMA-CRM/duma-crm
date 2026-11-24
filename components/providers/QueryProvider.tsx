@@ -1,6 +1,7 @@
 'use client';
 
-import { QueryCache, QueryClient, QueryClientProvider, hashKey } from '@tanstack/react-query';
+import { MutationCache, QueryCache, QueryClient, QueryClientProvider, hashKey } from '@tanstack/react-query';
+import { MotionConfig } from 'motion/react';
 import { useState } from 'react';
 
 import { OfflineOrderSync } from '@/components/providers/OfflineOrderSync';
@@ -10,22 +11,10 @@ import { AppToaster } from '@/components/shared/AppToaster';
 
 import { ApiError } from '@/lib/modules/core/client';
 import { toast } from '@/lib/toast';
+import { requestErrorMessage } from '@/lib/utils/error-message';
 import { currentPartition } from '@/stores/workspaceStore';
 
-function queryErrorMessage(error: unknown) {
-  if (error instanceof ApiError) {
-    if (error.status === 401) return 'Your session has expired. Sign in again to refresh this workspace.';
-    if (error.status === 403) return 'You don’t have permission to load this information.';
-    if (error.status === 404) return 'This information is no longer available.';
-    if (error.status === 429) return 'DUMA is receiving too many requests. Wait a moment, then try again.';
-    if (error.status >= 500) return 'DUMA’s service is temporarily unavailable. Your existing data is unchanged.';
-  }
-  if (error instanceof DOMException && (error.name === 'AbortError' || error.name === 'TimeoutError')) {
-    return 'The request took too long. Check your connection, then try again.';
-  }
-  if (error instanceof TypeError) return 'DUMA couldn’t reach the service. Check your connection, then try again.';
-  return 'The latest data couldn’t load. Try again.';
-}
+const isOffline = () => typeof navigator !== 'undefined' && !navigator.onLine;
 
 export function QueryProvider({ children }: { children: React.ReactNode }) {
   // One QueryClient per browser session — created inside useState so it's
@@ -41,8 +30,18 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
             if (query.meta?.silentError) return;
             if (query.meta?.silentForbidden && error instanceof ApiError && error.status === 403) return;
             // Offline is expected, not an error — the POS banner covers it.
-            if (typeof navigator !== 'undefined' && !navigator.onLine) return;
-            toast('error', queryErrorMessage(error));
+            if (isOffline()) return;
+            toast('error', requestErrorMessage(error, 'load'));
+          },
+        }),
+        // The same net for writes. A mutation with no onError of its own used
+        // to fail in silence — a delete that didn't happen looked like one that
+        // did. Mutations that handle their failure (their own onError, or
+        // `meta: { silentError: true }`) are skipped so nothing toasts twice.
+        mutationCache: new MutationCache({
+          onError: (error, _variables, _result, mutation) => {
+            if (mutation.options.onError || mutation.meta?.silentError) return;
+            toast('error', requestErrorMessage(error, 'save', { online: isOffline() ? false : undefined }));
           },
         }),
         defaultOptions: {
@@ -69,7 +68,11 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 
   return (
     <QueryClientProvider client={queryClient}>
-      {children}
+      {/* Once, for the whole app: every motion animation honours the system's
+          reduce-motion setting. ~39 files animated without checking it. Here
+          rather than in app/layout.tsx because this is the root client
+          boundary — importing motion's barrel into a Server Component is not. */}
+      <MotionConfig reducedMotion="user">{children}</MotionConfig>
       <AppToaster />
       <OfflineOrderSync />
       <OfflineStatus />

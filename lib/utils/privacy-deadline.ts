@@ -5,7 +5,13 @@
  * The queue used to print only the date, which left the reader to do the
  * subtraction — and a date three days away looks exactly like one three weeks
  * away. Pure, so the day arithmetic is tested.
+ *
+ * Days are counted on the workspace's calendar, not the browser's: a request
+ * due at 23:30 London time is due *today* in London, even for a manager whose
+ * laptop is in New York (where it used to read "Due tomorrow" or "Due today"
+ * depending on the device).
  */
+import { workspaceDateKey } from './workspace-time.ts';
 
 export type DeadlineTone = 'done' | 'calm' | 'soon' | 'today' | 'overdue';
 
@@ -22,10 +28,10 @@ const DAY = 86_400_000;
 /** Inside this many days a request is "due soon". */
 export const DUE_SOON_DAYS = 7;
 
-const startOfDay = (time: number) => {
-  const date = new Date(time);
-  date.setHours(0, 0, 0, 0);
-  return date.getTime();
+/** The calendar day an instant falls on in a zone, as a UTC midnight — so subtracting two is whole days, DST or not. */
+const dayNumber = (time: number, timeZone: string | undefined) => {
+  const [year, month, day] = workspaceDateKey(time, timeZone).split('-').map(Number);
+  return Date.UTC(year!, month! - 1, day!);
 };
 
 interface Datable {
@@ -36,10 +42,11 @@ interface Datable {
 
 export const isClosedRequest = (request: { status: string }) => request.status === 'completed' || request.status === 'declined';
 
-export function requestDeadline(request: Datable, now: number): Deadline {
+/** @param timeZone Defaults to the workspace's zone; tests pass one explicitly. */
+export function requestDeadline(request: Datable, now: number, timeZone?: string): Deadline {
   const due = Date.parse(request.dueAt);
   const received = Date.parse(request.receivedAt);
-  const daysLeft = Math.round((startOfDay(due) - startOfDay(now)) / DAY);
+  const daysLeft = Math.round((dayNumber(due, timeZone) - dayNumber(now, timeZone)) / DAY);
   const span = Math.max(1, due - received);
   const used = Math.min(1, Math.max(0, (now - received) / span));
 
@@ -64,6 +71,7 @@ export interface QueueSummary {
 export function summariseQueue(
   requests: readonly (Datable & { completedAt?: string | null; updatedAt?: string | null })[],
   now: number,
+  timeZone?: string,
 ): QueueSummary {
   const summary: QueueSummary = { open: 0, dueSoon: 0, overdue: 0, closedRecently: 0 };
   for (const request of requests) {
@@ -73,7 +81,7 @@ export function summariseQueue(
       continue;
     }
     summary.open += 1;
-    const { tone } = requestDeadline(request, now);
+    const { tone } = requestDeadline(request, now, timeZone);
     if (tone === 'overdue') summary.overdue += 1;
     else if (tone === 'today' || tone === 'soon') summary.dueSoon += 1;
   }

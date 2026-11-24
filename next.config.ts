@@ -11,6 +11,9 @@ const nextConfig: NextConfig = {
     // it on. The default 10 MB broke Media uploads between 10 and 25 MB. Matches
     // the API's CMS upload limit (cmsUploadBodyLimit in duma-api src/app.ts).
     proxyClientMaxBodySize: '26mb',
+    // The icon set is one barrel of thousands of icons; without this every
+    // import pulls the whole barrel through the bundler.
+    optimizePackageImports: ['@hugeicons/core-free-icons'],
   },
   // Baseline security headers. The CSP is not here: it needs a per-request
   // nonce, so it is set in proxy.ts where one can be generated.
@@ -103,7 +106,11 @@ const nextConfig: NextConfig = {
       { protocol: 'https', hostname: 'api.duma-business.com', pathname: '/v1/cms/delivery/assets/**' },
       // Media storage (Vercel Blob), where Content asset delivery redirects — mirrors CSP_IMAGE_HOSTS.
       { protocol: 'https', hostname: '*.public.blob.vercel-storage.com' },
-      { protocol: 'http', hostname: 'localhost', port: '7777', pathname: '/v1/cms/delivery/assets/**' },
+      // A local API, in development only: in production this would let the
+      // image optimiser fetch from the server's own loopback interface.
+      ...(process.env.NODE_ENV === 'production'
+        ? []
+        : [{ protocol: 'http' as const, hostname: 'localhost', port: '7777', pathname: '/v1/cms/delivery/assets/**' }]),
     ],
   },
 };

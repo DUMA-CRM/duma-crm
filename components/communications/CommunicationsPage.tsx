@@ -16,6 +16,7 @@ import { Activity, CheckCircle2, FileText, MailX, Plus, Send, ShieldOff, Triangl
 import type { IconComponent } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
@@ -112,11 +113,15 @@ function CommunicationsView() {
   const openAutomation = (id: string) => navigate({ tab: 'automations', automation: id });
   const openTemplates = () => navigate({ tab: 'templates', automation: null, view: null });
 
-  const { data: templates = [], isFetched: templatesFetched } = useQuery({
+  const templatesQuery = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-templates', tenantId),
     queryFn: () => getEmailTemplates(tenantId ?? undefined),
     enabled: !!tenantId && communicationsOn,
   });
+  const templates = templatesQuery.data ?? [];
+  // Fetched *successfully*: a failed read used to count as fetched, so a template
+  // link said "not found" and the header claimed there were no templates.
+  const templatesFetched = templatesQuery.isSuccess;
   // Gated on its own capability: marketing and store managers run email but
   // can't read the SMTP settings, and a 403 must not read as "not set up".
   const { data: connection } = useQuery({
@@ -189,6 +194,13 @@ function CommunicationsView() {
           onSaved={(saved) => navigate({ template: saved.id, preset: null }, 'replace')}
           onOpenConnection={openConnection}
         />
+      );
+    }
+    if (templatesQuery.isError) {
+      return (
+        <EditorShell title="Template" onClose={closeEditors}>
+          <ErrorState className="flex-1" icon={FileText} title="The template couldn’t load" onRetry={() => void templatesQuery.refetch()} />
+        </EditorShell>
       );
     }
     if (!templatesFetched) return <LoadingShell label="Loading the template" onClose={closeEditors} />;

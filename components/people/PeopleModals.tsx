@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import { UsersRound } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
@@ -38,6 +38,7 @@ export function EnrollEmployeeDrawer({
   submitLabel?: string;
 }) {
   const qc = useQueryClient();
+  const fid = useId();
   const [jobTitle, setJobTitle] = useState(initialJobTitle);
   const [department, setDepartment] = useState('');
   const [employmentType, setEmploymentType] = useState<EmploymentType>('full_time');
@@ -97,10 +98,11 @@ export function EnrollEmployeeDrawer({
         </div>
 
         <div>
-          <FieldLabel required className="mb-1.5">
+          <FieldLabel htmlFor={`${fid}-job-title`} required className="mb-1.5">
             Job title
           </FieldLabel>
           <input
+            id={`${fid}-job-title`}
             value={jobTitle}
             onChange={(e) => setJobTitle(e.target.value)}
             required
@@ -110,12 +112,14 @@ export function EnrollEmployeeDrawer({
           />
         </div>
         <div>
-          <FieldLabel className="mb-1.5">Department</FieldLabel>
-          <input value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Operations" className={inp} />
+          <FieldLabel htmlFor={`${fid}-department`} className="mb-1.5">
+            Department
+          </FieldLabel>
+          <input id={`${fid}-department`} value={department} onChange={(e) => setDepartment(e.target.value)} placeholder="Operations" className={inp} />
         </div>
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div>
-            <FieldLabel required className="mb-1.5">
+            <FieldLabel as="span" required className="mb-1.5">
               Employment type
             </FieldLabel>
             <Select

@@ -16,18 +16,21 @@ import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/componen
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { RecordGroup } from '@/components/shared/RecordGroup';
 import { LoadingState } from '@/components/shared/Skeleton';
 import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import { createModifier, deleteModifier, getModifierGroups, getModifiers, updateModifier } from '@/lib/modules/catalog/client';
 import { getModifierRecipe, setModifierRecipe } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { formatPriceChange, priceChangeWords } from '@/lib/utils/menu-editor';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const FORM_ID = 'modifier-detail-form';
@@ -55,8 +58,10 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
   const router = useRouter();
   const { tenantId } = useWorkspaceStore();
   const [confirmingDelete, setConfirmingDelete] = useState(false);
+  // Menu opens on menu:read; changing a modifier is menu:write.
+  const canWrite = useAuthStore((state) => hasCapability(state.capabilities, 'menu:write'));
 
-  const { data: modifiers = [], isLoading } = useQuery({
+  const { data: modifiers = [], isLoading, isError, refetch } = useQuery({
     queryKey: moduleQueryKeys.catalog.key('modifiers', tenantId),
     queryFn: () => getModifiers(tenantId ?? undefined),
     enabled: !!tenantId,
@@ -186,6 +191,8 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
       <EditorShell title="Modifier" onClose={() => router.push('/menu/modifiers')}>
         {isLoading ? (
           <LoadingState label="Loading the modifier" />
+        ) : isError ? (
+          <ErrorState icon={SlidersHorizontal} title="The modifier couldn’t load" onRetry={() => void refetch()} />
         ) : (
           <EmptyState
             icon={SlidersHorizontal}
@@ -314,7 +321,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
       dirty={dirty && !save.isPending}
       discardMessage="This modifier has changes that have not been saved. Leaving now discards them."
       actions={
-        modifier ? (
+        modifier && canWrite ? (
           <Button
             variant="outline"
             size="icon"
@@ -333,9 +340,11 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
         noValidate
         onSubmit={(e) => {
           e.preventDefault();
-          submit();
+          if (canWrite) submit();
         }}
       >
+        {/* Read-only for menu:read — the disabled fieldset disables every control, and the SaveBar never appears. */}
+        <fieldset disabled={!canWrite} className="contents">
         <motion.div
           initial={reduceMotion ? false : 'hidden'}
           animate="shown"
@@ -377,7 +386,9 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
             )}
           </div>
         </motion.div>
+        </fieldset>
 
+        {canWrite && (
         <SaveBar
           dirty={dirty || !modifier}
           saving={save.isPending}
@@ -391,6 +402,7 @@ export function ModifierDetail({ modifierId }: { modifierId?: string }) {
             setOpen(modifier ? null : 'name');
           }}
         />
+        )}
       </form>
 
       {confirmingDelete && modifier && (

@@ -38,9 +38,12 @@ export function OffboardModal({
     queryFn: () => getEmployeeEntitlements(userId, year),
   });
   const leave = leaveBalance(entitlements.data ?? []);
+  // A failed read is not "no allowance": holiday pay depends on this line, so it says it doesn't know.
   const holiday = entitlements.isPending
     ? 'Checking their allowance…'
-    : leave.hasEntitlement
+    : entitlements.isError
+      ? 'Their allowance couldn’t load, so check their leave record for what they’re owed before you confirm.'
+      : leave.hasEntitlement
       ? `${leave.remaining} ${leave.remaining === 1 ? 'day' : 'days'} left this year — pay them or agree they’re taken.`
       : 'No allowance is recorded, so check what they’re owed.';
 

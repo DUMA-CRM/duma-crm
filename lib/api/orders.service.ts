@@ -340,7 +340,18 @@ export const createRefund = (
         notes?: string;
       }
     | { amount: string; reason: RefundReason; notes: string },
-) => apiFetch<OrderRefund>(`/orders/${id}/refunds`, { method: 'POST', body: JSON.stringify(data) });
+  /**
+   * One key per refund draft, reused on every retry of it. A timed-out or
+   * double-tapped refund that did land is then returned by the API instead of
+   * paying out a second time. Optional only for older callers.
+   */
+  idempotencyKey?: string,
+) =>
+  apiFetch<OrderRefund>(`/orders/${id}/refunds`, {
+    method: 'POST',
+    body: JSON.stringify(data),
+    ...(idempotencyKey ? { headers: { 'Idempotency-Key': idempotencyKey } } : {}),
+  });
 
 export const approveCashOrder = (id: string) => apiFetch<Order>(`/orders/${id}/approve-cash`, { method: 'POST' });
 

@@ -23,6 +23,7 @@ import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
 import { greeting } from '@/lib/utils/day-story';
+import { subscribeToMinute } from '@/lib/utils/minute-tick';
 import { relativeTime } from '@/lib/utils/relative-time';
 import { formatInstant, workspaceDateKey, zonedParts, zonedToInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
@@ -89,10 +90,8 @@ export function MyDashboard() {
     () => true,
     () => false,
   );
-  useEffect(() => {
-    const t = setInterval(() => setNow(new Date()), 1000);
-    return () => clearInterval(t);
-  }, []);
+  // Minutes are the finest thing it shows (the time, "so far", "in 5 min"), so it ticks on the minute.
+  useEffect(() => subscribeToMinute(() => setNow(new Date())), []);
 
   // My shifts → the active one (not clocked out).
   const shifts = useQuery({ queryKey: moduleQueryKeys.workforce.key('shifts-my'), queryFn: getMyShifts });
@@ -327,7 +326,13 @@ function SuggestShiftForm({
         <FieldLabel as="span" className="mb-1.5">
           Notes (optional)
         </FieldLabel>
-        <input value={notes} onChange={(e) => setNotes(e.target.value)} placeholder="Anything the manager should know" className={inp} />
+        <input
+          aria-label="Notes (optional)"
+          value={notes}
+          onChange={(e) => setNotes(e.target.value)}
+          placeholder="Anything the manager should know"
+          className={inp}
+        />
       </div>
       {!locationId && <p className="text-xs text-muted-foreground">Select your location before sending a suggestion.</p>}
       <ActionButton

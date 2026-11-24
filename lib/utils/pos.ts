@@ -16,9 +16,42 @@ export function selectionKey(selected: MenuOption[]): string {
 /** Two lines merge only when the item, its options and its note all match — "no foam" is a different drink. */
 export const lineKey = (itemId: string, selected: MenuOption[], note = '') => `${itemId}|${selectionKey(selected)}|${note.trim().toLowerCase()}`;
 
-export function cartItemTotal(c: CartItem): number {
+/** A basket line in minor units (pence): the item, its chosen options, how many. */
+export interface PricedLine {
+  item: { price: number };
+  selected: readonly { price: number }[];
+  quantity: number;
+}
+
+/** One line's total in minor units: the item plus each chosen option, times the quantity. */
+export function cartItemTotal(c: PricedLine): number {
   const addOns = c.selected.reduce((sum, opt) => sum + opt.price, 0);
   return (c.item.price + addOns) * c.quantity;
+}
+
+/** A decimal amount as the API sends it ("3.20") in minor units. */
+export const toMinor = (value: string | number | null | undefined): number => Math.round((Number(value) || 0) * 100);
+
+/**
+ * `cartItemTotal` for a line priced in decimals, as the public menu and the
+ * recipe editor carry them — converted to pence first, so 3.20 + 0.45 is 3.65
+ * and a basket of 0.10s meets a 0.30 minimum. Returned as a decimal.
+ */
+export function decimalLineTotal(
+  price: string | number | null | undefined,
+  adjustments: readonly (string | number | null | undefined)[],
+  quantity = 1,
+): number {
+  return decimalLineMinor(price, adjustments, quantity) / 100;
+}
+
+/** `decimalLineTotal` in minor units — for summing a basket without reintroducing floats. */
+export function decimalLineMinor(
+  price: string | number | null | undefined,
+  adjustments: readonly (string | number | null | undefined)[],
+  quantity = 1,
+): number {
+  return cartItemTotal({ item: { price: toMinor(price) }, selected: adjustments.map((adjust) => ({ price: toMinor(adjust) })), quantity });
 }
 
 export const cartTotal = (cart: CartItem[]) => cart.reduce((sum, c) => sum + cartItemTotal(c), 0);
@@ -159,6 +192,7 @@ export const missingGroups = (groups: OptionGroupRule[], selected: string[]) =>
 export function ruleHint(group: ComboRule): string {
   if (group.maxSelections === 1) return group.minSelections > 0 ? 'Choose one' : 'Optional';
   if (group.maxSelections == null) return group.minSelections > 0 ? `Choose at least ${group.minSelections}` : 'Optional · any';
+  if (group.minSelections > 0 && group.minSelections >= group.maxSelections) return `Choose ${group.maxSelections}`;
   return group.minSelections > 0 ? `Choose ${group.minSelections}–${group.maxSelections}` : `Optional · up to ${group.maxSelections}`;
 }
 

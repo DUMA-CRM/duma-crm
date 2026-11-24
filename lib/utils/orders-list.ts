@@ -388,3 +388,43 @@ export function parseRefundAmount(
   if (cents > Math.round(refundable * 100)) return { ok: false, problem: 'That’s more than is left to refund' };
   return { ok: true, amount: (cents / 100).toFixed(2), value: cents / 100 };
 }
+
+// ── What's left to refund ────────────────────────────────────────────────────
+
+/** Why a refund can't be started on an unpaid order — the API's own words (409). */
+export const REFUND_NEEDS_PAYMENT = 'This order hasn’t been paid, so there’s nothing to refund.';
+
+/** Payment states the API accepts a refund against. */
+const REFUNDABLE_PAYMENT = new Set(['paid', 'partially_refunded']);
+
+export interface RefundPosition {
+  /** Refunded so far, as a decimal. */
+  refunded: number;
+  /** Still refundable: the total less what's gone back, never below zero. */
+  refundable: number;
+  /** Something was refunded and nothing is left. */
+  refundedFull: boolean;
+  /** The money was taken — a refund has something to give back. */
+  paid: boolean;
+}
+
+/**
+ * Where an order stands on refunds, summed in pence: three 0.10 refunds of a
+ * 0.30 order leave exactly nothing, not 0.0000000000000000555 that reads as
+ * "part refunded" and still offers a Refund button.
+ */
+export function refundPosition(order: {
+  totalAmount: string | number;
+  paymentStatus?: string | null;
+  refunds?: readonly { amount: string | number }[] | null;
+}): RefundPosition {
+  const pence = (value: string | number) => Math.round((Number(value) || 0) * 100);
+  const refundedPence = (order.refunds ?? []).reduce((sum, refund) => sum + pence(refund.amount), 0);
+  const refundablePence = Math.max(0, pence(order.totalAmount) - refundedPence);
+  return {
+    refunded: refundedPence / 100,
+    refundable: refundablePence / 100,
+    refundedFull: refundedPence > 0 && refundablePence === 0,
+    paid: REFUNDABLE_PAYMENT.has(order.paymentStatus ?? ''),
+  };
+}

@@ -8,6 +8,7 @@ import type { StaffProfile } from '@/lib/modules/identity/client';
 import { MODULE_IDS, type ModuleId } from '@/lib/modules/manifest';
 import { getCurrentTenantModules } from '@/lib/modules/organization/client';
 
+import { type SealBinding, assertSealBinding } from './action-seal.ts';
 import { ACTIONS, actionForTool, actionsForCapabilities, resolveSubmission, sealAction } from './agent-actions.server';
 import { asOperatorRequest, calendarAnchors } from './agent-format.ts';
 import { chatProviders } from './agent-provider.server';
@@ -59,7 +60,7 @@ export interface AgentContext {
 export const APP_MAP = `- Dashboard: today at a glance — taken today against the location's daily target, live exceptions and personal panels. Each person arranges their own with Edit dashboard in the account menu.
 - Till (/pos): take orders on a tablet, identify a loyalty customer by scanning their code, take payment. Cash-up is done here: the cash-up button in the till header opens the day with a float and closes it with a guided blind count (cash, then the card terminal total, then review); a difference of 1.00 or more needs a note. The till does not scan item barcodes, apply discounts, split payments or take refunds. There is no separate cash-up page any more — /cash-up just opens the till's cash-up, or the End of day report for someone who can only read cash-ups.
 - Kitchen (/kds): the kitchen screen. Tickets move pending → preparing → ready → collected. Whether a paid order waits on the kitchen screen or completes at once is the location's order workflow (kitchen or counter service), set on the location in Settings → Workspace.
-- Orders: every order with its items, payment, refunds and activity; filter by status, source (POS, QR code, mobile) and date. Refunds are taken here, from the order drawer — not at the till.
+- Orders: every order with its items, payment, refunds and activity; filter by status, source (till, QR code, mobile) and date. Refunds are taken here, from the order drawer — not at the till.
 - Reservations: bookings (when the module is on) — a day's bookings by time, the live floor plan showing which tables are free, seated or booked next, and the walk-in waitlist with quoted waits. A booking holds one or more tables for a time window and the same table can't be booked twice at once. Managers draw the floor plan (areas and tables) on its Floor plan tab, and set the Booking rules tab: online booking (a public link where guests pick a day, time and party size and get a table automatically; they can cancel from their own link), the turn time kept free between bookings, and the guest emails. The confirmation, a reminder N hours before and the cancellation are Communications automations with editable templates (triggers "A table is booked", "A booking is coming up", "A booking is cancelled"), sent to the email on the booking; Booking rules shows each one and a Set up button creates the starter ones, live or as drafts. Nothing is sent for a moment without an enabled automation, or while Communications is off or has no email account connected. Online times only fall inside the location's opening hours; staff can book outside them with a warning. A customer's record lists their bookings.
 - Menu: items, categories, modifiers and each item's recipe and cost. Items with no recipe show as recipe gaps.
 - Inventory: one page with tabs — Stock, Restock demand, Purchase orders, Suppliers and Stocktakes. Each stock item's page holds its containers, ledger, losses and transfers. Stock items can carry a barcode.
@@ -119,10 +120,10 @@ Rules:
 - Respect the active location when present. If an action needs a location and none is selected, list the accessible ones and ask the smallest useful question.
 - Trading hours, addresses, phone numbers, the order workflow and the daily takings target live on the location record: answer "when do we open/close", "are we open now" and similar from list_locations. Never send the operator to a printed rota for something the workspace already stores.
 - Use the page names above exactly as the app shows them, and only send the operator to a page their role and the workspace's modules allow. If a tool reports that a module is disabled for this workspace, say that product area is switched off (Settings → Modules) rather than calling it an error or empty.
-- Till layout, kitchen screen layout and dashboard panels are per-device or per-person settings under Settings → Configuration; you cannot read or change them, so explain where they are.
+- Till layout, kitchen screen layout and dashboard panels are per-device or per-person settings under Settings → Operations; you cannot read or change them, so explain where they are.
 - For "how do we…", "what's our process for…", recipes and checklists, call search_notes first: answer from the team's shared notes, quote the steps as written there, and link the note. If no note covers it, say so rather than inventing a procedure.
 - For QR ordering availability, always call get_qr_ordering_status. Its explanation resolves the location’s own clock, trading hours, pause/enable state, publication and payment readiness; quote that concrete blocker instead of guessing from one setting.
-- Treat qr_code as its own order source, distinct from mobile and POS. Use list_orders with source qr_code when the operator asks about QR orders.
+- Treat qr_code as its own order source, distinct from mobile and till. Use list_orders with source qr_code when the operator asks about QR orders.
 - Draft tools only prepare an approval card; the operator can still edit every value on it before confirming. Never say something was created, changed or cancelled until the app reports success.
 - Before drafting, resolve real ids for the supplier, item, location, person or order involved. If several plausible matches exist, ask. Never invent an id or a price.
 - When the operator's request is unambiguous, draft the action rather than describing how they could do it themselves.
@@ -327,7 +328,7 @@ export async function* runDumaAgent(
       cards: uniqueCards,
       followUps,
       scope: context.locationId ? `Active location${locationName ? ` · ${locationName}` : ''}` : 'All accessible locations',
-      pendingAction: pendingAction ? sealAction(pendingAction) : undefined,
+      pendingAction: pendingAction ? sealAction(pendingAction, sealBinding(profile, context)) : undefined,
       model: chain.answering.model,
       ...(chain.fallback ? { fallbackModel: chain.fallback.label } : {}),
       generatedAt: new Date().toISOString(),
@@ -602,6 +603,11 @@ export function recordTurn(turn: AgentTurnRecord, cookieHeader: string, profile:
   captureAgentTurn({ ...profile, tenantId: workspaceId ?? profile.tenantId }, turn);
 }
 
+/** Who is drafting or confirming an approval, and where. */
+function sealBinding(profile: StaffProfile, context: AgentContext): SealBinding {
+  return { uid: profile.userId, tid: context.tenantId ?? profile.tenantId ?? null, lid: context.locationId ?? null };
+}
+
 export async function executeConfirmedAction(
   submission: AgentActionSubmission,
   context: AgentContext,
@@ -610,6 +616,9 @@ export async function executeConfirmedAction(
 ): Promise<AgentChatResponse> {
   // Confirming runs no model at all — it replays a signed spec against the API.
   const model = chatProviders(context.provider, context.signal)[0]?.model ?? 'none';
+  // The seal must have been drafted by this user, in this workspace, at this
+  // location — checked before anything else is resolved or claimed.
+  assertSealBinding(submission.approvalToken, sealBinding(profile, context));
   const { action, definition } = resolveSubmission(submission);
   if (definition.capability && !hasCapability(profile, definition.capability))
     throw new CapabilityError(`You lack the ${definition.capability} capability.`);

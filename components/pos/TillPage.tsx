@@ -2,7 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { Suspense, useEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
+import { Suspense, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState, useSyncExternalStore } from 'react';
 
 import { CashUpButton, CashUpDrawer, useCashUpDay } from '@/components/cash-up/TillCashUp';
 import { AlertTriangle, Building2, Clock, CloudUpload, MapPin, Monitor, WifiOff } from '@/components/icons';
@@ -49,6 +49,7 @@ import {
   lineKey,
   promoCheckLines,
 } from '@/lib/utils/pos';
+import type { KeyEntry } from '@/lib/utils/till-keys';
 import { teamLayoutFrom, tillSource } from '@/lib/utils/till-team';
 import { validLoyaltyRewards } from '@/lib/utils/pos-loyalty';
 import { formatInstant } from '@/lib/utils/workspace-time';
@@ -115,9 +116,11 @@ function Till() {
     () => true,
     () => false,
   );
-  const { tenantId, locationId } = useWorkspaceStore();
+  const tenantId = useWorkspaceStore((state) => state.tenantId);
+  const locationId = useWorkspaceStore((state) => state.locationId);
   const userId = useAuthStore((state) => state.user?.id);
 
+  // The whole device layout on purpose: every field is a till setting the menu draws with.
   const layout = usePosSettingsStore();
   const [cart, setCart] = useState<CartItem[]>([]);
   // Arranging the keys, opened by "Edit till" in the avatar menu (`?edit=1`, as the dashboard's edit is).
@@ -151,7 +154,8 @@ function Till() {
   const teamLayout = team.data?.layout ?? null;
   const ownTill = !!locationId && !!layout.ownTill[locationId];
   const tillUsesTeam = tillSource({ hasTeam: !!teamLayout, own: ownTill, arranging }) === 'team';
-  const sellLayout = tillUsesTeam ? { ...layout, ...teamLayout!.settings } : layout;
+  // One object per real change, so the memoised menu isn't redrawn on every ticket edit.
+  const sellLayout = useMemo(() => (tillUsesTeam ? { ...layout, ...teamLayout!.settings } : layout), [tillUsesTeam, layout, teamLayout]);
   const sellPinned = tillUsesTeam ? teamLayout!.pinned : tenantId ? layout.pinned[tenantId] : undefined;
   const sellKeys = tillUsesTeam ? teamLayout!.keys : tenantId ? layout.keyLayouts[tenantId] : undefined;
   // Set while this page itself rewrites the device's layout, so that isn't taken for the cashier arranging.
@@ -756,7 +760,8 @@ function Till() {
       moduleQueryKeys.ordering.key('orders-all'),
       moduleQueryKeys.inventory.key('location-stock'),
       moduleQueryKeys.inventory.key('inventory-forecast'),
-      moduleQueryKeys.inventory.key('low-stock-alerts'),
+      // Low stock is read from the overview; there is no separate low-stock query.
+      moduleQueryKeys.inventory.key('inventory-overview'),
       moduleQueryKeys.customers.key('customers'),
       moduleQueryKeys.customers.key('loyalty-wallet'),
     ])
@@ -843,11 +848,110 @@ function Till() {
     () => offlineQueue.filter((order) => order.ownerUserId === userId && order.tenantId === tenantId),
     [offlineQueue, tenantId, userId],
   );
-  const needsAttention = queuedOrders.filter((order) => order.status === 'needs-attention');
+  const needsAttention = useMemo(() => queuedOrders.filter((order) => order.status === 'needs-attention'), [queuedOrders]);
   const recentSyncs = useMemo(
     () => offlineHistory.filter((record) => record.ownerUserId === userId && record.tenantId === tenantId).slice(0, 5),
     [offlineHistory, tenantId, userId],
   );
+
+  const ready = !!tenantId && !!locationId && onShift;
+  // Memoised with its inputs: the menu it is passed to skips renders its props don't change.
+  const banners = useMemo(
+    () => (
+      <>
+        {(!online || queuedOrders.length > 0) && (
+          <div
+            role="status"
+            className={cn(
+              'mb-4 rounded-md border px-4 py-3 text-sm',
+              needsAttention.length > 0
+                ? 'border-exception/35 bg-destructive/6'
+                : online
+                  ? 'border-primary/25 bg-primary/5'
+                  : 'border-warning/35 bg-warning/8',
+            )}
+          >
+            <p className="flex items-center gap-2.5 font-medium text-foreground">
+              {online ? (
+                <CloudUpload size={17} aria-hidden="true" className="shrink-0 text-primary" />
+              ) : (
+                <WifiOff size={17} aria-hidden="true" className="shrink-0 text-warning" />
+              )}
+              {needsAttention.length > 0
+                ? `${needsAttention.length} saved ${needsAttention.length === 1 ? 'sale was' : 'sales were'} refused by the server and need${needsAttention.length === 1 ? 's' : ''} a manager.`
+                : !online
+                  ? `Offline — cash and card-machine sales save on this till${queuedOrders.length ? ` (${queuedOrders.length} waiting)` : ''} and send when the connection returns.`
+                  : `Sending ${queuedOrders.length} saved ${queuedOrders.length === 1 ? 'sale' : 'sales'}…`}
+            </p>
+            {needsAttention.length > 0 && (
+              <ul className="mt-3 divide-y divide-border border-t border-border">
+                {needsAttention.map((order) => (
+                  <li key={order.id} className="flex items-center justify-between gap-3 py-2">
+                    <span className="flex min-w-0 items-center gap-2.5 text-muted-foreground">
+                      <StatusDot tone="exception" label="Refused" />
+                      <span className="min-w-0">
+                        Taken <RelativeTime iso={order.queuedAt} /> · {order.lastError ?? 'Refused by the server'}
+                      </span>
+                    </span>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => useOfflineOrdersStore.getState().retry(order.id)}
+                      className="h-11 shrink-0 px-4"
+                    >
+                      Retry
+                    </Button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
+        )}
+
+        {ready && recentSyncs.length > 0 && online && queuedOrders.length === 0 && (
+          <details className="mb-4 rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
+            <summary className="cursor-pointer font-medium text-foreground">Recently sent from this till · {recentSyncs.length}</summary>
+            <ul className="mt-2 space-y-1 border-t border-border pt-2">
+              {recentSyncs.map((record) => (
+                <li key={record.queueId} className="flex items-center gap-2.5">
+                  <StatusDot tone="success" label="Sent" />
+                  <span className="min-w-0">
+                    Order {record.orderId.slice(0, 8)} · taken <RelativeTime iso={record.queuedAt} /> · sent{' '}
+                    <RelativeTime iso={record.syncedAt} />
+                  </span>
+                </li>
+              ))}
+            </ul>
+          </details>
+        )}
+      </>
+    ),
+    [needsAttention, online, queuedOrders.length, ready, recentSyncs],
+  );
+
+  // The menu's handlers, stable across renders (the menu is memoised); each reads this render's state.
+  const menuHandlers = useRef({
+    select: handleSelectItem,
+    retry: () => void menu.refetch(),
+    keyLayout: (page: string, keys: KeyEntry[] | null) => tenantId && layout.setKeyLayout(tenantId, page, keys),
+    doneArranging: stopArranging,
+    saveTeam: () => saveTeamLayout.mutate(),
+  });
+  useLayoutEffect(() => {
+    menuHandlers.current = {
+      select: handleSelectItem,
+      retry: () => void menu.refetch(),
+      keyLayout: (page, keys) => tenantId && layout.setKeyLayout(tenantId, page, keys),
+      doneArranging: stopArranging,
+      saveTeam: () => saveTeamLayout.mutate(),
+    };
+  });
+  const onSelectMenuItem = useCallback((item: MenuItem) => void menuHandlers.current.select(item), []);
+  const onRetryMenu = useCallback(() => menuHandlers.current.retry(), []);
+  const onKeyLayout = useCallback((page: string, keys: KeyEntry[] | null) => void menuHandlers.current.keyLayout(page, keys), []);
+  const onDoneArranging = useCallback(() => menuHandlers.current.doneArranging(), []);
+  const onOpenTillSettings = useCallback(() => setSettingsOpen(true), []);
+  const onSaveTeam = useCallback(() => menuHandlers.current.saveTeam(), []);
 
   if (!clientReady) {
     return (
@@ -859,7 +963,6 @@ function Till() {
     );
   }
 
-  const ready = !!tenantId && !!locationId && onShift;
   let body: React.ReactNode;
   if (!tenantId) {
     body = (
@@ -897,75 +1000,6 @@ function Till() {
     );
   }
 
-  const banners = (
-    <>
-      {(!online || queuedOrders.length > 0) && (
-        <div
-          role="status"
-          className={cn(
-            'mb-4 rounded-md border px-4 py-3 text-sm',
-            needsAttention.length > 0
-              ? 'border-exception/35 bg-destructive/6'
-              : online
-                ? 'border-primary/25 bg-primary/5'
-                : 'border-warning/35 bg-warning/8',
-          )}
-        >
-          <p className="flex items-center gap-2.5 font-medium text-foreground">
-            {online ? (
-              <CloudUpload size={17} aria-hidden="true" className="shrink-0 text-primary" />
-            ) : (
-              <WifiOff size={17} aria-hidden="true" className="shrink-0 text-warning" />
-            )}
-            {needsAttention.length > 0
-              ? `${needsAttention.length} saved ${needsAttention.length === 1 ? 'sale was' : 'sales were'} refused by the server and need${needsAttention.length === 1 ? 's' : ''} a manager.`
-              : !online
-                ? `Offline — cash and card-machine sales save on this till${queuedOrders.length ? ` (${queuedOrders.length} waiting)` : ''} and send when the connection returns.`
-                : `Sending ${queuedOrders.length} saved ${queuedOrders.length === 1 ? 'sale' : 'sales'}…`}
-          </p>
-          {needsAttention.length > 0 && (
-            <ul className="mt-3 divide-y divide-border border-t border-border">
-              {needsAttention.map((order) => (
-                <li key={order.id} className="flex items-center justify-between gap-3 py-2">
-                  <span className="flex min-w-0 items-center gap-2.5 text-muted-foreground">
-                    <StatusDot tone="exception" label="Refused" />
-                    <span className="min-w-0">
-                      Taken <RelativeTime iso={order.queuedAt} /> · {order.lastError ?? 'Refused by the server'}
-                    </span>
-                  </span>
-                  <Button
-                    type="button"
-                    variant="outline"
-                    onClick={() => useOfflineOrdersStore.getState().retry(order.id)}
-                    className="h-11 shrink-0 px-4"
-                  >
-                    Retry
-                  </Button>
-                </li>
-              ))}
-            </ul>
-          )}
-        </div>
-      )}
-
-      {ready && recentSyncs.length > 0 && online && queuedOrders.length === 0 && (
-        <details className="mb-4 rounded-md border border-border bg-card px-4 py-3 text-sm text-muted-foreground">
-          <summary className="cursor-pointer font-medium text-foreground">Recently sent from this till · {recentSyncs.length}</summary>
-          <ul className="mt-2 space-y-1 border-t border-border pt-2">
-            {recentSyncs.map((record) => (
-              <li key={record.queueId} className="flex items-center gap-2.5">
-                <StatusDot tone="success" label="Sent" />
-                <span className="min-w-0">
-                  Order {record.orderId.slice(0, 8)} · taken <RelativeTime iso={record.queuedAt} /> · sent{' '}
-                  <RelativeTime iso={record.syncedAt} />
-                </span>
-              </li>
-            ))}
-          </ul>
-        </details>
-      )}
-    </>
-  );
 
   return (
     <>
@@ -987,18 +1021,18 @@ function Till() {
                 counts={counts}
                 stock={stockStatus}
                 selectedId={customising?.item.id ?? null}
-                onSelectItem={handleSelectItem}
+                onSelectItem={onSelectMenuItem}
                 isLoading={menu.isLoading}
                 isError={menu.isError && !menu.data}
-                onRetry={() => void menu.refetch()}
+                onRetry={onRetryMenu}
                 currency={currency}
                 banner={banners}
                 keyLayouts={sellKeys}
                 arranging={arranging}
-                onKeyLayout={(page, keys) => tenantId && layout.setKeyLayout(tenantId, page, keys)}
-                onDoneArranging={stopArranging}
-                onOpenSettings={() => setSettingsOpen(true)}
-                onSaveTeam={canPublishTill && locationId ? () => saveTeamLayout.mutate() : undefined}
+                onKeyLayout={onKeyLayout}
+                onDoneArranging={onDoneArranging}
+                onOpenSettings={onOpenTillSettings}
+                onSaveTeam={canPublishTill && locationId ? onSaveTeam : undefined}
                 savingTeam={saveTeamLayout.isPending}
               />
               {arranging && settingsOpen && (

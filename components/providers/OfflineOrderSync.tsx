@@ -8,6 +8,7 @@ import { confirmPayment, startPayment } from '@/lib/modules/payments/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { classifyOfflineOrderFailure } from '@/lib/utils/offline-order-sync';
+import { replayableOrders } from '@/lib/utils/offline-queue';
 import { useAuthStore } from '@/stores/authStore';
 import { useOfflineOrdersStore } from '@/stores/offlineOrdersStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -16,20 +17,21 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
  * Flushes the offline POS order queue. Mounted once app-wide, so queued
  * orders sync even if the barista has navigated away from the POS.
  *
- * Retry semantics:
- * - network error (fetch throws, no HTTP response) → keep queued, try later
- * - 5xx → server hiccup, keep queued
- * - 4xx → the order will never be accepted (bad item id, closed location…)
- *   → drop it and tell staff, otherwise it would block the queue forever
+ * Retry semantics (lib/utils/offline-order-sync.ts classifies each failure).
+ * A queued sale is financial data and is **never deleted** on failure:
+ * - network error, rate limit or 5xx → `retry`: keep queued, stop this round
+ * - 401/403 → `pause-auth`: keep queued until the original cashier signs in
+ * - any other refusal (bad item id, closed location…) → `needs-attention`:
+ *   kept, marked for a manager, and skipped so it cannot block the queue
+ *
+ * Replay is safe: `POST /orders` replays on the `Idempotency-Key` the queue
+ * sends, so a sale that landed before the connection dropped is not duplicated.
  */
 export function OfflineOrderSync() {
   const qc = useQueryClient();
   const userId = useAuthStore((s) => s.user?.id);
   const tenantId = useWorkspaceStore((s) => s.tenantId);
-  const pendingQueueLength = useOfflineOrdersStore(
-    (state) =>
-      state.queue.filter((order) => order.ownerUserId === userId && order.tenantId === tenantId && order.status === 'pending').length,
-  );
+  const pendingQueueLength = useOfflineOrdersStore((state) => replayableOrders(state.queue, userId, tenantId).length);
   const syncing = useRef(false);
 
   useEffect(() => {
@@ -41,9 +43,7 @@ export function OfflineOrderSync() {
       try {
         const store = useOfflineOrdersStore.getState;
         let synced = 0;
-        const eligible = store().queue.filter(
-          (queued) => queued.ownerUserId === userId && queued.tenantId === tenantId && queued.status === 'pending',
-        );
+        const eligible = replayableOrders(store().queue, userId, tenantId);
         for (const queued of eligible) {
           try {
             // Into the workspace it was rung up in, named explicitly — never

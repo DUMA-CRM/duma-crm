@@ -201,9 +201,10 @@ export function payslipDeductions(payslip: Payslip): PayslipLine[] {
  * is exactly what they should be querying with payroll.
  */
 export function payslipReconciles(payslip: Payslip): boolean {
-  const deducted = payslipDeductions(payslip).reduce((sum, line) => sum + line.amount, 0);
-  const expected = Number(payslip.grossPay ?? 0) - deducted;
-  return Math.abs(expected - Number(payslip.netPay ?? 0)) < 0.01;
+  // In whole pence: a float tolerance of 0.01 let a payslip a penny out read as reconciled.
+  const pence = (value: number | string | null | undefined) => Math.round(Number(value ?? 0) * 100);
+  const deducted = payslipDeductions(payslip).reduce((sum, line) => sum + pence(line.amount), 0);
+  return pence(payslip.grossPay) - deducted === pence(payslip.netPay);
 }
 
 /**

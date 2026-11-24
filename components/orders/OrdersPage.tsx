@@ -1,6 +1,6 @@
 'use client';
 
-import { useInfiniteQuery, useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
+import { useInfiniteQuery, useMutation, useQueries, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Popover } from 'radix-ui';
@@ -612,38 +612,66 @@ function OrdersPageContent() {
   }, [createdBy, staff]);
 
   // ── The live picture: today's figures, the kitchen, cash waiting at the counter ──
-  const { data: recentData } = useQuery({
-    queryKey: moduleQueryKeys.ordering.key('orders-all', locationId),
-    queryFn: () => getOrders({ limit: 200, locationId: locationId ?? undefined }),
-    refetchInterval: 30_000,
-  });
-  const recent = useMemo(() => recentData?.data ?? [], [recentData?.data]);
+  // Each figure comes from a query that answers it exactly. They used to be
+  // worked out from one `getOrders({ limit: 200 })`, which the API caps at 100 —
+  // so on a busy day the totals were short and older cash orders fell off.
   const today = todayKey(now);
   const yesterday = shiftDay(today, -1);
-  const summary = useMemo(() => {
-    const onDay = (day: string) => recent.filter((order) => todayKey(new Date(order.createdAt)) === day);
-    const takings = (orders: Order[]) =>
-      orders.filter((o) => o.status !== 'cancelled' && o.status !== 'expired').reduce((sum, o) => sum + Number(o.totalAmount || 0), 0);
-    const todays = onDay(today);
-    const yesterdays = onDay(yesterday);
-    const kitchen = recent.filter((o) => LIVE_STATUSES.includes(o.status) && paymentClears(o));
-    const live = Object.fromEntries(LIVE_STATUSES.map((status) => [status, kitchen.filter((o) => o.status === status).length])) as Record<
-      string,
-      number
-    >;
-    return {
-      count: todays.length,
-      countYesterday: yesterdays.length,
-      takings: takings(todays),
-      takingsYesterday: takings(yesterdays),
-      kitchen: kitchen.length,
-      live,
-      cancelled: todays.filter((o) => o.status === 'cancelled').length,
-    };
-  }, [recent, today, yesterday]);
+  const dayParams = (day: string): OrdersParams => ({
+    locationId: locationId ?? undefined,
+    from: startOfLocalDay(day),
+    to: endOfLocalDay(day),
+  });
+  // Under the 'orders' key, so every order mutation refreshes these with the list.
+  const todaySummary = useQuery({
+    queryKey: moduleQueryKeys.ordering.key('orders', 'summary', 'day', locationId, today),
+    queryFn: () => getOrdersSummary(dayParams(today)),
+    refetchInterval: 30_000,
+  });
+  const yesterdaySummary = useQuery({
+    queryKey: moduleQueryKeys.ordering.key('orders', 'summary', 'day', locationId, yesterday),
+    queryFn: () => getOrdersSummary(dayParams(yesterday)),
+    staleTime: 5 * 60_000,
+  });
+  const cancelledSummary = useQuery({
+    queryKey: moduleQueryKeys.ordering.key('orders', 'summary', 'day-cancelled', locationId, today),
+    queryFn: () => getOrdersSummary({ ...dayParams(today), status: 'cancelled' }),
+    refetchInterval: 30_000,
+  });
+  // The kitchen, one status at a time — a full page each (the API's 100 cap), which no queue reaches.
+  const liveQueries = useQueries({
+    queries: LIVE_STATUSES.map((status) => ({
+      queryKey: moduleQueryKeys.ordering.key('orders-all', locationId, 'status', status),
+      queryFn: () => getOrders({ status, locationId: locationId ?? undefined, limit: 100 }),
+      refetchInterval: 30_000,
+    })),
+  });
+  // No useMemo: cheap, and the React Compiler memoises what it can prove safe.
+  const live = Object.fromEntries(
+    LIVE_STATUSES.map((status, index) => [status, (liveQueries[index]?.data?.data ?? []).filter(paymentClears).length]),
+  ) as Record<string, number>;
+  const day = todaySummary.data;
+  const summary = {
+    count: day?.count ?? 0,
+    countYesterday: yesterdaySummary.data?.count ?? 0,
+    // Paid sales, from the API's decimal sums — not the face value of unpaid orders.
+    takings: Number(day?.sales ?? 0),
+    takingsYesterday: Number(yesterdaySummary.data?.sales ?? 0),
+    average: Number(day?.average ?? 0),
+    paidCount: day?.paidCount ?? 0,
+    kitchen: Object.values(live).reduce((sum, count) => sum + count, 0),
+    live,
+    cancelled: cancelledSummary.data?.count ?? 0,
+  };
+  // Its own query, so a cash order is never pushed off the end by newer ones.
+  const cashQuery = useQuery({
+    queryKey: moduleQueryKeys.ordering.key('orders-all', locationId, 'awaiting-cash'),
+    queryFn: () => getOrders({ paymentStatus: 'awaiting_cash_approval', locationId: locationId ?? undefined, limit: 100 }),
+    refetchInterval: 30_000,
+  });
   const cashWaiting = useMemo(
-    () => recent.filter((order) => order.paymentStatus === 'awaiting_cash_approval').sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
-    [recent],
+    () => [...(cashQuery.data?.data ?? [])].sort((a, b) => a.createdAt.localeCompare(b.createdAt)),
+    [cashQuery.data],
   );
   const approveCash = useMutation({
     mutationFn: (orderId: string) => approveCashOrder(orderId),
@@ -976,9 +1004,7 @@ function OrdersPageContent() {
             label="Takings today"
             value={money(summary.takings)}
             hint={
-              summary.count > 0
-                ? `${money(summary.takings / Math.max(1, summary.count - summary.cancelled))} an order`
-                : `${money(summary.takingsYesterday)} yesterday`
+              summary.paidCount > 0 ? `${money(summary.average)} an order` : `${money(summary.takingsYesterday)} yesterday`
             }
           />
           <Fact

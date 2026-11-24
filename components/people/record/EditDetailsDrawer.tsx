@@ -1,7 +1,7 @@
 'use client';
 
 import { useMutation, useQueryClient } from '@tanstack/react-query';
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import { Banknote, HeartHandshake, Landmark, Loader2, UserRound } from '@/components/icons';
 import { usePayrollSettings } from '@/components/payroll/usePayroll';
@@ -73,6 +73,8 @@ export function EditDetailsDrawer({
   const currency = payroll?.currency ?? 'GBP';
   const idLabel = statutoryIdLabel(country);
   const [touched, setTouched] = useState<Record<string, boolean>>({});
+  // Ties every label to its input, so a screen reader names the field and a click on the label focuses it.
+  const fid = useId();
   const blur = (key: string) => () => setTouched((current) => ({ ...current, [key]: true }));
 
   const [form, setForm] = useState({
@@ -177,12 +179,12 @@ export function EditDetailsDrawer({
     >
       <div className="space-y-5">
         <FormSection framed={false} title="Employment">
-          <Field label="Job title">
-            <Input value={form.jobTitle} onChange={set('jobTitle')} aria-invalid={!form.jobTitle.trim()} />
+          <Field htmlFor={`${fid}-jobTitle`} label="Job title">
+            <Input id={`${fid}-jobTitle`} value={form.jobTitle} onChange={set('jobTitle')} aria-invalid={!form.jobTitle.trim()} />
             {!form.jobTitle.trim() && <p className="mt-1 text-xs font-semibold text-destructive">A job title is needed.</p>}
           </Field>
-          <Field label="Department">
-            <Input value={form.department} onChange={set('department')} placeholder="e.g. Front of house" />
+          <Field htmlFor={`${fid}-department`} label="Department">
+            <Input id={`${fid}-department`} value={form.department} onChange={set('department')} placeholder="e.g. Front of house" />
           </Field>
           <Field label="Contract">
             <ChoiceCards
@@ -212,15 +214,20 @@ export function EditDetailsDrawer({
           note="Who to call if something happens at work."
         >
           <div className="grid gap-3 sm:grid-cols-2">
-            <Field label="Name">
-              <Input value={form.emergencyContactName} onChange={set('emergencyContactName')} />
+            <Field htmlFor={`${fid}-emergencyName`} label="Name">
+              <Input id={`${fid}-emergencyName`} value={form.emergencyContactName} onChange={set('emergencyContactName')} />
             </Field>
-            <Field label="Relationship">
-              <Input value={form.emergencyContactRelation} onChange={set('emergencyContactRelation')} placeholder="e.g. Partner" />
+            <Field htmlFor={`${fid}-emergencyRelation`} label="Relationship">
+              <Input
+                id={`${fid}-emergencyRelation`}
+                value={form.emergencyContactRelation}
+                onChange={set('emergencyContactRelation')}
+                placeholder="e.g. Partner"
+              />
             </Field>
           </div>
-          <Field label="Phone">
-            <Input type="tel" value={form.emergencyContactPhone} onChange={set('emergencyContactPhone')} />
+          <Field htmlFor={`${fid}-emergencyPhone`} label="Phone">
+            <Input id={`${fid}-emergencyPhone`} type="tel" value={form.emergencyContactPhone} onChange={set('emergencyContactPhone')} />
           </Field>
         </FormSection>
 
@@ -243,20 +250,38 @@ export function EditDetailsDrawer({
               </Field>
               <div className="grid gap-3 sm:grid-cols-2">
                 {form.payType === 'hourly' ? (
-                  <Field label={`Hourly rate (${currency})`}>
-                    <Input inputMode="decimal" value={String(form.hourlyRate ?? '')} onChange={set('hourlyRate')} placeholder="0.00" />
+                  <Field htmlFor={`${fid}-hourlyRate`} label={`Hourly rate (${currency})`}>
+                    <Input
+                      id={`${fid}-hourlyRate`}
+                      inputMode="decimal"
+                      value={String(form.hourlyRate ?? '')}
+                      onChange={set('hourlyRate')}
+                      placeholder="0.00"
+                    />
                   </Field>
                 ) : (
-                  <Field label={`Annual salary (${currency})`}>
-                    <Input inputMode="decimal" value={String(form.annualSalary ?? '')} onChange={set('annualSalary')} placeholder="0.00" />
+                  <Field htmlFor={`${fid}-annualSalary`} label={`Annual salary (${currency})`}>
+                    <Input
+                      id={`${fid}-annualSalary`}
+                      inputMode="decimal"
+                      value={String(form.annualSalary ?? '')}
+                      onChange={set('annualSalary')}
+                      placeholder="0.00"
+                    />
                   </Field>
                 )}
-                <Field label="Tax code">
-                  <Input value={form.taxCode} onChange={set('taxCode')} placeholder={uk ? '1257L' : 'If your payroll uses one'} />
+                <Field htmlFor={`${fid}-taxCode`} label="Tax code">
+                  <Input
+                    id={`${fid}-taxCode`}
+                    value={form.taxCode}
+                    onChange={set('taxCode')}
+                    placeholder={uk ? '1257L' : 'If your payroll uses one'}
+                  />
                 </Field>
               </div>
-              <Field label={idLabel}>
+              <Field htmlFor={`${fid}-niNumber`} label={idLabel}>
                 <Input
+                  id={`${fid}-niNumber`}
                   value={uk ? formatNiNumber(form.niNumber) : form.niNumber}
                   onChange={set('niNumber')}
                   onBlur={blur('niNumber')}
@@ -279,14 +304,15 @@ export function EditDetailsDrawer({
               note="Leave blank to keep what’s on file. Entering any of these replaces all of them."
             >
               <div className="grid gap-3 sm:grid-cols-2">
-                <Field label="Account holder">
-                  <Input value={form.accountHolder} onChange={set('accountHolder')} />
+                <Field htmlFor={`${fid}-accountHolder`} label="Account holder">
+                  <Input id={`${fid}-accountHolder`} value={form.accountHolder} onChange={set('accountHolder')} />
                 </Field>
-                <Field label="Bank name">
-                  <Input value={form.bankName} onChange={set('bankName')} />
+                <Field htmlFor={`${fid}-bankName`} label="Bank name">
+                  <Input id={`${fid}-bankName`} value={form.bankName} onChange={set('bankName')} />
                 </Field>
-                <Field label={uk ? 'Sort code' : 'Bank code'}>
+                <Field htmlFor={`${fid}-sortCode`} label={uk ? 'Sort code' : 'Bank code'}>
                   <Input
+                    id={`${fid}-sortCode`}
                     value={uk ? formatSortCode(form.sortCode) : form.sortCode}
                     onChange={set('sortCode')}
                     onBlur={blur('sortCode')}
@@ -299,8 +325,9 @@ export function EditDetailsDrawer({
                     </p>
                   )}
                 </Field>
-                <Field label="Account number">
+                <Field htmlFor={`${fid}-accountNumber`} label="Account number">
                   <Input
+                    id={`${fid}-accountNumber`}
                     value={form.accountNumber}
                     onChange={set('accountNumber')}
                     onBlur={blur('accountNumber')}
@@ -325,10 +352,16 @@ export function EditDetailsDrawer({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+/** Pass `htmlFor` (and the same `id` on the input) for a text field; without it the label is a span over a group of buttons. */
+function Field({ label, htmlFor, children }: { label: string; htmlFor?: string; children: React.ReactNode }) {
   return (
     <div>
-      <FieldLabel required={['Job title', 'Contract', 'Pay basis'].includes(label)} className="mb-1.5">
+      <FieldLabel
+        as={htmlFor ? 'label' : 'span'}
+        htmlFor={htmlFor}
+        required={['Job title', 'Contract', 'Pay basis'].includes(label)}
+        className="mb-1.5"
+      >
         {label}
       </FieldLabel>
       {children}

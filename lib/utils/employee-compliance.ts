@@ -16,6 +16,14 @@ export interface ComplianceCheck {
   tone: ComplianceTone;
 }
 
+export const UK_MINIMUM_WAGE_2025 = {
+  effectiveFrom: '2025-04-01',
+  age21AndOver: 12.21,
+  age18To20: 10,
+  under18: 7.55,
+  apprentice: 7.55,
+} as const;
+
 export const UK_MINIMUM_WAGE_2026 = {
   effectiveFrom: '2026-04-01',
   age21AndOver: 12.71,
@@ -23,6 +31,12 @@ export const UK_MINIMUM_WAGE_2026 = {
   under18: 8,
   apprentice: 8,
 } as const;
+
+/** The rates in force on a date — a check dated before 1 April 2026 is held to 2025's, not next year's. */
+export function minimumWageRatesOn(onDate: Date) {
+  const key = `${onDate.getFullYear()}-${String(onDate.getMonth() + 1).padStart(2, '0')}-${String(onDate.getDate()).padStart(2, '0')}`;
+  return key >= UK_MINIMUM_WAGE_2026.effectiveFrom ? UK_MINIMUM_WAGE_2026 : UK_MINIMUM_WAGE_2025;
+}
 
 export function ageOn(dateOfBirth: string, onDate: Date): number {
   const birth = new Date(`${dateOfBirth.slice(0, 10)}T12:00:00`);
@@ -44,9 +58,11 @@ export function ageBasedMinimumWage(dateOfBirth: string | undefined, onDate: Dat
   if (!dateOfBirth) return null;
   if (country && country !== 'GB') return null;
   const age = ageOn(dateOfBirth, onDate);
-  if (age >= 21) return { age, rate: UK_MINIMUM_WAGE_2026.age21AndOver, label: 'Age 21+' };
-  if (age >= 18) return { age, rate: UK_MINIMUM_WAGE_2026.age18To20, label: 'Age 18–20' };
-  return { age, rate: UK_MINIMUM_WAGE_2026.under18, label: 'Under 18' };
+  const rates = minimumWageRatesOn(onDate);
+  const effectiveFrom = rates.effectiveFrom;
+  if (age >= 21) return { age, rate: rates.age21AndOver, label: 'Age 21+', effectiveFrom };
+  if (age >= 18) return { age, rate: rates.age18To20, label: 'Age 18–20', effectiveFrom };
+  return { age, rate: rates.under18, label: 'Under 18', effectiveFrom };
 }
 
 export function employeeSetupChecks(
@@ -96,7 +112,7 @@ export function employeeSetupChecks(
       id: 'pay',
       label: 'Pay setup',
       detail: belowAgeRate
-        ? `Hourly rate is below the £${wage.rate.toFixed(2)} age-based statutory rate from 1 April 2026.`
+        ? `Hourly rate is below the £${wage.rate.toFixed(2)} age-based statutory rate from 1 April ${wage.effectiveFrom.slice(0, 4)}.`
         : hasPay
           ? 'A pay basis and rate are recorded.'
           : 'Add a valid hourly rate or annual salary.',

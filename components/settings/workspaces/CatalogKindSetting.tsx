@@ -38,7 +38,6 @@ export function CatalogKindSetting({ open, onToggle, onDone }: { open: boolean; 
     onSuccess: (_, next) => {
       onDone();
       void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('current-tenant-modules') });
-      void queryClient.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenant-modules') });
       toast('success', `Now set up for ${VOCABULARY_CHOICES.find((choice) => choice.value === next)?.label.toLowerCase()}.`);
     },
     onError: (error) => toast('error', error.message),

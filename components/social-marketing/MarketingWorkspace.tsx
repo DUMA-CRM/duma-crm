@@ -345,11 +345,11 @@ export function MarketingWorkspace() {
   };
   if (!canRead)
     return (
-      <ErrorState title="Marketing access is required" description="Ask your workspace administrator for access to the marketing module." />
+      <ErrorState title="Social posts need marketing access" description="Ask an owner to add the marketing:read permission in Settings → Staff." />
     );
   return (
     <EditorShell
-      title="Marketing"
+      title="Social posts"
       eyebrow="Social publishing"
       icon={<CalendarDays size={20} />}
       actions={

@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { memo, useCallback, useMemo, useState } from 'react';
 
 import { ArrowLeft, ChevronDown, LayoutGrid, RotateCcw, Search, Settings, Star, X } from '@/components/icons';
 import { KeyArranger } from '@/components/pos/KeyArranger';
@@ -50,8 +50,11 @@ export interface TillMenuProps {
  * The till's menu side — search, category tabs or tiles, favourites and the
  * item grid — laid out by the Configuration → Till settings. The till and the
  * settings preview both render this, so the preview can't drift from the till.
+ *
+ * Memoised: typing a note or attaching a customer re-renders the till, not its
+ * menu. The till passes stable callbacks for that reason.
  */
-export function TillMenu(props: TillMenuProps) {
+export const TillMenu = memo(function TillMenu(props: TillMenuProps) {
   const {
     items,
     categories,
@@ -82,6 +85,7 @@ export function TillMenu(props: TillMenuProps) {
   // Categories-first: the category whose items are open, or null for the tiles.
   const [openCategory, setOpenCategory] = useState<string | null>(null);
   const [searchText, setQuery] = useState('');
+  const clearSearch = useCallback(() => setQuery(''), []);
   // Arranging lays out pages, not search results, so a search waits until it's done.
   const query = layout.showSearch && !arranging ? searchText.trim() : '';
 
@@ -127,7 +131,7 @@ export function TillMenu(props: TillMenuProps) {
         isError={isError}
         onRetry={onRetry}
         query={query}
-        onClearSearch={() => setQuery('')}
+        onClearSearch={clearSearch}
         stock={stock}
         tileStyle={layout.tileStyle}
         colours={colours}
@@ -329,7 +333,7 @@ export function TillMenu(props: TillMenuProps) {
       </div>
     </div>
   );
-}
+});
 
 function SectionTitle({ icon: Icon, children }: { icon?: typeof Star; children: React.ReactNode }) {
   return (

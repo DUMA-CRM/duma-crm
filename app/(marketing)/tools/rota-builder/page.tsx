@@ -68,7 +68,7 @@ const IN_DUMA = [
     icon: Smartphone,
     tone: 'orders',
     title: 'On their phone',
-    body: 'Each person sees their week, their next shift and their approved leave on My rota.',
+    body: 'Each person sees their week, their next shift and their approved leave in My work.',
   },
   {
     icon: Clock,

@@ -2,6 +2,7 @@ import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
 
 import type { CreateOrderPayload } from '@/lib/api/orders.service';
+import { LEGACY_ORDER_NOTE, migrateOfflineQueue } from '@/lib/utils/offline-queue';
 
 // Offline POS queue. When createOrder fails with a NETWORK error (café Wi-Fi
 // blip), the payload is stored here (localStorage) and re-sent automatically
@@ -101,7 +102,7 @@ export const useOfflineOrdersStore = create<OfflineOrdersStore>()(
                   ownerUserId,
                   tenantId,
                   status: 'needs-attention',
-                  lastError: 'Legacy offline order — confirm it was not already entered before retrying.',
+                  lastError: LEGACY_ORDER_NOTE,
                 },
           ),
         })),
@@ -113,25 +114,7 @@ export const useOfflineOrdersStore = create<OfflineOrdersStore>()(
       // Preserve those sales but never auto-replay them. WorkspaceInitializer
       // assigns them to the first signed-in profile and requires an explicit
       // manager retry from the POS warning.
-      migrate: (persistedState) => {
-        const legacy = persistedState as {
-          queue?: Array<Partial<QueuedOrder> & Pick<QueuedOrder, 'id' | 'payload' | 'queuedAt'>>;
-          history?: OfflineOrderSyncRecord[];
-        };
-        return {
-          history: Array.isArray(legacy.history) ? legacy.history : [],
-          queue: (legacy.queue ?? []).map((order) => ({
-            ...order,
-            idempotencyKey: order.idempotencyKey ?? order.id,
-            paymentProvider: order.paymentProvider ?? 'cash',
-            ownerUserId: order.ownerUserId ?? '',
-            tenantId: order.tenantId ?? '',
-            attempts: order.attempts ?? 0,
-            status: 'needs-attention' as const,
-            lastError: order.lastError ?? 'Legacy offline order — confirm it was not already entered before retrying.',
-          })),
-        };
-      },
+      migrate: (persistedState) => migrateOfflineQueue<CreateOrderPayload, OfflineOrderSyncRecord>(persistedState),
     },
   ),
 );

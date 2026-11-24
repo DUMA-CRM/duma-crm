@@ -11,6 +11,7 @@ import { signIn, signInForChatGpt, signOut, startGoogleSignIn } from '@/lib/modu
 import { chatgptOAuthDestination, chatgptOAuthQuery } from '@/lib/utils/chatgpt-connection';
 import { signInDestination } from '@/lib/utils/sign-in';
 import { useAuthStore } from '@/stores/authStore';
+import { useHeldTicketsStore } from '@/stores/heldTicketsStore';
 import { useLoginIntroStore } from '@/stores/loginIntroStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
@@ -82,6 +83,10 @@ export function useAuth() {
     // Workspace selection is account-specific. Keeping it on a shared tablet
     // can make the next user query a tenant they cannot access.
     useWorkspaceStore.getState().setContext(null, { kind: 'unresolved' });
+    // Parked till tickets carry customer details and were never sent anywhere,
+    // so they would otherwise outlive the session in localStorage. Queued
+    // offline *sales* are financial data and are deliberately left alone.
+    useHeldTicketsStore.getState().clear();
     // Drop all cached API data so nothing sensitive survives sign-out in memory.
     qc.clear();
     // Remove any navigation responses cached by an older service worker before

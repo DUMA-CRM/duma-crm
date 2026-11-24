@@ -217,12 +217,12 @@ const STAFF_SCHEDULING: FeatureContent = {
         tag: 'free in full',
       },
       {
-        title: 'My rota, on their phone',
+        title: 'My work, on their phone',
         body: 'Each person sees their week, their next shift, scheduled and worked hours and approved leave. Hourly staff see their estimated pay. New and changed shifts are marked.',
       },
       {
         title: 'Clock in where they are',
-        body: 'Staff slide to clock in on My rota, or at the till, which asks them to clock in before it opens. A clock-in shortly before a published shift is matched to it.',
+        body: 'Staff slide to clock in on My work, or at the till, which asks them to clock in before it opens. A clock-in shortly before a published shift is matched to it.',
       },
       {
         title: 'Planned against worked',
@@ -256,7 +256,7 @@ const STAFF_SCHEDULING: FeatureContent = {
       },
       {
         title: 'Check cover, then publish',
-        body: 'Look at the cover panel for hours that look short, adjust, then publish. Your team sees the published rota on My rota.',
+        body: 'Look at the cover panel for hours that look short, adjust, then publish. Your team sees the published rota in My work.',
       },
       {
         title: 'Compare the week with the takings',
@@ -269,7 +269,7 @@ const STAFF_SCHEDULING: FeatureContent = {
     intro: 'Honest gaps, so nothing surprises you. Tell us if one of these matters: we add things on request.',
     items: [
       'No shift swaps between staff yet. Swaps go through the manager.',
-      'Publishing doesn’t send a notification. Your team sees the new rota when they open My rota.',
+      'Publishing doesn’t send a notification. Your team sees the new rota when they open My work.',
       'No copy-a-whole-week or rota templates. Regular shifts repeat weekly instead.',
       'No GPS, geofenced or PIN clock-in. Staff clock in for the location chosen in the app.',
       'It is an installable web app, not a native app from an app store.',
@@ -286,12 +286,12 @@ const STAFF_SCHEDULING: FeatureContent = {
     {
       question: 'Can my staff see the rota on their phone?',
       answer:
-        'Yes. Each person has My rota, which shows their week, their next shift, their hours and their approved leave. It works in the phone’s browser and can be installed to the home screen like an app.',
+        'Yes. Each person has My work, which shows their week, their next shift, their hours and their approved leave. It works in the phone’s browser and can be installed to the home screen like an app.',
     },
     {
       question: 'Can staff clock in and out on their phone?',
       answer:
-        'Yes. They slide to clock in on My rota, or clock in at the till. A manager can correct a clock time, and staff can query a day that looks wrong.',
+        'Yes. They slide to clock in on My work, or clock in at the till. A manager can correct a clock time, and staff can query a day that looks wrong.',
     },
     {
       question: 'Does it show labour cost against sales?',

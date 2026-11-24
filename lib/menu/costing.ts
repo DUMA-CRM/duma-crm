@@ -8,14 +8,14 @@
  * the business actually keeps £2.67 of the price and so earns £2.07.
  *
  * The VAT arithmetic mirrors the API's order pipeline (duma-api
- * src/routes/orders.ts) exactly — same cents rounding, same inclusive/exclusive
- * branch — so a margin shown here reconciles with the tax the till records.
+ * src/lib/order-tax.ts `calculateOrderLineTax`) exactly — same cents rounding,
+ * same inclusive/exclusive branch, and the same `vatRegistered` rule: an
+ * unregistered business extracts no VAT and keeps the entire price — so a
+ * margin shown here reconciles with the tax the till records.
  *
- * ONE DELIBERATE DIVERGENCE: this honours `vatRegistered`, and the API does
- * not. The API extracts VAT even when the tenant is not registered, which is
- * wrong — an unregistered business keeps the entire price. Showing an
- * unregistered café a margin reduced by VAT it never owes would be worse than
- * disagreeing with a figure that is itself incorrect. Tracked separately.
+ * (This used to describe a deliberate divergence: the API extracted VAT even
+ * for unregistered tenants. The API now honours `vatRegistered` too, so the two
+ * agree; verified against duma-api on 2026-11-24.)
  */
 import type { TradingSettings } from '@/lib/modules/organization/client';
 
@@ -31,7 +31,7 @@ export interface VatContext {
 
 /**
  * What to assume before trading settings have loaded. Matches the API's own
- * fallbacks, except `vatRegistered` — see the note above. Not registered means
+ * fallbacks, except that an unknown `vatRegistered` is taken as false. Not registered means
  * no VAT is deducted, so an unloaded state never invents a cost.
  */
 export const DEFAULT_VAT_CONTEXT: VatContext = {
@@ -75,6 +75,42 @@ export function effectiveVatRate(itemVatRate: string | number | null | undefined
 // against the till on exactly the items people check by hand.
 const toCents = (value: number) => Math.round(value * 100);
 const fromCents = (cents: number) => cents / 100;
+
+/** The part of a recipe line the cost needs — `GET /menu-items/:id/recipe` and the batch read alike. */
+export interface RecipeCostLine {
+  quantity: string | number;
+  /** Set on a size override, which replaces the default line rather than adding to it. */
+  sizeModifierId?: string | null;
+  stockItem?: { costPerUnit?: string | number | null } | null;
+}
+
+export interface RecipeCost {
+  /** False when no default ingredients are linked — cost is unknown, not zero. */
+  hasRecipe: boolean;
+  /** True only when every default ingredient carries a cost, so the total can be trusted. */
+  costComplete: boolean;
+  /** Ingredient cost of one default serving; null unless `costComplete`. */
+  cost: number | null;
+}
+
+/**
+ * What one serving costs in ingredients, from its recipe — the one place a
+ * plate is costed, for the menu's Profit view and the profit reports alike.
+ *
+ * Only the default lines count: size overrides are alternatives to them, not
+ * additions. A recipe with any uncosted ingredient has no cost at all rather
+ * than a flattering partial one. The sum is trimmed to a millionth so float
+ * artefacts (0.30000000000000004) never reach a comparison; `computeCosting`
+ * rounds to the penny.
+ */
+export function recipeCost(lines: readonly RecipeCostLine[] | null | undefined): RecipeCost {
+  const defaults = (lines ?? []).filter((line) => line.sizeModifierId == null);
+  const hasRecipe = defaults.length > 0;
+  const costComplete = hasRecipe && defaults.every((line) => line.stockItem?.costPerUnit != null);
+  if (!costComplete) return { hasRecipe, costComplete, cost: null };
+  const sum = defaults.reduce((total, line) => total + (Number(line.quantity) || 0) * (Number(line.stockItem?.costPerUnit) || 0), 0);
+  return { hasRecipe, costComplete, cost: Math.round(sum * 1_000_000) / 1_000_000 };
+}
 
 export interface Costing {
   /** The price as configured on the menu item (plus any modifier adjustments). */
