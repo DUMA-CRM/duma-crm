@@ -22,12 +22,10 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Button } from '@/components/ui/button';
-import { UpdatesAdmin } from '@/components/updates/UpdatesAdmin';
 
 import { useWorkspaceContext } from '@/lib/hooks/useWorkspaceContext';
 import { parseEntryClipboard } from '@/lib/utils/cms-entry-clipboard';
 import { type ContentTab, contentLocation, contentNavigation } from '@/lib/utils/cms-navigation';
-import { useAuthStore } from '@/stores/authStore';
 
 const CONTENT_TABS: SectionTab<ContentTab>[] = [
   { value: 'entries', label: 'Entries' },
@@ -60,9 +58,6 @@ function ContentView() {
   const access = useCmsAccess();
   const { workspace } = useWorkspaceContext();
   const isInternal = workspace?.classification === 'internal';
-  const isSuperadmin = useAuthStore((state) => state.role === 'super_admin');
-  const contentTabs: SectionTab<ContentTab>[] =
-    isSuperadmin && isInternal ? [...CONTENT_TABS, { value: 'updates', label: 'DUMA Updates' }] : CONTENT_TABS;
   const [creating, setCreating] = useState<{ contentTypeId?: string } | null>(null);
   // `paste`: opened by ⌘V on the Entries tab, on the paste side with that text.
   const [importing, setImporting] = useState<{ paste?: string } | null>(null);
@@ -71,7 +66,7 @@ function ContentView() {
 
   const requestedTab = searchParams.get('tab');
   const { tab: requestedContentTab, section: requestedSection } = contentLocation(requestedTab, searchParams.get('section'));
-  const tab = requestedContentTab === 'updates' && !(isSuperadmin && isInternal) ? 'entries' : requestedContentTab;
+  const tab = requestedContentTab;
   const section = requestedSection === 'settings' && !access.canManageKeys ? null : requestedSection;
   const entryParam = searchParams.get('entry');
   const modelParam = searchParams.get('model');
@@ -116,20 +111,6 @@ function ContentView() {
     const query = next.toString();
     router[mode](query ? `${pathname}?${query}` : pathname, { scroll: false });
   };
-
-  if (tab === 'updates' && isSuperadmin)
-    return (
-      <UpdatesAdmin
-        tabs={
-          <SectionTabs
-            tabs={contentTabs}
-            value={tab}
-            onChange={(value) => navigate({ tab: value, entry: null, model: null })}
-            ariaLabel="Content sections"
-          />
-        }
-      />
-    );
 
   if (!tenantId) {
     return (
@@ -222,7 +203,7 @@ function ContentView() {
       }
       subheader={
         <SectionTabs
-          tabs={contentTabs}
+          tabs={CONTENT_TABS}
           value={tab}
           onChange={(value) => navigate({ tab: value, section: null, folder: null }, 'replace')}
           ariaLabel="Content sections"

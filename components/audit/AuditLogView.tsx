@@ -29,6 +29,25 @@ import { resolvedTimeZone } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+/** The filters this view writes to the URL. */
+const URL_FILTER_KEYS = ['q', 'where', 'userId', 'resourceType', 'action', 'resourceId'] as const;
+
+/** For a page that holds the log as one of its tabs: its own title, icon and tab bar. */
+export interface AuditShellProps {
+  title?: string;
+  icon?: React.ReactNode;
+  subheader?: React.ReactNode;
+}
+
+function shellProps(platform: boolean, { title, icon, subheader }: AuditShellProps) {
+  return {
+    eyebrow: platform ? 'DUMA Admin' : undefined,
+    title: title ?? 'Audit log',
+    icon: icon ?? (platform ? <Activity size={18} aria-hidden="true" /> : <History size={20} aria-hidden="true" />),
+    subheader,
+  };
+}
+
 /** Groups per "Load more". */
 const PAGE_SIZE = 25;
 /** Long enough not to churn the list under someone reading it. */
@@ -73,13 +92,16 @@ function useDebounced<T>(value: T, delay: number) {
  * "trace from here" pivots in the detail panel cover the rest (one action, one
  * record) and show as chips.
  *
- * `platform` is DUMA Admin → Activity: the same log read across workspaces.
+ * `platform` is DUMA Admin → Audit log (`/admin/activity`): the same log read across workspaces.
  * It opens on the platform feed (what platform administrators did, and
  * workspace lifecycle changes), widens to every workspace or narrows to one,
  * names the workspace under each row, and offers platform administrators —
  * not one workspace's staff — as "who".
+ *
+ * `subheader` lets a page that holds the log as one of its tabs (Compliance)
+ * keep its own title and tab bar on the shell.
  */
-export function AuditLogView({ platform = false }: { platform?: boolean }) {
+export function AuditLogView({ platform = false, ...shell }: { platform?: boolean } & AuditShellProps) {
   const router = useRouter();
   const searchParams = useSearchParams();
   const role = useAuthStore((s) => s.role);
@@ -218,9 +240,10 @@ export function AuditLogView({ platform = false }: { platform?: boolean }) {
     return [{ value: PLATFORM_FEED, label: 'Platform activity' }, { value: EVERY_WORKSPACE, label: 'Every workspace' }, ...named];
   }, [where, workspaces.data]);
 
-  // A shareable URL for the view on screen.
+  // A shareable URL for the view on screen. Other parameters (the page's tab) are kept.
   useEffect(() => {
-    const params = new URLSearchParams();
+    const params = new URLSearchParams(window.location.search);
+    for (const key of URL_FILTER_KEYS) params.delete(key);
     if (q) params.set('q', q);
     if (widened) params.set('where', where);
     if (actorId !== 'all') params.set('userId', actorId);
@@ -327,10 +350,7 @@ export function AuditLogView({ platform = false }: { platform?: boolean }) {
       <ListSkeleton rows={8} label="Loading activity" />
     </div>
   ) : activity.isError && groups.length === 0 ? (
-    <ErrorState
-      title={platform ? 'Activity couldn’t be loaded' : 'The audit log could not be loaded'}
-      onRetry={() => void activity.refetch()}
-    />
+    <ErrorState title="The audit log could not be loaded" onRetry={() => void activity.refetch()} />
   ) : groups.length === 0 ? (
     <EmptyState
       className="min-h-72 flex-1"
@@ -366,13 +386,7 @@ export function AuditLogView({ platform = false }: { platform?: boolean }) {
     ) : undefined;
 
   return (
-    <EditorShell
-      eyebrow={platform ? 'DUMA Admin' : undefined}
-      title={platform ? 'Activity' : 'Audit log'}
-      icon={platform ? <Activity size={18} aria-hidden="true" /> : <History size={20} aria-hidden="true" />}
-      meta={meta}
-      flush
-    >
+    <EditorShell {...shellProps(platform, shell)} meta={meta} flush>
       <div className="flex min-h-0 flex-1">
         <div className="flex min-h-0 min-w-0 flex-1 flex-col gap-5 overflow-y-auto px-3 py-4 md:px-6 md:py-6">
           {toolbar}
@@ -420,14 +434,9 @@ export function AuditLogView({ platform = false }: { platform?: boolean }) {
 }
 
 /** What the view looks like while its search parameters resolve. */
-export function AuditLogFallback({ platform = false }: { platform?: boolean }) {
+export function AuditLogFallback({ platform = false, ...shell }: { platform?: boolean } & AuditShellProps) {
   return (
-    <EditorShell
-      eyebrow={platform ? 'DUMA Admin' : undefined}
-      title={platform ? 'Activity' : 'Audit log'}
-      icon={platform ? <Activity size={18} aria-hidden="true" /> : <History size={20} aria-hidden="true" />}
-      flush
-    >
+    <EditorShell {...shellProps(platform, shell)} flush>
       <div className="space-y-5 px-3 py-4 md:px-6 md:py-6">
         <div className="flex flex-wrap items-center gap-2">
           <Bone className="h-9 min-w-56 flex-1 lg:max-w-sm" />

@@ -1,134 +1,132 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useRouter } from 'next/navigation';
 
 import { AutomationEditorPage } from '@/components/communications/AutomationEditorPage';
 import { AutomationsPanel } from '@/components/communications/AutomationsPanel';
 import { useEmailAccess } from '@/components/communications/useEmailAccess';
-import { Activity, Plus, Zap } from '@/components/icons';
+import { Activity, Zap } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { SectionTabs } from '@/components/shared/SectionTabs';
+import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { LoadingState } from '@/components/shared/Skeleton';
-import { Button } from '@/components/ui/button';
 
+import type { EmailAutomation } from '@/lib/modules/communications/client';
 import { getEmailAutomations } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { AutomationRuns } from './AutomationRuns';
 import { ScheduledAutomations } from './ScheduledAutomations';
 
-export function AutomationWorkspace() {
-  const tenantId = useWorkspaceStore((state) => state.tenantId);
-  // A workspace switch discards the old workspace's editor state.
-  return <Workspace key={tenantId ?? 'none'} tenantId={tenantId} />;
-}
-function Workspace({ tenantId }: { tenantId: string | null }) {
-  const router = useRouter();
-  const params = useSearchParams();
-  const access = useEmailAccess();
-  const automationId = params.get('automation');
-  // The old Scheduled jobs tab (`?tab=scheduled`) is now a card on Workflows, so it lands there.
-  const tab = params.get('tab') === 'runs' ? 'runs' : 'workflows';
-  const query = useQuery({
+/**
+ * Automations live in Communications as a tab (`/communications?tab=automations`).
+ * The old `/automation` route forwards there. The tab has two views — the
+ * workflows and their runs (`&view=runs`) — and `&automation=<id|new>` opens
+ * one workflow in the full-page editor.
+ */
+export type AutomationView = 'workflows' | 'runs';
+
+export const automationView = (value: string | null): AutomationView => (value === 'runs' ? 'runs' : 'workflows');
+
+/** The same query the list and the editor read, so the tab's header action knows whether the list is empty. */
+export function useEmailAutomations(tenantId: string | null, enabled = true) {
+  return useQuery({
     queryKey: moduleQueryKeys.automation.key('email-automations', tenantId),
     queryFn: () => getEmailAutomations(tenantId ?? undefined),
-    enabled: !!tenantId,
+    enabled: !!tenantId && enabled,
   });
-  const navigate = (patch: Record<string, string | null>, replace = false) => {
-    const next = new URLSearchParams(params.toString());
-    for (const [key, value] of Object.entries(patch)) {
-      if (value === null) next.delete(key);
-      else next.set(key, value);
-    }
-    router[replace ? 'replace' : 'push'](`/automation${next.size ? `?${next}` : ''}`);
-  };
-  const close = () => navigate({ automation: null });
-  const templates = () => router.push('/communications?tab=templates');
-  if (!tenantId)
+}
+
+/** One workflow in the full-page editor, or the state that stands in for it. */
+export function AutomationEditorView({
+  tenantId,
+  automationId,
+  onClose,
+  onSaved,
+  onOpenTemplates,
+}: {
+  tenantId: string;
+  automationId: string;
+  onClose: () => void;
+  onSaved: (saved: EmailAutomation) => void;
+  onOpenTemplates: () => void;
+}) {
+  const router = useRouter();
+  const access = useEmailAccess();
+  const query = useEmailAutomations(tenantId);
+  if (automationId !== 'new' && query.isPending)
     return (
-      <EditorShell title="Automation" icon={<Zap size={20} />}>
-        <EmptyState icon={Zap} title="No workspace selected" description="Choose a workspace to manage its workflows." />
+      <EditorShell title="Automation" onClose={onClose}>
+        <LoadingState label="Loading workflow" />
       </EditorShell>
     );
-  if (automationId) {
-    if (automationId !== 'new' && query.isPending)
-      return (
-        <EditorShell title="Automation" onClose={close}>
-          <LoadingState label="Loading workflow" />
-        </EditorShell>
-      );
-    if (automationId !== 'new' && query.isError)
-      return (
-        <EditorShell title="Automation" onClose={close}>
-          <ErrorState description={query.error.message} onRetry={() => void query.refetch()} />
-        </EditorShell>
-      );
-    const automation = query.data?.find((item) => item.id === automationId);
-    if (automationId !== 'new' && !automation)
-      return (
-        <EditorShell title="Workflow not found" onClose={close}>
-          <EmptyState icon={Zap} title="Workflow not found" description="It may have been deleted or belong to another workspace." />
-        </EditorShell>
-      );
+  if (automationId !== 'new' && query.isError)
     return (
-      <AutomationEditorPage
-        key={automationId}
-        automation={automation}
-        onClose={close}
-        onSaved={(saved) => navigate({ automation: saved.id }, true)}
-        onOpenTemplates={templates}
-        onOpenConnection={access.canConfigure ? () => router.push('/settings/connectors?connector=email') : undefined}
-      />
+      <EditorShell title="Automation" onClose={onClose}>
+        <ErrorState description={query.error.message} onRetry={() => void query.refetch()} />
+      </EditorShell>
     );
-  }
-  // An empty list offers "New workflow" in its empty state, so it isn't there twice.
-  const empty = query.isSuccess && query.data.length === 0;
+  const automation = query.data?.find((item) => item.id === automationId);
+  if (automationId !== 'new' && !automation)
+    return (
+      <EditorShell title="Workflow not found" onClose={onClose}>
+        <EmptyState icon={Zap} title="Workflow not found" description="It may have been deleted or belong to another workspace." />
+      </EditorShell>
+    );
   return (
-    <EditorShell
-      title="Automation"
-      icon={<Zap size={20} aria-hidden="true" />}
-      actions={
-        access.canWrite && tab === 'workflows' && !empty ? (
-          <Button className="h-9 gap-1.5" aria-label="New workflow" onClick={() => navigate({ automation: 'new' })}>
-            <Plus size={15} aria-hidden="true" />
-            <span className="hidden md:inline">New workflow</span>
-          </Button>
-        ) : undefined
-      }
-      subheader={
-        <SectionTabs
-          value={tab}
-          onChange={(value) => navigate({ tab: value }, true)}
-          ariaLabel="Automation sections"
-          tabs={[
-            { value: 'workflows', label: 'Workflows', icon: Zap },
-            { value: 'runs', label: 'Runs', icon: Activity },
-          ]}
-        />
-      }
-    >
+    <AutomationEditorPage
+      key={automationId}
+      automation={automation}
+      onClose={onClose}
+      onSaved={onSaved}
+      onOpenTemplates={onOpenTemplates}
+      onOpenConnection={access.canConfigure ? () => router.push('/settings/connectors?connector=email') : undefined}
+    />
+  );
+}
+
+/** The Automations tab's body: workflows (with scheduled jobs under them) or runs. */
+export function AutomationsTab({
+  tenantId,
+  view,
+  onViewChange,
+  onOpenAutomation,
+  onOpenTemplates,
+}: {
+  tenantId: string;
+  view: AutomationView;
+  onViewChange: (view: AutomationView) => void;
+  /** An automation id, or `'new'`. */
+  onOpenAutomation: (id: string) => void;
+  onOpenTemplates: () => void;
+}) {
+  return (
+    <div className="flex flex-1 flex-col gap-4">
+      <SegmentedControl<AutomationView>
+        value={view}
+        onChange={onViewChange}
+        ariaLabel="Automations view"
+        options={[
+          { value: 'workflows', label: 'Workflows', icon: Zap },
+          { value: 'runs', label: 'Runs', icon: Activity },
+        ]}
+      />
       {/* A flex column, so an empty state can fill the page and centre. */}
       <div className="flex flex-1 flex-col">
-        {tab === 'workflows' && (
+        {view === 'workflows' && (
           <AutomationsPanel
-            onEdit={({ automation }) => navigate({ automation: automation?.id ?? 'new' })}
-            onOpenTemplates={templates}
-            onOpenRuns={() => navigate({ tab: 'runs' }, true)}
+            onEdit={({ automation }) => onOpenAutomation(automation?.id ?? 'new')}
+            onOpenTemplates={onOpenTemplates}
+            onOpenRuns={() => onViewChange('runs')}
             after={<ScheduledAutomations />}
           />
         )}
-        {tab === 'runs' && (
-          <AutomationRuns
-            tenantId={tenantId}
-            onOpenWorkflow={(id) => navigate({ automation: id })}
-            onOpenWorkflows={() => navigate({ tab: null }, true)}
-          />
+        {view === 'runs' && (
+          <AutomationRuns tenantId={tenantId} onOpenWorkflow={onOpenAutomation} onOpenWorkflows={() => onViewChange('workflows')} />
         )}
       </div>
-    </EditorShell>
+    </div>
   );
 }

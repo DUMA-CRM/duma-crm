@@ -5,13 +5,9 @@ import { usePathname, useRouter } from 'next/navigation';
 
 import { Tooltip } from '@/components/shared/Tooltip';
 
-import type { NavItem } from '@/lib/constants/nav';
+import { isNavPathActive as isActivePath, type NavItem } from '@/lib/constants/nav';
 import { cn } from '@/lib/utils/cn';
 import { useSidebarStore } from '@/stores/sidebarStore';
-
-function isActivePath(pathname: string, href: string) {
-  return pathname === href || pathname.startsWith(`${href}/`);
-}
 
 type NavItemProps = NavItem & { badge?: number; mobileMenu?: boolean };
 

@@ -19,7 +19,6 @@ function RedirectToInternal() {
   const searchParams = useSearchParams();
   const workspace = platform.data?.internalWorkspace;
   const params = new URLSearchParams(searchParams.toString());
-  if (pathname === '/admin/updates') params.set('tab', 'updates');
   if (pathname === '/admin/content/storage') params.set('connector', 'media-storage');
   const destination = INTERNAL_WORKSPACE_ROUTES[pathname] ?? '/dashboard';
   const href = `${destination}${params.size ? `?${params}` : ''}`;
@@ -34,7 +33,7 @@ function RedirectToInternal() {
     <EmptyState
       icon={Building2}
       title="Set up DUMA’s internal workspace"
-      description="DUMA’s content, updates and connections now live in its own workspace."
+      description="DUMA’s content and connections now live in its own workspace."
       action={{ label: 'Open workspaces', onClick: () => void switchTo({ kind: 'platform' }, { href: '/admin/workspaces' }) }}
     />
   );

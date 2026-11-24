@@ -114,7 +114,7 @@ const serviceTopics: GuideTopic[] = [
     steps: [
       'Confirm the location picker at the bottom of the sidebar before reading any figures.',
       'Work through Needs you — each item has a button that opens the page to fix it.',
-      'Choose which panels you see, and their order, in Settings → Configuration → Dashboard.',
+      'Choose which panels you see, and their order, with Edit dashboard in your account menu or from Settings → Operations.',
     ],
     tips: ['Managers see Today’s trading; everyone else sees My workday with their shift and rota.'],
   },
@@ -134,7 +134,7 @@ const serviceTopics: GuideTopic[] = [
     ],
     tips: [
       'Offline, cash and card-machine sales save on the till and send when the connection returns.',
-      'Layout, favourites and the loyalty scanner are set per device in Settings → Configuration → Till.',
+      'Layout, favourites and the loyalty scanner are set per device: choose Edit till in your account menu, or Till under Settings → Operations.',
     ],
   },
   {
@@ -166,7 +166,9 @@ const serviceTopics: GuideTopic[] = [
       'Use Undo on the toast, or Recall in the toolbar, if a ticket was moved by mistake.',
       'Tickets show Nearly late from 2 minutes in a stage and Late from 5.',
     ],
-    tips: ['Layout, text size, tap-to-strike and the order chime are set per device in Settings → Configuration → Kitchen screen.'],
+    tips: [
+      'Layout, text size, tap-to-strike and the order chime are set per device: choose Edit kitchen screen in your account menu, or Kitchen under Settings → Operations.',
+    ],
   },
   {
     title: 'Orders',
@@ -195,7 +197,7 @@ const serviceTopics: GuideTopic[] = [
       'Save a filter you reuse as a segment with Segments → Save current filters….',
       'Adjust points or stamps only to correct a real error, and choose a reason.',
     ],
-    tips: ['Loyalty programmes are set up under Loyalty rules on the Customers page.'],
+    tips: ['Loyalty programmes are set up in Promotions → Loyalty.'],
   },
   {
     title: 'Customer duplicates',
@@ -293,9 +295,9 @@ const managementTopics: GuideTopic[] = [
     linkLabel: 'Open communications',
     access: 'Email permission',
     steps: [
-      'Connect a mailbox in Settings → Connectors → Email before building anything.',
+      'Connect a mailbox in Settings → Connections → Email before building anything.',
       'Create a template and preview it with real customer variables.',
-      'Build an automation from a trigger and a template, then switch it on.',
+      'On the Automations tab, build an automation from a trigger and a template, then switch it on.',
       'Check History for failed messages and use Try again once the cause is fixed.',
     ],
   },
@@ -314,17 +316,17 @@ const managementTopics: GuideTopic[] = [
     ],
   },
   {
-    title: 'Modules, roles & connectors',
+    title: 'Modules, roles & connections',
     description: 'Choose the tools your workspace uses, decide what each role may do, and connect payments and email.',
     icon: Settings,
     href: '/settings/modules',
     linkLabel: 'Open modules',
     access: 'Settings permission',
     steps: [
-      'Use Settings → Modules to review which tools are on; a module that is off hides its pages for everyone.',
-      'Use Settings → Roles & access to create custom roles with exactly the permissions they need.',
-      'Set receipt details and VAT in Settings → Trading & tax.',
-      'Add card readers, online card checkout and your email mailbox in Settings → Connectors.',
+      'Use Settings → Operations → Modules to review which tools are on; a module that is off hides its pages for everyone.',
+      'Use Settings → Workspace → Roles & access to create custom roles with exactly the permissions they need.',
+      'Set receipt details and VAT in Settings → Operations → Receipts & tax.',
+      'Add card readers, online card checkout and your email mailbox in Settings → Connections.',
     ],
     tips: ['Never paste secret keys into support messages or Ask DUMA.'],
   },
@@ -347,7 +349,7 @@ const managementTopics: GuideTopic[] = [
     title: 'Audit log',
     description: 'A record of who changed what, used when a figure, price or permission needs explaining.',
     icon: ClipboardCheck,
-    href: '/audit-log',
+    href: '/compliance?tab=audit-log',
     linkLabel: 'Open audit log',
     access: 'Audit permission',
     steps: [
@@ -361,11 +363,11 @@ const managementTopics: GuideTopic[] = [
 
 const peopleTopics: GuideTopic[] = [
   {
-    title: 'My rota',
-    description: 'Your week of shifts and leave, and where you clock in and out.',
+    title: 'Your rota',
+    description: 'Your week of shifts and time off, and where you clock in and out — the Rota tab in My work.',
     icon: CalendarDays,
-    href: '/scheduling',
-    linkLabel: 'Open my rota',
+    href: '/my-work?tab=rota',
+    linkLabel: 'Open your rota',
     steps: [
       'Check the location picker, then Slide to clock in. You can clock in from an hour before a shift.',
       'Tap a shift for its times, break, paid time, estimated pay and any note from your manager.',
@@ -375,21 +377,21 @@ const peopleTopics: GuideTopic[] = [
     tips: ['Breaks are an unpaid rule your manager sets — there is nothing to start or stop.'],
   },
   {
-    title: 'My HR',
-    description: 'Your own details, time off, attendance, documents, payslips and private HR requests.',
+    title: 'My work',
+    description: 'Your rota, your own details, time off, attendance, documents, payslips and private helpdesk requests.',
     icon: HeartHandshake,
-    href: '/my-hr',
-    linkLabel: 'Open My HR',
+    href: '/my-work',
+    linkLabel: 'Open My work',
     steps: [
       'Use Edit your details for your address, emergency contact and bank details.',
       'Use Request time off on the Time off tab, with the dates and day length.',
       'Open a day on the Attendance tab and use Query this day if it is wrong.',
-      'Read payslips under Documents, and use Ask HR for a private request.',
+      'Read payslips under Documents, and use Ask HR on the Helpdesk tab for a private request.',
     ],
   },
   {
     title: 'Staff, rota & payroll',
-    description: 'Employee records, onboarding, the team rota, worked hours, leave, helpdesk and payroll runs.',
+    description: 'Employee records, onboarding, the team rota, worked hours, time off, helpdesk and payroll runs.',
     icon: UsersRound,
     href: '/staff',
     linkLabel: 'Open staff workspace',
@@ -398,7 +400,7 @@ const peopleTopics: GuideTopic[] = [
       'Use Onboard on the Team tab to add someone and send their sign-in link.',
       'Plan shifts on Rota & shifts and publish the drafts so the team can see them.',
       'Correct worked hours, and turn unplanned work into a matching rota shift.',
-      'Decide leave on the Leave tab; run payroll, freeze it, enter deductions and issue payslips on Payroll.',
+      'Decide time off on the Time off tab; run payroll, freeze it, enter deductions and issue payslips on Payroll.',
     ],
     tips: ['Each tab needs its own permission, and pay details need sensitive HR permission.'],
   },
@@ -406,24 +408,24 @@ const peopleTopics: GuideTopic[] = [
     title: 'Settings & security',
     description: 'Personalise DUMA, set up this device, install the app and protect your account.',
     icon: Settings,
-    href: '/settings',
-    linkLabel: 'Open settings',
+    href: '/settings/account',
+    linkLabel: 'Open account settings',
     steps: [
-      'Choose a colour theme in Settings → Profile; the workspace brand colour and timezone are in Settings → Workspace.',
-      'Set up a till or kitchen tablet in Settings → Configuration before putting it into service.',
-      'Install DUMA from Settings → Profile → Install the app.',
-      'Change your password and sign out devices you no longer use in Settings → Security.',
+      'Choose a colour theme in Settings → Account; the workspace brand colour and timezone are in Settings → Workspace.',
+      'Set up a till or kitchen tablet from Settings → Operations → On-screen settings before putting it into service.',
+      'Install DUMA from Settings → Account → Install the app.',
+      'Change your password and sign out devices you no longer use in Settings → Account.',
     ],
     tips: ['On a shared terminal, make sure the person clocked in is the one signed in.'],
   },
   {
-    title: 'Helpdesk requests',
-    description: 'Raise a tracked request for HR, payroll, scheduling, leave, workplace or IT help, and follow the reply.',
+    title: 'Helpdesk',
+    description: 'Raise a tracked request for HR, payroll, scheduling, time off, workplace or IT help, and follow the reply.',
     icon: Headphones,
-    href: '/my-hr?tab=requests',
-    linkLabel: 'Open requests',
+    href: '/my-work?tab=helpdesk',
+    linkLabel: 'Open helpdesk',
     steps: [
-      'Use Ask HR and pick the topic that matches your problem so it reaches the right person.',
+      'Use Ask HR on the Helpdesk tab in My work, and pick the topic that matches your problem so it reaches the right person.',
       'Set the urgency honestly — Urgent is for work that cannot continue.',
       'Describe what you expected, what happened and when it happened.',
       'Reply on the same request rather than raising a second one.',
@@ -433,10 +435,10 @@ const peopleTopics: GuideTopic[] = [
 ];
 
 const accessAreas: AccessArea[] = [
-  { area: 'Dashboard, My rota, My HR', detail: 'Today’s activity, your own shifts, leave, attendance and payslips.', who: ['Everyone'] },
+  { area: 'Dashboard, My work', detail: 'Today’s activity, your own shifts, time off, attendance and payslips.', who: ['Everyone'] },
   {
-    area: 'Settings: Profile, Security, Configuration',
-    detail: 'Your appearance, password, devices and device screens.',
+    area: 'Settings: Account, Operations',
+    detail: 'Your profile, appearance, password and devices, and each screen’s own settings.',
     who: ['Everyone'],
   },
   { area: 'Support', detail: 'This help centre and the request form.', who: ['Everyone'] },
@@ -460,23 +462,23 @@ const accessAreas: AccessArea[] = [
     who: ['Staff, scheduling or shifts permission'],
   },
   {
-    area: 'Staff — leave, helpdesk, payroll',
-    detail: 'Deciding leave, triaging HR requests and running payroll.',
-    who: ['Leave review, helpdesk or payroll permission'],
+    area: 'Staff — time off, helpdesk, payroll',
+    detail: 'Deciding time off, triaging helpdesk requests and running payroll.',
+    who: ['Time off review, helpdesk or payroll permission'],
   },
   {
     area: 'Pay, bank and statutory details',
-    detail: 'Money held on someone else’s record, wherever it appears. Your own are managed in My HR.',
+    detail: 'Money held on someone else’s record, wherever it appears. Your own are managed in My work.',
     who: ['Sensitive HR permission'],
   },
   {
-    area: 'Settings: Workspace, Modules, Trading & tax',
+    area: 'Settings: Workspace, Modules, Receipts & tax',
     detail: 'Business details, locations, the tools in use, VAT and receipts.',
     who: ['Settings write permission'],
   },
   { area: 'Settings: Roles & access', detail: 'Creating roles and choosing their permissions.', who: ['Staff access permission'] },
-  { area: 'Compliance', detail: 'Customer and staff privacy requests.', who: ['Privacy permission'] },
-  { area: 'Audit log', detail: 'Reviewing who changed what.', who: ['Audit read permission'] },
+  { area: 'Compliance — privacy requests', detail: 'Customer and staff privacy requests.', who: ['Privacy permission'] },
+  { area: 'Compliance — audit log', detail: 'Reviewing who changed what.', who: ['Audit read permission'] },
 ];
 
 const playbooks: Playbook[] = [
@@ -511,11 +513,11 @@ const playbooks: Playbook[] = [
     icon: Clock3,
     steps: [
       'Check the location picker shows where you are working.',
-      'Drag Slide to clock in on the till, or clock in on My rota.',
+      'Drag Slide to clock in on the till, or clock in on the Rota tab in My work.',
       'If it says Your shift couldn’t be checked, check the connection and use Try again.',
     ],
-    href: '/scheduling',
-    linkLabel: 'Open my rota',
+    href: '/my-work?tab=rota',
+    linkLabel: 'Open your rota',
   },
   {
     symptom: 'I was signed out unexpectedly',
@@ -523,11 +525,11 @@ const playbooks: Playbook[] = [
     icon: ShieldCheck,
     steps: [
       'Sign in again — use Forgot password? if you need a new one.',
-      'Check Settings → Security for devices you do not recognise and sign them out.',
+      'Check Settings → Account for devices you do not recognise and sign them out.',
       'On a shared terminal, sign in with the account that should be recorded against the orders.',
     ],
-    href: '/settings/security',
-    linkLabel: 'Open security',
+    href: '/settings/account#security',
+    linkLabel: 'Open account settings',
   },
   {
     symptom: 'A page in this guide is missing for me',
@@ -583,7 +585,7 @@ const playbooks: Playbook[] = [
     icon: Mail,
     steps: [
       'Check the Communications header reads Email connected.',
-      'Confirm the automation is on and its template still exists.',
+      'On the Automations tab, confirm the automation is on and its template still exists.',
       'Check the customer has opted in and is not suppressed.',
       'Open History, read the status and error, and use Try again once the cause is fixed.',
     ],
@@ -641,28 +643,28 @@ const playbooks: Playbook[] = [
     linkLabel: 'Open End of day',
   },
   {
-    symptom: 'My hours or leave balance look wrong',
-    cause: 'Hours come from clock-ins and leave from your entitlement, so both are corrected by a person.',
+    symptom: 'My hours or time off balance look wrong',
+    cause: 'Hours come from clock-ins and time off from your entitlement, so both are corrected by a person.',
     icon: CalendarDays,
     steps: [
-      'Open the day on the Attendance tab in My HR.',
+      'Open the day on the Attendance tab in My work.',
       'Use Query this day rather than emailing separately.',
       'For a balance, check the leave year shown on Time off before reporting a difference.',
     ],
-    href: '/my-hr',
-    linkLabel: 'Open My HR',
+    href: '/my-work?tab=attendance',
+    linkLabel: 'Open My work',
   },
   {
     symptom: 'I want DUMA to open like an app',
     cause: 'DUMA installs to the home screen or desktop from the browser.',
     icon: Monitor,
     steps: [
-      'Open Settings → Profile and use Install the app.',
+      'Open Settings → Account and use Install the app.',
       'On iPad or iPhone, use Share then Add to Home Screen.',
       'Sign in once installed so the account is ready on that device.',
     ],
-    href: '/settings',
-    linkLabel: 'Open settings',
+    href: '/settings/account',
+    linkLabel: 'Open account settings',
   },
 ];
 
@@ -777,12 +779,12 @@ const glossary: GlossaryEntry[] = [
   { term: 'Draft shift', definition: 'A planned shift only managers can see until it is published to the team.', group: 'People' },
   {
     term: 'Payroll run',
-    definition: 'A pay period frozen, given deductions and issued as payslips that staff read in My HR.',
+    definition: 'A pay period frozen, given deductions and issued as payslips that staff read in My work.',
     group: 'People',
   },
   {
     term: 'Helpdesk request',
-    definition: 'A tracked conversation with HR, with a status and a full history.',
+    definition: 'A tracked conversation with HR on the Helpdesk tab, with a status and a full history.',
     group: 'People',
   },
   {
@@ -842,7 +844,7 @@ const faqs = [
   {
     question: 'Why won’t the till let me take orders?',
     answer:
-      'The till only sells while you are clocked in at the selected location. Drag Slide to clock in on the till or on My rota. If it says No location selected, choose one in the location picker first.',
+      'The till only sells while you are clocked in at the selected location. Drag Slide to clock in on the till or on the Rota tab in My work. If it says No location selected, choose one in the location picker first.',
   },
   {
     question: 'What happens if the till loses its internet connection?',
@@ -882,21 +884,21 @@ const faqs = [
   {
     question: 'Can I install DUMA on a tablet or desktop?',
     answer:
-      'Yes. Open Settings → Profile and use Install the app. On iPhone or iPad, use the browser Share menu and choose Add to Home Screen. It is especially useful for dedicated till and kitchen tablets.',
+      'Yes. Open Settings → Account and use Install the app. On iPhone or iPad, use the browser Share menu and choose Add to Home Screen. It is especially useful for dedicated till and kitchen tablets.',
   },
   {
     question: 'How do I set up a till or kitchen tablet?',
     answer:
-      'On that device, open Settings → Configuration. Till sets the layout, favourites, stock warnings and loyalty scanner; Kitchen screen sets the layout, text size and order chime. These choices stay on the device.',
+      'On that device, open the till or the Kitchen screen and choose Edit till or Edit kitchen screen in your account menu — both are also under Settings → Operations → On-screen settings. The till sets the layout, favourites, stock warnings and loyalty scanner; the Kitchen screen sets the layout, text size and order chime. These choices stay on the device.',
   },
   {
-    question: 'How do I report a leave or attendance problem?',
+    question: 'How do I report a time off or attendance problem?',
     answer:
-      'Open My HR. Use Request time off on the Time off tab for leave. For hours, open the day on the Attendance tab and use Query this day. For anything else, use Ask HR and keep replies on that request.',
+      'Open My work. Use Request time off on the Time off tab. For hours, open the day on the Attendance tab and use Query this day. For anything else, use Ask HR on the Helpdesk tab and keep replies on that request.',
   },
   {
     question: 'Where are my payslips?',
-    answer: 'In My HR → Documents, under Payslips, once payroll has issued them. Your latest payslip also shows on the Overview.',
+    answer: 'In My work → Documents, under Payslips, once payroll has issued them. Your latest payslip also shows on the Overview.',
   },
   {
     question: 'Can I claim expenses in DUMA?',
@@ -910,7 +912,7 @@ const faqs = [
   {
     question: 'Should I email support or raise a request?',
     answer:
-      'Raise a request in My HR for anything about your work — HR, payroll, scheduling, leave, workplace or IT. It keeps a status and a history. Email support when DUMA itself is not working and you cannot get far enough into the app to raise a request.',
+      'Raise a request on the Helpdesk tab in My work for anything about your work — HR, payroll, scheduling, time off, workplace or IT. It keeps a status and a history. Email support when DUMA itself is not working and you cannot get far enough into the app to raise a request.',
   },
   {
     question: 'Why does the same figure differ between two pages?',
@@ -930,12 +932,12 @@ const faqs = [
   {
     question: 'Who can see pay, bank details and payslips?',
     answer:
-      'Other people’s pay, bank and statutory details need sensitive HR permission. By default HR managers, franchise owners and super admins hold it, so a store manager can manage the team and the rota without seeing pay. Your own payslips are always in My HR, and you can update your bank details and National Insurance number there — stored bank details are never shown back, even to you.',
+      'Other people’s pay, bank and statutory details need sensitive HR permission. By default HR managers, franchise owners and super admins hold it, so a store manager can manage the team and the rota without seeing pay. Your own payslips are always in My work, and you can update your bank details and National Insurance number there — stored bank details are never shown back, even to you.',
   },
   {
     question: 'Can I use DUMA on more than one device at a time?',
     answer:
-      'Yes. Each device keeps its own till, kitchen screen and appearance settings, while your data and dashboard layout follow your account. Review your signed-in devices in Settings → Security and sign out any you no longer use.',
+      'Yes. Each device keeps its own till, kitchen screen and appearance settings, while your data and dashboard layout follow your account. Review your signed-in devices in Settings → Account and sign out any you no longer use.',
   },
   {
     question: 'Does DUMA work with no internet at all?',
@@ -1038,14 +1040,14 @@ function OpenRequests() {
           <h2 className="font-semibold text-heading">Your open requests</h2>
           <p className="mt-0.5 text-xs text-muted-foreground">Already with the team — pick one up where you left off.</p>
         </div>
-        <Link href="/my-hr?tab=requests" className="shrink-0 text-xs font-semibold text-primary hover:underline">
+        <Link href="/my-work?tab=helpdesk" className="shrink-0 text-xs font-semibold text-primary hover:underline">
           Open helpdesk
         </Link>
       </div>
       <ul className="divide-y divide-border/60">
         {open.slice(0, 4).map((ticket) => (
           <li key={ticket.id}>
-            <Link href="/my-hr?tab=requests" className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-band">
+            <Link href="/my-work?tab=helpdesk" className="flex items-center gap-3 px-5 py-3 transition-colors hover:bg-band">
               <span className="font-mono text-label font-semibold text-muted-foreground">{ticketKey(ticket)}</span>
               <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{ticket.subject}</span>
               <span className="hidden text-label text-muted-foreground sm:inline">{fmtAgo(ticket.updatedAt)}</span>
@@ -1128,7 +1130,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
           </Button>
           {/* The app's own ticket queue — a tracked request beats an untracked email. */}
           <Button asChild className="h-9 gap-1.5">
-            <Link href="/my-hr?tab=requests">
+            <Link href="/my-work?tab=helpdesk">
               <MessageSquarePlus size={15} aria-hidden="true" />
               <span className="hidden md:inline">Raise a request</span>
             </Link>
@@ -1465,7 +1467,7 @@ export function SupportGuide({ role, capabilities }: { role: StaffRole | null; c
                         bank details are restricted by design and stay restricted even for a store manager.
                       </p>
                       <Link
-                        href="/my-hr?tab=requests"
+                        href="/my-work?tab=helpdesk"
                         className="mt-4 inline-flex items-center gap-1.5 text-sm font-semibold text-primary hover:underline"
                       >
                         Raise an access request

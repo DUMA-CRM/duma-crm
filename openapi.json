@@ -360,11 +360,14 @@
         "tags": [
           "Auth"
         ],
-        "summary": "Public sign-up is unavailable",
-        "description": "Raw identity sign-up is unavailable. New business owners use workspace-sign-up; staff accounts use the authenticated onboarding flow.",
+        "summary": "Create an account (no workspace yet)",
+        "description": "Creates a DUMA account and signs it in, with no workspace. The CRM then shows \"ask your manager to add you\" with any invitations for the verified address. A confirmation email is sent; invitations listed in-app need it confirmed. New businesses use workspace-sign-up instead.",
         "responses": {
-          "403": {
-            "description": "Workspace access is invite-only"
+          "200": {
+            "description": "Account created and signed in"
+          },
+          "422": {
+            "description": "Invalid details or the address already has an account"
           },
           "429": {
             "description": "Too many requests — rate limited"
@@ -1668,6 +1671,44 @@
             "required": true
           }
         ]
+      },
+      "delete": {
+        "operationId": "deleteV1StaffByUserId",
+        "tags": [
+          "Staff"
+        ],
+        "summary": "Remove someone from this workspace",
+        "description": "Ends their access to this workspace. Their DUMA account and any other workspaces are untouched. The last owner cannot be removed.",
+        "responses": {
+          "200": {
+            "description": "Removed"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Role you cannot manage"
+          },
+          "404": {
+            "description": "Not a member of this workspace"
+          },
+          "409": {
+            "description": "Last owner"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
       }
     },
     "/v1/staff/{userId}/performance": {
@@ -1702,6 +1743,382 @@
             },
             "in": "path",
             "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/staff-invitations": {
+      "get": {
+        "operationId": "getV1StaffInvitations",
+        "tags": [
+          "Staff"
+        ],
+        "summary": "Pending invitations for this workspace",
+        "description": "Invitations not yet accepted or cancelled, including expired ones (state: expired) so they can be resent.",
+        "responses": {
+          "200": {
+            "description": "Invitations"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      },
+      "post": {
+        "operationId": "postV1StaffInvitations",
+        "tags": [
+          "Staff"
+        ],
+        "summary": "Invite someone to this workspace by email",
+        "description": "Creates (or refreshes) a pending invitation and emails an accept link valid for seven days. The response is the same whether or not the address already has a DUMA account. 409 already_member when the address belongs to an active member of this workspace.",
+        "responses": {
+          "201": {
+            "description": "Invitation sent (emailSent false when delivery failed — resend it)"
+          },
+          "400": {
+            "description": "Invalid role, locations or email delivery not configured"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Role above your own access"
+          },
+          "409": {
+            "description": "Already a member"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/staff-invitations/{id}/resend": {
+      "post": {
+        "operationId": "postV1StaffInvitationsByIdResend",
+        "tags": [
+          "Staff"
+        ],
+        "summary": "Resend an invitation",
+        "description": "Issues a new link (the old one stops working) valid for another seven days.",
+        "responses": {
+          "200": {
+            "description": "Resent"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No pending invitation"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/staff-invitations/{id}": {
+      "delete": {
+        "operationId": "deleteV1StaffInvitationsById",
+        "tags": [
+          "Staff"
+        ],
+        "summary": "Cancel an invitation",
+        "description": "The link stops working at once. Only a pending invitation can be cancelled.",
+        "responses": {
+          "200": {
+            "description": "Cancelled"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No pending invitation"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspaces/mine": {
+      "get": {
+        "operationId": "getV1WorkspacesMine",
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "My workspaces and the invitations waiting for me",
+        "description": "Every workspace this account belongs to, with its role there and which one this request is in (`current`). Invitations are listed only once the account email is verified.",
+        "responses": {
+          "200": {
+            "description": "Memberships and invitations"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/workspaces/active": {
+      "post": {
+        "operationId": "postV1WorkspacesActive",
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Switch this browser to another of my workspaces",
+        "description": "Sets the duma_workspace cookie and remembers the choice for new browsers. Only an active membership can be chosen.",
+        "responses": {
+          "200": {
+            "description": "Switched"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not an active member of that workspace"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/workspaces/{tenantId}/leave": {
+      "post": {
+        "operationId": "postV1WorkspacesByTenantIdLeave",
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Leave a workspace",
+        "description": "Removes this account from the workspace. The last active owner cannot leave — hand ownership to someone else first.",
+        "responses": {
+          "200": {
+            "description": "Left"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Not a member"
+          },
+          "409": {
+            "description": "Last owner"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspaces/invitations/{id}/accept": {
+      "post": {
+        "operationId": "postV1WorkspacesInvitationsByIdAccept",
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Accept an invitation listed for my verified email",
+        "responses": {
+          "200": {
+            "description": "Accepted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Unverified email or another address"
+          },
+          "410": {
+            "description": "Expired or cancelled"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspaces/invitations/{id}/decline": {
+      "post": {
+        "operationId": "postV1WorkspacesInvitationsByIdDecline",
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Decline an invitation listed for my verified email",
+        "responses": {
+          "200": {
+            "description": "Declined"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "No pending invitation for this account"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "id",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspaces/invitations/token/{token}": {
+      "get": {
+        "operationId": "getV1WorkspacesInvitationsTokenByToken",
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "What an invitation link is for",
+        "description": "Public: the token is the credential. Says which workspace and role, whether it can still be accepted, and whether the invited address already has an account (so the page offers sign in or create account). Unknown links are 404.",
+        "responses": {
+          "200": {
+            "description": "Invitation preview"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "404": {
+            "description": "Unknown link"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "token",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspaces/invitations/token/{token}/accept": {
+      "post": {
+        "operationId": "postV1WorkspacesInvitationsTokenByTokenAccept",
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Accept the invitation in this link as the signed-in account",
+        "description": "The signed-in address must be the invited one. Accepting from the link also verifies that address.",
+        "responses": {
+          "200": {
+            "description": "Accepted"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Signed in as another address"
+          },
+          "410": {
+            "description": "Expired or cancelled"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "token",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/workspaces/invitations/token/{token}/sign-up": {
+      "post": {
+        "operationId": "postV1WorkspacesInvitationsTokenByTokenSignUp",
+        "tags": [
+          "Workspace"
+        ],
+        "summary": "Create an account from an invitation link, accept it and sign in",
+        "description": "For an invited address with no account yet. The address comes from the invitation, never the request, and is verified by the link. Responds with the session cookie.",
+        "responses": {
+          "201": {
+            "description": "Account created, invitation accepted, signed in"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "409": {
+            "description": "The address already has an account — sign in instead"
+          },
+          "410": {
+            "description": "Expired or cancelled"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "token",
             "required": true
           }
         ]
@@ -5633,6 +6050,18 @@
                     "format": "uuid",
                     "pattern": "^([0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[1-8][0-9a-fA-F]{3}-[89abAB][0-9a-fA-F]{3}-[0-9a-fA-F]{12}|00000000-0000-0000-0000-000000000000|ffffffff-ffff-ffff-ffff-ffffffffffff)$"
                   },
+                  "wallpaper": {
+                    "description": "The wallpaper id the UI draws behind the widgets; null for none. Omitted keeps this layer’s current one.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]{1,64}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
+                  },
                   "widgets": {
                     "maxItems": 50,
                     "type": "array",
@@ -5767,6 +6196,18 @@
                     "type": "string",
                     "minLength": 2,
                     "maxLength": 120
+                  },
+                  "wallpaper": {
+                    "description": "The wallpaper id the UI draws behind the widgets; null for none. Omitted keeps this layer’s current one.",
+                    "anyOf": [
+                      {
+                        "type": "string",
+                        "pattern": "^[a-z0-9-]{1,64}$"
+                      },
+                      {
+                        "type": "null"
+                      }
+                    ]
                   },
                   "clearPersonal": {
                     "description": "Save for your own audience and clear your personal arrangement in the same transaction.",
@@ -18358,6 +18799,43 @@
         ]
       }
     },
+    "/v1/menu-item-recipes/stock-item/{stockItemId}": {
+      "get": {
+        "operationId": "getV1MenuItemRecipesStockItemByStockItemId",
+        "tags": [
+          "Menu Item Recipes"
+        ],
+        "summary": "List the menu items that use a stock item",
+        "description": "Returns each menu item whose recipe has a line for this stock item, once, with its id and name.",
+        "responses": {
+          "200": {
+            "description": "Menu items using the stock item"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Forbidden"
+          },
+          "404": {
+            "description": "Stock item not found"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "stockItemId",
+            "required": true
+          }
+        ]
+      }
+    },
     "/v1/modifier-recipes/modifier/{modifierId}": {
       "get": {
         "operationId": "getV1ModifierRecipesModifierByModifierId",
@@ -29165,516 +29643,6 @@
         ]
       }
     },
-    "/v1/updates/admin/posts": {
-      "get": {
-        "operationId": "getV1UpdatesAdminPosts",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "GET product updates /admin/posts",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      },
-      "post": {
-        "operationId": "postV1UpdatesAdminPosts",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "POST product updates /admin/posts",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/updates/admin/posts/{id}": {
-      "get": {
-        "operationId": "getV1UpdatesAdminPostsById",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "GET product updates /admin/posts/:id",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      },
-      "put": {
-        "operationId": "putV1UpdatesAdminPostsById",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "PUT product updates /admin/posts/:id",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/updates/admin/posts/{id}/publish": {
-      "post": {
-        "operationId": "postV1UpdatesAdminPostsByIdPublish",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "POST product updates /admin/posts/:id/publish",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/updates/admin/posts/{id}/unpublish": {
-      "post": {
-        "operationId": "postV1UpdatesAdminPostsByIdUnpublish",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "POST product updates /admin/posts/:id/unpublish",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/updates": {
-      "get": {
-        "operationId": "getV1Updates",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "GET product updates /",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/updates/unread": {
-      "get": {
-        "operationId": "getV1UpdatesUnread",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "GET product updates /unread",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        }
-      }
-    },
-    "/v1/updates/{id}": {
-      "get": {
-        "operationId": "getV1UpdatesById",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "GET product updates /:id",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/updates/{id}/media/{assetId}": {
-      "get": {
-        "operationId": "getV1UpdatesByIdMediaByAssetId",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "GET product updates /:id/media/:assetId",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          },
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "assetId",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/updates/{id}/shown": {
-      "post": {
-        "operationId": "postV1UpdatesByIdShown",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "Record announcement shown for the current user",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/updates/{id}/dismiss": {
-      "post": {
-        "operationId": "postV1UpdatesByIdDismiss",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "Record announcement dismiss for the current user",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
-    "/v1/updates/{id}/read": {
-      "post": {
-        "operationId": "postV1UpdatesByIdRead",
-        "tags": [
-          "Product updates"
-        ],
-        "summary": "Record announcement read for the current user",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "400": {
-            "description": "Invalid input"
-          },
-          "401": {
-            "description": "Unauthorized — missing or invalid bearer token"
-          },
-          "403": {
-            "description": "Access denied"
-          },
-          "404": {
-            "description": "Update not found"
-          },
-          "409": {
-            "description": "Revision changed"
-          },
-          "429": {
-            "description": "Too many requests — rate limited"
-          }
-        },
-        "parameters": [
-          {
-            "schema": {
-              "type": "string"
-            },
-            "in": "path",
-            "name": "id",
-            "required": true
-          }
-        ]
-      }
-    },
     "/v1/platform/context": {
       "get": {
         "operationId": "getV1PlatformContext",
@@ -29696,6 +29664,523 @@
             "description": "Too many requests — rate limited"
           }
         }
+      }
+    },
+    "/v1/platform/users": {
+      "get": {
+        "operationId": "getV1PlatformUsers",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Search DUMA user accounts",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        }
+      }
+    },
+    "/v1/platform/users/{userId}": {
+      "get": {
+        "operationId": "getV1PlatformUsersByUserId",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "One account: profile, sign-in methods, workspace, sessions and suspension",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      },
+      "patch": {
+        "operationId": "patchV1PlatformUsersByUserId",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Rename an account",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1PlatformUsersByUserId",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Delete an account",
+        "description": "Only accounts outside any workspace; workspace members are removed by their workspace or suspended.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/users/{userId}/verification": {
+      "patch": {
+        "operationId": "patchV1PlatformUsersByUserIdVerification",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Set the email verification status",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/users/{userId}/password-reset": {
+      "post": {
+        "operationId": "postV1PlatformUsersByUserIdPasswordReset",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Send a password reset (or set-a-password) email to the account address",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/users/{userId}/suspend": {
+      "post": {
+        "operationId": "postV1PlatformUsersByUserIdSuspend",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Suspend an account",
+        "description": "Ends every session and refuses new ones until the suspension is lifted.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/users/{userId}/unsuspend": {
+      "post": {
+        "operationId": "postV1PlatformUsersByUserIdUnsuspend",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Lift a suspension",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/users/{userId}/sessions/{sessionId}": {
+      "delete": {
+        "operationId": "deleteV1PlatformUsersByUserIdSessionsBySessionId",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "End one session",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "sessionId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/users/{userId}/sessions": {
+      "delete": {
+        "operationId": "deleteV1PlatformUsersByUserIdSessions",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Sign the account out everywhere",
+        "description": "Ends every session and revokes ChatGPT access. The account can sign in again.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/users/{userId}/methods/{methodId}": {
+      "delete": {
+        "operationId": "deleteV1PlatformUsersByUserIdMethodsByMethodId",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Disconnect a sign-in method such as Google",
+        "description": "The password and the last usable method cannot be removed.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "methodId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/workspaces/{tenantId}/membership-options": {
+      "get": {
+        "operationId": "getV1PlatformWorkspacesByTenantIdMembershipOptions",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Roles and locations an account can be given in a workspace",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/users/{userId}/memberships": {
+      "post": {
+        "operationId": "postV1PlatformUsersByUserIdMemberships",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Add an account to a workspace",
+        "description": "Adds (or reactivates with the given role) and, unless notify is false, emails the account.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          }
+        ]
+      }
+    },
+    "/v1/platform/users/{userId}/memberships/{tenantId}": {
+      "patch": {
+        "operationId": "patchV1PlatformUsersByUserIdMembershipsByTenantId",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Change an account’s role or access in one workspace",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
+      },
+      "delete": {
+        "operationId": "deleteV1PlatformUsersByUserIdMembershipsByTenantId",
+        "tags": [
+          "Platform"
+        ],
+        "summary": "Remove an account from a workspace",
+        "description": "History (orders, shifts, notes) keeps pointing at the account; only access ends.",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "401": {
+            "description": "Unauthorized — missing or invalid bearer token"
+          },
+          "403": {
+            "description": "Not a platform administrator"
+          },
+          "429": {
+            "description": "Too many requests — rate limited"
+          }
+        },
+        "parameters": [
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "userId",
+            "required": true
+          },
+          {
+            "schema": {
+              "type": "string"
+            },
+            "in": "path",
+            "name": "tenantId",
+            "required": true
+          }
+        ]
       }
     },
     "/v1/platform/overview": {

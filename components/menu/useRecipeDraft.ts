@@ -167,6 +167,9 @@ export function useRecipeDraft({ queryKey, fetchLines, saveLines, sizes, basePri
     },
     onSuccess: () => {
       qc.invalidateQueries({ queryKey });
+      // The stock items' "Used in" lists are built from recipes.
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('stock-item-menu-items') });
+      qc.invalidateQueries({ queryKey: moduleQueryKeys.inventory.key('recipe-gaps') });
       setDraft(null);
       toast('success', 'Recipe saved.');
     },

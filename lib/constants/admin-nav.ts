@@ -1,4 +1,4 @@
-import { Activity, Building2, Gauge, LayoutDashboard, Package, Server, Users } from '@/components/icons';
+import { Building2, Gauge, History, LayoutDashboard, LayoutGrid, Server, Users } from '@/components/icons';
 
 import type { NavItem } from '@/lib/constants/nav';
 
@@ -14,12 +14,13 @@ export const adminNavItems: NavItem[] = [
   { module: 'identity', label: 'Users', href: '/admin/users', icon: Users },
   { module: 'identity', label: 'Usage', href: '/admin/usage', icon: Gauge },
   { module: 'identity', label: 'System', href: '/admin/system', icon: Server },
-  { module: 'identity', label: 'App review', href: '/admin/app-review', icon: Package },
-  { module: 'identity', label: 'Activity', href: '/admin/activity', icon: Activity },
+  { module: 'identity', label: 'App review', href: '/admin/app-review', icon: LayoutGrid },
+  // The same name and icon as a workspace's audit log: one word per concept.
+  { module: 'identity', label: 'Audit log', href: '/admin/activity', icon: History },
 ];
 
 /** Pages that are the person's own, not a workspace's — reachable in DUMA Admin too. */
-export const PERSONAL_ROUTES = ['/settings/account', '/settings/profile', '/settings/security', '/updates', '/support'];
+export const PERSONAL_ROUTES = ['/settings/account', '/settings/profile', '/settings/security', '/support'];
 
 export const isAdminRoute = (pathname: string) => pathname === '/admin' || pathname.startsWith('/admin/');
 
@@ -30,7 +31,6 @@ export const isPersonalRoute = (pathname: string) =>
 export const INTERNAL_WORKSPACE_ROUTES: Record<string, string> = {
   '/admin/content': '/content',
   '/admin/content/storage': '/settings/connectors',
-  '/admin/updates': '/content',
   '/admin/settings': '/settings',
   '/admin/settings/connectors': '/settings/connectors',
 };

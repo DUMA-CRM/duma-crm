@@ -112,7 +112,7 @@ export function StaffWorkspace({ tab, initialTicket = null }: { tab: StaffTab; i
         : (pendingLeaveQuery.data ?? []).filter((request) => request.status === 'pending').length;
       list.push({
         value: 'leave',
-        label: 'Leave',
+        label: 'Time off',
         icon: CalendarDays,
         count: waiting,
         countTone: 'danger',

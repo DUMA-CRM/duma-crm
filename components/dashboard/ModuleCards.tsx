@@ -18,6 +18,7 @@ import {
 } from '@/components/dashboard/widget/Widget';
 import {
   Boxes,
+  CalendarCheck,
   CheckCircle2,
   ChefHat,
   ChevronRight,
@@ -40,9 +41,11 @@ import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { getPaymentMethodSales } from '@/lib/modules/analytics/client';
 import { type CmsEntryStatus, type CmsOverview, getCmsOverview } from '@/lib/modules/cms/client';
 import { getCustomers } from '@/lib/modules/customers/client';
+import { bookingsTodaySummary } from '@/lib/dashboard/bookings-today';
 import { type InventoryOverviewRow, getInventoryOverview } from '@/lib/modules/inventory/client';
 import { getLocations } from '@/lib/modules/organization/client';
 import { type PurchaseOrder, getPurchaseOrders } from '@/lib/modules/purchasing/client';
+import { type Booking, getBookings } from '@/lib/modules/reservations/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type ScheduledShift, type Shift, getActiveShifts, getScheduledShifts } from '@/lib/modules/workforce/client';
 import { entryStatusMeta } from '@/lib/utils/cms';
@@ -60,7 +63,14 @@ import {
   wholePercents,
 } from '@/lib/utils/dashboard-cards';
 import { relativeTime } from '@/lib/utils/relative-time';
-import { formatInstant, resolvedTimeZone, workspaceDateKey, zonedToInstant } from '@/lib/utils/workspace-time';
+import { dayRange, slotOf } from '@/lib/utils/reservations';
+import {
+  formatInstant,
+  resolvedTimeZone,
+  workspaceDateKey,
+  workspaceTimeZone,
+  zonedToInstant,
+} from '@/lib/utils/workspace-time';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { Customer } from '@/types/customers';
 
@@ -78,7 +88,7 @@ import type { Customer } from '@/types/customers';
 // ── The shared shape ─────────────────────────────────────────────────────────
 
 /** A status part that needs someone: its own ink, the rest of the line stays quiet. */
-function Flag({ tone, children }: { tone: Tone; children: ReactNode }) {
+export function Flag({ tone, children }: { tone: Tone; children: ReactNode }) {
   const ink: Record<Tone, string> = {
     primary: 'text-primary',
     success: 'text-momentum',
@@ -91,7 +101,7 @@ function Flag({ tone, children }: { tone: Tone; children: ReactNode }) {
 }
 
 /** Parts of a status line, joined by a middle dot, empties dropped. */
-function Parts({ children }: { children: ReactNode[] }) {
+export function Parts({ children }: { children: ReactNode[] }) {
   const parts = children.filter((part) => part !== null && part !== false && part !== undefined && part !== '');
   return (
     <>
@@ -117,7 +127,7 @@ interface Need {
 }
 
 /** The rows that need someone, as many as fit, then "and N more"; one calm line when there are none. */
-function NeedRows({
+export function NeedRows({
   items,
   more = 0,
   clear,
@@ -227,7 +237,7 @@ type Segment = Parameters<typeof ShareBar>[0]['segments'][number];
  * status and split beside the first rows of the list. Large: the same, then as
  * many rows as the cell holds, each with its detail.
  */
-function ModuleReading({
+export function ModuleReading({
   value,
   unit,
   caption,
@@ -955,6 +965,122 @@ function CustomersReading({
   );
 }
 
+// ── Reservations ─────────────────────────────────────────────────────────────
+
+const HOST_STAND = '/reservations?tab=host';
+
+export function BookingsTodayCard() {
+  const locationId = useWorkspaceStore((state) => state.locationId);
+  const [now] = useState(() => new Date());
+  const date = workspaceDateKey(now);
+  // The host stand's own key, so a booking seated or made there shows here too.
+  const bookings = useQuery({
+    queryKey: moduleQueryKeys.reservations.key('bookings', locationId, date),
+    queryFn: () => getBookings(locationId!, dayRange(date, workspaceTimeZone())),
+    enabled: Boolean(locationId),
+    refetchInterval: 60_000,
+  });
+  const summary = bookingsTodaySummary(bookings.data ?? [], now);
+
+  return (
+    <Widget
+      title="Bookings today"
+      icon={CalendarCheck}
+      tint="orders"
+      surface="plain"
+      href={HOST_STAND}
+      hrefLabel="Open the host stand"
+      loading={Boolean(locationId) && bookings.isPending}
+      error={bookings.isError}
+      onRetry={() => void bookings.refetch()}
+      empty={
+        // Bookings belong to one location; the reservations page asks for one the same way.
+        !locationId
+          ? { icon: MapPin, title: 'Choose a location', detail: 'Bookings belong to one location.' }
+          : summary.total === 0
+            ? { title: 'No bookings today' }
+            : undefined
+      }
+    >
+      <BookingsReading summary={summary} now={now} />
+    </Widget>
+  );
+}
+
+/**
+ * The day's bookings as the figure, as one split — to come, seated, finished —
+ * then the next guests to arrive, soonest first, anyone late flagged.
+ */
+function BookingsReading({ summary, now }: { summary: ReturnType<typeof bookingsTodaySummary<Booking>>; now: Date }) {
+  const { total, covers, toCome, seated, finished, next, late } = summary;
+  const share = (value: number) => value / Math.max(total, 1);
+  const timeZone = workspaceTimeZone();
+
+  return (
+    <ModuleReading
+      value={total.toLocaleString('en-GB')}
+      unit={total === 1 ? 'booking' : 'bookings'}
+      noun={['booking', 'bookings']}
+      caption={`${total === 1 ? 'booking' : 'bookings'} · ${plural(covers, 'cover', 'covers')}`}
+      status={
+        <Parts>
+          {[
+            late > 0 && (
+              <Flag key="late" tone="exception">
+                {late} late
+              </Flag>
+            ),
+            toCome > 0 ? `${toCome} to come` : 'Everyone’s in',
+          ]}
+        </Parts>
+      }
+      slimStatus={late > 0 ? <Flag tone="exception">{late} late</Flag> : toCome > 0 ? `${toCome} to come` : 'Everyone’s in'}
+      segments={[
+        { key: 'to-come', label: 'To come', value: toCome, share: share(toCome), fill: 'bg-measured', legend: toCome },
+        { key: 'seated', label: 'Seated', value: seated, share: share(seated), fill: 'bg-momentum', legend: seated },
+        { key: 'finished', label: 'Finished', value: finished, share: share(finished), fill: 'bg-muted-foreground/40', legend: finished },
+      ]}
+      listTitle="Next to arrive"
+      list={(rows, detailed) => {
+        if (next.length === 0) return <NeedRows items={[]} clear="Nobody left to arrive" capacity={1} detailed={false} />;
+        const fits = next.length > rows ? Math.max(1, rows - 1) : next.length;
+        const hidden = next.length - fits;
+        return (
+          <div className="min-w-0">
+            <ul>
+              {next.slice(0, fits).map((booking) => {
+                const isLate = new Date(booking.startsAt).getTime() + 15 * 60_000 < now.getTime();
+                return (
+                  <WidgetRow
+                    key={booking.id}
+                    href={HOST_STAND}
+                    mark={<WidgetDot className={isLate ? TONE_FILL.exception : 'bg-measured'} label={isLate ? 'Late' : 'To come'} />}
+                    title={booking.guestName || 'Guest'}
+                    detail={
+                      detailed
+                        ? [plural(booking.partySize, 'guest', 'guests'), booking.tables.map((table) => table.label).join(', ')]
+                            .filter(Boolean)
+                            .join(' · ')
+                        : undefined
+                    }
+                    value={isLate ? <Flag tone="exception">{slotOf(booking.startsAt, timeZone)}</Flag> : slotOf(booking.startsAt, timeZone)}
+                    valueClassName="font-normal text-muted-foreground"
+                  />
+                );
+              })}
+            </ul>
+            {hidden > 0 && (
+              <Link href={HOST_STAND} className="pt-0.5 text-[11px] text-muted-foreground hover:text-heading">
+                and {hidden} more
+              </Link>
+            )}
+          </div>
+        );
+      }}
+    />
+  );
+}
+
 // ── Content ──────────────────────────────────────────────────────────────────
 
 // The CMS page's own status colours, so a dot here reads the same as a chip there.
@@ -1073,10 +1199,10 @@ const LAUNCHES: Record<string, { href: string; label: string; detail: string; ic
     icon: ClipboardCheck,
     tint: 'brand',
   },
-  'ordering.pos-launch': { href: '/pos', label: 'Take an order', detail: 'Open the till', icon: ShoppingCart, tint: 'brand' },
+  'ordering.pos-launch': { href: '/pos', label: 'Till', detail: 'Take an order', icon: ShoppingCart, tint: 'brand' },
   'ordering.fulfilment-launch': {
     href: '/kds',
-    label: 'Run fulfilment',
+    label: 'Kitchen',
     detail: 'Open the kitchen display',
     icon: ChefHat,
     tint: 'kitchen',
@@ -1095,7 +1221,13 @@ const LAUNCHES: Record<string, { href: string; label: string; detail: string; ic
     icon: Megaphone,
     tint: 'orders',
   },
-  'compliance.audit-launch': { href: '/audit-log', label: 'Audit trail', detail: 'Who changed what', icon: ShieldCheck, tint: 'brand' },
+  'compliance.audit-launch': {
+    href: '/compliance?tab=audit-log',
+    label: 'Audit log',
+    detail: 'Who changed what',
+    icon: ShieldCheck,
+    tint: 'brand',
+  },
 };
 
 const LAUNCH_FILL: Record<WidgetTint, string> = {

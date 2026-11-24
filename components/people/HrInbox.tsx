@@ -111,7 +111,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
     onSuccess: (_, variables) => {
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('leave-managed') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.people.key('entitlements') });
-      toast('success', variables.next === 'approved' ? 'Leave approved.' : 'Leave declined.');
+      toast('success', variables.next === 'approved' ? 'Time off approved.' : 'Time off declined.');
     },
     onError: (e) => toast('error', (e as Error).message),
   });
@@ -129,7 +129,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
       {/* Falling through to "clear" would tell a reviewer nobody is waiting when the read failed. */}
       <ErrorState
         icon={CircleHelp}
-        title="Leave requests couldn’t be loaded"
+        title="Time off requests couldn’t be loaded"
         description="This is not an empty inbox — nothing could be read, so there may be requests waiting."
         onRetry={() => void requests.refetch()}
       />
@@ -179,7 +179,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
       initial="hidden"
       animate="shown"
       variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
-      aria-label="Leave requests"
+      aria-label="Time off requests"
     >
       {/* Skeletons while loading: a "0 waiting" before the data arrives would read as a clear queue. */}
       {pending.isPending ? (
@@ -213,7 +213,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
 
       <RecordGroup
         id="leave-requests"
-        title="Leave requests"
+        title="Time off requests"
         footnote={status === 'pending' && rows.length > 0 ? 'Clashes are checked against approved leave and the rota.' : undefined}
         actions={
           <SegmentedControl

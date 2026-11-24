@@ -1655,7 +1655,7 @@ const listRecipeGaps: ToolDefinition = {
     const tenant = runtime.tenantId ? `?${new URLSearchParams({ tenantId: runtime.tenantId })}` : '';
     const gaps = await runtime.get<RecipeGap[]>(`/menu-item-recipes/gaps${tenant}`);
     return {
-      output: { total: gaps.length, items: gaps.slice(0, 60).map(({ id, name, category }) => ({ id, name, category })) },
+      output: { total: gaps.length, items: gaps.slice(0, 60).map(({ id, name }) => ({ id, name })) },
       evidence: `${gaps.length} menu item${gaps.length === 1 ? '' : 's'} without a recipe`,
       cards: [
         {
@@ -1664,7 +1664,7 @@ const listRecipeGaps: ToolDefinition = {
           caption: gaps.length > 6 ? `Showing 6 of ${gaps.length}` : undefined,
           emptyTone: 'clean' as const,
           emptyLabel: 'Every menu item has a recipe.',
-          rows: gaps.slice(0, 6).map((gap) => ({ label: gap.name, meta: gap.category, tone: 'warning' as const })),
+          rows: gaps.slice(0, 6).map((gap) => ({ label: gap.name, meta: 'No recipe', tone: 'warning' as const })),
         },
       ],
       shortcuts: [page('Open the menu', '/menu/items', 'Menu · Items')],
@@ -2428,7 +2428,7 @@ const getAuditActivity: ToolDefinition = {
               : 'No audit entries match those filters.',
         },
       ],
-      shortcuts: [page('Open audit log', '/audit-log', 'Audit log')],
+      shortcuts: [page('Open audit log', '/compliance?tab=audit-log', 'Compliance · Audit log')],
     };
   },
 };
@@ -2526,7 +2526,7 @@ const getPayrollOverview: ToolDefinition = {
         recentRuns,
         notes: [
           'DUMA does not compute tax or NI: deductions are entered from whatever runs payroll, and a run cannot be issued until every line has them.',
-          'Issuing publishes the payslips to employees in My HR → Documents.',
+          'Issuing publishes the payslips to employees in My work → Documents.',
         ],
       },
       evidence: `${preview.totals.employees} payroll employee${preview.totals.employees === 1 ? '' : 's'} ${String(args.from)}–${String(args.to)}`,
@@ -2563,8 +2563,8 @@ const getMyWorkspace: ToolDefinition = {
   module: 'people',
   name: 'get_my_workspace',
   description:
-    'Read the signed-in operator’s own My rota and My HR summary: whether they are clocked in now, their next shifts over the coming five weeks, leave balance, HR warnings, documents and support requests. Use for broad questions about my workday, my next shift, my leave, my rota, or what needs my attention. For a simple name, address, emergency-contact or personal-details question, use get_my_profile instead; for pay, use get_my_payslips. DUMA does not hold expense claims — say so rather than guessing.',
-  step: 'Checking your rota and My HR',
+    'Read the signed-in operator’s own My work summary: whether they are clocked in now, their next shifts over the coming five weeks, leave balance, HR warnings, documents and support requests. Use for broad questions about my workday, my next shift, my leave, my rota, or what needs my attention. For a simple name, address, emergency-contact or personal-details question, use get_my_profile instead; for pay, use get_my_payslips. DUMA does not hold expense claims — say so rather than guessing.',
+  step: 'Checking your rota and My work',
   parameters: schema({}),
   async run(_args, runtime) {
     const now = new Date();
@@ -2667,7 +2667,7 @@ const getMyWorkspace: ToolDefinition = {
           unavailableSections: unavailable,
         },
       },
-      evidence: `Your rota and My HR · ${actions.length} notice${actions.length === 1 ? '' : 's'}`,
+      evidence: `My work · ${actions.length} notice${actions.length === 1 ? '' : 's'}`,
       cards: [
         {
           title: 'My workday',
@@ -2685,7 +2685,7 @@ const getMyWorkspace: ToolDefinition = {
         },
         {
           kind: 'list',
-          title: 'My HR notices',
+          title: 'My work notices',
           emptyTone: 'clean' as const,
           emptyLabel: employee
             ? 'Nothing needs you — your HR record is up to date.'
@@ -2704,7 +2704,7 @@ const getMyWorkspace: ToolDefinition = {
         },
       ],
       shortcuts: employee
-        ? [page('Edit your details', '/my-hr?tab=overview&action=edit-details', 'My HR · Review your personal details')]
+        ? [page('Edit your details', '/my-work?tab=overview&action=edit-details', 'My work · Review your personal details')]
         : [page('Open your profile', '/settings', 'Settings · Your signed-in account and workspace')],
     };
   },
@@ -2737,9 +2737,9 @@ const getMyProfile: ToolDefinition = {
         nationalInsuranceNumberHeld: employee ? Boolean(employee.hasNiNumber) : null,
         editableInDetailsDrawer: employee ? ['address', 'emergency contact', 'bank details', 'National Insurance number'] : [],
       },
-      evidence: employee ? 'Your DUMA account and My HR profile' : 'Your DUMA account',
+      evidence: employee ? 'Your DUMA account and My work profile' : 'Your DUMA account',
       shortcuts: employee
-        ? [page('Edit your details', '/my-hr?tab=overview&action=edit-details', 'My HR · Review your personal details')]
+        ? [page('Edit your details', '/my-work?tab=overview&action=edit-details', 'My work · Review your personal details')]
         : [page('Open your profile', '/settings', 'Settings · Your signed-in account and workspace')],
     };
   },
@@ -2802,7 +2802,7 @@ const getMyAttendance: ToolDefinition = {
           })),
       },
       evidence: `Your attendance · ${rangeLabel(from, to)}`,
-      shortcuts: [page('Open your attendance', '/my-hr?tab=attendance', 'My HR · Attendance')],
+      shortcuts: [page('Open your attendance', '/my-work?tab=attendance', 'My work · Attendance')],
     };
   },
 };
@@ -2868,7 +2868,7 @@ const getMyPayslips: ToolDefinition = {
             },
           ]
         : [],
-      shortcuts: [page('Open your payslips', '/my-hr?tab=documents', 'My HR · Documents')],
+      shortcuts: [page('Open your payslips', '/my-work?tab=documents', 'My work · Documents')],
     };
   },
 };

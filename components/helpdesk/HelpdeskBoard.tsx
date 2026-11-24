@@ -5,6 +5,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
 import { CalendarDays, CircleHelp, Loader2, Lock, MessageSquarePlus, Search, Send, X } from '@/components/icons';
+import { RecordLink, useRecordHrefs } from '@/components/shared/RecordLink';
 import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -486,6 +487,8 @@ function TicketPanel({
   const messages = ticket?.messages ?? [];
   const canComment = !!ticket && (isAgent || isOpenStatus(ticket.status));
   const requester = ticket?.employee?.name ?? ticket?.employee?.email ?? 'You';
+  // Whoever handles the ticket can open the requester's staff record; in your own requests it's you.
+  const requesterHref = useRecordHrefs().staff(isAgent ? ticket?.employee?.id : null);
 
   return (
     <Drawer
@@ -494,7 +497,10 @@ function TicketPanel({
       description={
         ticket
           ? // The topic and date have their own fields below; this line only says who.
-            `${ticketKey(ticket)} · from ${requester}`
+            <>
+              {`${ticketKey(ticket)} · from `}
+              <RecordLink href={requesterHref}>{requester}</RecordLink>
+            </>
           : undefined
       }
       onClose={onClose}

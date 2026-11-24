@@ -2,7 +2,18 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { type IconComponent, LayoutGrid, Package, QrCode, Receipt } from '@/components/icons';
+import {
+  CalendarCheck,
+  ChefHat,
+  type IconComponent,
+  LayoutDashboard,
+  LayoutGrid,
+  Monitor,
+  Package,
+  QrCode,
+  Receipt,
+  ShoppingBag,
+} from '@/components/icons';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { RecordGroup } from '@/components/shared/RecordGroup';
@@ -19,16 +30,24 @@ type Destination = {
   href: string;
   title: string;
   icon: IconComponent;
-  group: 'workspace';
+  group: 'workspace' | 'screens';
   /** Where a screen's settings are kept — the one thing its title can't say. */
   scope?: string;
   capabilities?: Capability[];
   module?: ModuleId;
+  /** The row's accessible name, when "Configure …" doesn't describe it. */
+  targetLabel?: string;
+  /** Edit modes that need a tablet's width or more, as in the avatar menu. */
+  wideOnly?: boolean;
 };
 
 /**
  * Operations settings: one row per editor, in two short lists — what the
  * workspace shares | how your own screens look, each saying where it is kept.
+ *
+ * On-screen settings open that screen in its edit mode (`?edit=1`) — the same
+ * edit the avatar menu offers on the page itself. Each row shows under the same
+ * rule as the page: its module is on and you can open it.
  */
 export function ConfigurationHome() {
   const capabilities = useAuthStore((state) => state.capabilities);
@@ -41,7 +60,7 @@ export function ConfigurationHome() {
   });
   const destinations: Destination[] = [
     {
-      href: '/settings/installed-apps',
+      href: '/apps?tab=installed',
       title: 'Installed apps',
       icon: Package,
       group: 'workspace',
@@ -68,6 +87,56 @@ export function ConfigurationHome() {
       module: 'qr-ordering',
       capabilities: ['qr-ordering:read', 'qr-ordering:write'],
     },
+    {
+      href: '/dashboard?edit=1',
+      title: 'Dashboard',
+      icon: LayoutDashboard,
+      group: 'screens',
+      scope: 'Your account',
+      targetLabel: 'Edit dashboard',
+      wideOnly: true,
+    },
+    {
+      href: '/pos?edit=1',
+      title: 'Till',
+      icon: Monitor,
+      group: 'screens',
+      scope: 'This device',
+      module: 'pos',
+      capabilities: ['orders:create'],
+      targetLabel: 'Edit till',
+    },
+    {
+      href: '/kds?edit=1',
+      title: 'Kitchen',
+      icon: ChefHat,
+      group: 'screens',
+      scope: 'This device',
+      module: 'kds',
+      capabilities: ['orders:status'],
+      targetLabel: 'Edit kitchen screen',
+    },
+    {
+      href: '/orders?edit=1',
+      title: 'Orders',
+      icon: ShoppingBag,
+      group: 'screens',
+      scope: 'Whole workspace',
+      module: 'ordering',
+      capabilities: ['orders:read'],
+      targetLabel: 'Edit orders',
+    },
+    {
+      href: '/reservations?edit=1',
+      title: 'Reservations',
+      icon: CalendarCheck,
+      group: 'screens',
+      scope: 'This device',
+      module: 'reservations',
+      capabilities: ['reservations:read'],
+      targetLabel: 'Edit reservations overview',
+      wideOnly: true,
+    },
   ];
   const allowed = destinations.filter((item) => !item.capabilities || hasAnyCapability(capabilities, ...item.capabilities));
   const enabled = new Set(modules.data?.modules.filter((item) => item.status === 'enabled').map((item) => item.moduleId));
@@ -75,8 +144,9 @@ export function ConfigurationHome() {
   if (!tenantId) return <p className="text-sm text-muted-foreground">Choose a workspace to see its operations settings.</p>;
 
   const groups = [
-    // The till's, the kitchen screen's and the order rules moved onto their own pages (Edit till / kitchen screen / orders).
     { id: 'workspace', title: 'Workspace' },
+    // The till's, the kitchen screen's and the order rules live on their own pages; these rows open them in edit mode.
+    { id: 'screens', title: 'On-screen settings' },
   ] as const;
 
   return (
@@ -88,13 +158,13 @@ export function ConfigurationHome() {
           onRetry={() => void modules.refetch()}
         />
       )}
-      {/* What the workspace shares. Each device's screen settings live on that screen, in its edit mode. */}
+      {/* What the workspace shares | each screen's own settings, opened in that screen's edit mode. */}
       <div className="grid items-start gap-5 lg:grid-cols-2">
         {groups.map((group) => {
           const items = allowed.filter((item) => item.group === group.id && (!item.module || enabled.has(item.module)));
           const pending = modules.isPending && allowed.some((item) => item.group === group.id && item.module);
           if (!items.length && !pending) return null;
-          return (
+          const section = (
             <RecordGroup key={group.id} id={`operations-${group.id}`} title={group.title}>
               <ListRowGroup>
                 {items.map((item) => (
@@ -104,7 +174,8 @@ export function ConfigurationHome() {
                     icon={item.icon}
                     title={item.title}
                     meta={item.scope}
-                    targetLabel={`Configure ${item.title}`}
+                    targetLabel={item.targetLabel ?? `Configure ${item.title}`}
+                    className={item.wideOnly ? 'hidden md:flex' : undefined}
                   />
                 ))}
                 {pending && (
@@ -115,6 +186,14 @@ export function ConfigurationHome() {
                 )}
               </ListRowGroup>
             </RecordGroup>
+          );
+          // A phone can't use the wide-only edit modes, so a list of nothing else stays off it.
+          return !pending && items.every((item) => item.wideOnly) ? (
+            <div key={group.id} className="hidden md:block">
+              {section}
+            </div>
+          ) : (
+            section
           );
         })}
       </div>

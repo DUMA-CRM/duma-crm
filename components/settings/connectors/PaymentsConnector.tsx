@@ -577,7 +577,12 @@ export function PaymentsConnectorPage({ onClose, onAdd }: { onClose: () => void;
       }}
       usedBy={[
         { icon: Monitor, label: 'Till', href: '/pos' },
-        { icon: Calculator, label: 'Cash-up', href: '/cash-up' },
+        // Cash-up lives on the till; someone who can only read cash-ups gets the End of day report.
+        ...(hasCapability(capabilities, 'cashups:write') && hasCapability(capabilities, 'orders:create')
+          ? [{ icon: Calculator, label: 'Cash-up', href: '/pos?cashup=open' }]
+          : hasCapability(capabilities, 'cashups:read')
+            ? [{ icon: Calculator, label: 'Cash-up', href: '/reports/end-of-day' }]
+            : []),
       ]}
       actions={[
         { icon: Plus, label: 'Add reader', onClick: onAdd, disabled: !locationId },

@@ -1,5 +1,6 @@
-import { SecurityTab } from '@/components/settings/tabs/SecurityTab';
+import { permanentRedirect } from 'next/navigation';
 
-export default function SecuritySettingsPage() {
-  return <SecurityTab />;
+/** Sign-in and sessions are a section of Settings → Account; old links (and the email-change confirmation) land on it. */
+export default function SettingsSecurityPage() {
+  permanentRedirect('/settings/account#security');
 }

@@ -19,6 +19,7 @@ import {
   Truck,
   XCircle,
 } from '@/components/icons';
+import { RecordLink, useRecordHrefs } from '@/components/shared/RecordLink';
 import { fmtQty } from '@/components/purchasing/shared';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Fact, Switch } from '@/components/settings/controls';
@@ -346,6 +347,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
   const qc = useQueryClient();
   const money = useWorkspaceMoney();
   const unitMoney = useUnitMoney();
+  const hrefs = useRecordHrefs();
   const [now] = useState(() => new Date());
   const {
     data: po,
@@ -608,7 +610,9 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
                       {complete ? <Check size={16} aria-hidden="true" /> : <Package size={16} aria-hidden="true" />}
                     </span>
                     <span className="min-w-0 flex-1">
-                      <span className="block truncate text-sm font-semibold text-foreground">{l.stockItem?.name}</span>
+                      <span className="block truncate text-sm font-semibold text-foreground">
+                        <RecordLink href={hrefs.stockItem(l.stockItemId)}>{l.stockItem?.name}</RecordLink>
+                      </span>
                       <span className="mt-0.5 block text-xs text-muted-foreground">
                         {fmtQty(l.quantityOrdered)} {l.stockItem?.unit} × {unitMoney(l.unitCost)}
                         {po.status !== 'draft' && ` · ${fmtQty(l.quantityReceived)} received`}

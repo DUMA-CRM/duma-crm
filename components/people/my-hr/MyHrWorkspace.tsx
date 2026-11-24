@@ -1,10 +1,10 @@
 'use client';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
-import { useRouter, useSearchParams } from 'next/navigation';
+import { useSearchParams } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
 import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
-import { CalendarCheck, CalendarDays, CircleHelp, FileText, LayoutDashboard, MessageSquarePlus, Plus, UserRound } from '@/components/icons';
+import { CalendarCheck, CalendarClock, CalendarDays, CircleHelp, FileText, LayoutDashboard, MessageSquarePlus, Plus } from '@/components/icons';
 import { EnrollEmployeeDrawer } from '@/components/people/PeopleModals';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
@@ -25,19 +25,38 @@ import { DocumentsPanel } from './DocumentsPanel';
 import { Overview } from './Overview';
 import { TimeOffPanel } from './TimeOffPanel';
 import { LeaveRequestDrawer, NewTicketDrawer, type TicketPreset } from './forms';
-import { type BankVisibility, type EditRow, MY_HR_TABS, type MyHrTab } from './shared';
+import { type BankVisibility, type EditRow, type MyHrTab, type MyWorkTab } from './shared';
+
+/** The HR tabs of My work, without their counts — what the Rota tab's strip shows beside its own. */
+export const MY_HR_TAB_DEFS: SectionTab<MyHrTab>[] = [
+  { value: 'overview', label: 'Overview', icon: LayoutDashboard },
+  { value: 'time-off', label: 'Time off', icon: CalendarDays },
+  { value: 'attendance', label: 'Attendance', icon: CalendarCheck },
+  { value: 'documents', label: 'Documents', icon: FileText },
+  { value: 'helpdesk', label: 'Helpdesk', icon: CircleHelp },
+];
 
 /**
- * The employee's own HR workspace.
+ * The employee's own HR — the HR tabs of My work (/my-work, which was /my-hr).
  *
  * One tab per question — what needs me, how much time off do I have, where did
  * my hours go, what does HR hold about me, what am I owed, what have I asked
  * for. Everything an employee is legally entitled to see about themselves is
  * reachable from here without asking anyone.
+ *
+ * The open tab lives in the URL (`?tab=`), owned by `MyWork`; `leadingTabs`
+ * is the Rota tab when the workforce module is on.
  */
-export function MyHrWorkspace() {
+export function MyHrWorkspace({
+  tab,
+  onTabChange: setTab,
+  leadingTabs = [],
+}: {
+  tab: MyHrTab;
+  onTabChange: (tab: MyWorkTab) => void;
+  leadingTabs?: SectionTab<MyWorkTab>[];
+}) {
   const qc = useQueryClient();
-  const router = useRouter();
   const user = useAuthStore((s) => s.user);
   const capabilities = useAuthStore((s) => s.capabilities);
   const tenantId = useWorkspaceStore((s) => s.tenantId);
@@ -47,10 +66,7 @@ export function MyHrWorkspace() {
     staleTime: 30_000,
   });
   const payrollEnabled = modules.data?.modules.some((module) => module.moduleId === 'payroll' && module.status === 'enabled') ?? false;
-  // `?tab=` lets other pages (Support, notifications) link to a section.
   const searchParams = useSearchParams();
-  const requested = searchParams.get('tab');
-  const [tab, setTab] = useState<MyHrTab>(MY_HR_TABS.includes(requested as MyHrTab) ? (requested as MyHrTab) : 'overview');
 
   const [leaveOpen, setLeaveOpen] = useState(false);
   // The Overview row whose form is open — held here so a deep link or a "needs you" fix can open it.
@@ -88,12 +104,12 @@ export function MyHrWorkspace() {
   useEffect(() => {
     if (!employee || searchParams.get('action') !== 'edit-details') return;
     const timer = window.setTimeout(() => {
+      // Replaces the URL with `?tab=overview`, which also drops the `action`.
       setTab('overview');
       setEditRow('address');
-      router.replace('/my-hr?tab=overview', { scroll: false });
     }, 0);
     return () => window.clearTimeout(timer);
-  }, [employee, router, searchParams]);
+  }, [employee, searchParams, setTab]);
 
   // The bank endpoint is manager-scoped; for ordinary staff it refuses. A
   // refusal means "cannot tell", never "none held" — so nothing downstream is
@@ -114,22 +130,17 @@ export function MyHrWorkspace() {
   );
   const needsAttention = actions.filter((action) => action.severity !== 'info').length;
 
-  const tabs = useMemo<SectionTab<MyHrTab>[]>(
+  const tabs = useMemo<SectionTab<MyWorkTab>[]>(
     () => [
-      {
-        value: 'overview',
-        label: 'Overview',
-        icon: LayoutDashboard,
-        count: needsAttention,
-        countTone: 'danger',
-        countLabel: `${needsAttention} things need you`,
-      },
-      { value: 'time-off', label: 'Time off', icon: CalendarDays },
-      { value: 'attendance', label: 'Attendance', icon: CalendarCheck },
-      { value: 'documents', label: 'Documents', icon: FileText },
-      { value: 'requests', label: 'Requests', icon: CircleHelp, count: openTickets, countLabel: `${openTickets} open requests` },
+      ...leadingTabs,
+      ...MY_HR_TAB_DEFS.map((def): SectionTab<MyWorkTab> => {
+        if (def.value === 'overview')
+          return { ...def, count: needsAttention, countTone: 'danger', countLabel: `${needsAttention} things need you` };
+        if (def.value === 'helpdesk') return { ...def, count: openTickets, countLabel: `${openTickets} open questions` };
+        return def;
+      }),
     ],
-    [needsAttention, openTickets],
+    [leadingTabs, needsAttention, openTickets],
   );
 
   const requestDocument = () =>
@@ -172,7 +183,7 @@ export function MyHrWorkspace() {
     const waiting = tickets.find((t) => `ticket-${t.id}` === action.id);
     if (waiting) {
       setSelectedTicket(waiting.id);
-      return setTab('requests');
+      return setTab('helpdesk');
     }
     setTicket({ subject: action.title, category: 'hr', message: '' });
   };
@@ -197,23 +208,19 @@ export function MyHrWorkspace() {
         }),
     },
     documents: { label: 'Request a document', icon: Plus, onClick: requestDocument },
-    requests: { label: 'Ask HR', icon: MessageSquarePlus, onClick: () => setTicket({}) },
+    helpdesk: { label: 'Ask HR', icon: MessageSquarePlus, onClick: () => setTicket({}) },
   };
   const primary = primaryAction[tab];
   const PrimaryIcon = primary?.icon;
 
   return (
     <EditorShell
-      title="My HR"
+      title="My work"
       // The page's name, not the user's face — the Overview's identity card shows that, a few pixels below.
-      leading={
-        <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
-          <UserRound size={17} aria-hidden="true" />
-        </span>
-      }
+      icon={<CalendarClock size={20} aria-hidden="true" />}
       actions={
         <>
-          {tab !== 'requests' && (
+          {tab !== 'helpdesk' && (
             <Button variant="outline" className="h-9 gap-1.5" onClick={() => setTicket({})}>
               <MessageSquarePlus size={15} />
               <span className="hidden lg:inline">Ask HR</span>
@@ -227,7 +234,7 @@ export function MyHrWorkspace() {
           )}
         </>
       }
-      subheader={<SectionTabs tabs={tabs} value={tab} onChange={setTab} ariaLabel="My HR sections" />}
+      subheader={<SectionTabs<MyWorkTab> tabs={tabs} value={tab} onChange={setTab} ariaLabel="My work sections" animationId="my-work-tabs" />}
     >
       {tab === 'overview' && (
         <Overview
@@ -256,7 +263,7 @@ export function MyHrWorkspace() {
       {tab === 'documents' && (
         <DocumentsPanel employee={employee} documents={documents} payrollEnabled={payrollEnabled} onDataRequest={requestData} />
       )}
-      {tab === 'requests' && (
+      {tab === 'helpdesk' && (
         <HelpdeskBoard
           mode="employee"
           tickets={tickets}
@@ -267,7 +274,7 @@ export function MyHrWorkspace() {
           onSelect={setSelectedTicket}
           onNew={() => setTicket({})}
           onChanged={() => qc.invalidateQueries({ queryKey: moduleQueryKeys.support.key('helpdesk-my') })}
-          emptyTitle="No requests yet"
+          emptyTitle="No questions yet"
           emptyDescription="Ask HR a question, request a document, or query something on your record."
         />
       )}
@@ -296,8 +303,8 @@ export function MyHrWorkspace() {
           onClose={() => setTicket(null)}
           onDone={(createdId) => {
             setTicket(null);
-            setTab('requests');
-            // Open the request straight away so the employee lands on what they just raised.
+            setTab('helpdesk');
+            // Open the question straight away so the employee lands on what they just raised.
             if (createdId) setSelectedTicket(createdId);
             qc.invalidateQueries({ queryKey: moduleQueryKeys.support.key('helpdesk-my') });
           }}

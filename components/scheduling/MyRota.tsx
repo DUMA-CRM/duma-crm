@@ -237,7 +237,21 @@ function ShiftDial({
   );
 }
 
-export function MyRota() {
+/**
+ * Your own rota — the Rota tab of My work (/my-work, which was /scheduling).
+ * The page's title, icon and tab strip come from My work, which owns the
+ * shell's chrome; the week grid and everything in it are this component's.
+ */
+export function MyRota({
+  title = 'My work',
+  icon = <CalendarClock size={20} aria-hidden="true" />,
+  subheader,
+}: {
+  title?: string;
+  icon?: React.ReactNode;
+  /** My work's tab strip. */
+  subheader?: React.ReactNode;
+} = {}) {
   const { locationId } = useWorkspaceStore();
   const { user } = useAuth();
   const qc = useQueryClient();
@@ -526,9 +540,9 @@ export function MyRota() {
 
   return (
     <EditorShell
-      eyebrow="Scheduling"
-      title="My rota"
-      icon={<CalendarDays size={20} aria-hidden="true" />}
+      title={title}
+      icon={icon}
+      subheader={subheader}
       // Which week you are looking at is the page's one control, so it rides in the bar.
       actions={
         <>

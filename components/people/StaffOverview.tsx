@@ -237,7 +237,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
     figures.push({
       key: 'leave',
       icon: CalendarDays,
-      label: 'Leave to decide',
+      label: 'Time off to decide',
       value: waiting.length,
       hint: waiting.length ? (oldest > 0 ? `Oldest waited ${plural(oldest, 'day')}` : 'Raised today') : undefined,
       tone: oldest >= LEAVE_STALE_DAYS ? 'danger' : waiting.length ? 'warning' : 'default',
@@ -378,7 +378,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
               kind="done"
               icon={CheckCircle2}
               title="Nothing needs you"
-              description="Leave to decide, uncovered shifts, payroll and records to finish appear here."
+              description="Time off to decide, uncovered shifts, payroll and records to finish appear here."
             />
           </div>
         ) : (

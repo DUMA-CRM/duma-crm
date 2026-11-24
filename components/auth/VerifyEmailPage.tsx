@@ -38,7 +38,7 @@ function Result() {
             ? 'Start the change again from Settings → Security.'
             : 'Sign in and use “Verify email” in your profile settings to request another link.'}
         </p>
-        <Link href={isEmailChange ? '/settings/security' : '/settings/profile'} className="mt-5 inline-block font-semibold text-primary">
+        <Link href={isEmailChange ? '/settings/account#security' : '/settings/account#profile'} className="mt-5 inline-block font-semibold text-primary">
           {isEmailChange ? 'Go to security settings' : 'Go to profile settings'}
         </Link>
       </>
@@ -55,7 +55,7 @@ function Result() {
             : 'We’ll use this address for sign-in help and important account messages.'}
         </p>
       </div>
-      <Link href={isEmailChange ? '/settings/security' : '/dashboard'} className="inline-block font-semibold text-primary">
+      <Link href={isEmailChange ? '/settings/account#security' : '/dashboard'} className="inline-block font-semibold text-primary">
         {isEmailChange ? 'Go to security settings' : 'Continue to DUMA'}
       </Link>
     </>

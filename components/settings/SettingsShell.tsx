@@ -18,11 +18,9 @@ import {
   QrCode,
   Receipt,
   Settings,
-  ShieldCheck,
   SlidersHorizontal,
   UserRound,
 } from '@/components/icons';
-import { SettingsAreaContent } from '@/components/settings/SettingsAreaContent';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { SectionTabs } from '@/components/shared/SectionTabs';
 
@@ -97,25 +95,20 @@ export const SETTINGS_AREAS: readonly SettingsArea[] = [
 
 export const SETTINGS_TABS: readonly SettingsTab[] = [
   {
-    href: '/settings',
-    label: 'Profile',
+    // Profile, appearance, sign-in and sessions on one page. /settings shows it too;
+    // /settings/profile and /settings/security redirect here.
+    href: '/settings/account',
+    label: 'Account',
     icon: UserRound,
     area: 'account',
     anyOf: [],
   },
   {
     href: '/settings/workspaces',
-    label: 'Business & locations',
+    label: 'Workspace',
     icon: Building2,
     area: 'workspace',
     anyOf: ['settings:write'],
-  },
-  {
-    href: '/settings/installed-apps',
-    label: 'Installed apps',
-    icon: Plug,
-    area: 'operations',
-    anyOf: [],
   },
   {
     href: '/settings/modules',
@@ -126,7 +119,7 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
   },
   {
     href: '/settings/configuration',
-    label: 'Dashboard & screens',
+    label: 'Operations',
     icon: SlidersHorizontal,
     area: 'operations',
     anyOf: [],
@@ -148,17 +141,10 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
   },
   {
     href: '/settings/connectors',
-    label: 'Integrations',
+    label: 'Connections',
     icon: Plug,
     area: 'connections',
     anyOf: ['settings:write', 'email.connections:write', 'payments.connections:write', 'cms.keys:write', 'notes:write'],
-  },
-  {
-    href: '/settings/security',
-    label: 'Sign-in & active sessions',
-    icon: ShieldCheck,
-    area: 'account',
-    anyOf: [],
   },
   {
     href: '/settings/roles',
@@ -171,7 +157,7 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
   {
     // Every public API in one place: keys, webhooks and the API reference.
     href: '/settings/developers',
-    label: 'Keys & webhooks',
+    label: 'Developers',
     icon: Code,
     area: 'developers',
     anyOf: ['settings:write', 'cms.keys:write'],
@@ -179,7 +165,7 @@ export const SETTINGS_TABS: readonly SettingsTab[] = [
 ];
 
 function activeTab(pathname: string, tabs: readonly SettingsTab[]) {
-  // Longest match wins, so /settings/security is not claimed by /settings.
+  // Longest match wins, so /settings/developers/… is claimed by its own tab.
   return [...tabs]
     .sort((a, b) => b.href.length - a.href.length)
     .find((tab) => pathname === tab.href || pathname.startsWith(`${tab.href}/`));
@@ -220,8 +206,6 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
   const activeArea = active ? SETTINGS_AREAS.find((area) => area.id === active.area) : undefined;
   const isOperationsDetail = activeArea?.id === 'operations' && pathname !== '/settings/configuration';
   const pageTitles: Record<string, string> = {
-    '/settings/profile': 'Profile & appearance',
-    '/settings/security': 'Sign-in & active sessions',
     '/settings/roles': 'Roles & access',
   };
   const pageTitle =
@@ -240,7 +224,7 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
     <EditorShell
       title={pageTitle}
       onClose={isOperationsDetail ? () => router.push('/settings/configuration') : undefined}
-      // A gear, not the user's face — the Profile tab already shows that, a few pixels below.
+      // A gear, not the user's face — the Account tab already shows that, a few pixels below.
       leading={
         isOperationsDetail ? undefined : (
           <span className="flex size-9 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
@@ -283,8 +267,10 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
         animate="shown"
         variants={{ shown: { transition: { staggerChildren: 0.06 } } }}
       >
+        {/* Each route's page is the one source of its content; the shell only frames it. */}
         {pathname === '/settings' ? (
           <>
+            {/* /settings is the entry point: the areas on a phone, the account page on a wide screen. */}
             <nav aria-label="Settings categories" className="divide-y divide-border rounded-lg border border-border bg-card lg:hidden">
               {SETTINGS_AREAS.filter((area) => tabs.some((tab) => tab.area === area.id)).map((area) => (
                 <Link
@@ -301,27 +287,18 @@ export function SettingsShell({ children }: { children: React.ReactNode }) {
                 </Link>
               ))}
             </nav>
-            <div className="hidden lg:block">
-              <SettingsAreaContent area="account" />
-            </div>
+            <div className="hidden lg:block">{children}</div>
           </>
-        ) : (activeArea?.id === 'operations' && pathname !== '/settings/configuration') ||
-          pathname === '/settings/security' ||
-          pathname === '/settings/profile' ||
-          pathname === '/settings/roles' ? (
+        ) : pathname === '/settings/roles' ? (
           <div className="space-y-5">
-            {!isOperationsDetail && !pathname.startsWith('/settings/configuration/') && (
-              <Link
-                href={activeArea?.href ?? '/settings'}
-                className="inline-flex min-h-11 items-center gap-1.5 rounded-sm text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
-              >
-                <ArrowLeft size={16} aria-hidden="true" /> {activeArea?.label ?? 'Settings'}
-              </Link>
-            )}
+            <Link
+              href={activeArea?.href ?? '/settings'}
+              className="inline-flex min-h-11 items-center gap-1.5 rounded-sm text-sm font-medium text-muted-foreground hover:text-foreground focus-visible:outline-2 focus-visible:outline-offset-4 focus-visible:outline-ring"
+            >
+              <ArrowLeft size={16} aria-hidden="true" /> {activeArea?.label ?? 'Settings'}
+            </Link>
             {children}
           </div>
-        ) : activeArea ? (
-          <SettingsAreaContent area={activeArea.id} />
         ) : (
           children
         )}

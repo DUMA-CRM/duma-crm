@@ -2,6 +2,7 @@
 
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
+import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
 import { DateTimeField } from '@/components/cms/DateTimeField';
@@ -51,7 +52,7 @@ import { MultiSelect } from '@/components/ui/multi-select';
 
 import { getMenuCategories, getMenuItems } from '@/lib/api/menu.service';
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
-import { hasCapability } from '@/lib/auth/capabilities';
+import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
 import {
   type PromotionCode,
   type PromotionDetail,
@@ -250,6 +251,15 @@ function PromotionForm({
     enabled: Boolean(tenantId),
   });
   const itemOptions = (items.data ?? []).map((item) => ({ value: item.id, label: item.name }));
+  // A chosen item opens its menu record — for someone who can open that page.
+  const canOpenMenuItems = hasAnyCapability(
+    useAuthStore((state) => state.capabilities),
+    'menu:write',
+    'recipes:write',
+  );
+  const chosenItems = draft.menuItemIds
+    .map((id) => itemOptions.find((option) => option.value === id))
+    .filter((option): option is { value: string; label: string } => Boolean(option));
   const categoryOptions = (categories.data ?? []).map((category) => ({ value: category.id, label: category.name }));
   const locationOptions = (locations.data ?? []).map((location) => ({ value: location.id, label: location.name }));
 
@@ -495,6 +505,19 @@ function PromotionForm({
               {draft.kind === 'free_item' ? 'The cheapest one in the order is free.' : 'Anything in a chosen category counts.'}
             </Hint>
           </ChangeRow>
+        )}
+        {needsItems && canOpenMenuItems && chosenItems.length > 0 && (
+          <p className="pb-1 pl-13 text-xs text-muted-foreground">
+            Open{' '}
+            {chosenItems.map((item, index) => (
+              <span key={item.value}>
+                {index > 0 && ' · '}
+                <Link href={`/menu/items/${item.value}`} className="font-medium text-foreground underline-offset-2 hover:underline">
+                  {item.label}
+                </Link>
+              </span>
+            ))}
+          </p>
         )}
       </fieldset>
     </RecordGroup>

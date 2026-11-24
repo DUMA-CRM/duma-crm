@@ -1,7 +1,6 @@
-import { MyRota } from '@/components/scheduling/MyRota';
+import { redirect } from 'next/navigation';
 
-/** Your own rota. The team rota and shift cover are tabs of the staff workspace. */
-export default function MyRotaPage() {
-  // MyRota owns its EditorShell, same as the other top-level workspaces.
-  return <MyRota />;
+/** My rota is the Rota tab of My work. The team rota is a tab of Staff. */
+export default function MyRotaRedirect() {
+  redirect('/my-work?tab=rota');
 }

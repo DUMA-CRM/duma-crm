@@ -1,0 +1,32 @@
+version: 2
+updates:
+  # Patch and minor updates arrive as one grouped PR a week; security fixes as
+  # soon as an advisory lands. Majors come as their own PRs and are labelled
+  # `needs-review` by .github/workflows/dependency-updates.yml.
+  - package-ecosystem: npm
+    directory: /
+    schedule:
+      interval: weekly
+      day: monday
+      time: '06:00'
+      timezone: Europe/London
+    open-pull-requests-limit: 10
+    labels: [dependencies]
+    commit-message:
+      prefix: deps
+    groups:
+      safe-updates:
+        applies-to: version-updates
+        update-types: [minor, patch]
+      safe-security-fixes:
+        applies-to: security-updates
+        update-types: [minor, patch]
+
+  - package-ecosystem: github-actions
+    directory: /
+    schedule:
+      interval: monthly
+    labels: [dependencies]
+    groups:
+      actions:
+        update-types: [minor, patch]

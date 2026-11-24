@@ -362,7 +362,7 @@ export function Overview({
 }
 
 /**
- * Your next shift as a fact. The rota lives at /scheduling, so this states it
+ * Your next shift as a fact. The rota is My work's Rota tab, so this states it
  * and links there rather than redrawing it.
  */
 function NextShift() {
@@ -408,7 +408,7 @@ function NextShift() {
             : 'Nothing in the next four weeks'
       }
       tone={isError ? 'warning' : 'default'}
-      href="/scheduling"
+      href="/my-work?tab=rota"
     />
   );
 }

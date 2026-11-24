@@ -8,8 +8,16 @@ import { formatDate } from '@/lib/utils/date';
  * had no backing table — dropped in 2026-07 and never rebuilt — and rendered
  * an empty claims list rather than saying so.
  */
-export type MyHrTab = 'overview' | 'time-off' | 'attendance' | 'documents' | 'requests';
-export const MY_HR_TABS: MyHrTab[] = ['overview', 'time-off', 'attendance', 'documents', 'requests'];
+export type MyHrTab = 'overview' | 'time-off' | 'attendance' | 'documents' | 'helpdesk';
+export const MY_HR_TABS: MyHrTab[] = ['overview', 'time-off', 'attendance', 'documents', 'helpdesk'];
+
+/**
+ * My work: your own rota, then these. The HR tabs follow the people module,
+ * Rota the workforce module. `requests` was the Helpdesk tab's old value, and
+ * links to it still arrive (Ask DUMA, old bookmarks via /my-hr).
+ */
+export type MyWorkTab = 'rota' | MyHrTab;
+export const MY_WORK_TAB_ALIASES: Record<string, MyWorkTab> = { requests: 'helpdesk' };
 
 /** The Overview's rows an employee can change in place — one open at a time. */
 export type EditRow = 'address' | 'emergency' | 'bank' | 'ni';

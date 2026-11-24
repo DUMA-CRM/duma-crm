@@ -29,6 +29,7 @@ const APP_PAGES = new Set([
   'kds',
   'menu',
   'my-hr',
+  'my-work',
   'orders',
   'pos',
   'reports',

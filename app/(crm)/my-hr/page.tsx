@@ -1,12 +1,16 @@
-import { Suspense } from 'react';
+import { redirect } from 'next/navigation';
 
-import { MyHrWorkspace } from '@/components/people/my-hr/MyHrWorkspace';
-
-export default function MyHrPage() {
-  // The workspace reads `?tab=` for deep links, which needs a Suspense boundary.
-  return (
-    <Suspense fallback={null}>
-      <MyHrWorkspace />
-    </Suspense>
-  );
+/**
+ * My HR is part of My work. Every query parameter carries over — `tab` (the
+ * old `requests` is Helpdesk now) and `action`, which Ask DUMA
+ * links send.
+ */
+export default async function MyHrRedirect({ searchParams }: { searchParams: Promise<Record<string, string | string[] | undefined>> }) {
+  const params = new URLSearchParams();
+  for (const [key, value] of Object.entries(await searchParams)) {
+    for (const entry of Array.isArray(value) ? value : value === undefined ? [] : [value]) params.append(key, entry);
+  }
+  const tab = params.get('tab');
+  params.set('tab', !tab ? 'overview' : tab === 'requests' ? 'helpdesk' : tab);
+  redirect(`/my-work?${params.toString()}`);
 }

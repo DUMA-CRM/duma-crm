@@ -6,6 +6,7 @@ import { useState } from 'react';
 
 import { MergeCustomersModal } from '@/components/customers/MergeCustomersModal';
 import { AlertTriangle, Check, Combine, Mail, Users } from '@/components/icons';
+import { RecordLink, useRecordHrefs } from '@/components/shared/RecordLink';
 import { Avatar } from '@/components/shared/Avatar';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -53,6 +54,13 @@ function sideToCustomer(pair: DuplicatePair, side: 'a' | 'b'): Customer {
   };
 }
 
+/**
+ * Pairs dismissed this session, kept outside the component so they're still
+ * hidden after opening a customer's record and coming back — but not across a
+ * reload, which is what the button promises.
+ */
+let dismissedThisSession = new Set<string>();
+
 export function DuplicatesReview() {
   const formatMoney = useFormatMoney();
   // Whole units: a list reads "₴412" or "£412"; the record has the pennies.
@@ -63,7 +71,13 @@ export function DuplicatesReview() {
   // Pairs the user has explicitly judged as "not the same person". Local only —
   // dismissing is a UI convenience, not a stored decision, and saying so stops
   // anyone relying on it surviving a reload.
-  const [dismissed, setDismissed] = useState<Set<string>>(new Set());
+  const [dismissed, setDismissedState] = useState<Set<string>>(() => dismissedThisSession);
+  const setDismissed = (next: (current: Set<string>) => Set<string>) =>
+    setDismissedState((current) => {
+      dismissedThisSession = next(current);
+      return dismissedThisSession;
+    });
+  const hrefs = useRecordHrefs();
 
   const { data, isLoading, isError, refetch } = useQuery({
     queryKey: moduleQueryKeys.customers.key('customer-duplicates'),
@@ -166,7 +180,10 @@ export function DuplicatesReview() {
                               row.signal === 'name' && 'w-fit max-w-full rounded-sm bg-primary/8 px-1 -mx-1',
                             )}
                           >
-                            {customer.firstName} {customer.lastName}
+                            {/* Same tab: the queue is cached, so Back returns to it as it was. */}
+                            <RecordLink href={hrefs.customer(customer.id)}>
+                              {customer.firstName} {customer.lastName}
+                            </RecordLink>
                           </p>
                           <p className="truncate text-xs text-muted-foreground">{customer.phone}</p>
                           {customer.email && (

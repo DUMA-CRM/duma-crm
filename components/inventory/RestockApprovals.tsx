@@ -21,6 +21,7 @@ import {
   XCircle,
 } from '@/components/icons';
 import { fmtQty, normaliseArray } from '@/components/inventory/stock/shared';
+import { RecordLink, useRecordHrefs } from '@/components/shared/RecordLink';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Fact } from '@/components/settings/controls';
 import { Drawer } from '@/components/shared/Drawer';
@@ -612,6 +613,8 @@ function RequestRow({
   const createdAt = new Date(request.createdAt);
   const received = !!request.receivedAt;
   const journey = restockJourney(request, directReceive);
+  const itemHref = useRecordHrefs().stockItem(request.stockItemId);
+  const itemName = request.stockItem?.name ?? 'Unknown item';
   // Read once, on mount — the clock can't be read during render.
   const [mountedAt] = useState(() => Date.now());
   const expandable = !!notes || (pending && canDecide);
@@ -645,7 +648,9 @@ function RequestRow({
         </span>
         <span className="min-w-0 flex-1 lg:w-48 lg:flex-none">
           <span className="block truncate text-sm text-foreground">
-            <span className="font-semibold">{request.stockItem?.name ?? 'Unknown item'}</span> · {request.requestedQty} {unit}
+            {/* The row opens when it has more to show, so the item link moves into that panel rather than nest in a button. */}
+            <span className="font-semibold">{expandable ? itemName : <RecordLink href={itemHref}>{itemName}</RecordLink>}</span> ·{' '}
+            {request.requestedQty} {unit}
           </span>
           <span className="mt-0.5 block truncate text-xs text-muted-foreground">
             {locationName}
@@ -722,6 +727,13 @@ function RequestRow({
             <div className="space-y-3 px-3.5 py-3 pl-15">
               {mode === 'view' && (
                 <>
+                  {itemHref && (
+                    <p className="text-sm">
+                      <RecordLink href={itemHref} className="font-medium text-foreground">
+                        {itemName}
+                      </RecordLink>
+                    </p>
+                  )}
                   {notes ? (
                     <p className="text-sm italic text-muted-foreground">“{notes}”</p>
                   ) : (

@@ -1,6 +1,7 @@
 'use client';
 
 import { useQuery } from '@tanstack/react-query';
+import { useRouter } from 'next/navigation';
 
 import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile } from '@/components/shared/rows';
 import {
@@ -22,6 +23,8 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 
+import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { getEmailAutomationRun } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import {
@@ -34,6 +37,7 @@ import {
   stepStatusLabel,
 } from '@/lib/utils/communications';
 import { formatInstant } from '@/lib/utils/workspace-time';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { TRIGGER_LABELS } from './shared';
@@ -79,6 +83,20 @@ export function WorkflowRunDrawer({
   const run = query.data;
   const took = run ? durationInWords(run.startedAt, run.completedAt) : null;
   const record = run?.customerId ?? run?.orderId ?? run?.staffUserId ?? null;
+
+  // The run's records, each offered only to someone who can open its page.
+  const router = useRouter();
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const customersOn = useModuleEnabled('customers');
+  const orderingOn = useModuleEnabled('ordering');
+  const peopleOn = useModuleEnabled('people');
+  const links: { icon: IconComponent; label: string; href: string }[] = [];
+  if (run?.customerId && customersOn && hasCapability(capabilities, 'customers:read'))
+    links.push({ icon: UserRound, label: 'Open customer', href: `/customers/${run.customerId}` });
+  if (run?.orderId && orderingOn && hasCapability(capabilities, 'orders:read'))
+    links.push({ icon: ShoppingBag, label: 'Open order', href: `/orders?order=${encodeURIComponent(run.orderId)}` });
+  if (run?.staffUserId && peopleOn && hasAnyCapability(capabilities, 'staff:read', 'hr.people:read'))
+    links.push({ icon: UserRound, label: 'Open staff record', href: `/staff/${run.staffUserId}` });
 
   return (
     <Drawer
@@ -129,10 +147,13 @@ export function WorkflowRunDrawer({
                 )}
               </InfoRow>
             </InfoRows>
-            {onOpenWorkflow && (
+            {(onOpenWorkflow || links.length > 0) && (
               <div className="mt-4">
                 <ActionRows>
-                  <ActionRow icon={Zap} label="Open workflow" onClick={() => onOpenWorkflow(run.automationId)} />
+                  {onOpenWorkflow && <ActionRow icon={Zap} label="Open workflow" onClick={() => onOpenWorkflow(run.automationId)} />}
+                  {links.map((link) => (
+                    <ActionRow key={link.href} icon={link.icon} label={link.label} onClick={() => router.push(link.href)} />
+                  ))}
                 </ActionRows>
               </div>
             )}

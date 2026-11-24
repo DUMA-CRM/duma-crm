@@ -57,6 +57,8 @@ import {
 import { cn } from '@/lib/utils/cn';
 import { type ItemAttentionSeverity, type ItemAttentionTarget, daysUntil, expiryLabel, itemAttention } from '@/lib/utils/stock-item';
 
+import { UsedInSection } from './UsedInSection';
+
 const BASIS_LABEL: Record<NutritionBasis, string> = { per_100g: 'Per 100 g', per_100ml: 'Per 100 ml', per_piece: 'Per piece' };
 
 const NUTRITION_ICONS: Record<string, IconComponent> = {
@@ -352,6 +354,8 @@ export function ItemOverview({
                 </div>
               </RecordBlock>
             )}
+
+            <UsedInSection stockItemId={item.id} />
 
             {stock && can.par && (
               <SettingsSection title={location ? `At ${location.name}` : 'At this location'}>

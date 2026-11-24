@@ -68,7 +68,7 @@ export const PUBLIC_PATHS: readonly string[] = [...APP_PUBLIC_PATHS, ...MARKETIN
  */
 const APP_SECTIONS = [
   'admin', 'audit-log', 'automation', 'cash-up', 'communications', 'compliance', 'content', 'customers', 'dashboard', 'forms', 'inventory', 'kds', 'menu',
-  'my-hr', 'notes', 'operations', 'orders', 'pos', 'promotions', 'reports', 'reservations', 'scheduling', 'settings', 'staff', 'support', 'training', 'updates',
+  'my-hr', 'my-work', 'notes', 'operations', 'orders', 'pos', 'promotions', 'reports', 'reservations', 'scheduling', 'settings', 'staff', 'support', 'training',
   'api', 'md', 'apps', 'app-publisher',
 ];
 

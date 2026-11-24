@@ -1,7 +1,7 @@
 'use client';
 
 import { useQueries, useQuery } from '@tanstack/react-query';
-import { useEffect, useRef, useState } from 'react';
+import { Fragment, useEffect, useRef, useState } from 'react';
 
 import { X } from '@/components/icons';
 import { appAppearance } from '@/components/marketplace/app-appearance';
@@ -9,7 +9,7 @@ import { Logo } from '@/components/shared/Logo';
 
 import { getMarketplace, marketplaceKey } from '@/lib/api/marketplace.service';
 import { adminNavItems } from '@/lib/constants/admin-nav';
-import { analyticsNavItems, filterNavByCapability, footerNavItems, mainNavItems } from '@/lib/constants/nav';
+import { filterNavByCapability, filterNavGroups, footerNavItems, mainNavGroups, type NavGroup } from '@/lib/constants/nav';
 import { useWorkspaceContext } from '@/lib/hooks/useWorkspaceContext';
 import { getOrders } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
@@ -106,14 +106,17 @@ export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
   });
   const appPages = appStore.data?.apps.flatMap(({ slug, installation, storeListing }) =>
     installation?.canOpen ? [{ module: 'organization' as const, label: storeListing?.name ?? installation.release.name, href: `/apps/${slug}`, icon: appAppearance(installation.release.builtin).icon }] : []);
-  const mainItems = platformContext
-    ? adminNavItems
+  // DUMA Admin's pages are one unheaded group; a workspace's are headed by area.
+  const mainGroups: NavGroup[] = platformContext
+    ? [{ items: adminNavItems }]
     : workspace
-      ? filterNavByCapability(mainNavItems, effective, effectiveModuleState).map((item) =>
-          item.href === '/apps' && appPages?.length ? { ...item, children: appPages } : item)
+      ? filterNavGroups(mainNavGroups, effective, effectiveModuleState)
       : [];
-  const analyticsItems = workspace ? filterNavByCapability(analyticsNavItems, effective, effectiveModuleState) : [];
-  const footerItems = workspace ? filterNavByCapability(footerNavItems, effective, effectiveModuleState) : [];
+  const mainItems = mainGroups.flatMap((group) => group.items);
+  const footerItems = workspace
+    ? filterNavByCapability(footerNavItems, effective, effectiveModuleState).map((item) =>
+        item.href === '/apps' && appPages?.length ? { ...item, children: appPages } : item)
+    : [];
 
   // Badge the kitchen queue with the exact active count. Three count-only
   // responses are much smaller than downloading 200 complete orders globally
@@ -199,21 +202,20 @@ export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
 
         {/* ── Navigation ───────────────────────────────────── */}
         <nav aria-label="Main menu" className="flex min-h-0 flex-1 flex-col gap-0.5 overflow-x-hidden overflow-y-auto py-3">
-          {mainItems.map((item) => (
-            <SidebarNavItem key={item.href} {...item} badge={badges[item.href]} mobileMenu={mobileOpen} />
-          ))}
-
-          {analyticsItems.length > 0 &&
-            (!collapsed ? (
-              <p className="text-micro font-semibold text-sidebar-foreground/55 tracking-label px-6 pt-5 pb-1.5 whitespace-nowrap">
-                Reports
-              </p>
-            ) : (
-              <div className="mx-3 my-2 border-t border-sidebar-border" />
-            ))}
-
-          {analyticsItems.map((item) => (
-            <SidebarNavItem key={item.href} {...item} mobileMenu={mobileOpen} />
+          {mainGroups.map((group, index) => (
+            <Fragment key={group.heading ?? index}>
+              {group.heading &&
+                (!collapsed || mobileOpen ? (
+                  <p className="text-micro font-semibold text-sidebar-foreground/55 tracking-label px-6 pt-5 pb-1.5 whitespace-nowrap">
+                    {group.heading}
+                  </p>
+                ) : (
+                  <div role="separator" aria-label={group.heading} className="mx-3 my-2 border-t border-sidebar-border" />
+                ))}
+              {group.items.map((item) => (
+                <SidebarNavItem key={item.href} {...item} badge={badges[item.href]} mobileMenu={mobileOpen} />
+              ))}
+            </Fragment>
           ))}
         </nav>
 

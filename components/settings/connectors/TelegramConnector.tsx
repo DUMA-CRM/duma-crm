@@ -464,7 +464,7 @@ export function TelegramConnectorPage({ onClose, onConnect }: { onClose: () => v
             }
           : undefined
       }
-      usedBy={[{ icon: Sparkles, label: 'Automations', href: '/automation' }]}
+      usedBy={[{ icon: Sparkles, label: 'Automations', href: '/communications?tab=automations' }]}
       actions={[{ icon: Zap, label: 'Run setup again', onClick: onConnect }]}
       disconnect={{
         consequences: [

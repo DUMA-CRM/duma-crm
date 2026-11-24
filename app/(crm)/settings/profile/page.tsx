@@ -1,5 +1,6 @@
-import { ProfileTab } from '@/components/settings/tabs/ProfileTab';
+import { permanentRedirect } from 'next/navigation';
 
-export default function Page() {
-  return <ProfileTab />;
+/** Profile is a section of Settings → Account; old links land on it. */
+export default function SettingsProfilePage() {
+  permanentRedirect('/settings/account#profile');
 }

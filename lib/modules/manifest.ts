@@ -178,12 +178,9 @@ const pages: Record<ModuleId, readonly string[]> = {
     '/admin/settings/connectors',
     '/admin/overview',
     '/admin/system',
-    '/admin/updates',
     '/admin/usage',
     '/admin/users',
     '/admin/workspaces',
-    '/updates',
-    '/updates/[id]',
     '/forgot-password',
     '/reset-password',
     '/verify-email',
@@ -210,7 +207,8 @@ const pages: Record<ModuleId, readonly string[]> = {
     '/settings/workspaces',
     '/settings/developers',
   ],
-  customers: ['/customers', '/customers/[id]', '/customers/duplicates', '/customers/loyalty'],
+  // Loyalty is a tab of Promotions; /customers/loyalty redirects there.
+  customers: ['/customers', '/customers/[id]', '/customers/duplicates', '/customers/loyalty', '/promotions/loyalty'],
   catalog: [
     '/menu',
     '/menu/categories',
@@ -228,13 +226,17 @@ const pages: Record<ModuleId, readonly string[]> = {
   payments: ['/cash-up'],
   inventory: ['/inventory', '/inventory/items/[id]', '/inventory/restock-requests', '/inventory/stocktakes', '/inventory/units/[id]'],
   purchasing: ['/inventory/purchasing'],
-  workforce: ['/scheduling', '/staff/rota', '/staff/shifts'],
-  people: ['/my-hr', '/staff', '/staff/[userId]', '/staff/requests', '/staff/team'],
+  // My work is both modules' — its rota tab is workforce's, its HR tabs people's.
+  // /scheduling and /my-hr redirect into it.
+  workforce: ['/my-work', '/scheduling', '/staff/rota', '/staff/shifts'],
+  people: ['/my-work', '/my-hr', '/staff', '/staff/[userId]', '/staff/requests', '/staff/team'],
   payroll: ['/staff/payroll'],
   communications: ['/communications'],
-  automation: ['/automation'],
+  // A tab of Communications; /automation redirects there.
+  automation: ['/communications', '/automation'],
   compliance: ['/compliance'],
-  audit: ['/audit-log'],
+  // A tab of Compliance; /audit-log redirects there.
+  audit: ['/compliance', '/audit-log'],
   analytics: ['/reports', '/reports/[report]', '/reports/staff/[userId]'],
   agent: [],
   support: ['/staff/helpdesk', '/support', '/support/[slug]'],
@@ -295,13 +297,14 @@ const navigation: Record<ModuleId, readonly string[]> = {
   payments: [],
   inventory: ['/inventory'],
   purchasing: [],
-  workforce: ['/scheduling'],
-  people: ['/my-hr', '/staff'],
+  workforce: ['/my-work'],
+  people: ['/my-work', '/staff'],
   payroll: [],
   communications: ['/communications'],
-  automation: ['/automation'],
+  // Tabs of Communications and Compliance, not sidebar entries of their own.
+  automation: [],
   compliance: ['/compliance'],
-  audit: ['/audit-log'],
+  audit: [],
   analytics: ['/dashboard', '/reports'],
   agent: [],
   support: ['/support'],
@@ -330,6 +333,7 @@ export const CRM_MODULE_MANIFESTS: readonly ModuleManifest[] = MODULE_IDS.map((i
   backgroundWorkers: [],
 }));
 
-export function moduleForPage(path: string): ModuleId | undefined {
-  return CRM_MODULE_MANIFESTS.find((manifest) => manifest.routes.includes(path))?.id;
+/** Every module that owns a page — more than one where a page merges features (My work is workforce's and people's). */
+export function modulesForPage(path: string): ModuleId[] {
+  return CRM_MODULE_MANIFESTS.filter((manifest) => manifest.routes.includes(path)).map((manifest) => manifest.id);
 }

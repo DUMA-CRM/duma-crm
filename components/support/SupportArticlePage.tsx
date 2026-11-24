@@ -21,7 +21,7 @@ export function SupportArticlePage({ article }: { article: SupportArticle }) {
       onClose={() => router.push('/support?tab=guides')}
       actions={
         <Button asChild variant="outline" className="h-9 gap-1.5">
-          <Link href="/my-hr?tab=requests">
+          <Link href="/my-work?tab=helpdesk">
             <Mail size={15} aria-hidden="true" />
             <span className="hidden md:inline">Still stuck?</span>
           </Link>

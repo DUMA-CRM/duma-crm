@@ -38,6 +38,7 @@ import {
   UtensilsCrossed,
   XCircle,
 } from '@/components/icons';
+import { RecordLink, useRecordHrefs } from '@/components/shared/RecordLink';
 import { Avatar } from '@/components/shared/Avatar';
 import { Drawer, type DrawerEnter, DrawerHeaderButton } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -135,6 +136,7 @@ export function OrderDrawer({
   const canNote = hasAnyCapability(capabilities, 'orders:status', 'orders:create');
   // Whoever can take an order by hand can record its payment (the API checks the same).
   const canTakeOrders = hasCapability(capabilities, 'orders:create');
+  const hrefs = useRecordHrefs();
   const [showReceipt, setShowReceipt] = useState(false);
   const [editingDelivery, setEditingDelivery] = useState(false);
   const [showEmail, setShowEmail] = useState(false);
@@ -535,7 +537,7 @@ export function OrderDrawer({
                             item.refundStatus === 'refunded' ? 'text-muted-foreground line-through' : 'text-foreground',
                           )}
                         >
-                          {item.name}
+                          <RecordLink href={hrefs.menuItem(item.menuItemId)}>{item.name}</RecordLink>
                           {item.variantName && <span className="font-normal text-muted-foreground"> · {item.variantName}</span>}
                         </span>
                         {extras.length > 0 && <span className="mt-0.5 block text-xs text-muted-foreground">{extras.join(' · ')}</span>}
@@ -644,7 +646,15 @@ export function OrderDrawer({
               <DetailRow
                 icon={User}
                 label="Taken by"
-                value={staffName(data.createdBy) ?? (data.createdBy ? 'A former team member' : 'Self-service')}
+                value={
+                  staffName(data.createdBy) ? (
+                    <RecordLink href={hrefs.staff(data.createdBy)}>{staffName(data.createdBy)}</RecordLink>
+                  ) : data.createdBy ? (
+                    'A former team member'
+                  ) : (
+                    'Self-service'
+                  )
+                }
               />
               <DetailRow icon={MapPin} tone="info" label="Location" value={locationName(data.locationId) ?? 'Unknown location'} />
               {/* From the business's own website: its number for the order. */}
@@ -783,13 +793,14 @@ function ActivityItem({
   const meta = event.kind === 'status' ? STATUS_META[event.entry.status] : null;
   const Icon = meta ? meta.icon : payment ? (payment.provider === 'cash' ? Banknote : CreditCard) : RotateCcw;
   const tint = meta ? meta.tint : payment && !failed ? 'bg-momentum/8 text-momentum' : 'bg-exception/8 text-exception';
-  const actor = staffName(
+  const actorId =
     event.kind === 'status'
       ? event.entry.changedBy
       : event.kind === 'refund'
         ? event.refund.createdBy
-        : (event.payment.confirmedBy ?? event.payment.createdBy),
-  );
+        : (event.payment.confirmedBy ?? event.payment.createdBy);
+  const actor = staffName(actorId);
+  const hrefs = useRecordHrefs();
   const title = refund
     ? `${refund.kind === 'full' ? 'Refunded in full' : 'Refund issued'} · ${money(refund.amount)}`
     : payment
@@ -817,7 +828,21 @@ function ActivityItem({
             {sameDayAsNow ? ACTIVITY_TIME().format(at) : `${ACTIVITY_DAY().format(at)}, ${ACTIVITY_TIME().format(at)}`}
           </time>
         </div>
-        <p className="text-xs text-muted-foreground">{[method, who, after].filter(Boolean).join(' · ')}</p>
+        <p className="text-xs text-muted-foreground">
+          {[
+            method,
+            // A named team member opens their staff record.
+            who && actor ? <RecordLink href={hrefs.staff(actorId)}>{who}</RecordLink> : who,
+            after,
+          ]
+            .filter(Boolean)
+            .map((part, index) => (
+              <span key={index}>
+                {index > 0 && ' · '}
+                {part}
+              </span>
+            ))}
+        </p>
         {refund && (
           <div className="mt-1.5 space-y-0.5 text-xs text-muted-foreground">
             <p>

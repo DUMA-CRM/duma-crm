@@ -997,7 +997,7 @@ const reviewLeaveRequest: ActionDefinition = {
       ...(str(action.fields, 'reviewNotes') ? { reviewNotes: str(action.fields, 'reviewNotes') } : {}),
     });
     return {
-      message: `Leave request ${decision}. The employee can see the decision in My HR → Time off.`,
+      message: `Leave request ${decision}. The employee can see the decision in My work → Time off.`,
       shortcuts: [{ label: 'Open leave requests', href: '/staff/requests', description: 'Staff · Leave', kind: 'page' }],
     };
   },
@@ -1074,7 +1074,7 @@ const updateStockThresholds: ActionDefinition = {
 // These carry no capability. They write only to the signed-in operator's own
 // record through the `/me` and `/my` endpoints, which the API scopes to the
 // caller — so the authorisation is the session, not a grant. Every one of them
-// mirrors something the My HR page offers, so chat and page stay in step.
+// mirrors something the My work page offers, so chat and page stay in step.
 
 const requestLeave: ActionDefinition = {
   module: 'people',
@@ -1149,7 +1149,7 @@ const requestLeave: ActionDefinition = {
     });
     return {
       message: `Time off requested for ${startDate} to ${endDate}. Your manager reviews it, and the outcome appears under Time off.`,
-      shortcuts: [{ label: 'Open your time off', href: '/my-hr?tab=time-off', description: 'My HR · Time off', kind: 'page' }],
+      shortcuts: [{ label: 'Open your time off', href: '/my-work?tab=time-off', description: 'My work · Time off', kind: 'page' }],
     };
   },
 };
@@ -1193,7 +1193,7 @@ const cancelLeaveRequest: ActionDefinition = {
     await runtime.send(`/hr/leave-requests/${str(action.fields, 'requestId')}/cancel`, 'PATCH');
     return {
       message: 'Time-off request withdrawn. Any days it held are back in your allowance.',
-      shortcuts: [{ label: 'Open your time off', href: '/my-hr?tab=time-off', description: 'My HR · Time off', kind: 'page' }],
+      shortcuts: [{ label: 'Open your time off', href: '/my-work?tab=time-off', description: 'My work · Time off', kind: 'page' }],
     };
   },
 };
@@ -1267,7 +1267,7 @@ const raiseHrRequest: ActionDefinition = {
     });
     return {
       message: 'Sent to HR. Their reply appears under Requests.',
-      shortcuts: [{ label: 'Open your requests', href: '/my-hr?tab=requests', description: 'My HR · Requests', kind: 'page' }],
+      shortcuts: [{ label: 'Open your helpdesk', href: '/my-work?tab=helpdesk', description: 'My work · Helpdesk', kind: 'page' }],
     };
   },
 };
@@ -1300,7 +1300,7 @@ const updateMyDetails: ActionDefinition = {
       // Bank details are deliberately absent: they are never returned to the
       // employee, so a form could not show what it was about to replace, and a
       // half-remembered account number is how wages go missing.
-      note: 'Bank details are not editable here — open My HR to change those.',
+      note: 'Bank details are not editable here — open My work to change those.',
       fields: [
         field('address', 'Home address', { type: 'text', value: text(args.address, employee.address), optional: true }),
         field('emergencyContactName', 'Emergency contact', {
@@ -1350,12 +1350,12 @@ const updateMyDetails: ActionDefinition = {
     if (ni && updated?.hasNiNumber === false) {
       return {
         message: 'Your other details were saved, but the server did not accept the National Insurance number. Raise it with HR.',
-        shortcuts: [{ label: 'Open My HR', href: '/my-hr', description: 'My HR · Overview', kind: 'page' }],
+        shortcuts: [{ label: 'Open My work', href: '/my-work?tab=overview', description: 'My work · Overview', kind: 'page' }],
       };
     }
     return {
       message: 'Your details are updated.',
-      shortcuts: [{ label: 'Open My HR', href: '/my-hr', description: 'My HR · Overview', kind: 'page' }],
+      shortcuts: [{ label: 'Open My work', href: '/my-work?tab=overview', description: 'My work · Overview', kind: 'page' }],
     };
   },
 };

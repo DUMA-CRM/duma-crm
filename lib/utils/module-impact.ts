@@ -25,14 +25,14 @@ export interface ModuleImpactInput {
 
 // Where the last path segment doesn't say what the page is.
 const PAGE_NAMES: Record<string, string> = {
-  '/pos': 'POS',
+  '/pos': 'Till',
   '/kds': 'Kitchen screen',
-  '/my-hr': 'My HR',
   '/cash-up': 'End of day',
   '/audit-log': 'Audit log',
+  '/my-work': 'My work',
   '/settings': 'Settings',
   '/settings/qr-ordering': 'QR ordering settings',
-  '/settings/connectors': 'Connectors',
+  '/settings/connectors': 'Connections',
   '/staff/helpdesk': 'Staff helpdesk',
   '/reports/[report]': 'Reports',
   '/reports/staff/[userId]': 'Staff performance report',

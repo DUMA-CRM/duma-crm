@@ -51,7 +51,7 @@ import {
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-import { PromotionsTabs } from './PromotionsTabs';
+import { PROMOTIONS_TAB_LABEL, PromotionsTabs } from './PromotionsTabs';
 
 type Filter = 'all' | ReferralStatus;
 type Row = 'friend' | 'rewardKind' | 'rewardSource' | 'cap' | 'prefix';
@@ -111,8 +111,8 @@ export function ReferralsWorkspace() {
   const shell = (body: React.ReactNode) => (
     <EditorShell
       eyebrow="Customer engagement"
-      title="Promotions"
-      icon={<TicketPercent size={20} aria-hidden="true" />}
+      title={PROMOTIONS_TAB_LABEL.referrals}
+      icon={<Gift size={20} aria-hidden="true" />}
       subheader={<PromotionsTabs value="referrals" />}
     >
       {body}
@@ -346,8 +346,8 @@ function ReferralsForm({
       {draft.referrerRewardKind === 'loyalty_reward' && loyalty.isSuccess && rewardProgrammes.length === 0 && (
         <RowWarning className="mt-3">
           No loyalty programme gives rewards yet, so there’s nothing to reward the customer with. Set one up in{' '}
-          <Link href="/customers/loyalty" className="underline underline-offset-2">
-            Customers → Loyalty
+          <Link href="/promotions/loyalty" className="underline underline-offset-2">
+            Loyalty
           </Link>
           .
         </RowWarning>
@@ -533,6 +533,19 @@ function ReferralsList({
   const total = query.data?.pagination.total ?? 0;
   const pages = Math.max(1, Math.ceil(total / (query.data?.pagination.limit ?? 50)));
   const listed = query.isSuccess && query.data.data.length > 0;
+  // A name opens the customer's record — only for someone who can open it.
+  const canOpenCustomers = hasCapability(
+    useAuthStore((state) => state.capabilities),
+    'customers:read',
+  );
+  const customer = (id: string, name: string) =>
+    canOpenCustomers ? (
+      <Link href={`/customers/${id}`} className="hover:underline underline-offset-2">
+        {name}
+      </Link>
+    ) : (
+      name
+    );
   return (
     <RecordGroup
       id="referrals-list"
@@ -584,9 +597,9 @@ function ReferralsList({
                 tone={STATUS_TONE[referral.status]}
                 title={
                   <>
-                    {referral.referrerName || 'A customer'}{' '}
+                    {customer(referral.referrerCustomerId, referral.referrerName || 'A customer')}{' '}
                     <ArrowRight size={13} className="inline align-[-2px] text-muted-foreground" aria-label="referred" />{' '}
-                    {referral.referredName || 'a friend'}
+                    {customer(referral.referredCustomerId, referral.referredName || 'a friend')}
                   </>
                 }
                 meta={

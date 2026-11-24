@@ -40,10 +40,14 @@ export interface RecipeGap {
   id: string;
   tenantId: string;
   name: string;
-  category: string;
+  categoryId: string | null;
 }
 
 // ── Menu item (base) recipes ──────────────────────────────────────────────────
+
+/** The menu items whose recipe uses a stock item — the stock item page's "Used in". */
+export const getStockItemMenuItems = (stockItemId: string) =>
+  apiFetch<{ id: string; name: string }[]>(`/menu-item-recipes/stock-item/${stockItemId}`);
 
 export const getMenuItemRecipe = (menuItemId: string) => apiFetch<RecipeLine[]>(`/menu-item-recipes/menu-item/${menuItemId}`);
 

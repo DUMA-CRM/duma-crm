@@ -2,9 +2,10 @@
 
 import { useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
+import Link from 'next/link';
 import { useMemo, useState } from 'react';
 
-import { MailX, RefreshCw, Search, Send } from '@/components/icons';
+import { MailX, RefreshCw, Search, Send, UserRound } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Avatar } from '@/components/shared/Avatar';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -21,11 +22,14 @@ import { Select, type SelectOption } from '@/components/ui/select';
 
 import { dayHeading, localDayKey } from '@/lib/audit/groups';
 import { timeOfDay } from '@/lib/audit/narrative';
+import { hasCapability } from '@/lib/auth/capabilities';
+import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { type EmailDelivery, getEmailDeliveries, retryEmailDelivery } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { type DeliveryBucket, type HistoryWindow, deliveriesByDay, deliveryTime, filterDeliveries } from '@/lib/utils/communications';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { CommunicationsToolbar } from './CommunicationsToolbar';
@@ -76,6 +80,10 @@ export function HistoryPanel({
   const tenantId = useWorkspaceStore((state) => state.tenantId);
   const queryClient = useQueryClient();
   const { canSend } = useEmailAccess();
+  // A customer recipient links to their record only for someone who can open it.
+  const capabilities = useAuthStore((state) => state.capabilities);
+  const customersOn = useModuleEnabled('customers');
+  const canOpenCustomers = customersOn && hasCapability(capabilities, 'customers:read');
   const reduceMotion = useReducedMotion();
   const [search, setSearch] = useState('');
   const [status, setStatus] = useState<DeliveryBucket>(initialStatus);
@@ -242,6 +250,7 @@ export function HistoryPanel({
                   key={delivery.id}
                   delivery={delivery}
                   canRetry={canSend}
+                  customerHref={canOpenCustomers && delivery.customerId ? `/customers/${delivery.customerId}` : undefined}
                   retrying={retry.isPending && retry.variables === delivery.id}
                   onRetry={() => retry.mutate(delivery.id)}
                   onOpen={() => onPreview(delivery)}
@@ -269,9 +278,12 @@ function DeliveryRow({
   retrying,
   onRetry,
   onOpen,
+  customerHref,
 }: {
   delivery: EmailDelivery;
   canRetry: boolean;
+  /** The recipient's customer record, when there is one and the viewer may open it. */
+  customerHref?: string;
   retrying: boolean;
   onRetry: () => void;
   onOpen: () => void;
@@ -318,6 +330,15 @@ function DeliveryRow({
       targetLabel={`Open email to ${delivery.toEmail}: ${delivery.subject}`}
       onClick={onOpen}
       chevron={false}
+      actions={
+        customerHref ? (
+          <Button asChild variant="ghost" size="icon-sm" title="Open customer">
+            <Link href={customerHref} aria-label={`Open ${delivery.toName || delivery.toEmail}’s customer record`}>
+              <UserRound />
+            </Link>
+          </Button>
+        ) : undefined
+      }
       control={
         failed && canRetry ? (
           <Button variant="outline" size="sm" disabled={retrying} onClick={onRetry} className="gap-1.5">

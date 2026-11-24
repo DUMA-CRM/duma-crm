@@ -40,12 +40,17 @@ import {
   CustomersCard,
   LaunchCard,
   PurchasingCard,
+  BookingsTodayCard,
   StockHealthCard,
   TeamTodayCard,
   TendersCard,
   isLaunchWidget,
 } from './ModuleCards';
 import { ClockWidget, MediaPhotoWidget, NaturePhotoWidget, PinnedNotesWidget } from './AmbientWidgets';
+import { FormResponsesCard, PromotionsCard, SocialPostsCard } from './cards/EngagementCards';
+import { HelpdeskCard, PrivacyRequestsCard, TimeOffCard } from './cards/PeopleCards';
+import { BookingsWeekCard, MenuHealthCard, ReportShortcutsCard, WeekSalesCard } from './cards/TradingCards';
+import { WebOnlineCard, WebPagesCard, WebSourcesCard, WebTodayCard, WebVisitsCard } from './cards/WebsiteCards';
 import { MyDashboard } from './MyDashboard';
 import { NeedsYouStrip, TodayBanners, TodayMeta, TodayProvider, TodayWidget } from './today';
 
@@ -64,12 +69,31 @@ const MODULE_CARDS: Record<string, ComponentType> = {
   'purchasing.overview': PurchasingCard,
   'payments.tenders': TendersCard,
   'customers.overview': CustomersCard,
+  'reservations.today': BookingsTodayCard,
   'cms.content': ContentCard,
   'organization.clock': ClockWidget,
   'organization.nature': NaturePhotoWidget,
   'cms.photo': MediaPhotoWidget,
   'notes.pinned': PinnedNotesWidget,
+  'analytics.week-sales': WeekSalesCard,
+  'analytics.reports-shortcuts': ReportShortcutsCard,
+  'analytics.web-online': WebOnlineCard,
+  'analytics.web-today': WebTodayCard,
+  'analytics.web-visits': WebVisitsCard,
+  'analytics.web-pages': WebPagesCard,
+  'analytics.web-sources': WebSourcesCard,
+  'reservations.week': BookingsWeekCard,
+  'catalog.menu-health': MenuHealthCard,
+  'promotions.active': PromotionsCard,
+  'forms.responses': FormResponsesCard,
+  'marketing.scheduled': SocialPostsCard,
+  'people.time-off': TimeOffCard,
+  'support.helpdesk': HelpdeskCard,
+  'compliance.privacy': PrivacyRequestsCard,
 };
+
+/** Analytics widgets drawn from today's shared trading read — the rest fetch their own data. */
+const TODAY_WIDGET_KEYS = new Set([...ANALYTICS_WIDGET_KEYS].filter((key) => !(key in MODULE_CARDS)));
 
 const layoutKey = (tenantId: string | null) => moduleQueryKeys.organization.key('dashboard-layout', 'resolved', tenantId);
 
@@ -182,10 +206,10 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
     const bottom = next.reduce((end, cell) => Math.max(end, cell.y + cell.h), 1);
     return [...next, { ...kept, x: 1, y: bottom }];
   };
-  const trading = displayed.some(({ key }) => ANALYTICS_WIDGET_KEYS.has(key));
+  const trading = displayed.some(({ key }) => TODAY_WIDGET_KEYS.has(key));
   // The trading widgets share one read of today. In edit mode it is mounted whenever any of them could be added,
   // so the gallery can draw them live and adding the first one doesn't remount the board around it.
-  const today = trading || (editing && [...available.keys()].some((key) => ANALYTICS_WIDGET_KEYS.has(key)));
+  const today = trading || (editing && [...available.keys()].some((key) => TODAY_WIDGET_KEYS.has(key)));
 
   function closeEdit() {
     editor.cancel();
@@ -269,7 +293,7 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
   const render = (key: string) => {
     const Card = MODULE_CARDS[key];
     if (Card) return <Card />;
-    if (ANALYTICS_WIDGET_KEYS.has(key)) return <TodayWidget widgetKey={key} netSalesOnBoard={has('analytics.net-sales')} />;
+    if (TODAY_WIDGET_KEYS.has(key)) return <TodayWidget widgetKey={key} netSalesOnBoard={has('analytics.net-sales')} />;
     if (key === 'workforce.my-day') return <MyDashboard />;
     if (isLaunchWidget(key)) return <LaunchCard widgetKey={key} />;
     return null;
@@ -429,8 +453,10 @@ function DashboardBoard({ data, editing }: { data: ResolvedDashboardLayout; edit
 
 const sizeKey = ({ w, h }: GridSize) => `${w}x${h}`;
 
+// The UI's registry names the widget first: the words are the UI's to choose, and the
+// API's copy of a label can lag a rename (Take an order → Till) without breaking a saved layout.
 const widgetLabel = (widget: DashboardWidgetPlacement) =>
-  widget.definition?.label ?? widgetDefinition(widget.widgetKey)?.label ?? widget.widgetKey;
+  widgetDefinition(widget.widgetKey)?.label ?? widget.definition?.label ?? widget.widgetKey;
 
 /**
  * The widget gallery, as iOS draws it: every widget that isn't on the board,

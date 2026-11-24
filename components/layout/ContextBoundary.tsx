@@ -13,7 +13,7 @@ import { ApiError } from '@/lib/api/client';
 import { INTERNAL_WORKSPACE_ROUTES, isAdminRoute, isPersonalRoute } from '@/lib/constants/admin-nav';
 import { useWorkspaceContext } from '@/lib/hooks/useWorkspaceContext';
 import { useWorkspaceSwitch } from '@/lib/hooks/useWorkspaceSwitch';
-import { moduleForPage } from '@/lib/modules/manifest';
+import { modulesForPage } from '@/lib/modules/manifest';
 import { useAuthStore } from '@/stores/authStore';
 
 import { WorkspacePickerList } from './ContextSwitcher';
@@ -123,9 +123,10 @@ export function ContextBoundary({ children }: { children: React.ReactNode }) {
   // offer its settings. Opening a module never enables it as a side effect.
   // Only for a platform administrator — a member's workspace is known on the
   // server, whose module layouts already redirect (or fall back) for them.
-  const pageModule = data?.actor.kind === 'platform' ? moduleForPage(pathname) : undefined;
-  const state = pageModule ? data?.workspace?.modules.find((entry) => entry.moduleId === pageModule) : undefined;
-  if (state && state.status !== 'enabled') {
+  // A page that merges features (My work) is open while any of its modules is on.
+  const pageModules = data?.actor.kind === 'platform' ? modulesForPage(pathname) : [];
+  const states = pageModules.flatMap((moduleId) => data?.workspace?.modules.find((entry) => entry.moduleId === moduleId) ?? []);
+  if (states.length > 0 && states.every((state) => state.status !== 'enabled')) {
     return (
       <EmptyState
         icon={Boxes}

@@ -4,6 +4,7 @@ import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { AlertTriangle, Banknote, Loader2, Plus, Trash2 } from '@/components/icons';
+import { RecordLink, useRecordHrefs } from '@/components/shared/RecordLink';
 import { Drawer } from '@/components/shared/Drawer';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
 import { Button } from '@/components/ui/button';
@@ -49,6 +50,7 @@ export function LineEditor({
 }) {
   const qc = useQueryClient();
   const money = useMoney();
+  const staffHref = useRecordHrefs().staff(line.userId);
   const presets = presetLinesFor(country);
   const firstTime = line.netPay === null && line.items.length === 0;
   // First time in, start from the country's usual employee lines with blank amounts.
@@ -92,7 +94,17 @@ export function LineEditor({
     <Drawer
       icon={Banknote}
       title={line.employeeName ?? 'Payslip'}
-      description={`Gross ${money(line.grossPay)} · ${Number(line.paidHours)} paid hours`}
+      description={
+        <>
+          {`Gross ${money(line.grossPay)} · ${Number(line.paidHours)} paid hours`}
+          {staffHref && (
+            <>
+              {' · '}
+              <RecordLink href={staffHref}>Staff record</RecordLink>
+            </>
+          )}
+        </>
+      }
       onClose={onClose}
       footer={
         editable ? (

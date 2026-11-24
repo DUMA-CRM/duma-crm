@@ -3,6 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { AlertTriangle, Banknote, CircleAlert, Clock } from '@/components/icons';
+import { RecordLink, useRecordHrefs } from '@/components/shared/RecordLink';
 import { Drawer } from '@/components/shared/Drawer';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone } from '@/components/shared/Skeleton';
@@ -42,6 +43,7 @@ export function PayLineDrawer({
   onClose: () => void;
 }) {
   const money = useMoney();
+  const staffHref = useRecordHrefs().staff(line.userId);
   const { data, isPending, isError, refetch } = useQuery({
     queryKey: moduleQueryKeys.people.key('employee-hours', line.userId, from, to),
     queryFn: () => getEmployeeHours(line.userId, from, to),
@@ -51,7 +53,22 @@ export function PayLineDrawer({
   const balances = reconciles(line);
 
   return (
-    <Drawer icon={Banknote} title={line.name} description={`${line.jobTitle} · ${formatRange(from, to)}`} onClose={onClose}>
+    <Drawer
+      icon={Banknote}
+      title={line.name}
+      description={
+        <>
+          {`${line.jobTitle} · ${formatRange(from, to)}`}
+          {staffHref && (
+            <>
+              {' · '}
+              <RecordLink href={staffHref}>Staff record</RecordLink>
+            </>
+          )}
+        </>
+      }
+      onClose={onClose}
+    >
       <div className="space-y-5">
         {/* The sum itself, stated once, before any of the detail. */}
         <section className="rounded-md border border-border bg-field p-4">

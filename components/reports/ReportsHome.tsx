@@ -29,7 +29,7 @@ import { Input } from '@/components/ui/input';
 import type { DailyOrderAnalytics, OrderAnalyticsBreakdown, OrderAnalyticsSummary } from '@/lib/api/analytics.service';
 import { hasAnyCapability, hasCapability } from '@/lib/auth/capabilities';
 import { getHourlyVolume, getTopItems } from '@/lib/modules/analytics/client';
-import { REPORTS, REPORT_CATEGORIES, type ReportDefinition, type ReportId, searchReports } from '@/lib/reports/catalogue';
+import { REPORTS, REPORT_CATEGORIES, REPORT_FAVOURITES_KEY, type ReportDefinition, type ReportId, searchReports } from '@/lib/reports/catalogue';
 import { type ReportContext, reportRelevance, splitReports } from '@/lib/reports/relevance';
 import { cn } from '@/lib/utils/cn';
 import { compactMoney } from '@/lib/utils/report-chart';
@@ -58,7 +58,7 @@ import { useRangeQuery } from './kit/useRangeQuery';
 import { type ReportFilterState, useReportFilters } from './kit/useReportFilters';
 import { useReportContext } from './kit/useReportRelevance';
 
-const FAVOURITES_KEY = 'duma:report-favourites';
+const FAVOURITES_KEY = REPORT_FAVOURITES_KEY;
 const num = (value: string | number | null | undefined) => Number(value ?? 0) || 0;
 const pct = (value: number | null | undefined, digits = 1) =>
   value === null || value === undefined ? '—' : `${(value * 100).toFixed(digits)}%`;

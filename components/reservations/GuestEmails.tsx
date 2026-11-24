@@ -133,8 +133,8 @@ export function GuestEmails({ locationId, canEdit }: { locationId: string; canEd
                   automation ? (
                     <Button asChild variant="outline" size="sm">
                       <Link
-                        href={`/automation?automation=${automation.id}`}
-                        aria-label={`Open the ${moment.title.toLowerCase()} email in Automation`}
+                        href={`/communications?tab=automations&automation=${automation.id}`}
+                        aria-label={`Open the ${moment.title.toLowerCase()} email in Communications`}
                       >
                         Open
                       </Link>

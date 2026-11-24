@@ -18,6 +18,7 @@ import {
   TriangleAlert,
   UserPlus,
 } from '@/components/icons';
+import { RecordLink, useRecordHrefs } from '@/components/shared/RecordLink';
 import { Avatar, fmtMoney } from '@/components/people/shared';
 import { CoveragePanel, shortHoursOf, useCoverageCheck } from '@/components/scheduling/CoveragePanel';
 import { RotaDayView } from '@/components/scheduling/RotaDayView';
@@ -1042,6 +1043,7 @@ function IssuesButton({
 
 function LineHeader({ line, warnings }: { line: RotaLine; warnings: RuleWarning[] }) {
   const serious = warnings.filter(isSerious);
+  const hrefs = useRecordHrefs();
   return (
     <div role="rowheader" className="sticky left-0 z-10 flex min-w-0 items-center gap-2.5 bg-card px-3 py-2">
       {line.kind === 'person' ? (
@@ -1061,7 +1063,9 @@ function LineHeader({ line, warnings }: { line: RotaLine; warnings: RuleWarning[
       )}
       <span className="min-w-0 flex-1">
         <span className="flex min-w-0 items-center gap-1.5">
-          <span className="truncate text-sm font-semibold text-foreground">{line.name}</span>
+          <span className="truncate text-sm font-semibold text-foreground">
+            <RecordLink href={line.kind === 'person' ? hrefs.staff(line.userId) : null}>{line.name}</RecordLink>
+          </span>
           {warnings.length > 0 && (
             <span
               className={cn(

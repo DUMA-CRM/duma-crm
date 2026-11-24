@@ -19,6 +19,7 @@ import {
   Search,
   X,
 } from '@/components/icons';
+import { RecordLink, useRecordHrefs } from '@/components/shared/RecordLink';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { Fact, Switch } from '@/components/settings/controls';
 import { ConfirmDrawer } from '@/components/shared/ConfirmDrawer';
@@ -435,6 +436,7 @@ function DiffList({
   money: ReturnType<typeof useWorkspaceMoney>;
   empty: string;
 }) {
+  const hrefs = useRecordHrefs();
   return (
     <section>
       <h3 className="mb-2 text-sm font-semibold text-heading">{title}</h3>
@@ -458,7 +460,9 @@ function DiffList({
                   {v.tone === 'short' ? <Minus size={16} /> : <Plus size={16} />}
                 </span>
                 <span className="min-w-0 flex-1">
-                  <span className="block truncate text-sm font-semibold text-foreground">{line.name}</span>
+                  <span className="block truncate text-sm font-semibold text-foreground">
+                    <RecordLink href={hrefs.stockItem(line.stockItemId)}>{line.name}</RecordLink>
+                  </span>
                   <span className="flex items-center gap-1 text-xs tabular-nums text-muted-foreground">
                     {formatQty(line.expected)} <ArrowRight size={11} aria-hidden="true" /> {formatQty(line.counted ?? 0)} {line.unit}
                     {v.large && <IconTag icon={AlertTriangle} tone="warning" label="Large difference" size={12} className="ml-1" />}

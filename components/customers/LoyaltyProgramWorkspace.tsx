@@ -32,6 +32,7 @@ import {
   Type,
   Wallet,
 } from '@/components/icons';
+import { PROMOTIONS_TAB_LABEL, PromotionsTabs } from '@/components/promotions/PromotionsTabs';
 import { SECTION_RISE, SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';
 import { SaveBar, Switch } from '@/components/settings/controls';
@@ -90,7 +91,8 @@ import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 type Draft = LoyaltyProgramInput & { id?: string };
 
-const BASE = '/customers/loyalty';
+/** A tab of Promotions; it was /customers/loyalty, which redirects here. */
+const BASE = '/promotions/loyalty';
 
 function freshDraft(tenantId: string): Draft {
   return {
@@ -240,9 +242,10 @@ export function LoyaltyProgramWorkspace() {
 
   return (
     <EditorShell
-      title="Loyalty"
-      icon={<Gift size={20} aria-hidden="true" />}
-      onClose={() => router.push('/customers')}
+      eyebrow="Customer engagement"
+      title={PROMOTIONS_TAB_LABEL.loyalty}
+      icon={<Award size={20} aria-hidden="true" />}
+      subheader={<PromotionsTabs value="loyalty" />}
       actions={
         tenantId && programmes.length > 0 ? (
           <Button className="gap-1.5" onClick={() => open('new')}>

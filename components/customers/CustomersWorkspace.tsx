@@ -11,7 +11,7 @@ import { CustomerList, CustomerListSkeleton } from '@/components/customers/Custo
 import { MergeCustomersModal } from '@/components/customers/MergeCustomersModal';
 import { SegmentBar } from '@/components/customers/SegmentBar';
 import { useCustomerFilters } from '@/components/customers/useCustomerFilters';
-import { Combine, Gift, Plus, Users } from '@/components/icons';
+import { Award, Combine, Plus, Users } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
@@ -226,10 +226,10 @@ export function CustomersWorkspace() {
                 variant="outline"
                 size="sm"
                 aria-label="Loyalty"
-                onClick={() => router.push('/customers/loyalty')}
+                onClick={() => router.push('/promotions/loyalty')}
                 className="gap-1.5"
               >
-                <Gift size={15} aria-hidden="true" />
+                <Award size={15} aria-hidden="true" />
                 <span className="hidden lg:inline">Loyalty</span>
               </Button>
             )}

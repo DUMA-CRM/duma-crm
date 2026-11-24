@@ -1,0 +1,112 @@
+name: Dependency updates
+
+# Dependabot opens the pull requests (.github/dependabot.yml). This decides
+# what happens to each one:
+#   - patch, or minor from 1.x up  -> run this repo's full checks, then merge.
+#     Merging pushes to main, so the normal production pipeline ships it.
+#   - major, or a 0.x minor (breaking by convention) -> label `needs-review`
+#     and leave it for a person.
+# Branch protection isn't available on this plan, so the checks run here,
+# before the merge, instead of being required on the branch.
+#
+# Setup (once per repo), as *Dependabot* secrets (Settings -> Secrets ->
+# Dependabot), because runs started by Dependabot only see those:
+#   AUTOMERGE_TOKEN  fine-grained PAT: contents + pull requests read/write on
+#                    this repo. A merge made with the built-in token would not
+#                    trigger the push-to-main deploy; a merge with this one does.
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened]
+
+permissions:
+  contents: read
+  pull-requests: write
+
+jobs:
+  classify:
+    # The PR's author, not the run's actor: a person re-running the job
+    # mustn't make their own PR look like Dependabot's.
+    if: github.event.pull_request.user.login == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    outputs:
+      safe: ${{ steps.decide.outputs.safe }}
+      summary: ${{ steps.decide.outputs.summary }}
+    steps:
+      - id: meta
+        uses: dependabot/fetch-metadata@v2
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+
+      - id: decide
+        env:
+          DEPS: ${{ steps.meta.outputs.updated-dependencies-json }}
+        run: |
+          # Safe only if EVERY dependency in the PR is a patch, or a minor
+          # whose previous version is 1.0 or later.
+          echo "$DEPS" | jq -e 'length > 0' > /dev/null || { echo "safe=false" >> "$GITHUB_OUTPUT"; exit 0; }
+          unsafe=$(echo "$DEPS" | jq '[.[] | select(
+              (.updateType != "version-update:semver-patch") and
+              ((.updateType != "version-update:semver-minor") or ((.prevVersion // "0") | startswith("0.")))
+            )] | length')
+          summary=$(echo "$DEPS" | jq -r '[.[] | "\(.dependencyName) \(.prevVersion) -> \(.newVersion) (\(.updateType | sub("version-update:semver-"; "")))"] | join(", ")')
+          echo "summary=$summary" >> "$GITHUB_OUTPUT"
+          if [ "$unsafe" = "0" ]; then echo "safe=true" >> "$GITHUB_OUTPUT"; else echo "safe=false" >> "$GITHUB_OUTPUT"; fi
+
+  needs-review:
+    needs: classify
+    if: needs.classify.outputs.safe != 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          PR: ${{ github.event.pull_request.html_url }}
+          SUMMARY: ${{ needs.classify.outputs.summary }}
+        run: |
+          gh label create needs-review --repo "$GITHUB_REPOSITORY" --color D93F0B --description "Major dependency update - check before merging" --force
+          gh pr edit "$PR" --add-label needs-review
+          if [ "${{ github.event.action }}" = "opened" ]; then
+            gh pr comment "$PR" --body "Major (or 0.x) update, so this one waits for a person: $SUMMARY. Check the changelog, run it locally, then merge by hand."
+          fi
+
+  verify:
+    needs: classify
+    if: needs.classify.outputs.safe == 'true'
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 9.0.0
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+          cache-dependency-path: pnpm-lock.yaml
+      - run: pnpm install --frozen-lockfile
+      - run: pnpm test
+      - run: pnpm lint
+      - run: pnpm typecheck
+      - run: pnpm build
+        env:
+          NEXT_PUBLIC_API_URL: http://localhost:7777
+          NEXT_PUBLIC_APP_URL: http://localhost:3000
+
+  merge:
+    needs: [classify, verify]
+    runs-on: ubuntu-latest
+    steps:
+      - env:
+          GH_TOKEN: ${{ secrets.AUTOMERGE_TOKEN }}
+          PR: ${{ github.event.pull_request.html_url }}
+          SUMMARY: ${{ needs.classify.outputs.summary }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          if [ -z "$GH_TOKEN" ]; then
+            echo "::error::Add the AUTOMERGE_TOKEN Dependabot secret - see the comment at the top of this workflow."
+            exit 1
+          fi
+          # --match-head-commit: never merge a commit other than the one just verified.
+          gh pr merge "$PR" --squash --delete-branch --match-head-commit "$HEAD_SHA" \
+            --subject "deps: $SUMMARY"

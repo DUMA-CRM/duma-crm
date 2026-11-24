@@ -491,7 +491,7 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.payroll.key('payslips-me') });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.payroll.key('employee-payslips') });
       setConfirming(false);
-      toast('success', 'Payslips issued. Everyone can see theirs in My HR.');
+      toast('success', 'Payslips issued. Everyone can see theirs in My work.');
     },
     onError: (error) => toast('error', (error as Error).message || 'The run wasn’t issued. Try again.'),
   });
@@ -674,7 +674,7 @@ function RunView({ run, canWrite, country, onBack }: { run: PayrollRun; canWrite
       {confirming && (
         <ConfirmModal
           title="Issue these payslips?"
-          message={`${totals.people} people will see their payslip for ${rangeLabel(run.periodStart, run.periodEnd)} in My HR — ${money(totals.net)} in net pay. Issued payslips can’t be changed.`}
+          message={`${totals.people} people will see their payslip for ${rangeLabel(run.periodStart, run.periodEnd)} in My work — ${money(totals.net)} in net pay. Issued payslips can’t be changed.`}
           confirmLabel="Issue payslips"
           pendingLabel="Issuing…"
           isPending={issue.isPending}

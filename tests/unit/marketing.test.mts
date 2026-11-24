@@ -6,7 +6,7 @@ import { serializeJsonLd } from '../../lib/utils/json-ld.ts';
 import { isPublicPath, needsSignIn } from '../../lib/utils/public-paths.ts';
 
 test('the sign-in guard stays on for app screens while marketing sections are public', () => {
-  for (const path of ['/dashboard', '/pos', '/kds', '/admin/overview', '/settings/modules', '/content', '/updates']) {
+  for (const path of ['/dashboard', '/pos', '/kds', '/admin/overview', '/settings/modules', '/content']) {
     assert.equal(isPublicPath(path), false, path);
   }
   for (const path of ['/', '/welcome', '/features/pos', '/compare/duma-vs-square', '/blog', '/blog/food-cost-formula', '/developers', '/developers/mcp', '/blog/feed.xml', '/llms.txt', '/llms-full.txt', '/api/cms-webhook', '/sitemap.xml', '/robots.txt', '/opengraph-image', '/privacy', '/dpa', '/gdpr', '/legal']) {

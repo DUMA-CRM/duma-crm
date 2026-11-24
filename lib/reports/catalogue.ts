@@ -265,3 +265,6 @@ export function searchReports(reports: ReportDefinition[], query: string): Repor
     return words.every((word) => haystack.includes(word));
   });
 }
+
+/** The Reports library's starred reports, kept per device in localStorage. */
+export const REPORT_FAVOURITES_KEY = 'duma:report-favourites';

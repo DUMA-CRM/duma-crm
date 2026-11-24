@@ -21,6 +21,7 @@ import {
   Users,
   X,
 } from '@/components/icons';
+import { RecordLink, useRecordHrefs } from '@/components/shared/RecordLink';
 import { ChangeRow, Switch, ValueMissing } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
@@ -260,6 +261,7 @@ export function BookingDrawer({
     });
   }, [existing, floor, customer, timeZone]);
 
+  const hrefs = useRecordHrefs();
   const allergies = customer?.allergies?.length ? customer.allergies.join(', ') : null;
   const text = (value: string, empty: string) =>
     value.trim() ? <span className="truncate">{value.trim()}</span> : <ValueMissing>{empty}</ValueMissing>;
@@ -326,7 +328,9 @@ export function BookingDrawer({
                   value={
                     customer ? (
                       <span className="min-w-0">
-                        <span className="block truncate">{`${customer.firstName} ${customer.lastName}`.trim()}</span>
+                        <span className="block truncate">
+                          <RecordLink href={hrefs.customer(customer.id)}>{`${customer.firstName} ${customer.lastName}`.trim()}</RecordLink>
+                        </span>
                         {allergies && <span className="block truncate text-xs font-medium text-measured">Allergies: {allergies}</span>}
                       </span>
                     ) : (

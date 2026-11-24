@@ -163,7 +163,7 @@ export function MyDashboard() {
           return (
             <WidgetRow
               key={s.id}
-              href="/scheduling"
+              href="/my-work?tab=rota"
               mark={<DateTile iso={s.startsAt} />}
               title={
                 <span className="tabular-nums">
@@ -198,7 +198,7 @@ export function MyDashboard() {
         title="My workday"
         icon={Clock}
         tint="team"
-        href="/scheduling"
+        href="/my-work?tab=rota"
         hrefLabel="Open my rota"
         accessory={
           family !== 'medium' ? (

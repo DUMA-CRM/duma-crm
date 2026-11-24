@@ -4,6 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense, useMemo, useState } from 'react';
 
+import { AutomationEditorView, AutomationsTab, automationView, useEmailAutomations } from '@/components/automation/AutomationWorkspace';
 import { DeliveryPreviewDrawer, EmailPreviewDrawer } from '@/components/communications/EmailPreviewDrawer';
 import { HistoryPanel } from '@/components/communications/HistoryPanel';
 import { OverviewPanel } from '@/components/communications/OverviewPanel';
@@ -11,7 +12,7 @@ import { SuppressionsPanel } from '@/components/communications/SuppressionsPanel
 import { TemplateEditorPage } from '@/components/communications/TemplateEditorPage';
 import { TemplatesPanel } from '@/components/communications/TemplatesPanel';
 import { useEmailAccess } from '@/components/communications/useEmailAccess';
-import { Activity, CheckCircle2, FileText, MailX, Plus, Send, ShieldOff, TriangleAlert } from '@/components/icons';
+import { Activity, CheckCircle2, FileText, MailX, Plus, Send, ShieldOff, TriangleAlert, Zap } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -20,6 +21,7 @@ import { LoadingState } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
 
+import { useWorkspaceModules } from '@/lib/hooks/useWorkspaceContext';
 import {
   type EmailDelivery,
   getEmailConnection,
@@ -27,14 +29,22 @@ import {
   getEmailTemplates,
   getMarketingSuppressions,
 } from '@/lib/modules/communications/client';
+import type { ModuleId } from '@/lib/modules/manifest';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { type ConnectionState, connectionState } from '@/lib/utils/communications';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
-type Tab = 'overview' | 'templates' | 'history' | 'suppressions';
+type Tab = 'overview' | 'templates' | 'automations' | 'history' | 'suppressions';
 
-const TAB_VALUES: Tab[] = ['overview', 'templates', 'history', 'suppressions'];
+/** Automations belong to the automation module; every other tab to communications. */
+const TAB_MODULE: Record<Tab, ModuleId> = {
+  overview: 'communications',
+  templates: 'communications',
+  automations: 'automation',
+  history: 'communications',
+  suppressions: 'communications',
+};
 
 /** The mail account itself is a connector, so setting it up happens in Settings. */
 const EMAIL_CONNECTOR = '/settings/connectors?connector=email';
@@ -61,9 +71,24 @@ function CommunicationsView() {
   const access = useEmailAccess();
   const canConfigure = access.canConfigure;
 
-  const requestedTab = searchParams.get('tab');
-  const tab: Tab = TAB_VALUES.includes(requestedTab as Tab) ? (requestedTab as Tab) : 'overview';
-  const templateParam = searchParams.get('template');
+  // Until the workspace's modules are known, assume on: the layout has already
+  // sent a member whose workspace has neither module away.
+  const modules = useWorkspaceModules();
+  const moduleOn = (id: ModuleId) => !modules || modules.some((state) => state.moduleId === id && state.status === 'enabled');
+  const communicationsOn = moduleOn('communications');
+  const automationOn = moduleOn('automation');
+  const tabOn = (value: Tab) => (TAB_MODULE[value] === 'automation' ? automationOn : communicationsOn);
+
+  const requestedTab = searchParams.get('tab') as Tab | null;
+  const tab: Tab =
+    requestedTab && Object.hasOwn(TAB_MODULE, requestedTab) && tabOn(requestedTab)
+      ? requestedTab
+      : communicationsOn
+        ? 'overview'
+        : 'automations';
+  const view = automationView(searchParams.get('view'));
+  const templateParam = communicationsOn ? searchParams.get('template') : null;
+  const automationParam = automationOn ? searchParams.get('automation') : null;
   const previewParam = searchParams.get('preview');
 
   // Deliveries are paginated with no single-record endpoint, so the row hands the
@@ -73,10 +98,6 @@ function CommunicationsView() {
   const [addingSuppression, setAddingSuppression] = useState(false);
 
   const navigate = (patch: Record<string, string | null>, mode: 'push' | 'replace' = 'push') => {
-    if (patch.tab === 'automations' || patch.automation) {
-      router.push(patch.automation ? `/automation?automation=${encodeURIComponent(patch.automation)}` : '/automation');
-      return;
-    }
     const next = new URLSearchParams(searchParams.toString());
     for (const [key, value] of Object.entries(patch)) {
       if (value === null) next.delete(key);
@@ -87,25 +108,28 @@ function CommunicationsView() {
   };
 
   const closeEditors = () => navigate({ template: null, automation: null, preview: null, preset: null });
+  const switchTab = (value: string) => navigate({ tab: value, status: null, view: null }, 'replace');
+  const openAutomation = (id: string) => navigate({ tab: 'automations', automation: id });
+  const openTemplates = () => navigate({ tab: 'templates', automation: null, view: null });
 
   const { data: templates = [], isFetched: templatesFetched } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-templates', tenantId),
     queryFn: () => getEmailTemplates(tenantId ?? undefined),
-    enabled: !!tenantId,
+    enabled: !!tenantId && communicationsOn,
   });
   // Gated on its own capability: marketing and store managers run email but
   // can't read the SMTP settings, and a 403 must not read as "not set up".
   const { data: connection } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-connection', tenantId),
     queryFn: () => getEmailConnection(tenantId ?? undefined),
-    enabled: !!tenantId && access.canReadConnection,
+    enabled: !!tenantId && communicationsOn && access.canReadConnection,
     retry: false,
     meta: { silentForbidden: true },
   });
   const { data: deliveries } = useQuery({
     queryKey: moduleQueryKeys.communications.key('email-deliveries', tenantId, 1),
     queryFn: () => getEmailDeliveries(tenantId ?? undefined, 1),
-    enabled: !!tenantId,
+    enabled: !!tenantId && communicationsOn,
     // Keeps the failure count on the History tab current while you work elsewhere.
     // (The history table shares this key and polls faster while it is open.)
     refetchInterval: 60_000,
@@ -117,18 +141,22 @@ function CommunicationsView() {
     queryFn: () => getMarketingSuppressions(tenantId ?? undefined),
     enabled: Boolean(tenantId) && tab === 'suppressions',
   });
+  // The automations list's own query (same key), read so the header can step
+  // aside while its empty state offers "New workflow".
+  const automations = useEmailAutomations(tenantId, tab === 'automations');
   const connectionStatus = connectionState(connection, access.canReadConnection);
   // Failures on the newest page — surfaced on the History tab so they aren't missed.
   const failedCount = (deliveries?.data ?? []).filter((delivery) => delivery.status === 'failed').length;
 
-  const tabs = useMemo<SectionTab<Tab>[]>(
-    () => [
+  const tabs = useMemo<SectionTab<Tab>[]>(() => {
+    const all: SectionTab<Tab>[] = [
       { value: 'overview', label: 'Overview', icon: Activity },
+      { value: 'templates', label: 'Templates', icon: FileText },
       // Zap is the trigger glyph inside the workflow editor, so an automation
-      // wears the same mark in the nav as it does on its own canvas.
+      // wears the same mark in the tab as it does on its own canvas.
+      { value: 'automations', label: 'Automations', icon: Zap },
       // Only failures are counted: a tab badge is for something waiting on
       // someone, and the live/template totals are already the Overview's tiles.
-      { value: 'templates', label: 'Templates', icon: FileText },
       {
         value: 'history',
         label: 'History',
@@ -138,9 +166,9 @@ function CommunicationsView() {
         countLabel: `${failedCount} recent ${failedCount === 1 ? 'failure' : 'failures'}`,
       },
       { value: 'suppressions', label: 'Suppressions', icon: ShieldOff },
-    ],
-    [failedCount],
-  );
+    ];
+    return all.filter((entry) => (TAB_MODULE[entry.value] === 'automation' ? automationOn : communicationsOn));
+  }, [failedCount, automationOn, communicationsOn]);
 
   if (!tenantId) {
     return (
@@ -169,18 +197,35 @@ function CommunicationsView() {
     return <TemplateEditorPage template={template} onClose={closeEditors} onOpenConnection={openConnection} />;
   }
 
+  if (automationParam) {
+    return (
+      <AutomationEditorView
+        // A workspace switch discards the old workspace's editor state.
+        key={`${tenantId}:${automationParam}`}
+        tenantId={tenantId}
+        automationId={automationParam}
+        onClose={closeEditors}
+        onSaved={(saved) => navigate({ automation: saved.id }, 'replace')}
+        onOpenTemplates={openTemplates}
+      />
+    );
+  }
+
   // ── List view ──────────────────────────────────────────────────────────────
 
   // One primary action, always in the same place — whatever the open tab is for.
   // An empty list offers it in its empty state instead, so it isn't there twice.
   const noTemplates = templatesFetched && !templates.some((template) => template.isActive);
   const noSuppressions = suppressions !== undefined && suppressions.length === 0;
+  const noAutomations = automations.isSuccess && automations.data.length === 0;
   const action =
     tab === 'templates' && access.canWrite && !noTemplates
       ? { icon: Plus, label: 'New template', onClick: () => navigate({ template: 'new' }) }
-      : tab === 'suppressions' && access.canSuppress && !noSuppressions
-        ? { icon: Plus, label: 'Add email', onClick: () => setAddingSuppression(true) }
-        : null;
+      : tab === 'automations' && view === 'workflows' && access.canWrite && !noAutomations
+        ? { icon: Plus, label: 'New workflow', onClick: () => openAutomation('new') }
+        : tab === 'suppressions' && access.canSuppress && !noSuppressions
+          ? { icon: Plus, label: 'Add email', onClick: () => setAddingSuppression(true) }
+          : null;
   const ActionIcon = action?.icon;
   const actionControl =
     action && ActionIcon ? (
@@ -210,7 +255,7 @@ function CommunicationsView() {
           <div className="flex items-center gap-3 border-b border-border bg-field px-3 py-2 md:hidden">
             <Select
               value={tab}
-              onValueChange={(value) => navigate({ tab: value, status: null }, 'replace')}
+              onValueChange={switchTab}
               options={tabs.map(({ value, label }) => ({ value, label }))}
               ariaLabel="Communications section"
               className="min-w-0 flex-1"
@@ -218,12 +263,7 @@ function CommunicationsView() {
             {connectionBadge}
           </div>
           <div className="hidden md:block">
-            <SectionTabs
-              tabs={tabs}
-              value={tab}
-              onChange={(value) => navigate({ tab: value, status: null }, 'replace')}
-              ariaLabel="Communications sections"
-            />
+            <SectionTabs tabs={tabs} value={tab} onChange={switchTab} ariaLabel="Communications sections" />
           </div>
         </>
       }
@@ -232,8 +272,8 @@ function CommunicationsView() {
       <div className="flex flex-1 flex-col">
         {tab === 'overview' && (
           <OverviewPanel
-            onOpenAutomations={() => navigate({ tab: 'automations' }, 'replace')}
-            onOpenAutomation={(id) => navigate({ automation: id })}
+            onOpenAutomations={() => switchTab('automations')}
+            onOpenAutomation={openAutomation}
             onOpenFailures={() => navigate({ tab: 'history', status: 'failed' }, 'replace')}
             onOpenHistory={() => navigate({ tab: 'history', status: null }, 'replace')}
             onOpenTemplates={() => navigate({ tab: 'templates' }, 'replace')}
@@ -244,6 +284,15 @@ function CommunicationsView() {
           <TemplatesPanel
             onEdit={({ template }) => navigate({ template: template?.id ?? 'new', preset: null })}
             onPreview={(template) => navigate({ preview: template.id })}
+          />
+        )}
+        {tab === 'automations' && (
+          <AutomationsTab
+            tenantId={tenantId}
+            view={view}
+            onViewChange={(value) => navigate({ view: value === 'runs' ? 'runs' : null }, 'replace')}
+            onOpenAutomation={openAutomation}
+            onOpenTemplates={openTemplates}
           />
         )}
         {tab === 'history' && (

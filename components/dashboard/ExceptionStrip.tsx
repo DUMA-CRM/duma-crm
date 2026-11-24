@@ -77,7 +77,7 @@ export function buildExceptions({
         label: `Order #${order.id.slice(0, 6).toUpperCase()} is over ${durationLabel(lateness!.lateMins)}`,
         detail: `${mins >= 60 ? `${Math.floor(mins / 60)}h ${mins % 60}m` : `${mins}m`} ${STAGE_LABEL[order.status] ?? 'in this stage'}`,
         href: kitchenScreen ? '/kds' : '/orders',
-        fixLabel: kitchenScreen ? 'Open KDS' : 'Open orders',
+        fixLabel: kitchenScreen ? 'Open Kitchen' : 'Open orders',
         tone: 'exception' as const,
       };
     }),

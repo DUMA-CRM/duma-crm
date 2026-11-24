@@ -1,16 +1,16 @@
 import {
   BarChart3,
   CalendarCheck,
-  CalendarDays,
+  CalendarClock,
   ChefHat,
   ClipboardList,
-  HeartHandshake,
   HelpCircle,
-  History,
   type IconComponent,
   Layers,
   LayoutDashboard,
+  LayoutGrid,
   Mail,
+  Megaphone,
   Monitor,
   NotebookPen,
   Package,
@@ -22,150 +22,131 @@ import {
   Users,
   UsersRound,
   UtensilsCrossed,
-  Zap,
 } from '@/components/icons';
 
-import { type Capability, hasAnyCapability } from '@/lib/auth/capabilities';
-import { MODULE_IDS, type ModuleId } from '@/lib/modules/manifest';
-import type { TenantModuleState } from '@/lib/modules/organization/client';
-import { catalogVocabulary } from '@/lib/utils/catalog-vocabulary';
+import type { NavEntry, NavGroup as NavGroupOf } from '@/lib/utils/nav-access';
 
-export interface NavItem {
-  module: ModuleId;
-  label: string;
-  href: string;
-  icon: IconComponent;
-  // Capabilities that make this item visible — holding any one is enough.
-  // Omit to show the item to every signed-in user (POS, KDS, own rota, own HR).
-  //
-  // This replaces the old `minRole` rank threshold plus its `roles` allow-list
-  // escape hatch. Both existed because a rank could not express rules like
-  // "hr_manager and franchise_owner, but not store_manager" — a capability
-  // states the requirement directly, and matches what the API enforces on the
-  // page's own data, so the nav can no longer disagree with the API.
-  capabilities?: Capability[];
-  /** Optional surface switch inside a module's `configuration.surfaces`. */
-  surface?: string;
-  /** What a shop that sells products calls this — used when its module's `configuration.vocabulary` is `retail`. */
-  retail?: { label: string; icon: IconComponent };
-  children?: Omit<NavItem, 'children'>[];
-}
+export { filterNavByCapability, filterNavGroups, isNavPathActive } from '@/lib/utils/nav-access';
+
+/** One sidebar entry. The access rules — modules, capabilities, `alsoFor` — are in lib/utils/nav-access.ts. */
+export type NavItem = NavEntry<IconComponent>;
+export type NavGroup = NavGroupOf<NavItem>;
 
 /*
-  One list, no headings, in the order a day runs: what's happening now (till,
-  kitchen, orders), what you sell (menu, stock), who you sell to (customers,
-  communications), who does the work (staff, then your own rota and HR), and
-  how it went — which keeps its "Reports" heading in `analyticsNavItems`.
-  Neighbours are related, so the order does the grouping a heading would.
+  The sidebar reads top to bottom as the business does. Dashboard stands alone
+  at the top; then five headed groups:
 
-  Labels are the page titles — "POS Terminal", "Fulfilment" and "Products" used
-  to open pages titled Till, Kitchen and Menu.
+    Service       — running the day: till, kitchen, orders, the door
+    Menu & stock  — what you sell and what it's made from
+    Customers     — who you sell to and how you reach them
+    Team          — the staff workspace, then your own rota and HR (My work)
+    Workspace     — content, notes, reports and compliance: looking after and
+                    looking back at the business rather than running a shift
+
+  Apps, Settings and Support sit in the footer under the location picker: they
+  configure the workspace rather than work in it. Installed apps show as
+  children of Apps.
+
+  Headings were dropped on 2026-10-05 for a flat, ordered list with only a
+  "Reports" heading; the owner reinstated grouping when the list outgrew what
+  order alone could make scannable. Each heading renders the way "Reports" did,
+  becomes a rule when the sidebar is collapsed, and disappears when every item
+  under it is hidden for this person or workspace.
+
+  Each entry is one page. Features that used to have their own entry are tabs
+  now: Automation is in Communications, the audit log in Compliance, loyalty in
+  Promotions, and My rota + My HR are My work. Labels are the page titles.
+
+  One line per item, so an entry can be found with a single-line pattern; long
+  lines carry `prettier-ignore` rather than wrapping.
 */
-export const mainNavItems: NavItem[] = [
-  // Every workspace has one: it builds itself from the modules switched on.
-  { module: 'organization', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
-  { module: 'pos', label: 'Till', href: '/pos', icon: Monitor, capabilities: ['orders:create'] },
-  // Its own module since 0101: a shop that ships parcels has no kitchen.
-  { module: 'kds', label: 'Kitchen', href: '/kds', icon: ChefHat, capabilities: ['orders:status'] },
-  { module: 'ordering', label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:read'] },
-  // Bookings, the floor and the waitlist — run at the door, beside the till.
-  { module: 'reservations', label: 'Reservations', href: '/reservations', icon: CalendarCheck, capabilities: ['reservations:read'] },
-  // No End of day entry: opening and closing the trading day is done in the
-  // till, at the drawer (2026-10-04). Reports keeps the read-only history.
-  // A shop reads Products (see `retail`): setup records the catalog's vocabulary.
-  // One line: tests/module-ownership reads nav items with a single-line pattern.
-  // prettier-ignore
-  { module: 'catalog', label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'], retail: { label: 'Products', icon: Tag } },
-  // One entry: stock, restock demand, purchase orders, suppliers and
-  // stocktakes are tabs of /inventory. `stock:read` rather than
-  // `inventory:read` — till staff hold the latter so they can record waste,
-  // and gating on it would put Inventory in the POS nav.
-  { module: 'inventory', label: 'Inventory', href: '/inventory', icon: Package, capabilities: ['stock:read'] },
-  // `marketing_manager` reaches this — the old rank threshold hid it from
-  // the role whose job it is.
-  { module: 'customers', label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
-  { module: 'automation', label: 'Automation', href: '/automation', icon: Zap, capabilities: ['email:read'] },
-  { module: 'communications', label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
-  // Promo codes the till and checkout honour, with their limits and usage.
-  { module: 'promotions', label: 'Promotions', href: '/promotions', icon: TicketPercent, capabilities: ['promotions:read'] },
-  // Sign-ups, enquiries and feedback, on DUMA's own page, an embed or the API.
-  { module: 'marketing', label: 'Marketing', href: '/marketing', icon: CalendarDays, capabilities: ['marketing:read'] },
-  { module: 'forms', label: 'Forms', href: '/forms', icon: ClipboardList, capabilities: ['forms:read'] },
-  // Website and app content, served to the tenant's own sites over an API key.
-  { module: 'cms', label: 'Content', href: '/content', icon: Layers, capabilities: ['cms:read'] },
-  // The team's knowledge base and everyone's own notes.
-  { module: 'notes', label: 'Notes', href: '/notes', icon: NotebookPen, capabilities: ['notes:read'] },
-  // One entry: team, rota, shifts, leave, helpdesk and payroll are tabs of
-  // the staff workspace, each on its own route.
-  { module: 'people', label: 'Staff', href: '/staff', icon: UsersRound, capabilities: ['staff:read', 'hr.people:read'] },
-  // Everyone's own rota and HR — beside the team they belong to, not at the
-  // top of a manager's nav. The team rota and shift cover live in Staff.
-  { module: 'organization', label: 'Apps', href: '/apps', icon: Package },
-  { module: 'workforce', label: 'My rota', href: '/scheduling', icon: CalendarDays },
-  { module: 'people', label: 'My HR', href: '/my-hr', icon: HeartHandshake },
-  // Workspaces and locations are a tab of Settings — organisation structure is
-  // set up once, so it belongs with the other administration in the footer.
+export const mainNavGroups: NavGroup[] = [
+  {
+    items: [
+      // Every workspace has one: it builds itself from the modules switched on.
+      { module: 'organization', label: 'Dashboard', href: '/dashboard', icon: LayoutDashboard },
+    ],
+  },
+  {
+    heading: 'Service',
+    items: [
+      { module: 'pos', label: 'Till', href: '/pos', icon: Monitor, capabilities: ['orders:create'] },
+      // Its own module since 0101: a shop that ships parcels has no kitchen.
+      { module: 'kds', label: 'Kitchen', href: '/kds', icon: ChefHat, capabilities: ['orders:status'] },
+      { module: 'ordering', label: 'Orders', href: '/orders', icon: ShoppingBag, capabilities: ['orders:read'] },
+      // Bookings, the floor and the waitlist — run at the door, beside the till.
+      { module: 'reservations', label: 'Reservations', href: '/reservations', icon: CalendarCheck, capabilities: ['reservations:read'] },
+      // No End of day entry: opening and closing the trading day is done in the
+      // till, at the drawer (2026-10-04). Reports keeps the read-only history.
+    ],
+  },
+  {
+    heading: 'Menu & stock',
+    items: [
+      // A shop reads Products (see `retail`): setup records the catalog's vocabulary.
+      // prettier-ignore
+      { module: 'catalog', label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'], retail: { label: 'Products', icon: Tag } },
+      // One entry: stock, restock demand, purchase orders, suppliers and
+      // stocktakes are tabs of /inventory. `stock:read` rather than
+      // `inventory:read` — till staff hold the latter so they can record waste,
+      // and gating on it would put Inventory in the POS nav.
+      { module: 'inventory', label: 'Inventory', href: '/inventory', icon: Package, capabilities: ['stock:read'] },
+    ],
+  },
+  {
+    heading: 'Customers',
+    items: [
+      // `marketing_manager` reaches this — the old rank threshold hid it from
+      // the role whose job it is.
+      { module: 'customers', label: 'Customers', href: '/customers', icon: Users, capabilities: ['customers:read'] },
+      // Customer email: templates, automations, history and suppressions are tabs.
+      { module: 'communications', label: 'Communications', href: '/communications', icon: Mail, capabilities: ['email:read'] },
+      // Promo codes the till and checkout honour, then Loyalty and Refer a friend
+      // as tabs. Loyalty is the customers module's, so someone who can read
+      // customers but not promo codes still reaches it here.
+      // prettier-ignore
+      { module: 'promotions', label: 'Promotions', href: '/promotions', icon: TicketPercent, capabilities: ['promotions:read'], alsoFor: [{ module: 'customers', capabilities: ['customers:points'], href: '/promotions/loyalty' }] },
+      // Posts scheduled to the workspace's social accounts.
+      { module: 'marketing', label: 'Social posts', href: '/marketing', icon: Megaphone, capabilities: ['marketing:read'] },
+      // Sign-ups, enquiries and feedback, on DUMA's own page, an embed or the API.
+      { module: 'forms', label: 'Forms', href: '/forms', icon: ClipboardList, capabilities: ['forms:read'] },
+    ],
+  },
+  {
+    heading: 'Team',
+    items: [
+      // One entry: team, rota, shifts, time off, helpdesk and payroll are tabs of
+      // the staff workspace, each on its own route.
+      { module: 'people', label: 'Staff', href: '/staff', icon: UsersRound, capabilities: ['staff:read', 'hr.people:read'] },
+      // Everyone's own rota (workforce) and HR (people) on one page, beside the
+      // team they belong to. Shown when either module is on; without workforce
+      // there is no rota tab, so the link opens the HR overview.
+      // prettier-ignore
+      { module: 'workforce', label: 'My work', href: '/my-work', icon: CalendarClock, alsoFor: [{ module: 'people', href: '/my-work?tab=overview' }] },
+    ],
+  },
+  {
+    heading: 'Workspace',
+    items: [
+      // Website and app content, served to the tenant's own sites over an API key.
+      { module: 'cms', label: 'Content', href: '/content', icon: Layers, capabilities: ['cms:read'] },
+      // The team's knowledge base and everyone's own notes.
+      { module: 'notes', label: 'Notes', href: '/notes', icon: NotebookPen, capabilities: ['notes:read'] },
+      { module: 'analytics', label: 'Reports', href: '/reports', icon: BarChart3, capabilities: ['analytics:read'] },
+      // Subject access and erasure requests, then the audit log as a tab — a
+      // workload with statutory deadlines and the record of who changed what.
+      // `auditor` reaches it through the audit log alone.
+      // prettier-ignore
+      { module: 'compliance', label: 'Compliance', href: '/compliance', icon: ShieldCheck, capabilities: ['privacy:read'], alsoFor: [{ module: 'audit', capabilities: ['audit:read'], href: '/compliance?tab=audit-log' }] },
+    ],
+  },
 ];
 
-// Under a "Reports" heading in the sidebar — looking back at the business,
-// rather than running it.
-export const analyticsNavItems: NavItem[] = [
-  { module: 'analytics', label: 'Reports', href: '/reports', icon: BarChart3, capabilities: ['analytics:read'] },
-  // Subject access and erasure requests, out of Customers: a workload with
-  // statutory deadlines is not a way of browsing customers.
-  { module: 'compliance', label: 'Compliance', href: '/compliance', icon: ShieldCheck, capabilities: ['privacy:read'] },
-  // `auditor` reaches this — the role exists to read the audit log.
-  { module: 'audit', label: 'Audit log', href: '/audit-log', icon: History, capabilities: ['audit:read'] },
-];
-
+// Under the location picker. Workspaces and locations are a tab of Settings —
+// organisation structure is set up once, so it belongs with the administration.
 export const footerNavItems: NavItem[] = [
+  // Installed apps are added as its children by the sidebar.
+  { module: 'organization', label: 'Apps', href: '/apps', icon: LayoutGrid },
   { module: 'organization', label: 'Settings', href: '/settings', icon: Settings },
   { module: 'support', label: 'Support', href: '/support', icon: HelpCircle },
 ];
-
-// Filter a nav list down to what the signed-in user can reach. A parent with
-// children stays visible if it (or any child) is accessible; if the parent's own
-// page isn't accessible its link is repointed to the first accessible child.
-const DEFAULT_MODULE_STATE: TenantModuleState[] = MODULE_IDS.map((moduleId) => ({
-  moduleId,
-  status: 'enabled',
-  configurationVersion: 1,
-  configuration: {},
-}));
-
-export function filterNavByCapability(
-  items: NavItem[],
-  capabilities: readonly string[],
-  moduleState: readonly TenantModuleState[] = DEFAULT_MODULE_STATE,
-): NavItem[] {
-  // No declared capabilities means the item is for everyone. Otherwise holding
-  // any one of them is enough. super_admin needs no special case — it holds
-  // every capability, so it passes every check naturally.
-  const canSee = (item: Pick<NavItem, 'module' | 'capabilities' | 'surface'>) => {
-    const state = moduleState.find((candidate) => candidate.moduleId === item.module);
-    if (!state || state.status !== 'enabled') return false;
-    if (item.surface) {
-      const surfaces = state.configuration.surfaces;
-      if (surfaces && typeof surfaces === 'object' && !Array.isArray(surfaces)) {
-        if ((surfaces as Record<string, unknown>)[item.surface] === false) return false;
-      }
-    }
-    return !item.capabilities || item.capabilities.length === 0 || hasAnyCapability(capabilities, ...item.capabilities);
-  };
-
-  // A shop sees its own words — Products, not Menu.
-  const retail = catalogVocabulary(moduleState) !== 'menu';
-  const worded = <T extends Pick<NavItem, 'label' | 'icon' | 'retail'>>(item: T): T =>
-    retail && item.retail ? { ...item, label: item.retail.label, icon: item.retail.icon } : item;
-
-  return items.flatMap((item) => {
-    item = worded(item);
-    if (item.children) {
-      const children = item.children.filter(canSee);
-      const selfOk = canSee(item);
-      if (children.length === 0) return selfOk ? [{ ...item, children: undefined }] : [];
-      return [{ ...item, href: selfOk ? item.href : children[0].href, children }];
-    }
-    return canSee(item) ? [item] : [];
-  });
-}
