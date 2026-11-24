@@ -9,7 +9,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { InfoRow, PickerRow } from '@/components/cms/rows';
+import { InfoRow, PickerRow } from '@/components/shared/rows';
 import { AlertTriangle, Clock, Globe, type IconComponent, Users } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';

@@ -115,18 +115,6 @@ export interface RotaTemplate {
   updatedAt: string;
 }
 
-export interface RotaTemplateShift {
-  id: string;
-  dayIndex: number;
-  startMinute: number;
-  endMinute: number;
-  userId: string | null;
-  positionId: string | null;
-  role: string | null;
-  breakMinutes: number;
-  notes: string | null;
-}
-
 export type ShiftRequestKind = 'claim' | 'swap' | 'drop';
 export type ShiftRequestStatus = 'pending' | 'accepted' | 'approved' | 'declined' | 'cancelled';
 
@@ -185,8 +173,6 @@ export const createPosition = (data: { name: string; locationId?: string | null;
 export const updatePosition = (id: string, data: Partial<Pick<Position, 'name' | 'color' | 'sortOrder' | 'isActive'>>) =>
   apiFetch<Position>(`/rota/positions/${id}`, { method: 'PATCH', body: JSON.stringify(data) });
 
-export const deletePosition = (id: string) => apiFetch<{ success: true }>(`/rota/positions/${id}`, { method: 'DELETE' });
-
 export const setPositionStaff = (id: string, userIds: string[]) =>
   apiFetch<{ staffIds: string[] }>(`/rota/positions/${id}/staff`, { method: 'PUT', body: JSON.stringify({ userIds }) });
 
@@ -207,22 +193,11 @@ export const setMyAvailability = (rules: AvailabilityRule[]) =>
 export const getRotaTemplates = (locationId: string) =>
   apiFetch<Array<RotaTemplate & { shiftCount: number }>>(`/rota/templates${query({ locationId })}`);
 
-export const getRotaTemplate = (id: string) => apiFetch<RotaTemplate & { shifts: RotaTemplateShift[] }>(`/rota/templates/${id}`);
-
 export const createTemplateFromWeek = (data: { locationId: string; weekStart: string; weeks: number; name: string }) =>
   post<RotaTemplate>('/rota/templates/from-week', data);
 
-export const renameRotaTemplate = (id: string, name: string) =>
-  apiFetch<RotaTemplate>(`/rota/templates/${id}`, { method: 'PATCH', body: JSON.stringify({ name }) });
-
-export const deleteRotaTemplate = (id: string) => apiFetch<{ success: true }>(`/rota/templates/${id}`, { method: 'DELETE' });
-
 export const applyRotaTemplate = (id: string, data: { weekStart: string; mode: FillMode }) =>
   post<FillResult>(`/rota/templates/${id}/apply`, data);
-
-// ── Labour targets ──────────────────────────────────────────────────────────
-
-export const getLabourTargets = (locationId: string) => apiFetch<LabourTargets>(`/rota/targets/${locationId}`);
 
 export const setLabourTargets = (locationId: string, data: Omit<LabourTargets, 'locationId'>) =>
   apiFetch<LabourTargets>(`/rota/targets/${locationId}`, { method: 'PUT', body: JSON.stringify(data) });

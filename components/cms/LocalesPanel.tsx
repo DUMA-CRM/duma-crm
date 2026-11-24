@@ -33,7 +33,7 @@ import { cn } from '@/lib/utils/cn';
 import { CURRENCIES, currencyLabel } from '@/lib/utils/currencies';
 import { useCmsTenantId } from '@/components/cms/ContentScope';
 
-import { RowMenu, RowWarning } from './rows';
+import { RowMenu, RowWarning } from '@/components/shared/rows';
 import { cmsKeys, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
 

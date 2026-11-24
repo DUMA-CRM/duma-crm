@@ -30,13 +30,6 @@ export function visitStatus(lastVisitAt: string | null | undefined, now: number)
   return { tone: 'lapsed', label: `Lapsed · last in ${days} days ago` };
 }
 
-/** Birthday falls in the current month — the moment a birthday email makes sense. */
-export function birthdayThisMonth(dob: string | null | undefined, now: number): boolean {
-  if (!dob) return false;
-  const month = Number(dob.slice(5, 7));
-  return month === new Date(now).getMonth() + 1;
-}
-
 /**
  * Days until their next birthday, by the local calendar — 0 on the day. A 29
  * February birthday falls on the 28th in other years. Null without a date.
@@ -62,14 +55,4 @@ export function birthdayHint(days: number | null): string | null {
   if (days === 0) return 'Birthday today';
   if (days === 1) return 'Birthday tomorrow';
   return `Birthday in ${days} days`;
-}
-
-/** "Tree nuts, Milk" or "Tree nuts, Milk +2" — named, so staff don't have to open the record. */
-export function allergySummary(allergies: readonly string[] | null | undefined, max = 2): string | null {
-  if (!allergies?.length) return null;
-  const words = allergies.map((allergy) => {
-    const text = allergy.replaceAll('_', ' ');
-    return text.charAt(0).toUpperCase() + text.slice(1);
-  });
-  return words.length > max ? `${words.slice(0, max).join(', ')} +${words.length - max}` : words.join(', ');
 }

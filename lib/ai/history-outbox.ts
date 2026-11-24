@@ -58,7 +58,3 @@ export async function flushAgentHistoryOutbox() {
   write(unresolved);
   return { saved, remaining: unresolved.length };
 }
-
-export function pendingAgentHistoryCount() {
-  return read().length;
-}

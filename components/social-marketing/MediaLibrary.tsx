@@ -5,7 +5,7 @@ import { useRef, useState } from 'react';
 
 import { ImageOptionsDialog } from '@/components/cms/ImageOptionsDialog';
 import { VideoOptionsDialog } from '@/components/cms/VideoOptionsDialog';
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import { Check, ImageIcon, Loader2, Play, UploadCloud } from '@/components/icons';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Modal } from '@/components/shared/Modal';

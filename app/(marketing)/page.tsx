@@ -5,7 +5,6 @@ import { Mascot } from '@/components/ai/Mascot';
 import {
   Building2,
   CalendarDays,
-  Check,
   ChefHat,
   ClipboardList,
   Clock,
@@ -56,6 +55,7 @@ import {
   ClosingCta,
   FaqSection,
   FeatureCard,
+  HeroTicks,
   Mark,
   SecondaryButton,
   Section,
@@ -212,14 +212,7 @@ export default function HomePage() {
             <SecondaryButton href="#why">See how it works</SecondaryButton>
           </div>
 
-          <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--mkt-ink-2)]">
-            {['Free plan, forever', 'No card needed', 'Free setup help'].map((fact) => (
-              <span key={fact} className="flex items-center gap-1.5">
-                <Check className="size-4 text-primary" aria-hidden="true" />
-                {fact}
-              </span>
-            ))}
-          </p>
+          <HeroTicks ticks={['Free plan, forever', 'No card needed', 'Free setup help']} />
 
           <div className="mt-16 sm:mt-20">
             <ProductTabs

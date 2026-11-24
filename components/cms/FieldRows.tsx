@@ -9,7 +9,7 @@ import { fieldValueInWords } from '@/lib/utils/cms';
 
 import { FieldSet } from './FieldInput';
 import { FIELD_ICONS } from './fieldIcons';
-import { InfoRow, PickerRow } from './rows';
+import { InfoRow, PickerRow } from '@/components/shared/rows';
 
 type Data = Record<string, unknown>;
 

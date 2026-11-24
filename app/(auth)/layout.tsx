@@ -5,7 +5,7 @@ import { BrandBackdrop } from '@/components/shared/BrandBackdrop';
 import { Logo } from '@/components/shared/Logo';
 import { PublicFooter } from '@/components/shared/PublicFooter';
 
-import '../(marketing)/marketing.css';
+import '@/components/marketing/marketing.css';
 
 // Account screens, not content: kept out of search so a query for "DUMA" lands
 // on the home page rather than a sign-in form. Links on them are still followed.

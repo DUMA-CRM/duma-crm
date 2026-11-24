@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 
-import { InfoRow, InfoRows } from '@/components/cms/rows';
+import { InfoRow, InfoRows } from '@/components/shared/rows';
 import { copyText } from '@/components/cms/shared';
 import { Gift, Hash, Users } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';

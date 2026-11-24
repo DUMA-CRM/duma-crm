@@ -4,6 +4,7 @@ import Link from 'next/link';
 
 import { ChevronRight } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -188,5 +189,5 @@ export function ListRow({
 
 /** The grouped white list surface shared by activity lists and content rows. */
 export function ListRowGroup({ className, ...props }: React.ComponentProps<'ul'>) {
-  return <ul className={cn('overflow-hidden rounded-lg border border-border bg-card shadow-sm', className)} {...props} />;
+  return <ul className={cn(CARD_SURFACE, className)} {...props} />;
 }

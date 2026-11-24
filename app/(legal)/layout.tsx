@@ -3,7 +3,7 @@ import Link from 'next/link';
 import { BrandBackdrop } from '@/components/shared/BrandBackdrop';
 import { Logo } from '@/components/shared/Logo';
 
-import '../(marketing)/marketing.css';
+import '@/components/marketing/marketing.css';
 
 /**
  * Privacy policy, terms of service, the DPA, the GDPR page and company information. Public on purpose — both are linked from

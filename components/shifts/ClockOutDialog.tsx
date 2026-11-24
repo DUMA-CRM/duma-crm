@@ -35,7 +35,7 @@ export function ClockOutDialog({ locationId, onClose, onClockedOut }: ClockOutDi
       for (const queryKey of affectedQueries) {
         void queryClient.invalidateQueries({ queryKey });
       }
-      toast('success', 'Clocked out. Have a good one!');
+      toast('success', 'Clocked out. See you next shift.');
       onClockedOut();
       onClose();
     },

@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import { useMemo, useState } from 'react';
 
-import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile, SectionInfo } from '@/components/cms/rows';
+import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile, SectionInfo } from '@/components/shared/rows';
 import { AlertTriangle, Boxes, ChevronDown, EyeOff, Layers, MapPin, Package, Palette, Plus, Tag, Trash2, X } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { Switch } from '@/components/settings/controls';
@@ -16,6 +16,7 @@ import { Tooltip } from '@/components/shared/Tooltip';
 import { useCurrencySymbol, useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Select } from '@/components/ui/select';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import { getLocationsByTenant } from '@/lib/api/workspace.service';
 import {
@@ -153,7 +154,7 @@ export function VariantsEditor({
             ) : undefined
           }
         >
-          <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+          <div className={CARD_SURFACE}>
             {variants.length === 0 ? (
               <div className="flex flex-col items-center gap-3 px-6 py-12 text-center">
                 <RowTile icon={Layers} />

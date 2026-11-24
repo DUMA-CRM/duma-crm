@@ -132,8 +132,6 @@ export const FIELD_TYPES: readonly { type: FormFieldType; label: string; hint: s
   { type: 'hidden', label: 'Hidden field', hint: 'Filled from the link — a campaign, a table', group: 'Behind the scenes' },
 ];
 
-export const FIELD_GROUPS: readonly FieldGroup[] = ['Text', 'Choice', 'Rating', 'Date and time', 'Layout', 'Behind the scenes'];
-
 export const fieldTypeLabel = (type: FormFieldType) => FIELD_TYPES.find((entry) => entry.type === type)?.label ?? type;
 
 const DISPLAY_TYPES: readonly FormFieldType[] = ['heading', 'paragraph', 'page_break'];

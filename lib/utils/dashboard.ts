@@ -133,15 +133,6 @@ export function percentageChange(current: number, previous: number) {
   return ((current - previous) / Math.abs(previous)) * 100;
 }
 
-export function formatMoney(value: number, digits = 0) {
-  return new Intl.NumberFormat('en-GB', {
-    style: 'currency',
-    currency: 'GBP',
-    minimumFractionDigits: digits,
-    maximumFractionDigits: digits,
-  }).format(value);
-}
-
 export function formatCompact(value: number) {
   return new Intl.NumberFormat('en-GB', { notation: 'compact', maximumFractionDigits: 1 }).format(value);
 }

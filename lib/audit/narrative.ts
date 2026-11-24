@@ -1,11 +1,11 @@
 import type { AuditLog } from '../api/audit.service.ts';
 
-import { auditSubject, shortId } from './change.ts';
+import { auditSubject } from './change.ts';
 import { type AuditDomain, actionPhrase, resourceMeta } from './vocabulary.ts';
-import { workspaceDateKey, workspaceFormatter } from '../utils/workspace-time.ts';
+import { workspaceFormatter } from '../utils/workspace-time.ts';
 
 export type { AuditDomain } from './vocabulary.ts';
-export { actionFilterLabel, resourceMeta } from './vocabulary.ts';
+export { resourceMeta } from './vocabulary.ts';
 
 /**
  * Turns an audit record into a sentence.
@@ -98,11 +98,6 @@ export function severityClass(severity: AuditSeverity, domain: AuditDomain): str
   return severity === 'ok' ? DOMAIN_CLASS[domain] : EXCEPTION_CLASS;
 }
 
-/** Whether this entry counts toward the "needs a look" tally above the stream. */
-export function isFlagged(severity: AuditSeverity): boolean {
-  return severity === 'failed' || severity === 'refused';
-}
-
 // ── Sentences ─────────────────────────────────────────────────────────────────
 
 export const ROLE_LABEL: Record<string, string> = {
@@ -134,23 +129,6 @@ export function auditPhrase(log: AuditLog): string {
   return actionPhrase(log.action, log.resourceType, auditSubject(log));
 }
 
-/**
- * The row's sentence, plus the short ID to print after it when the payload gave
- * up no readable name.
- *
- * Without this a row reads "Sam Reed cancelled an order" and two different
- * orders are indistinguishable in the list. The ID is returned separately, and
- * never spliced into the sentence, so it is styled as an identifier rather than
- * read as the record's name.
- */
-export function auditSentence(log: AuditLog): { phrase: string; recordId: string | null } {
-  const subject = auditSubject(log);
-  return {
-    phrase: actionPhrase(log.action, log.resourceType, subject),
-    recordId: subject || !log.resourceId ? null : shortId(log.resourceId),
-  };
-}
-
 export function resourceLabel(resourceType: string): string {
   return resourceMeta(resourceType).plural;
 }
@@ -158,7 +136,6 @@ export function resourceLabel(resourceType: string): string {
 // ── Time ──────────────────────────────────────────────────────────────────────
 
 const TIME_FORMAT = () => workspaceFormatter({ hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
-const DAY_FORMAT = () => workspaceFormatter({ weekday: 'short', day: 'numeric', month: 'short' });
 const FULL_FORMAT = () =>
   workspaceFormatter({
     weekday: 'long',
@@ -180,36 +157,6 @@ export function timeOfDay(iso: string): string {
 export function fullTimestamp(iso: string): string {
   const date = new Date(iso);
   return Number.isNaN(date.getTime()) ? 'Unknown time' : FULL_FORMAT().format(date);
-}
-
-/** Workspace calendar day, used to group the stream. */
-export function dayKey(iso: string): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return 'unknown';
-  return workspaceDateKey(date);
-}
-
-export function dayLabel(iso: string, now: number): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return 'Undated';
-  const today = dayKey(new Date(now).toISOString());
-  if (dayKey(iso) === today) return 'Today';
-  const [year, month, day] = today.split('-').map(Number);
-  if (dayKey(iso) === new Date(Date.UTC(year, month - 1, day - 1)).toISOString().slice(0, 10)) return 'Yesterday';
-  return DAY_FORMAT().format(date);
-}
-
-/**
- * The stamp for a table row: the day only when it isn't obvious from context.
- * Replaces the day-separator headers the bespoke list used, so the ledger can
- * live in a plain table like every other list in the product.
- */
-export function stampLabel(iso: string, now: number): string {
-  const date = new Date(iso);
-  if (Number.isNaN(date.getTime())) return '—';
-  const day = dayLabel(iso, now);
-  const time = timeOfDay(iso).slice(0, 5);
-  return day === 'Today' ? time : `${day} ${time}`;
 }
 
 export { relativeTime } from '../utils/relative-time.ts';

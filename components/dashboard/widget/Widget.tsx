@@ -49,16 +49,6 @@ export function useRows(rowPx: number, reservedPx = 0): number {
 /** The domain colours of the product, for the widget's name and glyph. */
 export type WidgetTint = 'brand' | 'orders' | 'kitchen' | 'stock' | 'team' | 'money' | 'exception';
 
-export const TINT_INK: Record<WidgetTint, string> = {
-  brand: 'text-primary',
-  orders: 'text-measured',
-  kitchen: 'text-reference',
-  stock: 'text-stock',
-  team: 'text-success',
-  money: 'text-primary',
-  exception: 'text-exception',
-};
-
 export const TINT_FILL: Record<WidgetTint, string> = {
   brand: 'bg-primary',
   orders: 'bg-measured',

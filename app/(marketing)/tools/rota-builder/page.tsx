@@ -1,16 +1,10 @@
 import type { Metadata } from 'next';
 
-import { BarChart3, CalendarClock, Check, Clock, Smartphone } from '@/components/icons';
-import { JsonLd } from '@/components/marketing/JsonLd';
-import { ChalkCurve, RisingLines } from '@/components/marketing/Strokes';
-import { ClosingCta, FaqSection, FeatureCard, Section, SectionHeading } from '@/components/marketing/sections';
-import { NumberDot } from '@/components/marketing/solution';
+import { BarChart3, CalendarClock, Clock, Smartphone } from '@/components/icons';
 import { RotaBuilder } from '@/components/marketing/tools/RotaBuilder';
-import { ToolBreadcrumb } from '@/components/marketing/tools/ToolBreadcrumb';
+import { ToolPage, type ToolStep } from '@/components/marketing/tools/ToolPage';
 
 import { marketingMetadata } from '@/lib/marketing/metadata';
-import { breadcrumbSchema, faqSchema, webApplicationSchema } from '@/lib/marketing/schema';
-import { TOOLS_INDEX, freeTool } from '@/lib/marketing/tools';
 import { DEFAULT_RULES, costPence, formatHours, formatRotaMoney, shiftSpan } from '@/lib/utils/rota-builder';
 
 const PATH = '/tools/rota-builder';
@@ -35,7 +29,7 @@ const SHIFT_COST = costPence(OPEN_SPAN.paidMinutes, RATE_PENCE);
 /** The worked example is in pounds; the builder takes any currency. */
 const gbp = (pence: number) => formatRotaMoney(pence, 'GBP');
 
-const STEPS: readonly { title: string; body: string; formula?: string }[] = [
+const STEPS: readonly ToolStep[] = [
   {
     title: 'Start from when you trade',
     body: 'Your busiest hours decide who you need, not your opening hours. Put the strongest people on the rush.',
@@ -131,110 +125,40 @@ const FAQS = [
  * /tools/rota-builder — the free staff rota builder. The page is
  * server-rendered and explains how to build a rota; the builder is a client
  * island (components/marketing/tools/RotaBuilder.tsx). Every figure comes from
- * lib/utils/rota-builder.ts.
+ * lib/utils/rota-builder.ts. No related links: it is the one tool without them.
  */
 export default function RotaBuilderPage() {
   return (
-    <>
-      <JsonLd
-        data={webApplicationSchema({
-          name: freeTool(PATH).name,
-          path: PATH,
-          description: DESCRIPTION,
-          features: [
-            'Weekly staff rota for a team',
-            'Paid hours less unpaid breaks',
-            'Staff cost and labour % of expected sales',
-            'Any currency, Monday- or Sunday-first weeks',
-            'Working-time checks you set: breaks, rest between shifts, weekly hours',
-            'Print, save as PDF or download as an image',
-          ],
-        })}
-      />
-      <JsonLd
-        data={breadcrumbSchema([
-          { name: TOOLS_INDEX.name, path: TOOLS_INDEX.path },
-          { name: freeTool(PATH).name, path: PATH },
-        ])}
-      />
-      <JsonLd data={faqSchema(FAQS)} />
-
-      {/* The curves sit on a wrapper round the hero and the builder: the hero alone is too short to hold them. */}
-      <div className="relative -mt-16 overflow-hidden">
-        <ChalkCurve side="left" id="rota-left" className="pointer-events-none absolute top-0 -left-24 hidden w-[34rem] md:block" />
-        <ChalkCurve side="right" id="rota-right" className="pointer-events-none absolute top-56 -right-40 hidden w-[44rem] md:block" />
-        <section className="relative px-4 pt-30 pb-6 sm:px-6 sm:pt-40">
-          <div className="relative z-10 mx-auto w-full max-w-5xl">
-            <ToolBreadcrumb path={PATH} />
-            <h1 className="text-[2.6rem] leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-6xl">
-              Free staff rota builder, <span className="mkt-mark mkt-mark-green rounded-md px-2">ready to print</span>
-            </h1>
-            <p className="mt-6 max-w-[44rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">
-              Plan the week’s shifts, see the hours and what they cost, and catch missing breaks. Print it, save a PDF or send it as an
-              image.
-            </p>
-            <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--mkt-ink-2)]">
-              {['Free, no sign-up', 'Any currency, any country', 'Nothing leaves your browser'].map((fact) => (
-                <span key={fact} className="flex items-center gap-1.5">
-                  <Check className="size-4 text-primary" aria-hidden="true" />
-                  {fact}
-                </span>
-              ))}
-            </p>
-          </div>
-        </section>
-
-        <Section spacing="snug" aria-labelledby="rota-builder-heading">
-          <h2 id="rota-builder-heading" className="sr-only">Build your weekly rota</h2>
-          <RotaBuilder />
-        </Section>
-      </div>
-
-      <Section spacing="normal" aria-labelledby="how-to-rota">
-        <SectionHeading
-          id="how-to-rota"
-          title="How to write a staff rota"
-          muted="Five steps, once a week."
-          intro={
-            <p>
-              Worked through for an opening shift at a café, for a barista on {gbp(RATE_PENCE)} an hour. The builder works in any currency.
-            </p>
-          }
-        />
-        <ol className="mt-10 flex max-w-3xl flex-col gap-8">
-          {STEPS.map((step, index) => (
-            <li key={step.title} className="flex gap-4" data-reveal="" data-reveal-delay={index * 60}>
-              <NumberDot n={index + 1} />
-              <div className="min-w-0">
-                <p className="text-[1.0625rem] font-semibold text-[var(--mkt-heading)]">{step.title}</p>
-                <p className="mt-1.5 text-pretty leading-relaxed text-[var(--mkt-ink-2)]">{step.body}</p>
-                {step.formula && (
-                  <p className="mt-3 inline-block rounded-md border border-[var(--mkt-line)] bg-[var(--mkt-card)] px-3 py-1.5 font-mono text-sm text-foreground tabular-nums">
-                    {step.formula}
-                  </p>
-                )}
-              </div>
-            </li>
-          ))}
-        </ol>
-      </Section>
-
-      <Section spacing="snug" aria-labelledby="in-duma">
-        <SectionHeading id="in-duma" title="Every week, not just this one." muted="Free in DUMA." />
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {IN_DUMA.map((point, index) => (
-            <FeatureCard key={point.title} icon={point.icon} tone={point.tone} title={point.title} body={point.body} delay={index * 60} />
-          ))}
-        </div>
-      </Section>
-
-      <FaqSection items={FAQS} title="Questions about rotas" />
-
-      <ClosingCta
-        title="This builder plans one week."
-        muted="DUMA runs every one."
-        aside={<RisingLines id="rota-cta" />}
-      />
-    </>
+    <ToolPage
+      path={PATH}
+      description={DESCRIPTION}
+      features={[
+        'Weekly staff rota for a team',
+        'Paid hours less unpaid breaks',
+        'Staff cost and labour % of expected sales',
+        'Any currency, Monday- or Sunday-first weeks',
+        'Working-time checks you set: breaks, rest between shifts, weekly hours',
+        'Print, save as PDF or download as an image',
+      ]}
+      curveId="rota"
+      hero={{
+        lead: 'Free staff rota builder,',
+        mark: 'ready to print',
+        subtitle: 'Plan the week’s shifts, see the hours and what they cost, and catch missing breaks. Print it, save a PDF or send it as an image.',
+        ticks: ['Free, no sign-up', 'Any currency, any country', 'Nothing leaves your browser'],
+      }}
+      tool={{ node: <RotaBuilder />, label: 'Build your weekly rota', headingId: 'rota-builder-heading' }}
+      how={{
+        id: 'how-to-rota',
+        title: 'How to write a staff rota',
+        muted: 'Five steps, once a week.',
+        intro: <p>Worked through for an opening shift at a café, for a barista on {gbp(RATE_PENCE)} an hour. The builder works in any currency.</p>,
+        steps: STEPS,
+      }}
+      inDuma={{ title: 'Every week, not just this one.', points: IN_DUMA }}
+      faqTitle="Questions about rotas"
+      faqs={FAQS}
+      closing={{ title: 'This builder plans one week.', muted: 'DUMA runs every one.' }}
+    />
   );
 }

@@ -1,17 +1,10 @@
 import type { Metadata } from 'next';
 
-import { Banknote, Check, ClipboardList, CreditCard, EyeOff } from '@/components/icons';
-import { JsonLd } from '@/components/marketing/JsonLd';
-import { RelatedSection } from '@/components/marketing/RelatedLinks';
-import { ChalkCurve, RisingLines } from '@/components/marketing/Strokes';
-import { ClosingCta, FaqSection, FeatureCard, Section, SectionHeading } from '@/components/marketing/sections';
-import { NumberDot } from '@/components/marketing/solution';
+import { Banknote, ClipboardList, CreditCard, EyeOff } from '@/components/icons';
 import { CashUpCalculator } from '@/components/marketing/tools/CashUpCalculator';
-import { ToolBreadcrumb } from '@/components/marketing/tools/ToolBreadcrumb';
+import { ToolPage } from '@/components/marketing/tools/ToolPage';
 
 import { marketingMetadata } from '@/lib/marketing/metadata';
-import { breadcrumbSchema, faqSchema, webApplicationSchema } from '@/lib/marketing/schema';
-import { TOOLS_INDEX, freeTool, otherTools } from '@/lib/marketing/tools';
 import { balanceOf } from '@/lib/utils/cash-count';
 import { bankingMinor, expectedCashMinor } from '@/lib/utils/cash-up-calculator';
 import { fmtGbpExact } from '@/lib/utils/format';
@@ -132,108 +125,30 @@ const FAQS = [
  */
 export default function CashUpCalculatorPage() {
   return (
-    <>
-      <JsonLd
-        data={webApplicationSchema({
-          name: 'Cash-up calculator',
-          path: PATH,
-          description: DESCRIPTION,
-          features: [
-            'Count UK notes and coins, £50 to 1p',
-            'Expected cash from the float, cash sales and paid-outs',
-            'Over or short',
-            'Card machine check',
-            'How much to bank',
-          ],
-        })}
-      />
-      <JsonLd
-        data={breadcrumbSchema([
-          { name: TOOLS_INDEX.name, path: TOOLS_INDEX.path },
-          { name: freeTool(PATH).name, path: PATH },
-        ])}
-      />
-      <JsonLd data={faqSchema(FAQS)} />
-
-      {/* The curves sit on a wrapper round the hero and the calculator: the hero alone is too short to hold them. */}
-      <div className="relative -mt-16 overflow-hidden">
-        <ChalkCurve side="left" id="cashup-left" className="pointer-events-none absolute top-0 -left-24 hidden w-[34rem] md:block" />
-        <ChalkCurve side="right" id="cashup-right" className="pointer-events-none absolute top-56 -right-40 hidden w-[44rem] md:block" />
-        <section className="relative px-4 pt-30 pb-6 sm:px-6 sm:pt-40">
-          <div className="relative z-10 mx-auto w-full max-w-5xl">
-            <ToolBreadcrumb path={PATH} />
-            <h1 className="text-[2.6rem] leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-6xl">
-              Free cash-up calculator, <span className="mkt-mark mkt-mark-green rounded-md px-2">for your till</span>
-            </h1>
-            <p className="mt-6 max-w-[44rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">
-              Count the drawer, check it against the float and cash sales, and see what to bank. Over, short or spot on, in a minute.
-            </p>
-            <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--mkt-ink-2)]">
-              {['Free, no sign-up', 'Every UK note and coin', 'Nothing leaves your browser'].map((fact) => (
-                <span key={fact} className="flex items-center gap-1.5">
-                  <Check className="size-4 text-primary" aria-hidden="true" />
-                  {fact}
-                </span>
-              ))}
-            </p>
-          </div>
-        </section>
-
-        <Section spacing="snug" aria-label="Cash-up calculator">
-          <CashUpCalculator />
-        </Section>
-      </div>
-
-      <Section spacing="normal" aria-labelledby="how-to-cash-up">
-        <SectionHeading
-          id="how-to-cash-up"
-          title="How to cash up a till"
-          muted="Five steps at closing."
-          intro={
-            <p>
-              Worked through for the example drawer above: a {gbp(FLOAT)} float and {gbp(CASH_SALES)} of cash sales.
-            </p>
-          }
-        />
-        <ol className="mt-10 flex max-w-3xl flex-col gap-8">
-          {STEPS.map((step, index) => (
-            <li key={step.title} className="flex gap-4" data-reveal="" data-reveal-delay={index * 60}>
-              <NumberDot n={index + 1} />
-              <div className="min-w-0">
-                <p className="text-[1.0625rem] font-semibold text-[var(--mkt-heading)]">{step.title}</p>
-                <p className="mt-1.5 text-pretty leading-relaxed text-[var(--mkt-ink-2)]">{step.body}</p>
-                <p className="mt-3 inline-block rounded-md border border-[var(--mkt-line)] bg-[var(--mkt-card)] px-3 py-1.5 font-mono text-sm text-foreground tabular-nums">
-                  {step.formula}
-                </p>
-              </div>
-            </li>
-          ))}
-        </ol>
-      </Section>
-
-      <Section spacing="snug" aria-labelledby="in-duma">
-        <SectionHeading id="in-duma" title="Every night, not just tonight." muted="Free in DUMA." />
-        <div className="mt-8 grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
-          {IN_DUMA.map((point, index) => (
-            <FeatureCard key={point.title} icon={point.icon} tone={point.tone} title={point.title} body={point.body} delay={index * 60} />
-          ))}
-        </div>
-      </Section>
-
-      <FaqSection items={FAQS} title="Questions about cashing up" />
-
-      <RelatedSection
-        id="related"
-        audiences={[...otherTools(PATH), { path: TOOLS_INDEX.path, label: 'Every free tool' }]}
-        audiencesTitle="More free tools"
-        terms={freeTool(PATH).terms}
-      />
-
-      <ClosingCta
-        title="This calculator does one night."
-        muted="DUMA does every one."
-        aside={<RisingLines id="cashup-cta" />}
-      />
-    </>
+    <ToolPage
+      path={PATH}
+      description={DESCRIPTION}
+      features={['Count UK notes and coins, £50 to 1p', 'Expected cash from the float, cash sales and paid-outs', 'Over or short', 'Card machine check', 'How much to bank']}
+      curveId="cashup"
+      hero={{
+        lead: 'Free cash-up calculator,',
+        mark: 'for your till',
+        subtitle: 'Count the drawer, check it against the float and cash sales, and see what to bank. Over, short or spot on, in a minute.',
+        ticks: ['Free, no sign-up', 'Every UK note and coin', 'Nothing leaves your browser'],
+      }}
+      tool={{ node: <CashUpCalculator />, label: 'Cash-up calculator' }}
+      how={{
+        id: 'how-to-cash-up',
+        title: 'How to cash up a till',
+        muted: 'Five steps at closing.',
+        intro: <p>Worked through for the example drawer above: a {gbp(FLOAT)} float and {gbp(CASH_SALES)} of cash sales.</p>,
+        steps: STEPS,
+      }}
+      inDuma={{ title: 'Every night, not just tonight.', points: IN_DUMA }}
+      faqTitle="Questions about cashing up"
+      faqs={FAQS}
+      related
+      closing={{ title: 'This calculator does one night.', muted: 'DUMA does every one.' }}
+    />
   );
 }

@@ -6,18 +6,19 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useEffect, useMemo, useState } from 'react';
 
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import { ArrowRight, Award, Clock, Gift, Hash, Plus, Repeat, TicketPercent, Users, XCircle } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
 import { ChangeRow, Fact, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { ChoiceCards } from '@/components/shared/FormParts';
+import { ChoiceCards, Hint } from '@/components/shared/FormParts';
 import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { RecordGroup } from '@/components/shared/RecordGroup';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
+import { FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
+import { SettingRowsSectionSkeleton } from '@/components/shared/TileSkeleton';
 import type { Tone } from '@/components/shared/tone';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,7 +37,6 @@ import {
   saveReferralProgram,
 } from '@/lib/modules/referrals/client';
 import { toast } from '@/lib/toast';
-import { cn } from '@/lib/utils/cn';
 import {
   REFERRAL_STATUS_BADGE,
   REFERRAL_STATUS_LABELS,
@@ -499,35 +499,14 @@ function ReferralsForm({
 }
 
 /** The line under an open row's control: why it matters, or what's wrong with it. */
-function Hint({ error, children }: { error?: string | undefined; children: React.ReactNode }) {
-  return <p className={cn('mt-1.5 text-xs', error ? 'text-exception' : 'text-muted-foreground')}>{error ?? children}</p>;
-}
-
 /** The page without its words: the figures, then the two sections of rows. */
 function ReferralsSkeleton() {
-  const section = (rows: number) => (
-    <div className="space-y-2">
-      <Bone className="h-4 w-24" />
-      <div className="space-y-5 rounded-lg border border-border bg-card px-5 py-4 shadow-sm">
-        {Array.from({ length: rows }, (_, index) => (
-          <div key={index} className="flex items-center gap-3">
-            <Bone className="size-10 shrink-0" />
-            <span className="min-w-0 flex-1 space-y-1.5">
-              <Bone className="h-2.5 w-20" />
-              <Bone className="h-3.5 w-40 max-w-full" />
-            </span>
-            <Bone className="h-8 w-20 shrink-0" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
   return (
     <div className="flex flex-col gap-5" role="status" aria-label="Loading refer a friend">
       <FactsSkeleton count={4} label="Loading referral figures" className="gap-3 sm:grid-cols-2 xl:grid-cols-4" />
       <div className="grid items-start gap-5 lg:grid-cols-2">
-        {section(3)}
-        {section(3)}
+        <SettingRowsSectionSkeleton rows={3} />
+        <SettingRowsSectionSkeleton rows={3} />
       </div>
     </div>
   );

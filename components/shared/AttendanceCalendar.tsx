@@ -34,7 +34,6 @@ export const hrs = (hours: number) => `${Math.round(hours * 10) / 10}h`;
 export const toHours = (minutes: number) => (Number(minutes) || 0) / 60;
 export const dayLabel = (iso: string) =>
   new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { weekday: 'short', day: 'numeric', month: 'short' });
-export const shortDay = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });
 const todayIso = () => {
   const now = new Date();
   return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`;

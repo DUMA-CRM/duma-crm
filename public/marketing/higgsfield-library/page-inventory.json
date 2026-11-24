@@ -49,7 +49,7 @@
     "folder": "solutions/cafes",
     "local_sources": [
       "app/(marketing)/solutions/cafes/page.tsx",
-      "lib/marketing/cafes.ts"
+      "lib/marketing/solutions/cafes.tsx"
     ],
     "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
     "scene": "A barista pours a flat white, serves a croissant, and hands the coffee to a customer at a small British caf\u00e9."
@@ -63,7 +63,7 @@
     "folder": "solutions/shops",
     "local_sources": [
       "app/(marketing)/solutions/shops/page.tsx",
-      "lib/marketing/shops.ts"
+      "lib/marketing/solutions/shops.tsx"
     ],
     "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
     "scene": "An independent clothing shop owner folds cotton shirts, checks size tags and packs an unbranded shopping bag."
@@ -129,7 +129,7 @@
     "folder": "solutions/any-business",
     "local_sources": [
       "app/(marketing)/solutions/any-business/page.tsx",
-      "lib/marketing/any-business.ts"
+      "lib/marketing/solutions/any-business.tsx"
     ],
     "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
     "scene": "Two small-business colleagues plan their work at a bright studio table with notebooks and a laptop seen from the back."

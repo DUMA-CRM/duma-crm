@@ -311,11 +311,6 @@ export const COMET_RIBBONS: ArcSeed[] = Array.from({ length: 4 }, (_, i) => {
 
 /** Rayon du point de la comete, mesure a 0.129. */
 export const COMET_DOT = 0.129
-
-/* --------------------------------------------------- pastille notification */
-
-/** Bleu releve au pixel. */
-export const NOTIF_BLUE = '#2496e8'
 /** La pastille est posee exactement sur la circonference, a -42deg. */
 export const NOTIF_ANGLE = -42
 export const NOTIF_DIST = 1.003

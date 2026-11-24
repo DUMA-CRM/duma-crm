@@ -181,25 +181,9 @@ export interface ListedWaitlistEntry {
   createdAt: string;
 }
 
-/** `recent` is the parties who came off the list — a separate fetch. */
-export type WaitlistView = 'waiting' | 'notified' | 'over' | 'recent';
-
-export const WAITLIST_VIEW_LABELS: Record<WaitlistView, string> = {
-  waiting: 'Waiting now',
-  notified: 'Told it’s ready',
-  over: 'Over their quote',
-  recent: 'Off the list',
-};
-
 /** Waited longer than they were told. */
 export const isOverQuote = (entry: ListedWaitlistEntry, now: Date) =>
   waitTone(minutesBetween(entry.createdAt, now), entry.quotedWaitMinutes) === 'over';
-
-export function inWaitlistView(entry: ListedWaitlistEntry, view: Exclude<WaitlistView, 'recent'>, now: Date): boolean {
-  if (view === 'notified') return entry.status === 'notified';
-  if (view === 'over') return isOverQuote(entry, now);
-  return true;
-}
 
 export function matchesWaitlistSearch(entry: ListedWaitlistEntry, search: string): boolean {
   const term = search.trim().toLowerCase();

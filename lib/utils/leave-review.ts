@@ -1,3 +1,5 @@
+import { plural } from './format.ts';
+
 /**
  * What a reviewer needs beside a leave request before saying yes: does it fit
  * the person's allowance, who else is already off those days, and which rota
@@ -74,7 +76,6 @@ export function leaveContext(
   return { alsoOff, shiftsDuring, balance };
 }
 
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 const DAY_MS = 86_400_000;
 
 export type LeaveUrgency = 'calm' | 'warning' | 'exception';

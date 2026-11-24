@@ -1,6 +1,6 @@
 'use client';
 
-import { ElasticSlider, type ElasticSliderProps } from '@/components/elastic-slider';
+import { ElasticSlider, type ElasticSliderProps } from '@/components/ui/elastic-slider';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -31,5 +31,3 @@ export function Slider({ className, ...props }: ElasticSliderProps) {
     />
   );
 }
-
-export type SliderProps = ElasticSliderProps;

@@ -21,5 +21,3 @@ export function useCmsAccess() {
     canManageKeys: hasCapability(capabilities, 'cms.keys:write'),
   };
 }
-
-export type CmsAccess = ReturnType<typeof useCmsAccess>;

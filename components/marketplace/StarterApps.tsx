@@ -2,7 +2,7 @@
 
 import { useState, type ReactNode } from 'react';
 
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import { Input } from '@/components/ui/input';
 import { type VatContext, computeCosting } from '@/lib/menu/costing';
 import { priceForTargetMargin } from '@/lib/utils/margin-calculator';

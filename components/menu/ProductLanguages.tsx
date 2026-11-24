@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { RowTile } from '@/components/cms/rows';
+import { RowTile } from '@/components/shared/rows';
 import { cmsKeys } from '@/components/cms/shared';
 import { ChevronDown, Coins, Globe, Languages, Trash2 } from '@/components/icons';
 import { CommitInput, catalogKey } from '@/components/menu/VariantsEditor';
@@ -19,6 +19,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import {
@@ -120,7 +121,7 @@ function Card({
       }
       footnote={footnote}
     >
-      <div className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">{children}</div>
+      <div className={CARD_SURFACE}>{children}</div>
     </RecordGroup>
   );
 }

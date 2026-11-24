@@ -4,7 +4,7 @@ import { motion } from 'motion/react';
 import { useState } from 'react';
 
 import { Mascot } from '@/components/ai/Mascot';
-import { SectionInfo } from '@/components/cms/rows';
+import { SectionInfo } from '@/components/shared/rows';
 import {
   AlignLeft,
   ArrowLeft,

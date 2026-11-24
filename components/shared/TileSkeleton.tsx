@@ -1,4 +1,5 @@
 import { Bone, RowSkeleton } from '@/components/shared/Skeleton';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -88,7 +89,7 @@ export function FramedRows({
   className?: string;
 }) {
   return (
-    <div className={cn('overflow-hidden rounded-lg border border-border bg-card shadow-sm', className)} aria-hidden="true">
+    <div className={cn(CARD_SURFACE, className)} aria-hidden="true">
       {Array.from({ length: rows }, (_, index) => (
         <RowSkeleton key={index} index={index} avatar={avatar} trailing={trailing} />
       ))}
@@ -112,6 +113,49 @@ export function SectionSkeleton({ fields = 3, className, children }: { fields?: 
               <Bone className="h-10 w-full" />
             </div>
           ))}
+      </div>
+    </div>
+  );
+}
+
+/**
+ * `rows` settings rows (`SettingRow`, `ChangeRow`, `InfoRow`) without their
+ * words: a size-10 tile, the label and value lines, and — unless `action` is
+ * off — the Change button. A fragment: the caller's container spaces them.
+ */
+export function SettingRowSkeleton({
+  rows = 1,
+  value = 'w-44',
+  action = true,
+}: {
+  rows?: number;
+  /** The value line's width — match the loaded row's typical value. */
+  value?: string;
+  action?: boolean;
+}) {
+  return (
+    <>
+      {Array.from({ length: rows }, (_, index) => (
+        <div key={index} className="flex items-center gap-3" aria-hidden="true">
+          <Bone className="size-10 shrink-0" />
+          <span className="min-w-0 flex-1 space-y-1.5">
+            <Bone className="h-2.5 w-20" />
+            <Bone className={cn('h-3.5 max-w-full', value)} />
+          </span>
+          {action && <Bone className="h-8 w-20 shrink-0" />}
+        </div>
+      ))}
+    </>
+  );
+}
+
+/** A titled section of settings rows loading: the heading above, the rows in a card. */
+export function SettingRowsSectionSkeleton({ rows, value = 'w-40' }: { rows: number; value?: string }) {
+  return (
+    <div className="space-y-2">
+      <Bone className="h-4 w-24" />
+      <div className="space-y-5 rounded-lg border border-border bg-card px-5 py-4 shadow-sm">
+        <SettingRowSkeleton rows={rows} value={value} />
       </div>
     </div>
   );

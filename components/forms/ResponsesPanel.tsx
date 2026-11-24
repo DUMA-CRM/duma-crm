@@ -4,7 +4,7 @@ import { keepPreviousData, useMutation, useQuery, useQueryClient } from '@tansta
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
 
-import { InfoRow } from '@/components/cms/rows';
+import { InfoRow } from '@/components/shared/rows';
 import {
   Archive,
   Bell,

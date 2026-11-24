@@ -1,6 +1,6 @@
 'use client';
 
-import { RowTile } from '@/components/cms/rows';
+import { RowTile } from '@/components/shared/rows';
 import { ChevronDown, Info } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';

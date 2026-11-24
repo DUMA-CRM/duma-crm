@@ -92,7 +92,6 @@ export const checkAccount = (id: string) =>
   apiFetch<{ checkedAt: string }>(`/marketing/accounts/${id}/check`, { method: 'POST', body: '{}' });
 export const posts = (from: string, to: string, page = 1) =>
   apiFetch<{ data: Post[]; hasMore: boolean }>(`/marketing/posts?${new URLSearchParams({ from, to, page: String(page) })}`);
-export const getPost = (id: string) => apiFetch<Post>(`/marketing/posts/${id}`);
 export const savePost = (id: string | undefined, input: PostDraft) =>
   apiFetch<Post>(`/marketing/posts${id ? '/' + id : ''}`, { method: id ? 'PUT' : 'POST', body: JSON.stringify(input) });
 /** Removes the post from DUMA only — never from the platforms it went to. */

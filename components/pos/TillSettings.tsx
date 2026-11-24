@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { useMemo, useState } from 'react';
 
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import {
   ArrowDown,
   ArrowUp,

@@ -4,6 +4,7 @@
 // tested; the setup page only draws it.
 // ---------------------------------------------------------------------------
 import type { LoyaltyEarnRule, LoyaltyRewardRule, LoyaltyRewardValidity } from '@/lib/api/loyalty.service';
+import { plural } from './format.ts';
 
 export interface ProgrammeRules {
   name: string;
@@ -16,8 +17,6 @@ export interface ProgrammeRules {
 
 /** What `spendOn` says when a reward isn't limited — the promise then leaves it unsaid. */
 export const ANY_ITEM = 'any item';
-
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 /** "Coffee", "Coffee and Tea", "Coffee, Tea and 2 more" — or the fallback when nothing is named. */
 export function sentenceList(names: string[], fallback: string) {

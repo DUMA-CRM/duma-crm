@@ -32,6 +32,7 @@ import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
 import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone, FactsSkeleton, ListSkeleton } from '@/components/shared/Skeleton';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import { getStaff } from '@/lib/modules/identity/client';
 import { getPayrollRuns } from '@/lib/modules/payroll/client';
@@ -59,6 +60,7 @@ import {
 } from '@/lib/utils/staff-overview';
 import { type RosterRow, type RosterStatus, buildRoster } from '@/lib/utils/today-roster';
 import { workspaceDateKey, workspaceFormatter } from '@/lib/utils/workspace-time';
+import { plural } from '@/lib/utils/format';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 /** Consequence as colour: blocking is red, attention amber, information the calm green. */
@@ -75,11 +77,6 @@ const SEVERITY_ICON: Record<StaffAttentionSeverity, typeof AlertTriangle> = {
 
 /** The day an instant falls on at the business — not in UTC, not on this device. */
 const isoDate = (date: Date) => workspaceDateKey(date);
-
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-
-/** The surface every list on this page sits on — the same as `ListRowGroup`. */
-const CARD = 'overflow-hidden rounded-lg border border-border bg-card shadow-sm';
 
 export interface StaffOverviewAccess {
   team: boolean;
@@ -367,7 +364,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
         {loading ? (
           <ListSkeleton rows={3} label="Checking the team" />
         ) : error ? (
-          <div className={CARD}>
+          <div className={CARD_SURFACE}>
             <ErrorState
               title="The team checks couldn’t run"
               description="Some of this page’s data didn’t load, so nothing here is a complete picture."
@@ -375,7 +372,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
             />
           </div>
         ) : items.length === 0 ? (
-          <div className={CARD}>
+          <div className={CARD_SURFACE}>
             <EmptyState
               compact
               kind="done"
@@ -404,7 +401,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
           {!mounted || rotaQ.isPending || activeQ.isPending ? (
             <RosterSkeleton />
           ) : rotaQ.isError || activeQ.isError ? (
-            <div className={CARD}>
+            <div className={CARD_SURFACE}>
               <ErrorState title="Today’s rota couldn’t be loaded" onRetry={() => void Promise.all([rotaQ.refetch(), activeQ.refetch()])} />
             </div>
           ) : roster ? (
@@ -441,7 +438,7 @@ export function StaffOverview({ access }: { access: StaffOverviewAccess }) {
               {recordsLoading ? (
                 <ListSkeleton rows={2} trailing={false} label="Checking records" />
               ) : recordsError ? (
-                <div className={CARD}>
+                <div className={CARD_SURFACE}>
                   <ErrorState
                     title="Records couldn’t be checked"
                     onRetry={() => void Promise.all([summaryQ.refetch(), staffQ.refetch(), employeesQ.refetch()])}
@@ -497,7 +494,7 @@ function OpenLink({ href, children }: { href: string; children: React.ReactNode 
 /** `TodayRoster` without its words: the legend, then a row per person with their bar. */
 function RosterSkeleton() {
   return (
-    <div role="status" aria-busy="true" aria-label="Loading today’s rota" className={CARD}>
+    <div role="status" aria-busy="true" aria-label="Loading today’s rota" className={CARD_SURFACE}>
       <div className="flex items-center gap-3 px-5 pt-4" aria-hidden="true">
         <Bone className="h-3 w-48" />
       </div>
@@ -545,7 +542,7 @@ function TodayRoster({ roster }: { roster: ReturnType<typeof buildRoster> }) {
 
   if (rows.length === 0) {
     return (
-      <div className={CARD}>
+      <div className={CARD_SURFACE}>
         <EmptyState
           compact
           icon={CalendarDays}
@@ -557,7 +554,7 @@ function TodayRoster({ roster }: { roster: ReturnType<typeof buildRoster> }) {
   }
 
   return (
-    <div className={CARD}>
+    <div className={CARD_SURFACE}>
       <ul className="flex flex-wrap items-center gap-x-4 gap-y-1 px-5 pt-4">
         {LEGEND_ORDER.filter((status) => counts[status] > 0).map((status) => (
           <li key={status} className="flex items-center gap-1.5 text-xs text-muted-foreground">

@@ -21,15 +21,6 @@ export const money = (value: string | number | null | undefined, currency = 'GBP
   return new Intl.NumberFormat('en-GB', { style: 'currency', currency: currency || 'GBP' }).format(Number.isFinite(n) ? n : 0);
 };
 
-export const statusVariant = (status: string): 'success' | 'warning' | 'destructive' | 'muted' =>
-  status === 'approved' || status === 'resolved' || status === 'paid'
-    ? 'success'
-    : status === 'pending' || status === 'open' || status === 'in_progress' || status === 'waiting_employee'
-      ? 'warning'
-      : status === 'declined'
-        ? 'destructive'
-        : 'muted';
-
 /**
  * What the employee can see about their own bank record.
  *

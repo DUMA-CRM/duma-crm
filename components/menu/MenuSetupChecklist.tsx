@@ -50,7 +50,7 @@ export function MenuSetupChecklist() {
       body: 'Sizes, milks, syrups — build once, attach to any item.',
       done: modifiers.length > 0,
       doneLabel: `${modifiers.length} ${modifiers.length === 1 ? 'modifier' : 'modifiers'}`,
-      href: '/menu/modifiers/new',
+      href: '/menu/modifiers?new=1',
       cta: 'New modifier',
     },
     {

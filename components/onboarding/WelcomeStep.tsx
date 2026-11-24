@@ -4,7 +4,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { AppleHelloEffectEnglish } from '@/components/apple-hello-effect-english';
+import { AppleHelloEffectEnglish } from '@/components/ui/apple-hello-effect-english';
 import { ArrowRight } from '@/components/icons';
 import { Button } from '@/components/ui/button';
 

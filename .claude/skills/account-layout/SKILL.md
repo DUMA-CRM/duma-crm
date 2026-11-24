@@ -87,7 +87,7 @@ with each page's status — update it when a page is done.
      `ValueAside` ("· from your workspace").
    - **A pick-one setting with icons** → `SettingsChoice` (the colour theme).
    - **A fact that never changes here** → a `Fact` tile, or an `InfoRow`
-     (`components/cms/rows`) when it belongs in a list of rows.
+     (`components/shared/rows`) when it belongs in a list of rows.
    - **A list of things** (sessions, devices, members) → rows with a tile, a
      bold line, a muted line, and an action at the right edge; a destructive
      action is `ghost` until hovered and goes through `ConfirmModal`.
@@ -110,7 +110,7 @@ with each page's status — update it when a page is done.
        default. The user rejected an ⓘ on full-width page sections (Privacy &
        export, 2026-11-16) but asked for one on a narrow sidebar card (Model
        editor → Who can edit): there, the note goes behind `SectionInfo`
-       (`components/cms/rows`) in the title row's `actions`. Use the ⓘ only
+       (`components/shared/rows`) in the title row's `actions`. Use the ⓘ only
        for a sidebar card, and ask if unsure.
      - `id` is unique on the page (`"<page>-<title-slug>"`), so a link can land
        on it.
@@ -155,7 +155,7 @@ with each page's status — update it when a page is done.
 | Switch / action row | `SettingRows`, `SettingRow` | `components/settings/controls` |
 | Fact tile | `Fact` | `components/settings/controls` |
 | Icon choice | `SettingsChoice` | `components/settings/SettingsChoice` |
-| Read-only row | `InfoRow`, `RowTile` | `components/cms/rows` |
+| Read-only row | `InfoRow`, `RowTile` | `components/shared/rows` |
 | State tag | `IconTag`, `Badge` | `components/shared/IconTag`, `components/ui/badge` |
 | States | `TilesSkeleton`, `Bone`, `ErrorState`, `EmptyState` | `components/shared/*` |
 | Help / confirm | `Modal`, `ConfirmModal` | `components/shared/*` |

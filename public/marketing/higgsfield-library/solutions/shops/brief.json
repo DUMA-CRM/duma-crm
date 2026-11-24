@@ -7,7 +7,7 @@
   "folder": "solutions/shops",
   "local_sources": [
     "app/(marketing)/solutions/shops/page.tsx",
-    "lib/marketing/shops.ts"
+    "lib/marketing/solutions/shops.tsx"
   ],
   "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
   "scene": "An independent clothing shop owner folds cotton shirts, checks size tags and packs an unbranded shopping bag."

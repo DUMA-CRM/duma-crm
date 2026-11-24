@@ -4,7 +4,7 @@ import { useEffect } from 'react';
 
 /**
  * Brings `[data-reveal]` elements in as they scroll into view (styles in
- * app/(marketing)/marketing.css). One observer for the whole page, so the
+ * components/marketing/marketing.css). One observer for the whole page, so the
  * sections stay Server Components and only mark themselves up.
  *
  * Only elements still below the fold are hidden, and only after hydration:

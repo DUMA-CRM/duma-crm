@@ -56,11 +56,6 @@ export function PanelError({ title, onRetry }: { title: string; onRetry: () => v
   );
 }
 
-/** The hairline card every CMS list sits in. */
-export function Panel({ children, className }: { children: React.ReactNode; className?: string }) {
-  return <div className={cn('overflow-hidden rounded-lg border border-border bg-card', className)}>{children}</div>;
-}
-
 export const TEXTAREA_CLASS =
   'w-full rounded-sm border border-rule bg-control px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground/70 focus-visible:outline-2 focus-visible:outline-offset-1 focus-visible:outline-ring disabled:opacity-60';
 

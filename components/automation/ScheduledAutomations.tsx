@@ -14,7 +14,7 @@ import { useModuleEnabled } from '@/lib/hooks/useModuleEnabled';
 import { getCmsEntries } from '@/lib/modules/cms/client';
 import { getPayrollSchedule } from '@/lib/modules/payroll/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { fmtDateTime } from '@/lib/utils/format';
+import { formatDateTime } from '@/lib/utils/date';
 import { PERIOD_LABEL, payDayInWords } from '@/lib/utils/payroll-periods';
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
@@ -100,8 +100,8 @@ export function ScheduledAutomations() {
                   tone="info"
                   title={entry.title || entry.slug || 'Untitled entry'}
                   meta={[
-                    entry.scheduledPublishAt && `Publishes ${fmtDateTime(entry.scheduledPublishAt)}`,
-                    entry.scheduledUnpublishAt && `Unpublishes ${fmtDateTime(entry.scheduledUnpublishAt)}`,
+                    entry.scheduledPublishAt && `Publishes ${formatDateTime(entry.scheduledPublishAt)}`,
+                    entry.scheduledUnpublishAt && `Unpublishes ${formatDateTime(entry.scheduledUnpublishAt)}`,
                   ]
                     .filter(Boolean)
                     .join(' · ')}

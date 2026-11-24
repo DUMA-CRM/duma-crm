@@ -1,4 +1,7 @@
+import type { ReactNode } from 'react';
+
 import { type IconComponent, X } from '@/components/icons';
+import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -42,5 +45,15 @@ export function FilterChip({
         <X size={tag ? 13 : 11} aria-hidden="true" />
       </button>
     </span>
+  );
+}
+
+/** One control in a filter popover, with its label above it. */
+export function FilterField({ label, children }: { label: string; children: ReactNode }) {
+  return (
+    <div>
+      <p className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>{label}</p>
+      {children}
+    </div>
   );
 }

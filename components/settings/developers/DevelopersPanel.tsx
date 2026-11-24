@@ -1,6 +1,6 @@
 'use client';
 
-import { RowTile } from '@/components/cms/rows';
+import { RowTile } from '@/components/shared/rows';
 import { copyText } from '@/components/cms/shared';
 import { BookOpen, ChevronRight, Download, ExternalLink, FileText, type IconComponent, Sparkles } from '@/components/icons';
 import { SettingsTabBody } from '@/components/settings/SettingsShell';

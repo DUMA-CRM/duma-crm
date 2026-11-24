@@ -111,11 +111,6 @@ export function canShareField(field: CmsFieldDefinition, depth: number): boolean
   return depth === 0 && !field.unique && field.type !== 'slug';
 }
 
-/** The labels of a type's fields that are the same in every language. */
-export function sharedFieldLabels(fields: readonly CmsFieldDefinition[]): string[] {
-  return fields.filter((field) => field.shared).map((field) => field.label);
-}
-
 /**
  * A save's toast, naming the other languages its shared fields changed. Only
  * their drafts changed: each goes live when that language is published.
@@ -295,29 +290,6 @@ export function formatClipLength(seconds: number): string {
   const m = Math.floor((total % 3600) / 60);
   const s = String(total % 60).padStart(2, '0');
   return h > 0 ? `${h}:${String(m).padStart(2, '0')}:${s}` : `${m}:${s}`;
-}
-
-// ─── Locales ─────────────────────────────────────────────────────────────────
-
-/**
- * The order a reader asking for `code` is served in: itself, its fallbacks,
- * then the default. Mirrors the API's `localeChain`, and is cycle-safe for the
- * same reason — fallbacks are tenant data.
- */
-export function fallbackChain(
-  code: string,
-  locales: ReadonlyArray<{ code: string; isDefault: boolean; fallbackCode: string | null }>,
-): string[] {
-  const byCode = new Map(locales.map((locale) => [locale.code, locale]));
-  const defaultCode = locales.find((locale) => locale.isDefault)?.code;
-  const chain: string[] = [];
-  let current: string | null | undefined = code;
-  while (current && byCode.has(current) && !chain.includes(current) && chain.length < 10) {
-    chain.push(current);
-    current = byCode.get(current)?.fallbackCode;
-  }
-  if (defaultCode && !chain.includes(defaultCode)) chain.push(defaultCode);
-  return chain;
 }
 
 /** `fr-CA` → "Canadian French", via the platform's own names; '' when unknown. */

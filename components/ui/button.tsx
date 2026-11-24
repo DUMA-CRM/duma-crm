@@ -2,7 +2,7 @@ import { type VariantProps, cva } from 'class-variance-authority';
 import { Slot } from 'radix-ui';
 import * as React from 'react';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 /* Magnetic service-board controls. Variant names remain stable for callers. */
 const buttonVariants = cva(

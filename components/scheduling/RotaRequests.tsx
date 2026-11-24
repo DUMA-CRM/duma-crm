@@ -34,6 +34,8 @@ import { acknowledgeMarker, formatDuration, mondayOf, plannedMinutes } from '@/l
 import { formatInstant, workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
 
+import { fmtTime } from './shared';
+
 // ── Keys and invalidation ─────────────────────────────────────────────────────
 
 export const myRequestsKey = moduleQueryKeys.workforce.key('rota-requests-my');
@@ -49,7 +51,6 @@ function useInvalidateMyRota() {
 }
 
 const fmtDay = (iso: string) => formatInstant(iso, { weekday: 'short', day: 'numeric', month: 'short' });
-const fmtTime = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 const fmtSpan = (shift: { startsAt: string; endsAt: string }) =>
   `${fmtDay(shift.startsAt)} · ${fmtTime(shift.startsAt)}–${fmtTime(shift.endsAt)}`;
 const errorMessage = (error: unknown, fallback: string) => (error instanceof Error && error.message) || fallback;

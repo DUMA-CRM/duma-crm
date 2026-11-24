@@ -222,43 +222,6 @@ export const ACTIONS: Record<string, ActionMeta> = {
   'menu-items.delete': { verb: 'removed' },
 };
 
-/** The dozen worth offering before any real data has loaded. */
-export const COMMON_ACTIONS = [
-  'orders.create',
-  'orders.cancel',
-  'orders.refund',
-  'orders.status_update',
-  'stock-items.update',
-  'stock.loss',
-  'stocktakes.finalise',
-  'purchase-orders.receive',
-  'staff.onboard',
-  'staff.update',
-  'hr.leave_approved',
-  'hr.leave_declined',
-  'payroll.finalise',
-  'customers.merged',
-  'customers.erased',
-  'privacy.data_exported',
-  'tenants.delete',
-  'locations.delete',
-] as const;
-
-export const COMMON_RESOURCES = [
-  'orders',
-  'customers',
-  'staff',
-  'stock-items',
-  'purchase-orders',
-  'stocktakes',
-  'hr/leave-requests',
-  'hr/employees',
-  'payroll',
-  'helpdesk',
-  'locations',
-  'tenants',
-] as const;
-
 // ── Derivation for anything not listed ────────────────────────────────────────
 
 const VERBS: Record<string, string> = {
@@ -383,16 +346,4 @@ export function resourcePickerOptions(): { value: string; label: string }[] {
     .filter(([, meta]) => !meta.alias)
     .map(([value, meta]) => ({ value, label: meta.plural }))
     .sort((a, b) => a.label.localeCompare(b.label));
-}
-
-/**
- * Which resource an action was written against — the action's own prefix when
- * that is a resource key, otherwise the explicit mapping. Returns null for an
- * unmapped action, which the picker treats as "always show".
- */
-export function actionResource(action: string): string | null {
-  const known = ACTIONS[action];
-  if (known?.resource) return known.resource;
-  const prefix = action.split('.')[0];
-  return RESOURCES[prefix] && !RESOURCES[prefix].alias ? prefix : null;
 }

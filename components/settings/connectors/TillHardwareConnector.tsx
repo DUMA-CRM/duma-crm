@@ -3,7 +3,7 @@
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { InfoRow, InfoRows, SectionInfo } from '@/components/cms/rows';
+import { InfoRow, InfoRows, SectionInfo } from '@/components/shared/rows';
 import { Banknote, CheckCircle2, type IconComponent, Loader2, Monitor, Plug, Printer, Search, Zap } from '@/components/icons';
 import { useMounted } from '@/components/settings/configuration/shared';
 import { ChangeRow, SaveBar, Switch, ValueAside, ValueMissing } from '@/components/settings/controls';

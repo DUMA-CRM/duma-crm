@@ -110,16 +110,3 @@ export function folderTree<T extends { id: string; parentId: string | null; name
   walk(null, 0);
   return result;
 }
-
-/** "Everyone · managers edit", "Baristas, Store managers at 2 locations". */
-export function sharingSummary(
-  folder: { readerRoles?: string[] | null; readerLocationIds?: string[] | null; editorRoles?: string[] | null },
-  roleName: (role: string) => string = (role) => role.replace(/_/g, ' '),
-): string {
-  const readers = folder.readerRoles?.length ? folder.readerRoles.map(roleName).join(', ') : 'Everyone';
-  const where = folder.readerLocationIds?.length
-    ? ` at ${folder.readerLocationIds.length} ${folder.readerLocationIds.length === 1 ? 'location' : 'locations'}`
-    : '';
-  const editors = folder.editorRoles?.length ? ` · ${folder.editorRoles.map(roleName).join(', ')} edit` : '';
-  return `${readers}${where}${editors}`;
-}

@@ -1,12 +1,5 @@
 // Shared constants and label helpers for the Communications feature.
-import type { EmailAutomation, EmailDelivery } from '@/lib/modules/communications/client';
-
-export const labelClass = 'text-xs font-bold uppercase tracking-widest text-muted-foreground';
-
-export const textareaClass =
-  'w-full rounded-lg border border-input bg-control px-3 py-2 text-sm outline-none focus:border-primary focus:ring-2 focus:ring-primary/15';
-
-export const panelClass = 'rounded-2xl border border-border bg-card p-5';
+import type { EmailAutomation } from '@/lib/modules/communications/client';
 
 type Trigger = EmailAutomation['trigger'];
 
@@ -96,69 +89,7 @@ export const BOOKING_EMAIL_LABELS: Record<string, string> = {
   reservation_cancelled: 'Booking cancelled',
 };
 
-/** Which triggers need customers to have opted in to marketing email. */
-export const OPT_IN_TRIGGERS: Trigger[] = ['customer_birthday', 'customer_inactive'];
-
 export const isStaffTrigger = (trigger: Trigger) => trigger.startsWith('staff_');
-
-/** A booking's guest emails: to the address on the booking, and scoped to a location like order emails. */
-export const isBookingTrigger = (trigger: string) => trigger.startsWith('reservation_');
-
-export const deliveryBadge: Record<EmailDelivery['status'], 'muted' | 'primary' | 'success' | 'destructive' | 'warning'> = {
-  queued: 'muted',
-  sending: 'primary',
-  sent: 'success',
-  failed: 'destructive',
-  cancelled: 'warning',
-};
-
-/** "Order created · Order confirmation" style summary for automation rows. */
-export function describeTiming(trigger: Trigger, offsetDays: number): string {
-  if (trigger === 'customer_birthday') {
-    const days = Math.abs(offsetDays);
-    return days === 0 ? 'on the day' : `${days} ${days === 1 ? 'day' : 'days'} before`;
-  }
-  if (trigger === 'customer_inactive') return `after ${Math.max(1, offsetDays)} days without a visit`;
-  if (trigger === 'staff_document_expiring') return 'when the document enters its reminder window';
-  if (trigger === 'reservation_reminder') return 'before the booking';
-  return 'immediately';
-}
-
-/** One sentence describing exactly what an automation will do. */
-export function describeAutomation({
-  trigger,
-  offsetDays,
-  templateName,
-  locationName,
-}: {
-  trigger: Trigger;
-  offsetDays: number;
-  templateName?: string;
-  locationName?: string | null;
-}): string {
-  const template = templateName ? `“${templateName}”` : 'the chosen template';
-  const where = locationName ? `at ${locationName}` : 'at any location';
-  if (trigger === 'customer_birthday') {
-    const days = Math.abs(offsetDays);
-    const when = days === 0 ? 'on their birthday' : `${days} ${days === 1 ? 'day' : 'days'} before their birthday`;
-    return `Emails ${template} to each opted-in customer ${when}.`;
-  }
-  if (trigger === 'customer_inactive') {
-    return `Emails ${template} to an opted-in customer once they have not visited for ${Math.max(1, offsetDays)} days.`;
-  }
-  if (isBookingTrigger(trigger)) {
-    const event = TRIGGER_OPTIONS.find((option) => option.value === trigger)?.label.toLowerCase() ?? 'the booking changes';
-    return trigger === 'reservation_reminder'
-      ? `Emails ${template} to the guest before their booking ${where}.`
-      : `Emails ${template} to the guest as soon as ${event} ${where}.`;
-  }
-  if (isStaffTrigger(trigger)) {
-    const event = TRIGGER_OPTIONS.find((option) => option.value === trigger)?.label.toLowerCase() ?? 'the staff event happens';
-    return `Emails ${template} to the employee as soon as ${event}.`;
-  }
-  const event = TRIGGER_OPTIONS.find((option) => option.value === trigger)?.label.toLowerCase() ?? 'the event happens';
-  return `Emails ${template} to the customer as soon as ${event} ${where}.`;
-}
 
 // ── Template categories ─────────────────────────────────────────────────────
 

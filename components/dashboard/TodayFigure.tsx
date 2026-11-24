@@ -51,7 +51,7 @@ const FIGURES: Record<TodayFigureKey, { icon: IconComponent; label: string; href
   'analytics.net-sales': { icon: Banknote, label: 'Net sales', href: '/reports/sales-summary', tint: 'money' },
   'analytics.orders': { icon: ShoppingBag, label: 'Orders', href: '/orders', tint: 'orders' },
   'analytics.average-order': { icon: ReceiptText, label: 'Average order', href: '/reports/sales-summary', tint: 'kitchen' },
-  'analytics.labour': { icon: Users, label: 'Labour', href: '/staff/shifts', tint: 'team' },
+  'analytics.labour': { icon: Users, label: 'Labour', href: '/staff/rota', tint: 'team' },
   'analytics.refunds': { icon: RotateCcw, label: 'Refunds paid', href: '/reports/refunds', tint: 'orders' },
 };
 

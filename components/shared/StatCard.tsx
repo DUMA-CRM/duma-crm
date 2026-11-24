@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useId, useRef, useState } from 'react';
 import type { ComponentProps, MouseEvent, ReactNode } from 'react';
 
-import { ArrowDownRight, ArrowUpRight, TrendingDown, TrendingUp } from '@/components/icons';
+import { TrendingDown, TrendingUp } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 
 import { Bone } from './Skeleton';
@@ -624,17 +624,5 @@ export function StatCardGrid({ columns = 4, className, children, ...rest }: { co
     <section className={cn('grid gap-3', GRID_COLS[columns], className)} {...rest}>
       {children}
     </section>
-  );
-}
-
-/** Inline ▲/▼ change, for use in tables and rows where a full card is too much. */
-export function DeltaText({ delta, className }: { delta: StatDelta; className?: string }) {
-  const { trend, tone, text } = resolveDelta(delta);
-  const Glyph = trend === 'up' ? ArrowUpRight : trend === 'down' ? ArrowDownRight : null;
-  return (
-    <span className={cn('inline-flex items-center gap-0.5 text-xs font-semibold tabular-nums font-mono', DELTA_TONE[tone].text, className)}>
-      {Glyph && <Glyph size={13} strokeWidth={2.5} />}
-      {text}
-    </span>
   );
 }

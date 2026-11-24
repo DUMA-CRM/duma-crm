@@ -28,6 +28,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { FormSection } from '@/components/shared/FormParts';
 import { Pill } from '@/components/shared/Pill';
 import { RelativeTime } from '@/components/shared/RelativeTime';
+import { RowTile } from '@/components/shared/rows';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/label';
@@ -237,9 +238,7 @@ function SupplierDrawer({
 
             {inactive && (
               <div className="flex items-start gap-3 rounded-lg border border-border bg-band/50 px-4 py-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
-                  <Power size={16} aria-hidden="true" />
-                </span>
+                <RowTile icon={Power} />
                 <div className="min-w-0 text-xs leading-relaxed text-muted-foreground">
                   <p className="text-sm font-semibold text-foreground">Inactive</p>
                   Past purchase orders still show {supplier?.name}; it can’t be picked for new ones.

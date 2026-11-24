@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { ArrowRight } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -73,7 +74,7 @@ export function NeedsAttention({
     <motion.section
       variants={SECTION_RISE}
       aria-label={label}
-      className={cn('overflow-hidden rounded-lg border border-border bg-card shadow-sm', className)}
+      className={cn(CARD_SURFACE, className)}
     >
       <ul className="divide-y divide-border">
         {shown.map((item) => {

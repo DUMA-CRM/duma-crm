@@ -18,6 +18,8 @@ import {
   X,
 } from '@/components/icons';
 import { Avatar } from '@/components/shared/Avatar';
+import { DetailPanelRow, DetailSectionTitle } from '@/components/shared/DetailPanel';
+import { TONE_TINT } from '@/components/shared/tone';
 import { CopyGlyph } from '@/components/ui/action-button';
 
 import { auditChangeSet } from '@/lib/audit/change';
@@ -45,9 +47,9 @@ import { auditRecordLink } from './auditLinks';
 const EASE = [0.16, 1, 0.3, 1] as const;
 
 const STATUS_TONE: Record<AuditStatus['tone'], string> = {
-  success: 'bg-momentum/8 text-momentum',
-  warning: 'bg-measured/10 text-measured',
-  exception: 'bg-exception/8 text-exception',
+  success: TONE_TINT.success,
+  warning: TONE_TINT.warning,
+  exception: TONE_TINT.exception,
 };
 
 /**
@@ -132,11 +134,11 @@ export function AuditInspector({
   const body = (
     <div className="space-y-6">
       <section>
-        <SectionTitle>What changed</SectionTitle>
+        <DetailSectionTitle>What changed</DetailSectionTitle>
         {changes.length > 0 || facts.length > 0 ? (
           <dl className="overflow-hidden rounded-lg border border-border bg-card">
             {changes.map((change) => (
-              <Row key={change.label} label={change.label}>
+              <DetailPanelRow key={change.label} label={change.label}>
                 {change.before !== undefined && (
                   <>
                     <span className="text-muted-foreground line-through decoration-muted-foreground/50">{change.before}</span>
@@ -144,12 +146,12 @@ export function AuditInspector({
                   </>
                 )}
                 <span className="font-semibold wrap-break-word">{change.after}</span>
-              </Row>
+              </DetailPanelRow>
             ))}
             {facts.map((fact) => (
-              <Row key={fact.label} label={fact.label}>
+              <DetailPanelRow key={fact.label} label={fact.label}>
                 <span className="wrap-break-word">{fact.value}</span>
-              </Row>
+              </DetailPanelRow>
             ))}
           </dl>
         ) : (
@@ -162,7 +164,7 @@ export function AuditInspector({
 
       {/* Who and when, then where to go next — both as the same rows: tile, line, action. */}
       <section>
-        <SectionTitle>Who and when</SectionTitle>
+        <DetailSectionTitle>Who and when</DetailSectionTitle>
         <ul className="overflow-hidden rounded-lg border border-border bg-card">
           {/* In the drawer the title already names who and the description says when. */}
           {chrome === 'drawer' ? (
@@ -187,7 +189,7 @@ export function AuditInspector({
       </section>
 
       <section>
-        <SectionTitle>See more</SectionTitle>
+        <DetailSectionTitle>See more</DetailSectionTitle>
         <ul className="overflow-hidden rounded-lg border border-border bg-card">
           {link && (
             <PanelRow
@@ -263,10 +265,6 @@ export function AuditInspector({
 
 // ── Pieces ────────────────────────────────────────────────────────────────────
 
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-sm font-semibold text-heading">{children}</h3>;
-}
-
 /** A tinted icon tile, the size the rows share. */
 function RowIcon({ icon: Icon, muted = false }: { icon: IconComponent; muted?: boolean }) {
   return (
@@ -334,22 +332,6 @@ function PanelRow({
   );
 }
 
-function Row({ label, children, mono = false }: { label: string; children: React.ReactNode; mono?: boolean }) {
-  return (
-    <div className="flex items-baseline gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
-      <dt className="w-24 shrink-0 text-xs text-muted-foreground">{label}</dt>
-      <dd
-        className={cn(
-          'flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 text-sm text-foreground',
-          mono && 'font-mono text-xs break-all',
-        )}
-      >
-        {children}
-      </dd>
-    </div>
-  );
-}
-
 /** How the change reached the server — for support, not for the owner, so it starts folded. */
 function TechnicalDetails({ log }: { log: AuditLog }) {
   const reduceMotion = useReducedMotion();
@@ -396,10 +378,10 @@ function TechnicalDetails({ log }: { log: AuditLog }) {
               {rows
                 .filter(([, value]) => value)
                 .map(([label, value, mono]) => (
-                  <Row key={label} label={label} mono={mono}>
+                  <DetailPanelRow key={label} label={label} mono={mono}>
                     <span className="min-w-0 flex-1">{value}</span>
                     {mono && <AuditCopyButton value={value!} label={label.toLowerCase()} />}
-                  </Row>
+                  </DetailPanelRow>
                 ))}
             </dl>
             <div className="space-y-3 border-t border-border p-3.5">

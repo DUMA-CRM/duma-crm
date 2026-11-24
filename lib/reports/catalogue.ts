@@ -236,8 +236,6 @@ export const REPORTS: ReportDefinition[] = [
   },
 ];
 
-export const REPORT_IDS = new Set<string>(REPORTS.map((report) => report.id));
-
 export function findReport(id: string): ReportDefinition | undefined {
   return REPORTS.find((report) => report.id === id);
 }

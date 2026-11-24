@@ -2,24 +2,12 @@ import type { StaffProfile } from '@/lib/modules/identity/client';
 import type { ScheduledShift, ScheduledShiftStatus, VarianceRow } from '@/lib/modules/workforce/client';
 import type { Shift } from '@/lib/modules/workforce/client';
 import { formatDate } from '@/lib/utils/date';
-import { formatCalendarDate, formatInstant, workspaceDateKey, zonedParts, zonedToInstant } from '@/lib/utils/workspace-time';
+import { formatInstant, workspaceDateKey, zonedParts, zonedToInstant } from '@/lib/utils/workspace-time';
 
 // ── Form styles ───────────────────────────────────────────────────────────────
 
 export const inp =
   'w-full h-9 bg-control border border-input rounded-md px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
-export const sel = inp + ' cursor-pointer';
-export const lbl = 'block text-sm font-semibold text-foreground mb-1.5';
-
-// ── Status config ─────────────────────────────────────────────────────────────
-
-export const STATUSES: ScheduledShiftStatus[] = ['draft', 'published', 'cancelled'];
-
-export const STATUS_VARIANT: Record<ScheduledShiftStatus, 'muted' | 'success' | 'destructive'> = {
-  draft: 'muted',
-  published: 'success',
-  cancelled: 'destructive',
-};
 
 /**
  * What actually happened on the day, in one label. `scheduled` is the resting
@@ -57,10 +45,8 @@ export function toTimeInput(d: Date): string {
   return zonedParts(d).time;
 }
 
-export const fmtTime = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
-export const fmtDate = (iso: string) => formatDate(iso);
-/** A day heading for a calendar date (`YYYY-MM-DD…`) — written as is, never shifted by a zone. */
-export const fmtDayHeading = (key: string) => `${formatCalendarDate(key, { weekday: 'long' })}, ${formatDate(key.slice(0, 10))}`;
+/** "09:30" — an instant's time of day on the workspace clock. */
+export const fmtTime = (value: Date | string | null) => formatInstant(value, { hour: '2-digit', minute: '2-digit' });
 
 /**
  * "4 – 10 Aug 2026", collapsing the parts both ends share; a single day is just
@@ -72,12 +58,6 @@ export function rangeLabel(from: string, to: string): string {
   if (Number.isNaN(+a) || Number.isNaN(+b)) return `${from} – ${to}`;
   if (from === to) return formatDate(a);
   return `${formatDate(a)} – ${formatDate(b)}`;
-}
-
-/** Whole days covered by an inclusive range — the step size for its arrows. */
-export function rangeDays(from: string, to: string): number {
-  const days = Math.round((new Date(`${to}T00:00:00`).getTime() - new Date(`${from}T00:00:00`).getTime()) / 86_400_000) + 1;
-  return Number.isFinite(days) && days > 0 ? days : 7;
 }
 
 /** "6 hrs. 30 min." — the reference reads duration in words, not as a clock. */

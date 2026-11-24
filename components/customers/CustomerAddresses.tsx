@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion } from 'motion/react';
 import { useState } from 'react';
 
-import { ActionRow, ActionRows, RowTile } from '@/components/cms/rows';
+import { ActionRow, ActionRows, RowTile } from '@/components/shared/rows';
 import { Drawer } from '@/components/customers/CustomerDialogs';
 import { DeliveryAddressFields } from '@/components/customers/DeliveryAddressFields';
 import { Loader2, MapPin, Pencil, Plus, Star, Trash2 } from '@/components/icons';

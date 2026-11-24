@@ -10,7 +10,7 @@ import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ChangeRow, Switch, ValueMissing } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { RecordGroup } from '@/components/shared/RecordGroup';
-import { Bone } from '@/components/shared/Skeleton';
+import { SettingRowSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 
 import { exportCmsContent, getCmsSettings, getCmsStorage, updateCmsSettings } from '@/lib/modules/cms/client';
@@ -19,7 +19,7 @@ import { formatBytes } from '@/lib/utils/cms';
 import { useCmsTenantId, useContentPaths } from '@/components/cms/ContentScope';
 
 import { uploadTarget } from './StorageUsage';
-import { RowWarning } from './rows';
+import { RowWarning } from '@/components/shared/rows';
 import { cmsKeys, invalidateCms } from './shared';
 
 /**
@@ -47,19 +47,6 @@ export function ContentSettingsPanel() {
         <StorageSection />
       </div>
     </motion.div>
-  );
-}
-
-/** A `ChangeRow`'s shape while its value loads. */
-function RowBone() {
-  return (
-    <div className="flex items-center gap-3" aria-hidden="true">
-      <Bone className="size-10 shrink-0" />
-      <span className="min-w-0 flex-1 space-y-1.5">
-        <Bone className="h-2.5 w-20" />
-        <Bone className="h-3.5 w-40 max-w-full" />
-      </span>
-    </div>
   );
 }
 
@@ -98,7 +85,7 @@ function FilePrivacySection() {
     >
       {query.isPending ? (
         <div role="status" aria-busy="true" aria-label="Loading file privacy">
-          <RowBone />
+          <SettingRowSkeleton value="w-40" action={false} />
         </div>
       ) : query.isError ? (
         <ErrorState title="Couldn’t load file privacy" onRetry={() => void query.refetch()} />
@@ -189,8 +176,7 @@ function StorageSection() {
     >
       {storage.isPending ? (
         <div role="status" aria-busy="true" aria-label="Loading storage" className="space-y-5">
-          <RowBone />
-          <RowBone />
+          <SettingRowSkeleton rows={2} value="w-40" action={false} />
         </div>
       ) : storage.isError || !target ? (
         <ErrorState title="Couldn’t load storage" onRetry={() => void storage.refetch()} />

@@ -58,6 +58,25 @@ const nextConfig: NextConfig = {
       },
     ];
   },
+  // Old addresses of screens that moved, kept for bookmarks and help links.
+  // Resolved here rather than by a page so nothing renders on the way.
+  async redirects() {
+    return [
+      // Overview has its own path so the sidebar marks only it as current.
+      { source: '/admin', destination: '/admin/overview', permanent: false },
+      { source: '/inventory/purchasing', destination: '/inventory?tab=demand', permanent: true },
+      { source: '/inventory/restock-requests', destination: '/inventory?tab=demand', permanent: true },
+      { source: '/inventory/stocktakes', destination: '/inventory?tab=stocktakes', permanent: true },
+      { source: '/menu/modifiers/new', destination: '/menu/modifiers?new=1', permanent: true },
+      { source: '/staff/shifts', destination: '/staff/rota', permanent: true },
+      { source: '/settings/advanced', destination: '/settings', permanent: true },
+      // Each screen's settings moved onto the screen itself, where it is their preview.
+      { source: '/settings/configuration/dashboard', destination: '/dashboard?edit=1', permanent: true },
+      { source: '/settings/configuration/kitchen', destination: '/kds?edit=1', permanent: true },
+      { source: '/settings/configuration/orders', destination: '/orders?edit=1', permanent: true },
+      { source: '/settings/configuration/pos', destination: '/pos?edit=1', permanent: true },
+    ];
+  },
   // Same-origin proxy for browser API calls. Lets the API's Set-Cookie land on
   // OUR origin so the session cookie is readable by the app (see lib/api/client.ts).
   async rewrites() {

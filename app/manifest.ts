@@ -4,9 +4,9 @@ import type { MetadataRoute } from 'next';
 // and Barista Display run as a standalone full-screen app.
 export default function manifest(): MetadataRoute.Manifest {
   return {
-    name: 'DUMA — All in one business app',
+    name: 'DUMA',
     short_name: 'DUMA',
-    description: 'All-in-one coffee shop management — POS, orders, inventory, staff.',
+    description: 'Run your café, restaurant or shop: till, orders, stock, staff and customers.',
     start_url: '/dashboard',
     display: 'standalone',
     // Must track the token layer by hand — a manifest cannot read a CSS var.

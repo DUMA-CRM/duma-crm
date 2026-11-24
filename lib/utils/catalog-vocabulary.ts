@@ -11,8 +11,6 @@
  */
 export type CatalogVocabulary = 'menu' | 'retail' | 'mixed';
 
-export const CATALOG_VOCABULARIES: readonly CatalogVocabulary[] = ['menu', 'retail', 'mixed'];
-
 export function catalogVocabulary(moduleState: ReadonlyArray<{ moduleId: string; configuration?: unknown }>): CatalogVocabulary {
   const catalog = moduleState.find((state) => state.moduleId === 'catalog');
   const configuration = catalog?.configuration;

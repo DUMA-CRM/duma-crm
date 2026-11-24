@@ -1,4 +1,3 @@
-import Link from 'next/link';
 
 import { Check, Info } from '@/components/icons';
 import { TableOfContents } from '@/components/marketing/blog/ReadingAids';
@@ -285,12 +284,4 @@ export function ResponseBlock({ endpoint }: { endpoint: DocEndpoint }) {
     );
   }
   return null;
-}
-
-export function EndpointLink({ endpoint }: { endpoint: DocEndpoint }) {
-  return (
-    <Link href={`/developers/${endpoint.slug}`} className="text-primary hover:underline">
-      {endpoint.title}
-    </Link>
-  );
 }

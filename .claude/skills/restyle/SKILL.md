@@ -56,7 +56,7 @@ candidates and ask which one. Don't guess.
      `group flex items-center gap-3 rounded-md px-2 py-1.5 hover:bg-band/50`,
      with a `RowTile`, a title over a `text-xs` subtitle, an optional `Badge`, and
      a `ChevronRight` that nudges on hover. See `GuestEmails.tsx`. For buttons,
-     use `ActionRows` / `ActionRow` from `components/cms/rows`.
+     use `ActionRows` / `ActionRow` from `components/shared/rows`.
    - **Control that must stay visible** (wide input, select) → `FieldRow`.
 4. **One draft, one SaveBar.** Editable values live in a single draft object.
    The draft is keyed to the record or location it came from, so switching
@@ -96,11 +96,11 @@ candidates and ask which one. Don't guess.
 |---|---|---|
 | Two-column body | `SettingsTabBody` (`narrowAside`, `stickyAside`, `asideLeft`) | `components/settings/SettingsShell` |
 | Section card | `SettingsSection` (`title`, `description`, `actions`, `footnote`) | `components/settings/SettingsSection` |
-| Icon tile | `RowTile` (`tone`: default/warning/success/danger) | `components/cms/rows` |
-| Fact / switch row | `InfoRow`, `InfoRows` | `components/cms/rows` |
-| Row that opens a control | `PickerRow` | `components/cms/rows` |
-| Row with control beneath | `FieldRow` | `components/cms/rows` |
-| Action list | `ActionRows`, `ActionRow` | `components/cms/rows` |
+| Icon tile | `RowTile` (`tone`: default/warning/success/danger) | `components/shared/rows` |
+| Fact / switch row | `InfoRow`, `InfoRows` | `components/shared/rows` |
+| Row that opens a control | `PickerRow` | `components/shared/rows` |
+| Row with control beneath | `FieldRow` | `components/shared/rows` |
+| Action list | `ActionRows`, `ActionRow` | `components/shared/rows` |
 | Switch, SaveBar | `Switch`, `SaveBar` | `components/settings/controls` |
 | Stepper, choice cards | `NumberStepper`, `ChoiceCards` | `components/shared/FormParts` |
 | States | `Bone`, `ErrorState`, `EmptyState` | `components/shared/*` |
@@ -108,7 +108,7 @@ candidates and ask which one. Don't guess.
 | Confirm | `ConfirmModal` | `components/shared/ConfirmModal` |
 | Icons | named exports only | `components/icons` (never `lucide-react` directly) |
 
-`PickerRow` now lives in `components/cms/rows.tsx`, next to `InfoRow`. It was
+`PickerRow` now lives in `components/shared/rows.tsx`, next to `InfoRow`. It was
 moved there from `components/reservations/` when Settings → Orders first used
 it. If another primitive you need is still inside a module folder, move it the
 same way. Don't import one module's component into another module, and don't

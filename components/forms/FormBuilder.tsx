@@ -3,7 +3,7 @@
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useEffect, useMemo, useState } from 'react';
 
-import { RowMenu, RowTile } from '@/components/cms/rows';
+import { RowMenu, RowTile } from '@/components/shared/rows';
 import {
   AlertTriangle,
   ArrowDown,

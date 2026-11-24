@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
-import { PickerRow } from '@/components/cms/rows';
+import { PickerRow } from '@/components/shared/rows';
 import { TEXTAREA_CLASS, cmsKeys, invalidateCms } from '@/components/cms/shared';
 import { BookOpen, CalendarDays, Globe, Layers, Lock, MapPin, Settings, ShoppingBag } from '@/components/icons';
 import type { IconComponent } from '@/components/icons';

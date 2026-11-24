@@ -1,4 +1,5 @@
 import { cookies } from 'next/headers';
+import { redirect } from 'next/navigation';
 import 'server-only';
 
 import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
@@ -25,4 +26,13 @@ export async function workspaceModuleEnabled(moduleId: ModuleId): Promise<boolea
     .join('; ');
   const modules = await getCurrentTenantModules(undefined, cookieHeader);
   return modules.modules.some((module) => module.moduleId === moduleId && module.status === 'enabled');
+}
+
+/**
+ * Guard a switchable module's route segment: a workspace that has not enabled
+ * it is sent to the module settings rather than shown a page whose every call
+ * returns 403. A platform administrator passes — the tab's workspace decides.
+ */
+export async function requireModule(moduleId: ModuleId) {
+  if ((await workspaceModuleEnabled(moduleId)) === false) redirect('/settings/modules');
 }

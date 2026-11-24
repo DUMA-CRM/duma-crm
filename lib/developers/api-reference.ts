@@ -260,10 +260,6 @@ export const apisOf = (scopes: readonly string[]): PublicApi[] =>
 export const keyNeedsLocation = (key: { kind: ApiKeyKind; scopes: readonly string[]; locationId: string | null }): boolean =>
   key.kind === 'secret' && key.scopes.includes('orders:write') && !key.locationId;
 
-/** A secret key's choices, adjusted for a change of kind: a publishable key keeps only what is safe in a browser. */
-export const scopesForKind = (kind: ApiKeyKind, scopes: readonly ApiKeyScope[]): ApiKeyScope[] =>
-  scopes.filter((scope) => kindAllows(kind, scope));
-
 // ─── MCP ─────────────────────────────────────────────────────────────────────
 //
 // The same key, for AI coding assistants: a remote MCP server (Streamable HTTP)
@@ -274,63 +270,4 @@ export const scopesForKind = (kind: ApiKeyKind, scopes: readonly ApiKeyScope[]):
 
 export const MCP_PATH = '/v1/mcp';
 
-export interface McpTool {
-  name: string;
-  summary: string;
-  /** The scope a key needs for the tool to be listed. Null: any valid key. */
-  scope: ApiKeyScope | null;
-  /** Creates something. Only ever drafts and models — never orders, never published content. */
-  writes?: boolean;
-}
-
-export const MCP_TOOLS: readonly McpTool[] = [
-  ...MANAGEMENT_REFERENCE.operations.map((op) => ({ name: op.name, summary: op.description, scope: op.scope, writes: op.writes })),
-  { name: 'workspace_info', summary: 'The key, its scopes, the APIs it opens and their base URLs', scope: null },
-  { name: 'content_list_types', summary: 'The models this key can read', scope: 'content:read' },
-  { name: 'content_get_type', summary: 'One model’s schema', scope: 'content:read' },
-  { name: 'content_list_locales', summary: 'Languages and their fallbacks', scope: 'content:read' },
-  { name: 'content_list_entries', summary: 'A page of entries — filter, sort, locale, search', scope: 'content:read' },
-  { name: 'content_get_entry', summary: 'One entry, by id or slug', scope: 'content:read' },
-  { name: 'content_get_singleton', summary: 'A singleton’s one entry', scope: 'content:read' },
-  { name: 'content_get_asset', summary: 'Media metadata and URLs', scope: 'content:read' },
-  { name: 'content_sync', summary: 'What changed since a moment', scope: 'content:read' },
-  { name: 'content_create_type', summary: 'Create a model with its fields', scope: 'content:models', writes: true },
-  { name: 'content_create_entry', summary: 'Create an entry, as a draft', scope: 'content:write', writes: true },
-  { name: 'store_list_products', summary: 'Products, sizes, prices and stock', scope: 'catalog:read' },
-  { name: 'store_get_product', summary: 'One product', scope: 'catalog:read' },
-  { name: 'store_list_categories', summary: 'Categories with products for sale', scope: 'catalog:read' },
-  { name: 'store_list_locales', summary: 'The languages and currencies it sells in', scope: 'catalog:read' },
-  { name: 'store_quote_order', summary: 'Price a basket — records nothing', scope: 'orders:write' },
-];
-
 export const mcpUrl = (apiOrigin: string): string => `${apiOrigin.replace(/\/$/, '')}${MCP_PATH}`;
-
-/** The tools a key with these scopes is offered — the server lists the same. */
-export const mcpToolsFor = (scopes: readonly string[]): McpTool[] => MCP_TOOLS.filter((tool) => !tool.scope || scopes.includes(tool.scope));
-
-/** Ready-to-paste client set-ups. The key stays in an environment variable, never in the file. */
-export function mcpClientConfigs(apiOrigin: string): Array<{ label: string; language: string; code: string }> {
-  const url = mcpUrl(apiOrigin);
-  return [
-    {
-      label: 'Codex',
-      language: '~/.codex/config.toml',
-      code: `[mcp_servers.duma]\nurl = ${JSON.stringify(url)}\nbearer_token_env_var = "DUMA_API_KEY"`,
-    },
-    {
-      label: 'Claude Code',
-      language: 'shell',
-      code: `claude mcp add --transport http duma ${url} \\\n  --header "Authorization: Bearer $DUMA_API_KEY"`,
-    },
-    {
-      label: 'Cursor',
-      language: '.cursor/mcp.json',
-      code: JSON.stringify({ mcpServers: { duma: { url, headers: { Authorization: 'Bearer ${env:DUMA_API_KEY}' } } } }, null, 2),
-    },
-    {
-      label: 'Any client',
-      language: 'JSON',
-      code: JSON.stringify({ type: 'http', url, headers: { Authorization: 'Bearer <your dk_ key>' } }, null, 2),
-    },
-  ];
-}

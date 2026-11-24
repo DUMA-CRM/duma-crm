@@ -1,6 +1,8 @@
 import { CalendarDays, HeartPulse, type IconComponent, Sun } from '@/components/icons';
+import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 
-import { type StaffRole, type StaffScope } from '@/lib/modules/identity/client';
+import { type StaffRole } from '@/lib/modules/identity/client';
+import { cn } from '@/lib/utils/cn';
 import type { EmploymentType, PayType } from '@/lib/modules/people/client';
 import { formatDate } from '@/lib/utils/date';
 import { type LeaveKind, leaveKind } from '@/lib/utils/my-hr';
@@ -20,16 +22,6 @@ export const ROLE_CONFIG: Record<string, RoleAppearance> = {
   marketing_manager: { label: 'Marketing Manager', bg: 'bg-measured/10', text: 'text-measured', border: 'border-measured/30' },
   auditor: { label: 'Auditor', bg: 'bg-muted', text: 'text-muted-foreground', border: 'border-rule' },
 };
-
-export const ROLES: StaffRole[] = [
-  'super_admin',
-  'franchise_owner',
-  'store_manager',
-  'barista',
-  'hr_manager',
-  'marketing_manager',
-  'auditor',
-];
 export function roleConfig(role: StaffRole, label?: string): RoleAppearance {
   return (
     ROLE_CONFIG[role] ?? {
@@ -40,7 +32,6 @@ export function roleConfig(role: StaffRole, label?: string): RoleAppearance {
     }
   );
 }
-export const SCOPES: StaffScope[] = ['global', 'franchise', 'location'];
 
 // ── Employment type config ────────────────────────────────────────────────────
 
@@ -84,12 +75,11 @@ export const fmtHours = (h: number): string => `${Math.round(h * 100) / 100}h`;
 export const inp =
   'w-full h-9 bg-control border border-input rounded-sm px-3 text-sm text-foreground placeholder:text-muted-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
 export const sel = inp + ' cursor-pointer';
-export const lbl = 'mb-1.5 block text-sm font-medium text-foreground';
+export const lbl = cn(FIELD_LABEL_CLASS, 'mb-1.5');
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
 
 export const fmtDate = (x: string) => formatDate(x);
-export const toDateInput = (x?: string) => (x ? new Date(x).toISOString().slice(0, 10) : '');
 
 // ── Avatar ────────────────────────────────────────────────────────────────────
 
@@ -102,10 +92,3 @@ const LEAVE_ICON: Record<LeaveKind, IconComponent> = { annual: Sun, sick: HeartP
 
 /** The glyph a leave row leads with: a sun for holiday, a pulse for sickness, a calendar for the rest. */
 export const leaveIcon = (name: string | null | undefined): IconComponent => LEAVE_ICON[leaveKind(name)];
-
-/** `leaveIcon` as an element, for inline use where a component can't be picked during render. */
-export function LeaveTypeIcon({ name, size = 14, className }: { name: string | null | undefined; size?: number; className?: string }) {
-  const kind = leaveKind(name);
-  const props = { size, className, 'aria-hidden': true as const };
-  return kind === 'annual' ? <Sun {...props} /> : kind === 'sick' ? <HeartPulse {...props} /> : <CalendarDays {...props} />;
-}

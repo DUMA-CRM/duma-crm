@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { ActionRow, RowMenu } from '@/components/cms/rows';
+import { ActionRow, RowMenu } from '@/components/shared/rows';
 import { Copy, GripVertical, Plus, Trash2, TriangleAlert } from '@/components/icons';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';

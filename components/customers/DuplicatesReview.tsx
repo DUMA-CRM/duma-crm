@@ -85,8 +85,8 @@ export function DuplicatesReview() {
     <EditorShell title="Duplicate customers" icon={<Combine size={20} aria-hidden="true" />} onClose={() => router.push('/customers')}>
       <div className="space-y-4">
         <p className="max-w-2xl text-sm text-muted-foreground">
-          Records that look like the same guest twice, strongest signal first. Merging keeps both records — the duplicate is hidden and
-          pointed at the one you keep — so a mistake can be undone.
+          Records that look like the same guest, strongest match first. Merging hides the duplicate and points it at the record you keep,
+          so it can be undone.
         </p>
 
         {isError ? (

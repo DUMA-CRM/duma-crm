@@ -1,25 +1,11 @@
+import type { Allergen } from '@/types/customers';
+
 import { apiFetch } from './client';
 
 // ── Stock Items ───────────────────────────────────────────────────────────────
 
-/** UK FSA's 14 regulated allergens, stored as lowercase slugs. */
-export const FSA_ALLERGENS = [
-  'celery',
-  'gluten',
-  'crustaceans',
-  'eggs',
-  'fish',
-  'lupin',
-  'milk',
-  'molluscs',
-  'mustard',
-  'nuts',
-  'peanuts',
-  'sesame',
-  'soya',
-  'sulphites',
-] as const;
-export type Allergen = (typeof FSA_ALLERGENS)[number];
+// The FSA allergen list is shared with customers' allergies; it lives in types/customers.
+export { FSA_ALLERGENS, type Allergen } from '@/types/customers';
 
 /** What nutrition facts are declared per. kg/l stock quantities convert to g/ml. */
 export type NutritionBasis = 'per_100g' | 'per_100ml' | 'per_piece';

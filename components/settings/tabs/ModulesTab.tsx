@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import { useCallback, useLayoutEffect, useRef, useState } from 'react';
 
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import { ArrowLeft, ArrowRight, LayoutGrid, Loader2, ShieldCheck, Sparkles } from '@/components/icons';
 import { FOUNDATION_MODULES, MODULE_COPY, byModuleOrder, moduleCopy } from '@/components/onboarding/modules';
 import { type QuestionContext, questionFor } from '@/components/onboarding/questions';

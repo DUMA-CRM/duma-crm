@@ -15,6 +15,7 @@ import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import { type PublisherApp, getPublisher, publisherKey, registerApp } from '@/lib/api/marketplace.service';
 import { toast } from '@/lib/toast';
@@ -74,7 +75,7 @@ function AppPanel({ app, publisher }: { app: PublisherApp; publisher: string }) 
   const suspended = Boolean(app.suspensionReason);
 
   return (
-    <section aria-labelledby={`app-${app.id}`} className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <section aria-labelledby={`app-${app.id}`} className={CARD_SURFACE}>
       <header className="flex flex-wrap items-center gap-3 px-5 py-4">
         <ListingIcon appId={app.id} imageId={app.storeListing?.icon} />
         <div className="min-w-0 flex-1">

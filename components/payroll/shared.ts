@@ -1,47 +1,8 @@
 import { formatDate as formatAppDate } from '@/lib/utils/date';
 
-// Shared constants and small helpers for the payroll components.
-
-export const inputClass =
-  'h-9 bg-control border border-input rounded-lg px-3 text-sm text-foreground outline-none focus:border-primary focus:ring-2 focus:ring-primary/15 transition-[border-color,box-shadow] duration-150';
-
-export const labelClass = 'mb-1.5 block text-micro uppercase text-muted-foreground';
-
-export const thClass = 'px-3 py-3 text-left text-micro uppercase text-muted-foreground md:px-5';
-
 /** Hours with up to 2dp and no trailing zeros, e.g. "32.5h" / "8h". */
 export const hours = (v: number | string | null | undefined) => `${+Number(v ?? 0).toFixed(2)}h`;
 
-/** Local YYYY-MM-DD (avoids UTC drift from toISOString). */
-const iso = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
-
-/** Full month range from a `<input type="month">` value ("YYYY-MM"). */
-export function monthRange(month: string) {
-  const [y, m] = month.split('-').map(Number);
-  if (!y || !m) return { from: '', to: '' };
-  const last = new Date(y, m, 0).getDate();
-  return { from: `${month}-01`, to: `${month}-${String(last).padStart(2, '0')}` };
-}
-
-/** Seven-day range starting at a week-start date ("YYYY-MM-DD"). */
-export function weekRange(start: string) {
-  if (!start) return { from: '', to: '' };
-  const d = new Date(`${start}T00:00:00`);
-  d.setDate(d.getDate() + 6);
-  return { from: start, to: iso(d) };
-}
-
-export const currentMonth = () => {
-  const d = new Date();
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`;
-};
-
-/** Monday of the current week. */
-export const currentWeekStart = () => {
-  const d = new Date();
-  d.setDate(d.getDate() - ((d.getDay() + 6) % 7));
-  return iso(d);
-};
 
 /** Display a date range like "01/07/2026 – 31/07/2026". */
 export function formatRange(from: string, to: string) {
@@ -57,17 +18,6 @@ export const csvCell = (v: string | number) => {
   const s = String(v ?? '');
   return /[",\n]/.test(s) ? `"${s.replace(/"/g, '""')}"` : s;
 };
-
-/** The last `count` months, newest first, as `{ value: "YYYY-MM", label }`. */
-export function recentMonths(count = 12, from = new Date()) {
-  return Array.from({ length: count }, (_, i) => {
-    const d = new Date(from.getFullYear(), from.getMonth() - i, 1);
-    return {
-      value: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`,
-      label: d.toLocaleDateString('en-GB', { month: 'long', year: 'numeric' }),
-    };
-  });
-}
 
 /** A line nobody can be paid from: hourly, worked hours, but no rate recorded. */
 export const missingRate = (line: { payType: string; hourlyRate: number | null; rawHours: number }) =>

@@ -2,7 +2,6 @@ import { Mascot } from '@/components/ai/Mascot';
 import { Check, ImageIcon, Search, WifiOff } from '@/components/icons';
 import { TONE_FILL } from '@/components/marketing/sections';
 
-import { EXAMPLE_DISH } from '@/lib/marketing/cafes';
 import { SALE_TRAIL } from '@/lib/marketing/home';
 import { computeCosting } from '@/lib/menu/costing';
 import { cn } from '@/lib/utils/cn';
@@ -155,6 +154,21 @@ export type CostedItem = {
   /** The item's own VAT rate, in %; omitted means the standard 20%. Bread is zero-rated: 0. */
   vatRate?: number;
   ingredients: readonly { name: string; quantity: string; cost: number }[];
+};
+
+/**
+ * The default example for MarginMock, a café's oat flat white. The mock runs it
+ * through lib/menu/costing.ts — the product's own margin calculation — so the
+ * figures on the page are the figures DUMA would show.
+ */
+const EXAMPLE_DISH: CostedItem = {
+  name: 'Oat flat white',
+  price: 3.6,
+  ingredients: [
+    { name: 'Espresso, double shot', quantity: '18 g', cost: 0.34 },
+    { name: 'Oat milk', quantity: '180 ml', cost: 0.27 },
+    { name: 'Cup, lid and sleeve', quantity: '1', cost: 0.14 },
+  ],
 };
 
 function costItem(item: CostedItem) {

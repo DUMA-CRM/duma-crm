@@ -5,7 +5,7 @@ import { motion } from 'motion/react';
 import { useCallback, useEffect, useRef, useState } from 'react';
 
 import { MediaPicker } from '@/components/cms/MediaPicker';
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import {
   Banknote,
   CalendarDays,
@@ -40,7 +40,7 @@ import { NumberStepper } from '@/components/shared/FormParts';
 import { PublicQrCodeCard } from '@/components/shared/PublicQrCodeCard';
 import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
-import { SectionSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
+import { SectionSkeleton, SettingRowSkeleton, TilesSkeleton } from '@/components/shared/TileSkeleton';
 import { useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { ActionButton, useDoneBeat } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
@@ -634,27 +634,16 @@ export function QrOrderingSettings() {
 
 /** The sections of rows and the guest page beside them, without their words. */
 function QrOrderingSkeleton() {
-  const rows = (count: number) =>
-    Array.from({ length: count }, (_, index) => (
-      <div key={index} className="flex items-center gap-3">
-        <Bone className="size-10 shrink-0" />
-        <span className="min-w-0 flex-1 space-y-1.5">
-          <Bone className="h-2.5 w-20" />
-          <Bone className="h-3.5 w-44 max-w-full" />
-        </span>
-        <Bone className="h-8 w-20 shrink-0" />
-      </div>
-    ));
   return (
     <div role="status" aria-label="Loading QR ordering">
       <SettingsTabBody narrowAside aside={<Bone className="mx-auto h-[34rem] w-full max-w-xs rounded-[2rem]" />}>
         <div className="grid items-start gap-5 xl:grid-cols-2">
-          <SectionSkeleton>{rows(5)}</SectionSkeleton>
-          <SectionSkeleton>{rows(4)}</SectionSkeleton>
+          <SectionSkeleton><SettingRowSkeleton rows={5} /></SectionSkeleton>
+          <SectionSkeleton><SettingRowSkeleton rows={4} /></SectionSkeleton>
         </div>
         <div className="grid items-start gap-5 xl:grid-cols-2">
-          <SectionSkeleton>{rows(3)}</SectionSkeleton>
-          <SectionSkeleton>{rows(3)}</SectionSkeleton>
+          <SectionSkeleton><SettingRowSkeleton rows={3} /></SectionSkeleton>
+          <SectionSkeleton><SettingRowSkeleton rows={3} /></SectionSkeleton>
         </div>
       </SettingsTabBody>
     </div>

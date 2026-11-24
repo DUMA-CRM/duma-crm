@@ -3,7 +3,7 @@
 import { useRef, useState } from 'react';
 import QRCode from 'react-qr-code';
 
-import { ActionRow, ActionRows } from '@/components/cms/rows';
+import { ActionRow, ActionRows } from '@/components/shared/rows';
 import { copyText } from '@/components/cms/shared';
 import { Check, Copy, Download, ExternalLink } from '@/components/icons';
 import { CopyGlyph } from '@/components/ui/action-button';

@@ -5,7 +5,7 @@
  *
  * Every line describes what the product does today, checked against the code
  * on 2026-11-02:
- * - pos: app/(crm)/pos/page.tsx, components/pos/CheckoutFlow.tsx,
+ * - pos: components/pos/TillPage.tsx, components/pos/CheckoutFlow.tsx,
  *   stores/offlineOrdersStore.ts, lib/utils/offline-order-sync.ts,
  *   components/providers/OfflineOrderSync.tsx, components/cash-up.
  * - staff-scheduling: components/scheduling/*, components/people/HrInbox.tsx,

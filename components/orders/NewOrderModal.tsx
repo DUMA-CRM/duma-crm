@@ -32,7 +32,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { Modal } from '@/components/shared/Modal';
 import { Bone } from '@/components/shared/Skeleton';
 import { useFormatMoney, useWorkspaceCurrency } from '@/components/shared/useWorkspaceMoney';
-import { SwipeRoot } from '@/components/swipe-actions';
+import { SwipeRoot } from '@/components/ui/swipe-actions';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 

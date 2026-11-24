@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { BrandTile } from '@/components/cms/rows';
+import { BrandTile } from '@/components/shared/rows';
 import {
   Calculator,
   CheckCircle2,

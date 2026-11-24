@@ -3,7 +3,7 @@
 import { useState } from 'react';
 
 import { TriggerDialog, triggerIcon } from '@/components/automation/TriggerPicker';
-import { RowMenu, RowWarning } from '@/components/cms/rows';
+import { RowMenu, RowWarning } from '@/components/shared/rows';
 import {
   CalendarDays,
   Clock,
@@ -32,7 +32,7 @@ import { Select } from '@/components/ui/select';
 import { proxiedImageForEmail } from '@/lib/api/client';
 import type { EmailAutomation, EmailTemplate, EmailWorkflowNode } from '@/lib/modules/communications/client';
 import { cn } from '@/lib/utils/cn';
-import { timeAgo } from '@/lib/utils/communications';
+import { relativeTime } from '@/lib/utils/relative-time';
 import { formatDelay } from '@/lib/utils/duration';
 import { previewEmailHtml } from '@/lib/utils/email-images';
 import {
@@ -172,7 +172,7 @@ export function AutomationSidebar({
                 <>
                   <span className="tabular-nums">{(automation.runCount ?? 0).toLocaleString()}</span>
                   {failed > 0 && <span className="tabular-nums text-exception">· {failed} failed</span>}
-                  <ValueAside>· checked {automation.lastEvaluatedAt ? timeAgo(automation.lastEvaluatedAt, now) : 'not yet'}</ValueAside>
+                  <ValueAside>· checked {automation.lastEvaluatedAt ? relativeTime(automation.lastEvaluatedAt, now) : 'not yet'}</ValueAside>
                 </>
               }
             />

@@ -54,5 +54,3 @@ export function minuteValues(step: number, current?: number): number[] {
 
 export const hourValues = (format: TimeFormat): number[] =>
   format === '24h' ? Array.from({ length: 24 }, (_, index) => index) : Array.from({ length: 12 }, (_, index) => index + 1);
-
-export const twoDigits = pad;

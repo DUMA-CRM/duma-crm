@@ -8,7 +8,3 @@ export const ASK_DUMA_EVENT = 'duma:ask';
 export interface AskDumaDetail {
   prompt: string;
 }
-
-export function askDuma(prompt: string) {
-  window.dispatchEvent(new CustomEvent<AskDumaDetail>(ASK_DUMA_EVENT, { detail: { prompt } }));
-}

@@ -3,11 +3,17 @@
 import { useEffect, useRef } from 'react';
 
 import { ChevronDown, type IconComponent, Loader2, Minus, Plus } from '@/components/icons';
+import { RowTile } from '@/components/shared/rows';
 import { Button } from '@/components/ui/button';
 
 import { cn } from '@/lib/utils/cn';
 
 /* Small form parts shared by the back office's modals and edit states. */
+
+/** A small note under a control: why it matters, in one line — or, given `error`, what is wrong with it. */
+export function Hint({ error, children }: { error?: string | undefined; children?: React.ReactNode }) {
+  return <p className={cn('mt-1.5 text-xs', error ? 'text-exception' : 'text-muted-foreground')}>{error ?? children}</p>;
+}
 
 /** Text-only section headings match the Orders and customer drawer reference. */
 export function FormSection({
@@ -55,9 +61,7 @@ export function FormSection({
     >
       <summary className="flex min-h-12 cursor-pointer list-none items-center gap-3 rounded-lg px-4 py-3 text-sm font-semibold text-foreground focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
         {Icon && (
-          <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
-            <Icon size={16} aria-hidden="true" />
-          </span>
+          <RowTile icon={Icon} />
         )}
         <span className="min-w-0 flex-1">{title}</span>
         <ChevronDown

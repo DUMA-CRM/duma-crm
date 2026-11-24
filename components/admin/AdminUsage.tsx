@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 
-import { InfoRow, InfoRows } from '@/components/cms/rows';
+import { InfoRow, InfoRows } from '@/components/shared/rows';
 import { Activity, Building2, Gauge, type IconComponent, Users } from '@/components/icons';
 import { FOUNDATION_MODULES, moduleCopy } from '@/components/onboarding/modules';
 import { SettingsSection } from '@/components/settings/SettingsSection';

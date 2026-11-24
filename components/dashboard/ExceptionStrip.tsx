@@ -6,6 +6,7 @@ import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { NeedsAttention, type NeedsAttentionTone } from '@/components/shared/NeedsAttention';
 import { ListSkeleton } from '@/components/shared/Skeleton';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import type { InventoryForecast } from '@/lib/modules/inventory/client';
 import type { RestockRequest } from '@/lib/modules/inventory/client';
@@ -88,7 +89,7 @@ export function buildExceptions({
         issue.reason === 'after-close'
           ? `${formatHours(issue.minutes)} on the clock — check they meant to clock out`
           : `${formatHours(issue.minutes)} so far with no published shift covering now`,
-      href: '/staff/shifts',
+      href: '/staff/rota',
       fixLabel: 'Open shifts',
       tone: 'measured' as const,
     })),
@@ -121,9 +122,6 @@ export function buildExceptions({
     })),
   ];
 }
-
-// The staff overview's card for the states NeedsAttention doesn't draw.
-const CARD = 'overflow-hidden rounded-lg border border-border bg-card shadow-sm';
 
 // The shared strip has two urgencies; stock running out is a warning, not a failure.
 const TONE: Record<ExceptionItem['tone'], NeedsAttentionTone> = {
@@ -159,7 +157,7 @@ export function ExceptionStrip({
   const always = preview || fill;
   if (error)
     return (
-      <div className={cn(CARD, fill && 'h-full')}>
+      <div className={cn(CARD_SURFACE, fill && 'h-full')}>
         <ErrorState title="The live checks couldn’t run" description="Today’s figures are unaffected." onRetry={onRetry} />
       </div>
     );
@@ -167,7 +165,7 @@ export function ExceptionStrip({
   if (loading) return <ListSkeleton rows={3} label="Checking what needs you" />;
   if (items.length === 0)
     return (
-      <div className={cn(CARD, fill && 'h-full')}>
+      <div className={cn(CARD_SURFACE, fill && 'h-full')}>
         <EmptyState
           compact
           kind="done"

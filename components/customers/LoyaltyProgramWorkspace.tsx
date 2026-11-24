@@ -5,11 +5,10 @@ import { motion } from 'motion/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { InfoRow, PickerRow } from '@/components/cms/rows';
+import { InfoRow, PickerRow, RowWarning } from '@/components/shared/rows';
 import { StampCard } from '@/components/customers/CustomerLoyaltyCards';
 import {
   Activity,
-  AlertTriangle,
   AlignLeft,
   Award,
   Calendar,
@@ -39,7 +38,7 @@ import { SaveBar, Switch } from '@/components/settings/controls';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { ChoiceCards, NumberStepper } from '@/components/shared/FormParts';
+import { ChoiceCards, Hint, NumberStepper } from '@/components/shared/FormParts';
 import { Pill } from '@/components/shared/Pill';
 import { LoadingState, RowSkeleton } from '@/components/shared/Skeleton';
 import type { Tone } from '@/components/shared/tone';
@@ -58,6 +57,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { Input } from '@/components/ui/input';
 import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 import { Slider } from '@/components/ui/slider';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import {
   type CustomerLoyaltyProgram,
@@ -259,7 +259,7 @@ export function LoyaltyProgramWorkspace() {
       ) : programmesQuery.isPending ? (
         <div role="status" aria-busy="true" aria-label="Loading loyalty programmes" className="space-y-2">
           {[0, 1, 2].map((index) => (
-            <div key={index} className="overflow-hidden rounded-lg border border-border bg-card shadow-sm" aria-hidden="true">
+            <div key={index} className={CARD_SURFACE} aria-hidden="true">
               <RowSkeleton index={index} />
             </div>
           ))}
@@ -287,7 +287,7 @@ export function LoyaltyProgramWorkspace() {
               <motion.li
                 key={programme.id}
                 variants={SECTION_RISE}
-                className="overflow-hidden rounded-lg border border-border bg-card shadow-sm"
+                className={CARD_SURFACE}
               >
                 <ProgrammeRowMenu programme={programme} onOpen={() => open(programme.id)}>
                   <button
@@ -533,7 +533,7 @@ function ProgrammeEditor({
     nextRewardExpiresAt: null,
   } as CustomerLoyaltyProgram;
 
-  const warningFor = (section: ProgrammeSection) => problem?.section === section && dirty && <Warning>{problem.message}</Warning>;
+  const warningFor = (section: ProgrammeSection) => problem?.section === section && dirty && <RowWarning className="mt-4">{problem.message}</RowWarning>;
 
   return (
     <EditorShell
@@ -969,19 +969,6 @@ function ProgrammeEditor({
         </SettingsTabBody>
       </motion.div>
     </EditorShell>
-  );
-}
-
-function Hint({ children }: { children: React.ReactNode }) {
-  return <p className="mt-1.5 text-xs text-muted-foreground">{children}</p>;
-}
-
-function Warning({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
-      <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
-      <span>{children}</span>
-    </p>
   );
 }
 

@@ -55,7 +55,7 @@ function describeFailure(stage: Failure['stage'], cause: unknown): Failure {
         editable: false,
         rateLimited: true,
         message:
-          'Workspace sign-up is limited to 3 attempts an hour from one network, and that limit has been reached. Your answers are saved — come back within the hour and try again. If an earlier attempt already created your workspace, sign in instead.',
+          'Too many sign-up attempts from this network. Your answers are saved — try again within the hour. If your workspace was already created, sign in instead.',
       };
     }
     if (cause.code === 'provisioning_in_progress') {

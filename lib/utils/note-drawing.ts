@@ -84,14 +84,6 @@ const drawingBackground = (background: string) => (followsApp(background) ? APP_
 /** True when a note's stored content is a drawing, not a text document. */
 export const isDrawingNote = (content: Record<string, unknown> | null | undefined) => content?.type === DRAWING_NOTE;
 
-export const newDrawingNote = (): DrawingNoteContent => ({
-  type: DRAWING_NOTE,
-  title: '',
-  elements: [],
-  background: APP_BACKGROUND,
-  files: {},
-});
-
 /** A drawing note's content as stored, tidied; anything unreadable becomes an empty drawing. */
 export function parseDrawingNote(content: Record<string, unknown> | null | undefined): DrawingNoteContent {
   const scene = readScene(content) ?? emptyDrawing();

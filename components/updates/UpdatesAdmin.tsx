@@ -5,13 +5,11 @@ import Link from 'next/link';
 import { type ReactNode, useState } from 'react';
 
 import { MarkdownEditor } from '@/components/cms/MarkdownEditor';
-import { ActionRow, ActionRows, FieldRow, InfoRow, InfoRows, PickerRow, RowTile } from '@/components/cms/rows';
+import { ActionRow, ActionRows, FieldRow, InfoRow, InfoRows, PickerRow, RowChevron, RowTile, RowWarning } from '@/components/shared/rows';
 import {
-  AlertTriangle,
   AlignLeft,
   Boxes,
   CalendarClock,
-  ChevronRight,
   Clock,
   Eye,
   Globe,
@@ -127,7 +125,7 @@ export function UpdatesAdmin({ tabs }: { tabs?: ReactNode }) {
                   <span className="block truncate text-sm font-semibold text-foreground">Updates page</span>
                   <span className="block truncate text-xs text-muted-foreground">Published posts, newest first</span>
                 </span>
-                <Chevron />
+                <RowChevron />
               </Link>
             </div>
             <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
@@ -165,7 +163,7 @@ export function UpdatesAdmin({ tabs }: { tabs?: ReactNode }) {
                       <span className="block truncate text-xs text-muted-foreground">{row.draft.summary}</span>
                     </span>
                     <Badge variant={state.tone}>{state.label}</Badge>
-                    <Chevron />
+                    <RowChevron />
                   </button>
                 );
               })}
@@ -461,7 +459,7 @@ function UpdateEditor({ initial, onClose }: { initial: UpdateDraft | null; onClo
                 Optional. A DUMA page path or an https link, so readers can try it straight away.
               </p>
             </PickerRow>
-            {check.buttonIncomplete && <Warning>A button needs both a label and a link. Add the missing one, or clear both.</Warning>}
+            {check.buttonIncomplete && <RowWarning className="mt-4">A button needs both a label and a link. Add the missing one, or clear both.</RowWarning>}
           </SettingsSection>
 
           <SaveBar
@@ -524,7 +522,7 @@ function UpdateEditor({ initial, onClose }: { initial: UpdateDraft | null; onClo
                 One message per session, after the dashboard is ready. It won’t interrupt POS or the kitchen screen.
               </p>
               {announce && !!current?.announcement && (
-                <Warning>This is a new announcement. People who already saw this post can see the message again.</Warning>
+                <RowWarning className="mt-4">This is a new announcement. People who already saw this post can see the message again.</RowWarning>
               )}
               {!announce && !!current?.popupExpiresAt && (
                 <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
@@ -590,25 +588,5 @@ function Checklist({ options, value, onChange }: { options: readonly string[]; v
         </label>
       ))}
     </div>
-  );
-}
-
-function Chevron() {
-  return (
-    <ChevronRight
-      size={14}
-      className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5"
-      aria-hidden="true"
-    />
-  );
-}
-
-/** Something that stops the update saving or behaving as expected. */
-function Warning({ children }: { children: ReactNode }) {
-  return (
-    <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
-      <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
-      <span>{children}</span>
-    </p>
   );
 }

@@ -5,7 +5,7 @@ import Link from 'next/link';
 import { marketingMetadata } from '@/lib/marketing/metadata';
 import { CONTACT_EMAIL, OPERATOR, OPERATOR_LEGAL_NAME } from '@/lib/marketing/site';
 
-import { LegalDocument } from '../LegalDocument';
+import { LegalDocument } from '@/components/legal/LegalDocument';
 
 export const metadata: Metadata = marketingMetadata({
   title: 'Privacy Policy | DUMA',

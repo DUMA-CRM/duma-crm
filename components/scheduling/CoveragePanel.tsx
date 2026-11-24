@@ -10,6 +10,7 @@ import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { FieldLabel } from '@/components/ui/label';
 import { NumberWheelPicker } from '@/components/ui/number-wheel-picker';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { type ScheduledShift, getCoverage, isWeekdayRow } from '@/lib/modules/workforce/client';
@@ -108,7 +109,7 @@ export function CoveragePanel({
   if (!check.locationId) return null;
 
   return (
-    <section className="overflow-hidden rounded-lg border border-border bg-card shadow-sm" aria-labelledby="cover-vs-demand">
+    <section className={CARD_SURFACE} aria-labelledby="cover-vs-demand">
       <header className="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-3">
         <div className="min-w-0 flex-1">
           <h3 id="cover-vs-demand" className="text-sm font-semibold text-heading">

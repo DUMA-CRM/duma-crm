@@ -6,6 +6,7 @@ import { useState } from 'react';
 import { Eye, FolderIcon, FolderLocked, FolderShared, type IconComponent, Info, Pencil } from '@/components/icons';
 import { ChoiceCards, ModalActions } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
+import { RowTile } from '@/components/shared/rows';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { Input } from '@/components/ui/input';
 import { MultiSelect } from '@/components/ui/multi-select';
@@ -209,9 +210,7 @@ function Section({ icon: Icon, title, info, children }: { icon: IconComponent; t
   return (
     <section className="space-y-2">
       <div className="flex items-center gap-3">
-        <span className="flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground">
-          <Icon size={16} aria-hidden="true" />
-        </span>
+        <RowTile icon={Icon} />
         <h3 className="min-w-0 flex-1 text-sm font-semibold text-heading">{title}</h3>
         {info && <InfoTip label={info} />}
       </div>

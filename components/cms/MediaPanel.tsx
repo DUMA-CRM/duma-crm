@@ -110,7 +110,7 @@ import { StorageUsage, uploadTarget } from './StorageUsage';
 import { VideoOptionsDialog } from './VideoOptionsDialog';
 import { VideoThumb } from './VideoThumb';
 import { createRenditions } from './renditions';
-import { RowTile } from './rows';
+import { RowTile } from '@/components/shared/rows';
 import { PanelError, assetPreviewSrc, cmsKeys, copyText, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
 

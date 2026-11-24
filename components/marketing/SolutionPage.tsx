@@ -1,14 +1,14 @@
 import type { Metadata } from 'next';
 
 import { Mascot } from '@/components/ai/Mascot';
-import { Check, ClipboardList, LayoutDashboard, Receipt, Users } from '@/components/icons';
+import { ClipboardList, LayoutDashboard, Receipt, Users } from '@/components/icons';
 import { JsonLd } from '@/components/marketing/JsonLd';
 import { CustomersScreen, OrdersScreen } from '@/components/marketing/mocks';
 import { ProductTabs } from '@/components/marketing/ProductTabs';
 import { RelatedSection, type RelatedLink } from '@/components/marketing/RelatedLinks';
 import { ReviewTicker } from '@/components/marketing/ReviewTicker';
 import { Screenshot } from '@/components/marketing/Screenshot';
-import { ClosingCta, FaqSection, FeatureCard, SecondaryButton, Section, SectionHeading, SignUpButton } from '@/components/marketing/sections';
+import { ClosingCta, FaqSection, FeatureCard, HeroTicks, HeroTitle, SecondaryButton, Section, SectionHeading, SignUpButton } from '@/components/marketing/sections';
 import { ExplainerSection, MistakesSection, SetupBand, UseCasesSection } from '@/components/marketing/solution';
 import { ChalkCurve, RisingLines } from '@/components/marketing/Strokes';
 
@@ -24,26 +24,44 @@ type IconType = React.ComponentType<{ className?: string; 'aria-hidden'?: boolea
 
 export type HeroTab = 'pos' | 'dashboard' | 'orders' | 'customers';
 
+export type SolutionCard = {
+  icon: IconType;
+  tone: Tone;
+  tag: string;
+  title: string;
+  body: React.ReactNode;
+  visual?: React.ReactNode;
+  /** Full width, under the two-column grid. */
+  wide?: boolean;
+};
+
 export type SolutionContent = {
   path: `/solutions/${string}`;
+  /** Prefix for the page's element and SVG ids; the path's last segment unless set. */
+  slug?: string;
   breadcrumb: string;
   metaTitle: string;
   description: string;
   hero: {
-    lead: string;
+    /** May hold a <br className="hidden sm:inline" /> to break the line on wider screens. */
+    lead: React.ReactNode;
     mark: string;
     subtitle: string;
+    /** A narrower subtitle, beside a single picture. */
+    narrowSubtitle?: boolean;
     ticks: [string, string, string];
     /** The product tabs, in order — or `visual` for a single picture beside the text. */
     tabs?: HeroTab[];
     visual?: { node: React.ReactNode; caption: string };
   };
   teaser?: { title: string; intro: React.ReactNode; visual: React.ReactNode; caption: string };
-  mistakes: { title: string; items: readonly ListItem[] };
+  mistakes?: { title: string; items: readonly ListItem[] };
   how: {
     title: string;
-    intro: React.ReactNode;
-    cards: readonly { icon: IconType; tone: Tone; tag: string; title: string; body: string; visual?: React.ReactNode }[];
+    intro?: React.ReactNode;
+    /** The "free in full" and "examples" note above the cards; on unless false. */
+    note?: boolean;
+    cards: readonly SolutionCard[];
   };
   useCases: { title: string; lead?: readonly string[]; items: readonly ListItem[]; icons: readonly IconType[] };
   explainer: {
@@ -89,14 +107,16 @@ function tabPanel(tab: HeroTab, preload: boolean) {
 
 /**
  * One /solutions page from its content, after seline.com/for-ecommerce: hero
- * (product tabs or a single picture), optional teaser, costly habits, tagged
- * feature cards, use cases, the explainer, the setup band, FAQ and closing
- * card, then the related links. Every audience page is a SolutionContent
- * object and this.
+ * (product tabs or a single picture), optional teaser, optional costly habits,
+ * tagged feature cards, use cases, the explainer, the setup band, FAQ and
+ * closing card, then the related links. Every audience page is a
+ * SolutionContent object in lib/marketing/solutions/<slug>.tsx and this.
  */
 export function SolutionPage({ content }: { content: SolutionContent }) {
-  const { hero } = content;
-  const key = content.path.split('/').pop()!;
+  const { hero, how } = content;
+  const key = content.slug ?? content.path.split('/').pop()!;
+  const gridCards = how.cards.filter((card) => !card.wide);
+  const wideCards = how.cards.filter((card) => card.wide);
 
   return (
     <>
@@ -110,22 +130,15 @@ export function SolutionPage({ content }: { content: SolutionContent }) {
         <ChalkCurve side="right" id={`${key}-right`} className="pointer-events-none absolute top-56 -right-40 hidden w-[44rem] md:block" />
         <div className={hero.visual ? 'relative z-10 mx-auto grid w-full max-w-5xl items-center gap-12 lg:grid-cols-[minmax(0,1fr)_24rem] lg:gap-14' : 'relative z-10 mx-auto w-full max-w-5xl'}>
           <div>
-            <h1 className="text-[2.6rem] leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-6xl">
-              {hero.lead} <span className="mkt-mark mkt-mark-green rounded-md px-2">{hero.mark}</span>
-            </h1>
-            <p className="mt-6 max-w-[44rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl">{hero.subtitle}</p>
+            <HeroTitle lead={hero.lead} mark={hero.mark} />
+            <p className={hero.narrowSubtitle ? 'mt-6 max-w-[38rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl' : 'mt-6 max-w-[44rem] text-balance text-lg leading-relaxed text-[var(--mkt-ink-2)] sm:text-xl'}>
+              {hero.subtitle}
+            </p>
             <div className="mt-8 flex flex-wrap gap-3">
               <SignUpButton />
               <SecondaryButton href={linkTo('/pricing')}>See pricing</SecondaryButton>
             </div>
-            <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--mkt-ink-2)]">
-              {hero.ticks.map((fact) => (
-                <span key={fact} className="flex items-center gap-1.5">
-                  <Check className="size-4 text-primary" aria-hidden="true" />
-                  {fact}
-                </span>
-              ))}
-            </p>
+            <HeroTicks ticks={hero.ticks} />
           </div>
 
           {hero.visual ? (
@@ -164,27 +177,36 @@ export function SolutionPage({ content }: { content: SolutionContent }) {
         </Section>
       )}
 
-      <MistakesSection id={`${key}-mistakes`} title={content.mistakes.title} items={content.mistakes.items} />
+      {content.mistakes && <MistakesSection id={`${key}-mistakes`} title={content.mistakes.title} items={content.mistakes.items} />}
 
       {/* ── How DUMA runs it ── */}
       <Section spacing="roomy" aria-labelledby={`${key}-how`}>
-        <SectionHeading id={`${key}-how`} title={content.how.title} intro={content.how.intro} />
+        <SectionHeading id={`${key}-how`} title={how.title} intro={how.intro} />
         {/* The tag note only where a card wears the tag; the example note always, since the cards hold mock data. */}
-        <p className="mt-8 text-sm text-[var(--mkt-ink-2)]">
-          {content.how.cards.some((card) => card.tag === 'free in full') && (
-            <>
-              * <span className="mkt-tag mx-1">free in full</span> means it stays free with no limits.{' '}
-            </>
-          )}
-          The names and figures in these cards are examples.
-        </p>
-        <div className="mt-4 grid gap-4 md:grid-cols-2">
-          {content.how.cards.map((card, index) => (
+        {how.note !== false && (
+          <p className="mt-8 text-sm text-[var(--mkt-ink-2)]">
+            {how.cards.some((card) => card.tag === 'free in full') && (
+              <>
+                * <span className="mkt-tag mx-1">free in full</span> means it stays free with no limits.{' '}
+              </>
+            )}
+            The names and figures in these cards are examples.
+          </p>
+        )}
+        <div className={how.note !== false ? 'mt-4 grid gap-4 md:grid-cols-2' : 'mt-10 grid gap-4 md:grid-cols-2'}>
+          {gridCards.map((card, index) => (
             <FeatureCard key={card.title} icon={card.icon} tone={card.tone} tag={card.tag} title={card.title} body={card.body} delay={(index % 2) * 80}>
               {card.visual}
             </FeatureCard>
           ))}
         </div>
+        {wideCards.map((card) => (
+          <div key={card.title} className="mt-4">
+            <FeatureCard icon={card.icon} tone={card.tone} tag={card.tag} title={card.title} body={card.body}>
+              {card.visual}
+            </FeatureCard>
+          </div>
+        ))}
       </Section>
 
       <UseCasesSection id={`${key}-uses`} title={content.useCases.title} lead={content.useCases.lead} items={content.useCases.items} icons={content.useCases.icons} />

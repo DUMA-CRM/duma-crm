@@ -5,7 +5,7 @@ import { useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
 import { SecretReveal } from '@/components/cms/SecretReveal';
-import { InfoRow, RowMenu } from '@/components/cms/rows';
+import { InfoRow, RowMenu } from '@/components/shared/rows';
 import { cmsKeys, invalidateCms } from '@/components/cms/shared';
 import { History, Plus, RotateCcw, Send, Trash2, Webhook } from '@/components/icons';
 import { Switch } from '@/components/settings/controls';

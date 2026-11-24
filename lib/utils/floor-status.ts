@@ -164,15 +164,6 @@ export interface HostSection<B extends FloorBooking = FloorBooking> {
   guests: number;
 }
 
-/** Whether a section starts open: the two the host works from. */
-export const HOST_SECTION_OPEN: Record<HostSectionId, boolean> = {
-  arriving: true,
-  seated: true,
-  departed: false,
-  cancelled: false,
-  no_show: false,
-};
-
 /**
  * The day's bookings as the host panel lists them: arriving (soonest first),
  * seated (longest there first), then departed, cancelled and no-shows. Every

@@ -84,6 +84,3 @@ export function serverCache(endpoint: ServerCachedEndpoint): { staleTime: number
     gcTime: (policy.maxAge + policy.staleWhileRevalidate) * 1000,
   };
 }
-
-/** Exposed for tests and for anything that needs the raw seconds. */
-export const serverCachePolicy = SERVER_POLICY;

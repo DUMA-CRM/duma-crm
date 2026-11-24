@@ -484,7 +484,7 @@ export function TeamTodayCard() {
       icon={Users}
       tint="team"
       surface="plain"
-      href="/staff/shifts"
+      href="/staff/rota"
       hrefLabel="Open shifts"
       loading={active.isPending || rota.isPending}
       error={active.isError || rota.isError}
@@ -536,7 +536,7 @@ function TeamReading({
     })),
     ...onShift.map((shift) => ({
       key: `in-${shift.id}`,
-      href: '/staff/shifts',
+      href: '/staff/rota',
       dot: TONE_FILL.success,
       dotLabel: 'On shift',
       name: shift.staff?.name ?? shift.staff?.user?.name ?? 'Someone',
@@ -634,7 +634,7 @@ export function PurchasingCard() {
       icon={ShoppingCart}
       tint="stock"
       surface="plain"
-      href="/inventory/purchasing"
+      href="/inventory?tab=demand"
       hrefLabel="Open purchase orders"
       loading={all.some((query) => query.isPending)}
       error={all.some((query) => query.isError)}
@@ -715,7 +715,7 @@ function PurchasingReading({
               {due.slice(0, fits).map(({ order, lateDays }) => (
                 <WidgetRow
                   key={order.id}
-                  href="/inventory/purchasing"
+                  href="/inventory?tab=demand"
                   mark={
                     <WidgetDot
                       className={lateDays > 0 ? TONE_FILL.exception : order.status === 'partially_received' ? 'bg-measured' : 'bg-stock'}
@@ -742,7 +742,7 @@ function PurchasingReading({
               ))}
             </ul>
             {hidden > 0 && (
-              <Link href="/inventory/purchasing" className="pt-0.5 text-[11px] text-muted-foreground hover:text-heading">
+              <Link href="/inventory?tab=demand" className="pt-0.5 text-[11px] text-muted-foreground hover:text-heading">
                 and {hidden} more
               </Link>
             )}

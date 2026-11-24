@@ -19,7 +19,8 @@ import { Button } from '@/components/ui/button';
 
 import { type EmailDelivery, getEmailAutomations, getEmailDeliveries, getEmailTemplates } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
-import { type AttentionIssue, attentionIssues, summariseWeek, timeAgo } from '@/lib/utils/communications';
+import { type AttentionIssue, attentionIssues, summariseWeek } from '@/lib/utils/communications';
+import { relativeTime } from '@/lib/utils/relative-time';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 import { DELIVERY_STATUS } from './HistoryPanel';
@@ -242,7 +243,7 @@ export function OverviewPanel({
                     meta={`${TRIGGER_LABELS[automation.trigger]} · ${(automation.runCount ?? 0).toLocaleString()} run${automation.runCount === 1 ? '' : 's'}`}
                     trailing={
                       automation.lastEvaluatedAt && (
-                        <span className="text-xs tabular-nums text-muted-foreground">{timeAgo(automation.lastEvaluatedAt, now)}</span>
+                        <span className="text-xs tabular-nums text-muted-foreground">{relativeTime(automation.lastEvaluatedAt, now)}</span>
                       )
                     }
                     chevron={false}
@@ -287,7 +288,7 @@ export function OverviewPanel({
                   meta={delivery.subject}
                   trailing={
                     <span className="text-xs tabular-nums text-muted-foreground">
-                      {timeAgo(delivery.sentAt ?? delivery.createdAt, now)}
+                      {relativeTime(delivery.sentAt ?? delivery.createdAt, now)}
                     </span>
                   }
                   chevron={false}

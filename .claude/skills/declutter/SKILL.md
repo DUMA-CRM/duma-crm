@@ -34,7 +34,7 @@ override generic "clean UI" advice:
    - UI-ADR-043 for anything under `app/(marketing)`.
 3. `Components/UI Design System.md` in the vault: the shared vocabulary
    (`ListRow`, `StatCard`, `EmptyState`, `ErrorState`, `Bone`, `NeedsAttention`,
-   `SettingsSection`, rows in `components/cms/rows`). A hand-rolled copy of one
+   `SettingsSection`, rows in `components/shared/rows`). A hand-rolled copy of one
    of these is a finding.
 4. [reference.md](reference.md): the catalogue of tells (copy, layout, visual,
    code) with the patterns to search for.

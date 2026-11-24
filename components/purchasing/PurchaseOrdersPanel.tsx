@@ -855,7 +855,6 @@ export function PurchaseOrdersPanel({
         {list.isError ? (
           <ErrorState
             title="Purchase orders couldn’t be loaded"
-            description="Nothing was read, so this isn’t an empty list."
             onRetry={() => void list.refetch()}
           />
         ) : list.isPending ? (

@@ -26,8 +26,6 @@ export const BLOG_CATEGORIES = [
   { label: 'DUMA news' },
 ] as const;
 
-export type BlogCategoryLabel = (typeof BLOG_CATEGORIES)[number]['label'];
-
 /** The person behind every post, for the post's metadata and llms.txt (no byline is shown). */
 export const BLOG_AUTHOR = { name: 'Marian Dudych', jobTitle: 'Founder of DUMA', path: '/about', photo: '/marketing/team/marian.jpg' } as const;
 

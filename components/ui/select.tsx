@@ -5,7 +5,7 @@ import { type ReactNode, useRef } from 'react';
 
 import { Check, ChevronDown } from '@/components/icons';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 export interface SelectOption {
   value: string;

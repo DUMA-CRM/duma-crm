@@ -40,7 +40,8 @@ import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { Modal } from '@/components/shared/Modal';
 import { RecordGroup } from '@/components/shared/RecordGroup';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
-import { Bone, LoadingState } from '@/components/shared/Skeleton';
+import { LoadingState } from '@/components/shared/Skeleton';
+import { SettingRowSkeleton } from '@/components/shared/TileSkeleton';
 import { Tooltip } from '@/components/shared/Tooltip';
 import { CopyButton } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
@@ -90,7 +91,7 @@ import { useCmsTenantId } from '@/components/cms/ContentScope';
 
 import { ModelAssist } from './ModelAssist';
 import { FIELD_ICONS } from './fieldIcons';
-import { InfoRow, InfoRows, RowMenu, RowTile, RowWarning, SectionInfo } from './rows';
+import { InfoRow, InfoRows, RowMenu, RowTile, RowWarning, SectionInfo } from '@/components/shared/rows';
 import { FIELD_LABEL_CLASS, PanelError, TEXTAREA_CLASS, cmsKeys, copyText, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
 
@@ -1408,15 +1409,7 @@ function TypeRolesSection({ typeId, typeName, editable }: { typeId: string; type
     >
       {rolesQuery.isPending ? (
         <div role="status" aria-busy="true" aria-label="Loading who can edit" className="space-y-5">
-          {[0, 1].map((row) => (
-            <div key={row} className="flex items-center gap-3" aria-hidden="true">
-              <Bone className="size-10 shrink-0" />
-              <span className="min-w-0 flex-1 space-y-1.5">
-                <Bone className="h-2.5 w-20" />
-                <Bone className="h-3.5 w-40 max-w-full" />
-              </span>
-            </div>
-          ))}
+          <SettingRowSkeleton rows={2} value="w-40" action={false} />
         </div>
       ) : rolesQuery.isError ? (
         <ErrorState title="Couldn’t load this model’s roles" onRetry={() => void rolesQuery.refetch()} className="py-6" />

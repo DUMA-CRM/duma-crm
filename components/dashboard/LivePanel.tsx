@@ -139,7 +139,7 @@ export function LivePanel({
     </span>
   );
   const staffLine = showStaff && (
-    <Link href="/staff/shifts" className="inline-flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground hover:text-heading">
+    <Link href="/staff/rota" className="inline-flex min-w-0 items-center gap-1.5 text-[12px] text-muted-foreground hover:text-heading">
       <Users size={12} className="shrink-0 text-success" aria-hidden="true" />
       <span className="truncate">
         <span className="font-semibold text-heading tabular-nums">{clockedIn}</span> clocked in

@@ -5,7 +5,7 @@ import { ChalkCurve } from '@/components/marketing/Strokes';
  * chalk curves, so the front door, sign-in, sign-up's neighbours and the legal
  * pages are one place. The paper colour and the curves' ink come from `.mkt`,
  * so place it inside a `mkt relative isolate` container in a file that imports
- * `app/(marketing)/marketing.css`. Hidden below `md`, as on the home page —
+ * `components/marketing/marketing.css`. Hidden below `md`, as on the home page —
  * on a phone the form is the page.
  */
 export function BrandBackdrop() {

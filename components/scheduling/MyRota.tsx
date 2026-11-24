@@ -62,6 +62,8 @@ import { formatInstant, workspaceDateKey, zonedToInstant } from '@/lib/utils/wor
 import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
+import { fmtTime } from './shared';
+
 // ── Date helpers ──────────────────────────────────────────────────────────────
 
 const WEEKDAY_KEY: Weekday[] = ['sun', 'mon', 'tue', 'wed', 'thu', 'fri', 'sat'];
@@ -86,8 +88,6 @@ const addDays = (d: Date, n: number) => {
   return x;
 };
 const durationMin = (a: Date, b: Date) => Math.max(0, (b.getTime() - a.getTime()) / 60000);
-const fmtTime = (d: Date) => formatInstant(d, { hour: '2-digit', minute: '2-digit' });
-const fmtClock = (iso: string) => formatInstant(iso, { hour: '2-digit', minute: '2-digit' });
 const fmtHrs = formatDuration;
 /** How far ahead "Next shift" looks. */
 const UPCOMING_DAYS = 35;
@@ -622,7 +622,7 @@ export function MyRota() {
                     <span className="flex items-center gap-2">
                       <span className="rounded-sm bg-momentum/10 px-1.5 py-0.5 text-micro font-semibold text-momentum">On shift</span>
                       <span>
-                        since <span className="font-mono font-semibold tabular-nums text-foreground">{fmtClock(myActive.clockedIn)}</span>
+                        since <span className="font-mono font-semibold tabular-nums text-foreground">{fmtTime(myActive.clockedIn)}</span>
                       </span>
                     </span>
                     <span className="flex items-center gap-1.5">

@@ -23,7 +23,7 @@ import { timeOfDay } from '@/lib/audit/narrative';
 import { getAutomationRuns } from '@/lib/modules/communications/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { RUN_STATUS_LABELS, type RunStatus, countRuns, deliveriesByDay, runStepsInWords, runTrigger } from '@/lib/utils/communications';
-import { fmtDateTime } from '@/lib/utils/format';
+import { formatDateTime } from '@/lib/utils/date';
 
 const RUN_TONE: Record<RunStatus, Tone> = { running: 'primary', completed: 'success', failed: 'exception' };
 
@@ -185,7 +185,7 @@ export function AutomationRuns({
                   trailing={
                     <time
                       dateTime={run.createdAt}
-                      title={fmtDateTime(run.createdAt)}
+                      title={formatDateTime(run.createdAt)}
                       className="w-12 text-right text-xs tabular-nums text-muted-foreground"
                     >
                       {timeOfDay(run.createdAt).slice(0, 5)}

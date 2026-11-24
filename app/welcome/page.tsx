@@ -9,7 +9,7 @@ import { Button } from '@/components/ui/button';
 
 import { marketingMetadata } from '@/lib/marketing/metadata';
 
-import '../(marketing)/marketing.css';
+import '@/components/marketing/marketing.css';
 
 export const metadata: Metadata = marketingMetadata({
   title: 'Get started · DUMA',

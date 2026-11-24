@@ -4,11 +4,10 @@ import { AnimatePresence, motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { type IconComponent, Minus, Pencil, Plus } from '@/components/icons';
+import { type IconComponent, Pencil } from '@/components/icons';
+import { RowTile } from '@/components/shared/rows';
 import { ActionButton } from '@/components/ui/action-button';
 import { Button } from '@/components/ui/button';
-import { DurationPicker } from '@/components/ui/duration-picker';
-import { NumberWheelPicker } from '@/components/ui/number-wheel-picker';
 
 import { cn } from '@/lib/utils/cn';
 import { SAVE_SETTLE_MS, type SaveWatch, watchSave } from '@/lib/utils/motion-feedback';
@@ -74,16 +73,7 @@ export function SettingRow({
   return (
     <div className={cn('flex justify-between gap-4 py-4 first:pt-0 last:pb-0', titleOnly ? 'items-center' : 'items-start')}>
       <div className={cn('flex min-w-0 gap-3', titleOnly && 'items-center')}>
-        {Icon && (
-          <span
-            className={cn(
-              'flex size-8 shrink-0 items-center justify-center rounded-md border border-border bg-background text-muted-foreground',
-              !titleOnly && 'mt-0.5',
-            )}
-          >
-            <Icon size={16} aria-hidden="true" />
-          </span>
-        )}
+        {Icon && <RowTile icon={Icon} className={titleOnly ? undefined : 'mt-0.5'} />}
         <div className="min-w-0">
           <p className="text-sm font-semibold text-foreground">{title}</p>
           {description && <p className="mt-0.5 max-w-[60ch] text-sm leading-relaxed text-muted-foreground">{description}</p>}
@@ -202,16 +192,6 @@ export function SaveBar({
         )}
       </AnimatePresence>
     </>
-  );
-}
-
-/** A label/value read-out line, for facts rather than controls. */
-export function ReadOut({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline gap-4 py-2.5">
-      <dt className="w-36 shrink-0 text-sm text-muted-foreground">{label}</dt>
-      <dd className="min-w-0 flex-1 truncate text-sm text-foreground">{children}</dd>
-    </div>
   );
 }
 
@@ -348,161 +328,6 @@ export function Fact({
       </button>
     );
   return <div className={className}>{content}</div>;
-}
-
-/**
- * A switchable option as a tile — the Modules-tab look: solid with a light green
- * icon while on, dashed and grey while off. Use in a 2-column grid.
- */
-export function ToggleCard({
-  icon: Icon,
-  title,
-  description,
-  checked,
-  onChange,
-  disabled,
-  tone = 'default',
-}: {
-  icon: IconComponent;
-  title: string;
-  description?: string;
-  checked: boolean;
-  onChange: (checked: boolean) => void;
-  disabled?: boolean;
-  /** `warning` for a switch whose "on" is a hold (pause), so it reads as a caution rather than a feature. */
-  tone?: 'default' | 'warning';
-}) {
-  return (
-    <div
-      className={cn(
-        'flex items-center gap-3 rounded-lg border px-3.5 py-3 transition-colors',
-        checked
-          ? tone === 'warning'
-            ? 'border-stock/40 bg-warning-highlight'
-            : 'border-border bg-background/60'
-          : 'border-dashed border-rule/60 bg-transparent',
-        disabled && 'opacity-55',
-      )}
-    >
-      <span
-        className={cn(
-          'flex size-10 shrink-0 items-center justify-center rounded-md transition-colors',
-          checked ? (tone === 'warning' ? 'bg-stock/10 text-stock' : 'bg-primary/8 text-primary') : 'bg-band text-muted-foreground',
-        )}
-      >
-        <Icon size={18} aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className={cn('block text-sm font-semibold', checked ? 'text-foreground' : 'text-muted-foreground')}>{title}</span>
-        {description && <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{description}</span>}
-      </span>
-      <Switch label={title} checked={checked} onChange={onChange} disabled={disabled} />
-    </div>
-  );
-}
-
-/**
- * A number setting as a tile: what it is on the left, a − value + stepper on
- * the right, all one width. The field can still be typed into; it settles into range on blur,
- * so clearing it to retype never fights you.
- */
-export function StepperCard({
-  icon: Icon,
-  title,
-  description,
-  value,
-  onChange,
-  min,
-  max,
-  step = 1,
-  unit,
-  control = 'stepper',
-}: {
-  icon: IconComponent;
-  title: string;
-  description?: React.ReactNode;
-  value: number;
-  onChange: (value: number) => void;
-  min: number;
-  max: number;
-  step?: number;
-  unit?: string;
-  /**
-   * `stepper` (−/+) for numbers people type or nudge; `wheel` for a short
-   * bounded range; `duration` for minutes shown as hours + minutes wheels
-   * (`step` is then the minute step).
-   */
-  control?: 'stepper' | 'wheel' | 'duration';
-}) {
-  const [text, setText] = useState<string | null>(null);
-  const clamp = (next: number) => Math.min(max, Math.max(min, Math.round(next)));
-  const current = Number.isFinite(value) ? value : min;
-
-  return (
-    <div className="flex items-center gap-3 rounded-lg border border-border bg-background/60 px-3.5 py-3">
-      <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-primary/8 text-primary">
-        <Icon size={18} aria-hidden="true" />
-      </span>
-      <span className="min-w-0 flex-1">
-        <span className="block text-sm font-semibold text-foreground">{title}</span>
-        {description && <span className="mt-0.5 block text-xs leading-relaxed text-muted-foreground">{description}</span>}
-      </span>
-      {/* Fixed width, so a row of steppers lines up whatever the unit. */}
-      {control === 'wheel' ? (
-        <div className="w-36 shrink-0">
-          <NumberWheelPicker aria-label={title} value={current} onValueChange={onChange} min={min} max={max} step={step} unit={unit} />
-        </div>
-      ) : control === 'duration' ? (
-        <div className="w-36 shrink-0">
-          <DurationPicker aria-label={title} value={current} onValueChange={onChange} min={min} max={max} minuteStep={step} />
-        </div>
-      ) : (
-        <div className="flex w-36 shrink-0 items-center rounded-md border border-border bg-field focus-within:border-ring">
-          <button
-            type="button"
-            aria-label={`Less — ${title}`}
-            disabled={current <= min}
-            onClick={() => onChange(clamp(current - step))}
-            className="flex size-9 items-center justify-center rounded-l-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40"
-          >
-            <Minus size={15} aria-hidden="true" />
-          </button>
-          <label className="flex h-9 flex-1 items-center justify-center gap-1 border-x border-border px-2">
-            <input
-              type="number"
-              inputMode="numeric"
-              min={min}
-              max={max}
-              step={step}
-              aria-label={title}
-              value={text ?? String(current)}
-              onChange={(event) => {
-                setText(event.target.value);
-                const next = Number(event.target.value);
-                if (event.target.value !== '' && Number.isFinite(next) && next >= min && next <= max) onChange(Math.round(next));
-              }}
-              onBlur={() => {
-                if (text !== null) onChange(clamp(Number(text) || min));
-                setText(null);
-              }}
-              style={{ width: `${Math.max(2, String(text ?? current).length) + 0.5}ch` }}
-              className="h-9 bg-transparent text-center text-base font-semibold tabular-nums text-foreground outline-none [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
-            />
-            {unit && <span className="text-sm text-muted-foreground">{unit}</span>}
-          </label>
-          <button
-            type="button"
-            aria-label={`More — ${title}`}
-            disabled={current >= max}
-            onClick={() => onChange(clamp(current + step))}
-            className="flex size-9 items-center justify-center rounded-r-md text-muted-foreground transition-colors hover:bg-band hover:text-foreground focus-visible:outline-2 focus-visible:outline-ring disabled:pointer-events-none disabled:opacity-40"
-          >
-            <Plus size={15} aria-hidden="true" />
-          </button>
-        </div>
-      )}
-    </div>
-  );
 }
 
 /**

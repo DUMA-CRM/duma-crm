@@ -88,8 +88,8 @@ export function PayLineDrawer({
                 <p className="mt-3 flex gap-2 rounded-md border border-exception/40 bg-field p-2.5 text-xs text-muted-foreground">
                   <AlertTriangle size={14} className="mt-0.5 shrink-0 text-exception" aria-hidden="true" />
                   <span>
-                    This does not come to the gross the server returned. Treat the server&rsquo;s figure as correct and report the
-                    difference — do not finalise on the strength of this panel.
+                    This doesn&rsquo;t add up to the gross pay DUMA calculated. Trust DUMA&rsquo;s figure, report the difference, and
+                    don&rsquo;t finalise based on this breakdown.
                   </span>
                 </p>
               )}

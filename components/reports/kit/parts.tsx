@@ -20,7 +20,6 @@ import {
   Wallet,
 } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
-import { EmptyState, type EmptyStateKind } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { Bone, FactsSkeleton, LoadingState } from '@/components/shared/Skeleton';
 import { Input } from '@/components/ui/input';
@@ -1033,18 +1032,4 @@ export function ReportError({ onRetry, what = 'This report' }: { onRetry: () => 
       />
     </div>
   );
-}
-
-export function ReportEmpty({
-  icon,
-  title,
-  description,
-  kind,
-}: {
-  icon: IconComponent;
-  title: string;
-  description: string;
-  kind?: EmptyStateKind;
-}) {
-  return <EmptyState icon={icon} title={title} description={description} kind={kind} />;
 }

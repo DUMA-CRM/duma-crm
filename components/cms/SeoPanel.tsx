@@ -4,7 +4,6 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { AlertTriangle, CheckCircle2, ChevronRight, ExternalLink, EyeOff, Search } from '@/components/icons';
-import type { IconComponent } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { Modal } from '@/components/shared/Modal';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';
@@ -22,7 +21,7 @@ import { cn } from '@/lib/utils/cn';
 import { formatInstant } from '@/lib/utils/workspace-time';
 import { useCmsTenantId } from '@/components/cms/ContentScope';
 
-import { SectionInfo } from './rows';
+import { RowTile, SectionInfo } from '@/components/shared/rows';
 import { assetPreviewSrc, cmsKeys, copyText } from './shared';
 
 /** "site.com › blog › autumn-menu", as a result page shows the address. */
@@ -248,24 +247,6 @@ export function SeoPanel({
         )}
       </div>
     </SettingsSection>
-  );
-}
-
-/** The Status card's outlined tile, tinted by what the row means. */
-function RowTile({ icon: Icon, tone = 'default' }: { icon: IconComponent; tone?: 'default' | 'warning' | 'success' }) {
-  return (
-    <span
-      className={cn(
-        'flex size-8 shrink-0 items-center justify-center rounded-md border',
-        tone === 'warning'
-          ? 'border-measured/40 bg-measured/8 text-measured'
-          : tone === 'success'
-            ? 'border-momentum/35 bg-momentum/8 text-momentum'
-            : 'border-border bg-background text-muted-foreground',
-      )}
-    >
-      <Icon size={16} aria-hidden="true" />
-    </span>
   );
 }
 

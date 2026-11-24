@@ -19,10 +19,10 @@ const RECORD_ROUTES: Record<string, (id: string) => string> = {
 
 /** Sections that hold the record but can't deep-link to it by ID. */
 const SECTION_ROUTES: Record<string, string> = {
-  'purchase-orders': '/inventory/purchasing',
-  suppliers: '/inventory/purchasing',
-  stocktakes: '/inventory/stocktakes',
-  'restock-requests': '/inventory/restock-requests',
+  'purchase-orders': '/inventory?tab=demand',
+  suppliers: '/inventory?tab=demand',
+  stocktakes: '/inventory?tab=stocktakes',
+  'restock-requests': '/inventory?tab=demand',
   'stock-transfers': '/inventory',
   'loss-log': '/inventory',
   inventory: '/inventory',
@@ -34,7 +34,7 @@ const SECTION_ROUTES: Record<string, string> = {
   'hr/absence-logs': '/staff/requests',
   helpdesk: '/staff/helpdesk',
   payroll: '/staff/payroll',
-  shifts: '/staff/shifts',
+  shifts: '/staff/rota',
   'scheduled-shifts': '/staff/rota',
   'menu-items': '/menu',
   modifiers: '/menu',

@@ -1,4 +1,5 @@
 import { Coins, type IconComponent, Mail, ShieldCheck, ShoppingBag } from '@/components/icons';
+import { TONE_TINT } from '@/components/shared/tone';
 
 import type { TimelineKind } from '@/types/customers';
 
@@ -22,6 +23,6 @@ export const TIMELINE_KIND_META: Record<TimelineKind, { icon: IconComponent; til
 
 /** The audit log's status pill tones. */
 export const PILL_TONE = {
-  warning: 'bg-measured/10 text-measured',
-  exception: 'bg-exception/8 text-exception',
+  warning: TONE_TINT.warning,
+  exception: TONE_TINT.exception,
 } as const;

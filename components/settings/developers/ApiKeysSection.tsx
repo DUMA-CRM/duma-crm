@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
 import { SecretReveal } from '@/components/cms/SecretReveal';
-import { RowMenu, RowWarning } from '@/components/cms/rows';
+import { RowMenu, RowWarning } from '@/components/shared/rows';
 import { cmsKeys, invalidateCms } from '@/components/cms/shared';
 import { Ban, Globe, KeyRound, Lock, Pencil, Plus, RefreshCw } from '@/components/icons';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';

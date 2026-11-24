@@ -30,7 +30,7 @@ import { PromoCodeEntry } from '@/components/pos/PromoCodeEntry';
 import { Avatar } from '@/components/shared/Avatar';
 import { RelativeTime } from '@/components/shared/RelativeTime';
 import { Bone } from '@/components/shared/Skeleton';
-import { SwipeRoot } from '@/components/swipe-actions';
+import { SwipeRoot } from '@/components/ui/swipe-actions';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 

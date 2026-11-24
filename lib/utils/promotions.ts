@@ -233,21 +233,6 @@ export function usageLabel(promotion: Pick<PromotionFields, 'maxRedemptions'> & 
   return `${promotion.redemptionCount} ${promotion.redemptionCount === 1 ? 'use' : 'uses'}`;
 }
 
-/** The rules a till has to know about, in a line: who it needs, and what it won't combine with. */
-export function promotionConditions(
-  promotion: Pick<PromotionFields, 'minSubtotal' | 'maxRedemptionsPerCustomer' | 'firstOrderOnly' | 'combinesWithLoyalty'>,
-  symbol = '£',
-): string[] {
-  const conditions: string[] = [];
-  if (promotion.minSubtotal !== null && Number(promotion.minSubtotal) > 0)
-    conditions.push(`Min. spend ${symbol}${Number(promotion.minSubtotal).toFixed(2)}`);
-  if (promotion.firstOrderOnly) conditions.push('First order only');
-  if (promotion.maxRedemptionsPerCustomer === 1) conditions.push('Once per customer');
-  else if (promotion.maxRedemptionsPerCustomer !== null) conditions.push(`${promotion.maxRedemptionsPerCustomer} per customer`);
-  if (!promotion.combinesWithLoyalty) conditions.push('Not with loyalty rewards');
-  return conditions;
-}
-
 /** The codes as a CSV file's text — for printing vouchers or loading into a mailing tool. */
 export function codesCsv(
   codes: readonly { code: string; maxRedemptions: number | null; redemptionCount: number; isActive: boolean }[],

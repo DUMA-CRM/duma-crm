@@ -429,8 +429,8 @@ export function StaffPerformancePanel({ userId }: { userId: string }) {
               </Insight>
             </div>
             <p className="mt-4 text-label leading-relaxed text-muted-foreground">
-              These are attributed operational metrics, not a standalone employee score. Review shift mix, staffing, location demand,
-              equipment issues, refunds and customer context before making performance decisions.
+              These figures describe the shifts worked, not the person. Consider shift mix, staffing, demand, equipment problems, refunds
+              and customers before judging performance.
             </p>
           </section>
         </>

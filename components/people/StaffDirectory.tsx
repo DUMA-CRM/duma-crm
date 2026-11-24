@@ -2,19 +2,18 @@
 
 import { useQuery } from '@tanstack/react-query';
 import { Popover } from 'radix-ui';
-import { type ReactNode, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 
 import { Search, SlidersHorizontal, Users, X } from '@/components/icons';
 import { PendingInvitations } from '@/components/people/StaffInvitations';
 import { Avatar, fmtMoney, roleConfig } from '@/components/people/shared';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { FilterChip } from '@/components/shared/FilterChip';
+import { FilterChip, FilterField } from '@/components/shared/FilterChip';
 import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -49,15 +48,6 @@ function whereOf(member: StaffProfile, locationNames: Map<string, string>): stri
   const names = ids.map((id) => locationNames.get(id)).filter(Boolean) as string[];
   if (names.length === 0) return `${ids.length} location${ids.length === 1 ? '' : 's'}`;
   return ids.length > 1 ? `${names[0]} +${ids.length - 1}` : names[0]!;
-}
-
-function FilterField({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <p className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>{label}</p>
-      {children}
-    </div>
-  );
 }
 
 /**

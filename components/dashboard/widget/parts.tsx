@@ -2,7 +2,6 @@
 
 import type { ReactNode } from 'react';
 
-import type { IconComponent } from '@/components/icons';
 
 import { cn } from '@/lib/utils/cn';
 
@@ -21,16 +20,6 @@ export const TINT_STROKE: Record<WidgetTint, string> = {
   team: 'stroke-success',
   money: 'stroke-primary',
   exception: 'stroke-exception',
-};
-
-export const TINT_TILE: Record<WidgetTint, string> = {
-  brand: 'bg-primary/12 text-primary',
-  orders: 'bg-measured/12 text-measured',
-  kitchen: 'bg-reference/12 text-reference',
-  stock: 'bg-stock/14 text-stock',
-  team: 'bg-success/12 text-success',
-  money: 'bg-primary/12 text-primary',
-  exception: 'bg-exception/12 text-exception',
 };
 
 /** A progress ring, the Fitness and Batteries gauge: a track, an arc for the share, a reading in the middle. */
@@ -76,55 +65,6 @@ export function WidgetRing({
             className={TINT_STROKE[tint]}
           />
         )}
-      </svg>
-      {children && <span className="absolute inset-0 grid place-items-center text-center">{children}</span>}
-    </span>
-  );
-}
-
-/** A donut of shares — the day's tenders, the shelf's health — with a 2° gap between segments. */
-export function WidgetDonut({
-  segments,
-  size = 64,
-  thickness = 9,
-  label,
-  children,
-}: {
-  segments: Array<{ key: string; value: number; stroke: string }>;
-  size?: number;
-  thickness?: number;
-  label: string;
-  children?: ReactNode;
-}) {
-  const radius = (size - thickness) / 2;
-  const circumference = 2 * Math.PI * radius;
-  const total = segments.reduce((sum, segment) => sum + segment.value, 0);
-  const gap = segments.filter((segment) => segment.value > 0).length > 1 ? circumference * (2 / 360) : 0;
-  let offset = 0;
-  return (
-    <span className="relative inline-grid shrink-0 place-items-center" style={{ width: size, height: size }} role="img" aria-label={label}>
-      <svg width={size} height={size} viewBox={`0 0 ${size} ${size}`} className="-rotate-90" aria-hidden="true">
-        <circle cx={size / 2} cy={size / 2} r={radius} fill="none" strokeWidth={thickness} className="stroke-band" />
-        {total > 0 &&
-          segments.map((segment) => {
-            const length = (segment.value / total) * circumference;
-            const drawn = Math.max(0, length - gap);
-            const dash = (
-              <circle
-                key={segment.key}
-                cx={size / 2}
-                cy={size / 2}
-                r={radius}
-                fill="none"
-                strokeWidth={thickness}
-                strokeDasharray={`${drawn} ${circumference}`}
-                strokeDashoffset={-offset}
-                className={segment.stroke}
-              />
-            );
-            offset += length;
-            return segment.value > 0 ? dash : null;
-          })}
       </svg>
       {children && <span className="absolute inset-0 grid place-items-center text-center">{children}</span>}
     </span>
@@ -294,19 +234,6 @@ export function WidgetFacts({
         </div>
       ))}
     </dl>
-  );
-}
-
-/** A glyph on a tinted rounded square — the leading mark of a list row, as in Reminders. */
-export function WidgetIconTile({ icon: Icon, tint, size = 28 }: { icon: IconComponent; tint: WidgetTint; size?: number }) {
-  return (
-    <span
-      className={cn('grid shrink-0 place-items-center rounded-md', TINT_TILE[tint])}
-      style={{ width: size, height: size }}
-      aria-hidden="true"
-    >
-      <Icon size={Math.round(size * 0.52)} strokeWidth={2} />
-    </span>
   );
 }
 

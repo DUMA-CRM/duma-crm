@@ -30,6 +30,7 @@ import { type LeaveContext, type LeaveUrgency, leaveContext, leaveFlag, summaris
 import { daysBetween } from '@/lib/utils/staff-overview';
 import { workspaceDateKey, zonedToInstant } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
+import { plural } from '@/lib/utils/format';
 
 const STATUSES = ['pending', 'approved', 'declined', 'cancelled'] as const;
 const STATUS_LABEL: Record<(typeof STATUSES)[number], string> = {
@@ -49,8 +50,6 @@ const dayOf = (value: string) => {
   const [year, month, date] = value.slice(0, 10).split('-').map(Number);
   return new Date(year, month - 1, date);
 };
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
-
 /**
  * The leave approval queue: four figures over the waiting requests, then one
  * list — a row per request, its most pressing problem (over allowance, shifts

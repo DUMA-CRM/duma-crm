@@ -2,7 +2,7 @@
 
 import * as React from 'react';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 import { DatePicker } from './date-picker';
 import { FieldLabel } from './label';

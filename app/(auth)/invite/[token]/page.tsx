@@ -1,11 +1,11 @@
 import type { Metadata } from 'next';
 import { cookies } from 'next/headers';
 
+import { InviteAcceptance } from '@/components/auth/InviteAcceptance';
+
 import { ApiError } from '@/lib/api/client';
 import { getSession } from '@/lib/api/auth.service';
 import { type InvitationPreview, getInvitationPreview } from '@/lib/api/workspaces.service';
-
-import { InviteAcceptance } from './InviteAcceptance';
 
 // The token is the credential: never send it on in a Referer header.
 export const metadata: Metadata = { title: 'Workspace invitation · DUMA', referrer: 'no-referrer' };

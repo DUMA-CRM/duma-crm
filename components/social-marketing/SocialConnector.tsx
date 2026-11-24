@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect, useState } from 'react';
 
-import { BrandTile, RowMenu, RowWarning } from '@/components/cms/rows';
+import { BrandTile, RowMenu, RowWarning } from '@/components/shared/rows';
 import { CalendarDays, Megaphone, Plug, RefreshCw, ShieldCheck, Trash2, UserPlus, Users } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ConnectorManagePage } from '@/components/settings/connectors/ConnectorManagePage';

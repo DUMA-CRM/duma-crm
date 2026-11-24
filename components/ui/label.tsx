@@ -4,7 +4,7 @@ import type { ReactNode } from 'react';
 
 import { useDrawerForm } from '@/components/shared/DrawerFormContext';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 import { fieldLabel } from '@/lib/utils/field-label';
 
 // Sentence case, as on the marketing site — not small uppercase captions.
@@ -51,28 +51,5 @@ export function FieldLabel({
         {children}
       </LabelText>
     </Tag>
-  );
-}
-
-/** Legacy standalone labels share the same typography and drawer wording. */
-export function Label({
-  children,
-  uppercase,
-  className,
-  required,
-  optional,
-}: {
-  children: ReactNode;
-  uppercase?: boolean;
-  className?: string;
-  required?: boolean;
-  optional?: boolean;
-}) {
-  return (
-    <p className={cn('text-label text-muted-foreground', uppercase && 'uppercase', className)}>
-      <LabelText required={required} optional={optional}>
-        {children}
-      </LabelText>
-    </p>
   );
 }

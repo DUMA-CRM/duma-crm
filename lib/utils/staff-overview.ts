@@ -19,6 +19,7 @@ import type { ComplianceCheck } from '@/lib/utils/employee-compliance';
 
 // Relative, not aliased: see the note in `employee-compliance.ts`.
 import { ageBasedMinimumWage, employeeSetupChecks } from './employee-compliance.ts';
+import { plural } from './format.ts';
 
 /** Consequence, not urgency: blocking means somebody cannot be paid or covered. */
 export type StaffAttentionSeverity = 'blocking' | 'attention' | 'info';
@@ -36,8 +37,6 @@ const DAY_MS = 86_400_000;
 
 /** Whole days between two instants, floored — "2 days" means at least 48 hours. */
 export const daysBetween = (from: string | Date, to: Date): number => Math.floor((to.getTime() - new Date(from).getTime()) / DAY_MS);
-
-const plural = (n: number, one: string, many = `${one}s`) => `${n} ${n === 1 ? one : many}`;
 
 // ── Record completeness ──────────────────────────────────────────────────────
 

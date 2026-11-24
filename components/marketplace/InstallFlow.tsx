@@ -7,7 +7,7 @@ import {
   AlertTriangle, Copy, FileText, Globe, ImageIcon, ImagePlus, type IconComponent, KeyRound, LayoutDashboard, LayoutGrid, Loader2,
   Lock, Receipt, Webhook,
 } from '@/components/icons';
-import { RowTile, RowWarning } from '@/components/cms/rows';
+import { RowTile, RowWarning } from '@/components/shared/rows';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Modal } from '@/components/shared/Modal';
 import { Button } from '@/components/ui/button';

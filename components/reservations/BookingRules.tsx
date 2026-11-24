@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import { copyText } from '@/components/cms/shared';
 import {
   CalendarClock,
@@ -26,8 +26,7 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import { NumberStepper } from '@/components/shared/FormParts';
 import { PublicQrCodeCard } from '@/components/shared/PublicQrCodeCard';
 import { RecordGroup } from '@/components/shared/RecordGroup';
-import { Bone } from '@/components/shared/Skeleton';
-import { SectionSkeleton } from '@/components/shared/TileSkeleton';
+import { SectionSkeleton, SettingRowSkeleton } from '@/components/shared/TileSkeleton';
 import { CopyButton } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -375,26 +374,15 @@ export function BookingRules({ locationId, canEdit }: { locationId: string; canE
 
 /** The two stacks of cards, without their words. */
 function RulesSkeleton() {
-  const rows = (count: number) =>
-    Array.from({ length: count }, (_, index) => (
-      <div key={index} className="flex items-center gap-3">
-        <Bone className="size-10 shrink-0" />
-        <span className="min-w-0 flex-1 space-y-1.5">
-          <Bone className="h-2.5 w-20" />
-          <Bone className="h-3.5 w-44 max-w-full" />
-        </span>
-        <Bone className="h-8 w-20 shrink-0" />
-      </div>
-    ));
   return (
     <div role="status" aria-label="Loading the booking rules" className="grid items-start gap-5 xl:grid-cols-2">
       <div className="flex min-w-0 flex-col gap-5">
-        <SectionSkeleton>{rows(7)}</SectionSkeleton>
-        <SectionSkeleton>{rows(3)}</SectionSkeleton>
+        <SectionSkeleton><SettingRowSkeleton rows={7} /></SectionSkeleton>
+        <SectionSkeleton><SettingRowSkeleton rows={3} /></SectionSkeleton>
       </div>
       <div className="flex min-w-0 flex-col gap-5">
-        <SectionSkeleton>{rows(1)}</SectionSkeleton>
-        <SectionSkeleton>{rows(1)}</SectionSkeleton>
+        <SectionSkeleton><SettingRowSkeleton rows={1} /></SectionSkeleton>
+        <SectionSkeleton><SettingRowSkeleton rows={1} /></SectionSkeleton>
       </div>
     </div>
   );

@@ -4,10 +4,10 @@ import { useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
 import { Loader2, LogIn } from '@/components/icons';
-import { ShimmeringText } from '@/components/shimmering-text';
-import { SlideToUnlock, SlideToUnlockHandle, SlideToUnlockText, SlideToUnlockTrack } from '@/components/slide-to-unlock';
+import { ShimmeringText } from '@/components/ui/shimmering-text';
+import { SlideToUnlock, SlideToUnlockHandle, SlideToUnlockText, SlideToUnlockTrack } from '@/components/ui/slide-to-unlock';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 import { uiSound } from '@/lib/utils/chime';
 
 interface SlideToClockInProps {

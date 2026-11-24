@@ -2,9 +2,9 @@
 // The restock queue's ordering and the context a decision needs. Pure, so the
 // rule "urgent first, then whoever has waited longest" is tested, not assumed.
 // ---------------------------------------------------------------------------
-import { formatInstant, zonedParts } from './workspace-time.ts';
+import type { RestockPriority } from '@/lib/api/restock.service';
 
-export type RestockPriority = 'standard' | 'urgent';
+import { formatInstant, zonedParts } from './workspace-time.ts';
 
 /**
  * The review order for pending requests: urgent before standard, then the

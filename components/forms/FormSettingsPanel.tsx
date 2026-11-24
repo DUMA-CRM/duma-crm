@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useState } from 'react';
 
 import { DateTimeField } from '@/components/cms/DateTimeField';
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import {
   BarChart3,
   CalendarClock,

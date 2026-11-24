@@ -7,7 +7,7 @@ import { RevealObserver } from '@/components/marketing/RevealObserver';
 
 import { organizationSchema, websiteSchema } from '@/lib/marketing/schema';
 
-import './marketing.css';
+import '@/components/marketing/marketing.css';
 
 // The handwritten voice for margin notes and the founder's signature. Loaded
 // here, not in the root layout, so the app never downloads it.

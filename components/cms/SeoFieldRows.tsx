@@ -5,7 +5,7 @@ import { SEO_RECOMMENDED_LENGTHS, seoFieldGroups } from '@/lib/utils/cms-seo';
 
 import { FieldRows } from './FieldRows';
 import { ShareCardButton } from './ShareCardButton';
-import { SectionInfo } from './rows';
+import { SectionInfo } from '@/components/shared/rows';
 
 type Data = Record<string, unknown>;
 

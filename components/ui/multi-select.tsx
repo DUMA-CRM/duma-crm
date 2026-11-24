@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 import { ChevronDown } from '@/components/icons';
 
-import { cn } from '@/lib/utils';
+import { cn } from '@/lib/utils/cn';
 
 export interface MultiSelectOption {
   value: string;

@@ -4,7 +4,6 @@ import { badgeVariants } from '@/components/ui/badge';
 
 import { Tier } from '@/types/customers';
 
-import { OrderStatus } from '../api/orders.service';
 
 export const TIER_THRESHOLDS: Record<Tier, { from: number; to: number; nextTier: string; fromLabel: string }> = {
   bronze: { from: 0, to: 100, nextTier: 'Silver', fromLabel: 'None' },
@@ -31,62 +30,3 @@ export const TIER_FILTERS = [
   { value: 'silver', label: 'Silver' },
   { value: 'bronze', label: 'Bronze' },
 ] as const;
-
-export const PANEL_TIER_CONFIG: Record<
-  Tier,
-  {
-    label: string;
-    variant: BadgeVariant;
-    progressFrom: string;
-    progressTo: string;
-    progressPct: number;
-    nextTier: string;
-    ptsToNext: number;
-  }
-> = {
-  vip: {
-    label: 'VIP',
-    variant: 'success',
-    progressFrom: 'Gold',
-    progressTo: 'Platinum',
-    progressPct: 72,
-    nextTier: 'Platinum',
-    ptsToNext: 750,
-  },
-  gold: {
-    label: 'GOLD',
-    variant: 'warning',
-    progressFrom: 'Silver',
-    progressTo: 'VIP',
-    progressPct: 45,
-    nextTier: 'VIP',
-    ptsToNext: 500,
-  },
-  silver: {
-    label: 'SILVER',
-    variant: 'muted',
-    progressFrom: 'Bronze',
-    progressTo: 'Gold',
-    progressPct: 30,
-    nextTier: 'Gold',
-    ptsToNext: 200,
-  },
-  bronze: {
-    label: 'BRONZE',
-    variant: 'amber',
-    progressFrom: 'None',
-    progressTo: 'Silver',
-    progressPct: 15,
-    nextTier: 'Silver',
-    ptsToNext: 100,
-  },
-};
-
-export const STATUS_CONFIG: Record<OrderStatus, { label: string; variant: BadgeVariant }> = {
-  pending: { label: 'Pending', variant: 'muted' },
-  preparing: { label: 'Preparing', variant: 'warning' },
-  ready: { label: 'Ready', variant: 'primary' },
-  done: { label: 'Done', variant: 'success' },
-  cancelled: { label: 'Cancelled', variant: 'destructive' },
-  expired: { label: 'Expired', variant: 'warning' },
-};

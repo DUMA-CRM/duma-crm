@@ -7,7 +7,7 @@ import { ImageOptionsDialog } from '@/components/cms/ImageOptionsDialog';
 import { AssetDrawer } from '@/components/cms/MediaPanel';
 import { MediaPicker } from '@/components/cms/MediaPicker';
 import { createRenditions } from '@/components/cms/renditions';
-import { InfoRow, InfoRows } from '@/components/cms/rows';
+import { InfoRow, InfoRows } from '@/components/shared/rows';
 import { AlertTriangle, ArrowLeft, ArrowRight, ImageIcon, Link2, Palette, Plus, Star, UploadCloud } from '@/components/icons';
 import { Drawer } from '@/components/shared/Drawer';
 import { EmptyState } from '@/components/shared/EmptyState';

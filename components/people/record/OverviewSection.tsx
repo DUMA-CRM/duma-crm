@@ -44,6 +44,7 @@ import {
 import { leaveBalance } from '@/lib/utils/my-hr';
 import { formatMoney } from '@/lib/utils/payroll-totals';
 import { workspaceDateKey, workspaceFormatter } from '@/lib/utils/workspace-time';
+import { useAuthStore } from '@/stores/authStore';
 
 import { AccessCard, EmploymentPanel, PayPanel, PersonalPanel } from './OverviewPanels';
 import { EmployeeRequestsCard } from './RequestsCard';
@@ -116,6 +117,8 @@ export function OverviewSection({
   onOpenSection: (section: 'time' | 'pay') => void;
 }) {
   const { data: payroll } = usePayrollSettings(access.payroll);
+  // Settings → Roles admits only a super admin (its layout), so the link follows that gate.
+  const canManageRoles = useAuthStore((state) => state.role === 'super_admin');
   const currency = payroll?.currency ?? 'GBP';
 
   // `/helpdesk/manage` has no userId filter — only status, category and a
@@ -196,7 +199,7 @@ export function OverviewSection({
           <SettingsTabBody>
             {employee && <PersonalPanel employee={employee} email={member?.email} onEdit={access.money ? onEdit : undefined} />}
             {member && (
-              <AccessCard member={member} locations={locations} canEdit={access.staffAccess} canManageRoles={access.staffAccess} />
+              <AccessCard member={member} locations={locations} canEdit={access.staffAccess} canManageRoles={canManageRoles} />
             )}
             {access.helpdesk && (
               <EmployeeRequestsCard

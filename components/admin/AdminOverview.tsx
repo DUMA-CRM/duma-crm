@@ -4,13 +4,12 @@ import { useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 
-import { InfoRow, InfoRows, RowTile } from '@/components/cms/rows';
+import { InfoRow, InfoRows, RowChevron, RowTile } from '@/components/shared/rows';
 import {
   AlertTriangle,
   Ban,
   Building2,
   CheckCircle2,
-  ChevronRight,
   CreditCard,
   Database,
   HeartHandshake,
@@ -157,7 +156,7 @@ export function AdminOverview() {
                   <Badge variant="warning" className="tabular-nums">
                     {formatCount(item.count)}
                   </Badge>
-                  <Chevron />
+                  <RowChevron />
                 </Link>
               ))}
             </div>
@@ -206,7 +205,7 @@ export function AdminOverview() {
                   <Badge variant={row.status === 'active' ? 'success' : row.status === 'winding_down' ? 'warning' : 'muted'}>
                     {workspaceStatusLabel(row.status)}
                   </Badge>
-                  <Chevron />
+                  <RowChevron />
                 </button>
               ))}
             </div>
@@ -274,11 +273,5 @@ function FactRow({ icon, title, value }: { icon: IconComponent; title: string; v
     <InfoRow icon={icon} title={title}>
       <span className="text-sm font-semibold tabular-nums text-foreground">{formatCount(value)}</span>
     </InfoRow>
-  );
-}
-
-function Chevron() {
-  return (
-    <ChevronRight size={14} className="shrink-0 text-muted-foreground transition-transform group-hover:translate-x-0.5" aria-hidden="true" />
   );
 }

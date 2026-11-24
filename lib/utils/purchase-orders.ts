@@ -72,5 +72,3 @@ export function invoiceDifference(invoiceAmount: string | number | null | undefi
   if (invoiceAmount === null || invoiceAmount === undefined || invoiceAmount === '') return null;
   return Math.round((Number(invoiceAmount) - total) * 100) / 100;
 }
-
-export const dayKey = (iso: string) => workspaceDateKey(iso);

@@ -6,6 +6,8 @@ import type { AttendanceDay } from '@/lib/modules/people/client';
 import { formatDate } from '@/lib/utils/date';
 import { payPeriodHours, payslipDeductions, payslipReconciles } from '@/lib/utils/my-hr';
 
+import { money } from './shared';
+
 /**
  * An itemised pay statement, as ERA 1996 s.8 requires one to look: gross at the
  * top, every deduction named and shown separately beneath it, net stated last.
@@ -15,11 +17,6 @@ import { payPeriodHours, payslipDeductions, payslipReconciles } from '@/lib/util
  * Where pay varies with hours worked, s.9 also requires the hours — those come
  * from the employee's own attendance record for the same period.
  */
-
-const money = (value: string | number | null | undefined, currency = 'GBP') => {
-  const n = Number(value ?? 0);
-  return new Intl.NumberFormat('en-GB', { style: 'currency', currency }).format(Number.isFinite(n) ? n : 0);
-};
 
 export function PayslipStatement({
   payslip,

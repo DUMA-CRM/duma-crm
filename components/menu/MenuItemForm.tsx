@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { SectionInfo } from '@/components/cms/rows';
+import { SectionInfo } from '@/components/shared/rows';
 import {
   AlignLeft,
   Boxes,

@@ -36,6 +36,7 @@ import {
 import { formatCalendarDate, workspaceTimeZone, zonedParts } from '@/lib/utils/workspace-time';
 
 import { GroupTitle, HOST_FOCUS, HOST_PICKED, HostWaitlist, PanelScroll } from './WaitlistPanel';
+import { plural } from '@/lib/utils/format';
 
 const GROUP_TITLES: Record<HostGroupId, string> = { late: 'Late', next: 'Next', seated: 'Seated', done: 'Done' };
 
@@ -44,8 +45,6 @@ const TAB_LABELS: Record<HostPanelTab, string> = { bookings: 'Bookings', waitlis
 
 /** "T7+T8" — the tables a booking holds, as the chip at the end of its row shows them. */
 export const tablesLabel = (booking: Pick<Booking, 'tables'>) => booking.tables.map((table) => table.label).join('+');
-
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
 
 /**
  * The host stand's left panel: the day's bookings in the order a host works

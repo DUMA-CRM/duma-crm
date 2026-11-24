@@ -5,7 +5,7 @@ import { motion, useReducedMotion } from 'motion/react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useState } from 'react';
 
-import { RowMenu } from '@/components/cms/rows';
+import { RowMenu } from '@/components/shared/rows';
 import { ArrowDown, ArrowUp, Layers3, Pencil, Plus, Scale, Search, SlidersHorizontal, X } from '@/components/icons';
 import { MenuSectionTabs, MenuShellIcon } from '@/components/menu/MenuSectionTabs';
 import { ModifierGroupDrawer } from '@/components/menu/ModifierGroupDrawer';
@@ -61,7 +61,7 @@ export function ModifiersWorkspace() {
   const reduceMotion = useReducedMotion();
   const words = useCatalogWords();
   const [groupDrawer, setGroupDrawer] = useState<ModifierGroup | 'new' | null>(null);
-  // `?new=1` (what /menu/modifiers/new redirects to) opens the drawer on arrival.
+  // `?new=1` (what /menu/modifiers/new redirects to, see next.config.ts) opens the drawer on arrival.
   const searchParams = useSearchParams();
   const [newFor, setNewFor] = useState<{ groupId?: string } | null>(() =>
     searchParams.get('new') ? { groupId: searchParams.get('group') ?? undefined } : null,

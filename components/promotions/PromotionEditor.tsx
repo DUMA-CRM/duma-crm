@@ -36,11 +36,12 @@ import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
-import { ChoiceCards } from '@/components/shared/FormParts';
+import { ChoiceCards, Hint } from '@/components/shared/FormParts';
 import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { RecordGroup } from '@/components/shared/RecordGroup';
 import { RelativeTime } from '@/components/shared/RelativeTime';
-import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
+import { ListSkeleton } from '@/components/shared/Skeleton';
+import { SettingRowsSectionSkeleton } from '@/components/shared/TileSkeleton';
 import { useCurrencySymbol, useFormatMoney } from '@/components/shared/useWorkspaceMoney';
 import { CopyButton } from '@/components/ui/action-button';
 import { Badge } from '@/components/ui/badge';
@@ -771,40 +772,19 @@ function PromotionForm({
 }
 
 /** The line under an open row's control: why it matters, or what's wrong with it. */
-function Hint({ error, children }: { error?: string | undefined; children: React.ReactNode }) {
-  return <p className={cn('mt-1.5 text-xs', error ? 'text-exception' : 'text-muted-foreground')}>{error ?? children}</p>;
-}
-
 /** The editor without its words: the four sections as two columns, the receipt beside them. */
 function EditorSkeleton() {
-  const section = (rows: number) => (
-    <div className="space-y-2">
-      <Bone className="h-4 w-24" />
-      <div className="space-y-5 rounded-lg border border-border bg-card px-5 py-4 shadow-sm">
-        {Array.from({ length: rows }, (_, index) => (
-          <div key={index} className="flex items-center gap-3">
-            <Bone className="size-10 shrink-0" />
-            <span className="min-w-0 flex-1 space-y-1.5">
-              <Bone className="h-2.5 w-20" />
-              <Bone className="h-3.5 w-40 max-w-full" />
-            </span>
-            <Bone className="h-8 w-20 shrink-0" />
-          </div>
-        ))}
-      </div>
-    </div>
-  );
   return (
     <div role="status" aria-label="Loading promotion">
       <SettingsTabBody>
         <div className="grid items-start gap-5 xl:grid-cols-2">
           <div className="flex min-w-0 flex-col gap-5">
-            {section(4)}
-            {section(2)}
+            <SettingRowsSectionSkeleton rows={4} />
+            <SettingRowsSectionSkeleton rows={2} />
           </div>
           <div className="flex min-w-0 flex-col gap-5">
-            {section(5)}
-            {section(2)}
+            <SettingRowsSectionSkeleton rows={5} />
+            <SettingRowsSectionSkeleton rows={2} />
           </div>
         </div>
       </SettingsTabBody>

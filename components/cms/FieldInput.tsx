@@ -24,7 +24,7 @@ import { MediaPicker } from './MediaPicker';
 import { ReferencePicker } from './ReferencePicker';
 import { FIELD_ICONS } from './fieldIcons';
 import { createRenditions } from './renditions';
-import { RowMenu, RowTile } from './rows';
+import { RowMenu, RowTile } from '@/components/shared/rows';
 import { EntryStatusBadge, TEXTAREA_CLASS, assetPreviewSrc, cmsKeys, invalidateCms } from './shared';
 
 type Data = Record<string, unknown>;

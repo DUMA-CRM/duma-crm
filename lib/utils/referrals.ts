@@ -5,8 +5,7 @@
 // first order is completed — nothing here decides one.
 // ---------------------------------------------------------------------------
 
-export type ReferralRewardKind = 'loyalty_reward' | 'promo_code';
-export type ReferralStatus = 'pending' | 'rewarded' | 'declined' | 'cancelled';
+import type { ReferralRewardKind, ReferralStatus } from '@/lib/api/referrals.service';
 
 export interface ReferralProgramDraft {
   active: boolean;

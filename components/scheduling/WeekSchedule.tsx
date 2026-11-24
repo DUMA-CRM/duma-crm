@@ -23,11 +23,11 @@ import {
   unpaidBreak,
   workedMinutes,
 } from '@/lib/utils/my-rota';
-import { formatInstant } from '@/lib/utils/workspace-time';
+
+import { fmtTime } from './shared';
 
 const DAY_LABELS = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
 
-const fmtTime = (value: Date | string) => formatInstant(value, { hour: '2-digit', minute: '2-digit' });
 const fmtWindow = (mins: number) => `${String(Math.floor(mins / 60)).padStart(2, '0')}:${String(mins % 60).padStart(2, '0')}`;
 const sameDay = (a: Date, b: Date) => a.toDateString() === b.toDateString();
 /** A day of the week: a row split by hairlines on a phone, a column on a desk. */

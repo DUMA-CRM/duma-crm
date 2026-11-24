@@ -4,14 +4,14 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import { Bell, type IconComponent, Loader2, Mail, Plus, XCircle } from '@/components/icons';
 import { ChangeRow, ValueMissing } from '@/components/settings/controls';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards } from '@/components/shared/FormParts';
 import { Modal } from '@/components/shared/Modal';
 import { RecordGroup } from '@/components/shared/RecordGroup';
-import { Bone } from '@/components/shared/Skeleton';
+import { SettingRowSkeleton } from '@/components/shared/TileSkeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 
@@ -96,15 +96,7 @@ export function GuestEmails({ locationId, canEdit }: { locationId: string; canEd
     >
       {query.isPending ? (
         <div role="status" aria-busy="true" aria-label="Loading the guest emails" className="space-y-5">
-          {MOMENTS.map((moment) => (
-            <div key={moment.trigger} className="flex items-center gap-3">
-              <Bone className="size-10 shrink-0" />
-              <span className="min-w-0 flex-1 space-y-1.5">
-                <Bone className="h-2.5 w-20" />
-                <Bone className="h-3.5 w-44 max-w-full" />
-              </span>
-            </div>
-          ))}
+          <SettingRowSkeleton rows={MOMENTS.length} action={false} />
         </div>
       ) : query.isError ? (
         <ErrorState title="Couldn’t load the guest emails" onRetry={() => void query.refetch()} className="py-4" />
@@ -141,8 +133,8 @@ export function GuestEmails({ locationId, canEdit }: { locationId: string; canEd
                   automation ? (
                     <Button asChild variant="outline" size="sm">
                       <Link
-                        href={`/communications?automation=${automation.id}`}
-                        aria-label={`Open the ${moment.title.toLowerCase()} email in Communications`}
+                        href={`/automation?automation=${automation.id}`}
+                        aria-label={`Open the ${moment.title.toLowerCase()} email in Automation`}
                       >
                         Open
                       </Link>

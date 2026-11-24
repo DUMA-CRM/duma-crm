@@ -93,7 +93,7 @@ import { FieldSet } from './FieldInput';
 import { FieldRows } from './FieldRows';
 import { SeoFieldRows } from './SeoFieldRows';
 import { SeoPanel, SharePreviewDialog, goToField, useSeoChecks } from './SeoPanel';
-import { ActionRow, ActionRows, InfoRow, InfoRows, RowMenu, type RowMenuItem, RowTile, SectionInfo } from './rows';
+import { ActionRow, ActionRows, InfoRow, InfoRows, RowMenu, type RowMenuItem, RowTile, SectionInfo } from '@/components/shared/rows';
 import { EntryStatusBadge, PanelError, TEXTAREA_CLASS, cmsKeys, copyEntryJson, copyText, invalidateCms } from './shared';
 import { useCmsAccess } from './useCmsAccess';
 

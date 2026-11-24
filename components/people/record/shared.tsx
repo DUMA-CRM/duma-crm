@@ -7,6 +7,7 @@ import { useState } from 'react';
 import '@/components/icons';
 import type { IconComponent } from '@/components/icons';
 import { SECTION_RISE } from '@/components/settings/SettingsSection';
+import { TONE_TINT } from '@/components/shared/tone';
 import { CopyGlyph } from '@/components/ui/action-button';
 
 import { getEmployee } from '@/lib/modules/people/client';
@@ -46,17 +47,18 @@ export function CopyButton({ value, label }: { value: string; label: string }) {
 
 /** The audit log's domain tints, so a record's rows colour the way its history does. */
 const ROW_TONE = {
-  team: 'bg-momentum/8 text-momentum',
+  team: TONE_TINT.success,
+  // A touch lighter than TONE_TINT.warning (/10), so not derived from it.
   money: 'bg-measured/8 text-measured',
-  reference: 'bg-reference/8 text-reference',
-  muted: 'bg-band text-muted-foreground',
-  missing: 'bg-exception/8 text-exception',
+  reference: TONE_TINT.info,
+  muted: TONE_TINT.muted,
+  missing: TONE_TINT.exception,
 } as const;
 
 const PILL_TONE = {
-  success: 'bg-momentum/8 text-momentum',
-  warning: 'bg-measured/10 text-measured',
-  exception: 'bg-exception/8 text-exception',
+  success: TONE_TINT.success,
+  warning: TONE_TINT.warning,
+  exception: TONE_TINT.exception,
 } as const;
 
 const INTERACTIVE = 'transition-colors hover:bg-band/40 focus-visible:outline-2 focus-visible:-outline-offset-2 focus-visible:outline-ring';

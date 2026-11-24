@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { RowTile } from '@/components/cms/rows';
+import { RowTile } from '@/components/shared/rows';
 import { BalanceAdjustModal } from '@/components/customers/BalanceAdjustModal';
 import { Drawer } from '@/components/customers/CustomerDialogs';
 import { Modal } from '@/components/customers/CustomerDialogs';

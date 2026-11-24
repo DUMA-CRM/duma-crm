@@ -1,4 +1,3 @@
-import { relativeTime } from './relative-time.ts';
 
 // Pure logic behind the Communications overview and history — no React, so it
 // can be tested. Structural types only: the caller passes API records as-is.
@@ -47,12 +46,6 @@ export type DeliveryBucket = 'all' | 'sent' | 'waiting' | 'failed' | 'cancelled'
 /** "Waiting" covers queued and mid-send — nobody can act on either. */
 export const deliveryBucket = (status: DeliveryStatus): Exclude<DeliveryBucket, 'all'> =>
   status === 'queued' || status === 'sending' ? 'waiting' : status;
-
-export function countByBucket(deliveries: readonly DeliveryLike[]): Record<DeliveryBucket, number> {
-  const counts: Record<DeliveryBucket, number> = { all: deliveries.length, sent: 0, waiting: 0, failed: 0, cancelled: 0 };
-  for (const delivery of deliveries) counts[deliveryBucket(delivery.status)] += 1;
-  return counts;
-}
 
 /** Send steps pointing at a template that is gone or archived — those steps won't send. */
 export function missingTemplateCount(definition: WorkflowLike | undefined, templates: readonly TemplateLike[]): number {
@@ -131,9 +124,6 @@ export function attentionIssues({
   }
   return issues;
 }
-
-/** "just now", "12 min ago", "3 h ago", "2 d ago" — for short activity lists. */
-export const timeAgo = (iso: string, now: number): string => relativeTime(iso, now);
 
 // ── Automations list ──────────────────────────────────────────────────────────
 

@@ -69,7 +69,7 @@ import { useCmsTenantId } from '@/components/cms/ContentScope';
 import { MediaPicker } from './MediaPicker';
 import { ReferencePicker } from './ReferencePicker';
 import { RichTextPreview } from './RichTextPreview';
-import { ActionRow } from './rows';
+import { ActionRow } from '@/components/shared/rows';
 import { invalidateCms } from './shared';
 
 type Mode = 'live' | 'write' | 'preview';

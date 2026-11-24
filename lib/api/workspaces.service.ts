@@ -43,9 +43,6 @@ export const getMyWorkspaces = (signal?: AbortSignal) => apiFetch<MyWorkspaces>(
 export const setActiveWorkspace = (tenantId: string) =>
   apiFetch<{ ok: true; tenantId: string }>('/workspaces/active', { method: 'POST', body: JSON.stringify({ tenantId }) });
 
-export const leaveWorkspace = (tenantId: string) =>
-  apiFetch<{ ok: true }>(`/workspaces/${encodeURIComponent(tenantId)}/leave`, { method: 'POST' });
-
 export const acceptMyInvitation = (id: string) =>
   apiFetch<{ ok: true; tenantId: string }>(`/workspaces/invitations/${encodeURIComponent(id)}/accept`, { method: 'POST' });
 

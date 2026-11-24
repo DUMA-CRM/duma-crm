@@ -3,7 +3,7 @@ import { useMutation, useQuery } from '@tanstack/react-query';
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
 
-import { BrandTile, InfoRow, InfoRows, RowMenu, type RowMenuItem, RowTile, RowWarning } from '@/components/cms/rows';
+import { BrandTile, InfoRow, InfoRows, RowMenu, type RowMenuItem, RowTile, RowWarning } from '@/components/shared/rows';
 import {
   AlertTriangle,
   Check,

@@ -2,6 +2,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { CalendarCheck } from '@/components/icons';
+import { DetailPanel, DetailPanelRow, DetailSectionTitle } from '@/components/shared/DetailPanel';
 import { Drawer } from '@/components/shared/Drawer';
 import { Button } from '@/components/ui/button';
 
@@ -108,30 +109,30 @@ export function DayDetailDrawer({ day, onClose, onQuery }: { day: AttendanceDay;
     >
       <div className="space-y-6">
         <section>
-          <SectionTitle>Rostered</SectionTitle>
+          <DetailSectionTitle>Rostered</DetailSectionTitle>
           {rostered.length === 0 ? (
             <Empty>No shift was rostered for this day.</Empty>
           ) : (
-            <Panel>
+            <DetailPanel>
               {rostered.map((shift) => (
-                <Row key={shift.id} label={shift.role ? `Shift · ${shift.role}` : 'Shift'}>
+                <DetailPanelRow key={shift.id} label={shift.role ? `Shift · ${shift.role}` : 'Shift'}>
                   <span className="font-mono font-semibold tabular-nums">
                     {time(shift.startsAt)}–{time(shift.endsAt)}
                   </span>
                   {shift.location?.name && <span className="text-muted-foreground">· {shift.location.name}</span>}
-                </Row>
+                </DetailPanelRow>
               ))}
               {rostered[0]?.notes && (
-                <Row label="Manager’s note">
+                <DetailPanelRow label="Manager’s note">
                   <span className="whitespace-pre-wrap">{rostered[0].notes}</span>
-                </Row>
+                </DetailPanelRow>
               )}
-            </Panel>
+            </DetailPanel>
           )}
         </section>
 
         <section>
-          <SectionTitle>What was recorded</SectionTitle>
+          <DetailSectionTitle>What was recorded</DetailSectionTitle>
           {clocked.length === 0 ? (
             <Empty tone={day.status === 'missed' ? 'exception' : 'muted'}>
               {day.status === 'missed'
@@ -149,23 +150,23 @@ export function DayDetailDrawer({ day, onClose, onQuery }: { day: AttendanceDay;
 
         {(leave || day.leaveName) && (
           <section>
-            <SectionTitle>Leave</SectionTitle>
-            <Panel>
-              <Row label="Type">{leave?.leaveType.name ?? day.leaveName}</Row>
+            <DetailSectionTitle>Leave</DetailSectionTitle>
+            <DetailPanel>
+              <DetailPanelRow label="Type">{leave?.leaveType.name ?? day.leaveName}</DetailPanelRow>
               {leave && (
                 <>
-                  <Row label="Booked">
+                  <DetailPanelRow label="Booked">
                     {fmt(leave.startDate)} – {fmt(leave.endDate)}
                     <span className="text-muted-foreground">· {leave.totalDays} days</span>
-                  </Row>
-                  <Row label="Approval">
+                  </DetailPanelRow>
+                  <DetailPanelRow label="Approval">
                     <span className="capitalize">{leave.status}</span>
-                  </Row>
-                  {leave.notes && <Row label="Your note">{leave.notes}</Row>}
-                  {leave.reviewNotes && <Row label="HR note">{leave.reviewNotes}</Row>}
+                  </DetailPanelRow>
+                  {leave.notes && <DetailPanelRow label="Your note">{leave.notes}</DetailPanelRow>}
+                  {leave.reviewNotes && <DetailPanelRow label="HR note">{leave.reviewNotes}</DetailPanelRow>}
                 </>
               )}
-            </Panel>
+            </DetailPanel>
           </section>
         )}
       </div>
@@ -246,25 +247,6 @@ function ClockTimeline({
           {ordered.length > 1 ? ` across ${ordered.length} shifts` : ''}
         </p>
       )}
-    </div>
-  );
-}
-
-// ── Pieces — the audit inspector's ────────────────────────────────────────
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-sm font-semibold text-heading">{children}</h3>;
-}
-
-function Panel({ children }: { children: React.ReactNode }) {
-  return <dl className="overflow-hidden rounded-lg border border-border bg-field">{children}</dl>;
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex items-baseline gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
-      <dt className="w-24 shrink-0 text-xs text-muted-foreground">{label}</dt>
-      <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 text-sm text-foreground">{children}</dd>
     </div>
   );
 }

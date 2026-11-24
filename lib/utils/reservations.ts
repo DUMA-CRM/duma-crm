@@ -206,83 +206,12 @@ export const minutesBetween = (from: string | Date, to: string | Date) =>
 /** "19:00" — the slot a booking is listed under, in the zone. */
 export const slotOf = (instant: string, timeZone?: string) => zonedParts(instant, timeZone).time;
 
-/** Bookings grouped by their start time, in order. */
-export function groupBySlot<T extends BookingLike>(bookings: readonly T[], timeZone?: string): { slot: string; bookings: T[] }[] {
-  const groups = new Map<string, T[]>();
-  for (const booking of [...bookings].sort((a, b) => a.startsAt.localeCompare(b.startsAt))) {
-    const slot = slotOf(booking.startsAt, timeZone);
-    groups.set(slot, [...(groups.get(slot) ?? []), booking]);
-  }
-  return [...groups].map(([slot, items]) => ({ slot, bookings: items }));
-}
-
-export interface DaySummary {
-  bookings: number;
-  covers: number;
-  seated: number;
-  /** Live and not yet seated. */
-  toCome: number;
-  noShows: number;
-}
-
-/** Counts for the day, leaving cancellations out of bookings and covers. */
-export function summariseDay(bookings: readonly BookingLike[]): DaySummary {
-  const counted = bookings.filter((booking) => booking.status !== 'cancelled');
-  return {
-    bookings: counted.length,
-    covers: counted.filter((booking) => booking.status !== 'no_show').reduce((sum, booking) => sum + booking.partySize, 0),
-    seated: bookings.filter((booking) => booking.status === 'seated').length,
-    toCome: bookings.filter((booking) => booking.status === 'booked' || booking.status === 'confirmed').length,
-    noShows: bookings.filter((booking) => booking.status === 'no_show').length,
-  };
-}
-
 /**
  * A booking still waiting to be seated well past its start — the host should
  * chase it or mark a no-show.
  */
 export const isRunningLate = (booking: BookingLike, now: Date, graceMinutes = 15) =>
   (booking.status === 'booked' || booking.status === 'confirmed') && minutesBetween(booking.startsAt, now) > graceMinutes;
-
-// ─── What a table is doing ────────────────────────────────────────────────────
-
-export type TableState =
-  /** A seated party is at it. */
-  | 'seated'
-  /** A booking's window covers this moment, but they haven't been seated. */
-  | 'held'
-  /** Free now; a booking starts within the hour. */
-  | 'soon'
-  | 'free';
-
-export interface TableStatus {
-  state: TableState;
-  /** The booking that explains the state. */
-  booking: BookingLike | null;
-  /** The next booking to start after this moment. */
-  next: BookingLike | null;
-}
-
-export const TABLE_STATE_LABELS: Record<TableState, string> = { seated: 'Seated', held: 'Held', soon: 'Booked soon', free: 'Free' };
-
-/**
- * One table at one moment. A seated party counts until it is finished, even
- * past its booked end — they're still eating.
- */
-export function tableStatus(tableId: string, bookings: readonly BookingLike[], at: Date, soonMinutes = 60): TableStatus {
-  const mine = bookings.filter((booking) => isLive(booking.status) && booking.tables.some((table) => table.id === tableId));
-  const time = at.getTime();
-  const seated = mine.find((booking) => booking.status === 'seated');
-  const next =
-    mine
-      .filter((booking) => booking.status !== 'seated' && new Date(booking.startsAt).getTime() > time)
-      .sort((a, b) => a.startsAt.localeCompare(b.startsAt))[0] ?? null;
-  if (seated) return { state: 'seated', booking: seated, next };
-  const held = mine.find((booking) => new Date(booking.startsAt).getTime() <= time && time < new Date(booking.endsAt).getTime());
-  if (held) return { state: 'held', booking: held, next };
-  if (next && new Date(next.startsAt).getTime() - time <= soonMinutes * 60_000) return { state: 'soon', booking: next, next };
-  return { state: 'free', booking: null, next };
-}
 
 /** Whether a table suits a party on its own. */
 export const seatsParty = (table: Pick<FloorTable, 'minCovers' | 'maxCovers'>, partySize: number) =>
@@ -366,15 +295,6 @@ export const CANVAS = { width: 1200, height: 800 } as const;
 export const GRID = 10;
 
 export const snap = (value: number, grid = GRID) => Math.round(value / grid) * grid;
-
-/** Keep a table wholly on the canvas, snapped to the grid. */
-export function placeOnCanvas<T extends Pick<FloorTable, 'x' | 'y' | 'width' | 'height'>>(table: T, x: number, y: number): T {
-  return {
-    ...table,
-    x: Math.min(Math.max(0, snap(x)), CANVAS.width - table.width),
-    y: Math.min(Math.max(0, snap(y)), CANVAS.height - table.height),
-  };
-}
 
 export const SHAPE_SIZE: Record<DiningTableShape, { width: number; height: number }> = {
   square: { width: 80, height: 80 },

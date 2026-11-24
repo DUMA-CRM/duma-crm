@@ -23,16 +23,6 @@ export const CATEGORY_COLORS: Record<MenuCategory, string> = {
   snacks: 'bg-muted text-muted-foreground',
 };
 
-export const CATEGORY_LABELS: Record<MenuCategory, string> = {
-  coffee: 'Coffee',
-  'other-hot-drinks': 'Hot Drinks',
-  'coffee-over-ice': 'Iced',
-  tea: 'Tea',
-  snacks: 'Snacks',
-};
-
-export const CATEGORY_OPTIONS = Object.entries(CATEGORY_LABELS) as [MenuCategory, string][];
-
 const CATEGORY_TONES: Record<NonNullable<MenuCategoryRecord['colour']>, string> = {
   warning: 'bg-warning/6 text-warning',
   info: 'bg-info/6 text-info',
@@ -41,11 +31,6 @@ const CATEGORY_TONES: Record<NonNullable<MenuCategoryRecord['colour']>, string> 
   muted: 'bg-muted text-muted-foreground',
   destructive: 'bg-destructive/6 text-destructive',
 };
-
-export function categoryLabel(category: string, record?: MenuCategoryRecord): string {
-  if (record) return record.name;
-  return CATEGORY_LABELS[category] ?? category.replaceAll('-', ' ').replace(/\b\w/g, (letter) => letter.toUpperCase());
-}
 
 export function categoryTone(category: string, record?: MenuCategoryRecord): string {
   if (record?.colour) return CATEGORY_TONES[record.colour];

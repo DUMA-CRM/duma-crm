@@ -6,7 +6,7 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { RowWarning, SectionInfo } from '@/components/cms/rows';
+import { RowWarning, SectionInfo } from '@/components/shared/rows';
 import { Coins, Eye, EyeOff, Layers3, Scale, SlidersHorizontal, Trash2, Type } from '@/components/icons';
 import { GroupPicker } from '@/components/menu/GroupPicker';
 import { RecipeIngredientEditor, RecipeIngredientSkeleton } from '@/components/menu/RecipeIngredientEditor';

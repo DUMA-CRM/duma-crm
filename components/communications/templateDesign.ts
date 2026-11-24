@@ -49,8 +49,6 @@ export const isColumnsBlock = (block: TemplateBlock): block is TemplateColumnsBl
 
 const id = (prefix = 'block') => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
 
-export const LEAF_TYPES: TemplateLeafBlock['type'][] = ['heading', 'text', 'button', 'image', 'divider', 'spacer', 'social', 'html'];
-
 export function newLeafBlock(type: TemplateLeafBlock['type']): TemplateLeafBlock {
   if (type === 'heading') return { id: id(), type, text: 'Write your title', align: 'center' };
   if (type === 'text') return { id: id(), type, text: 'Write your message here.', align: 'left' };
@@ -69,10 +67,6 @@ export function newColumnsBlock(layout: ColumnsLayout = 'two-equal'): TemplateCo
     layout,
     columns: layoutWidths(layout).map(() => ({ id: id('col'), blocks: [] })),
   };
-}
-
-export function newTemplateBlock(type: TemplateBlock['type']): TemplateBlock {
-  return type === 'columns' ? newColumnsBlock() : newLeafBlock(type);
 }
 
 /** Deep copy with fresh ids, so a duplicated row does not share cell identities. */

@@ -4,7 +4,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useEffect, useState } from 'react';
 
-import { BrandTile, FieldRow, InfoRow, PickerRow, RowTile, RowWarning } from '@/components/cms/rows';
+import { BrandTile, FieldRow, InfoRow, PickerRow, RowTile, RowWarning } from '@/components/shared/rows';
 import {
   AlignLeft,
   CalendarClock,
@@ -35,7 +35,7 @@ import { CONNECTOR_BRANDS } from '@/components/settings/connectors/brands';
 import { Switch } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';
 import { Drawer } from '@/components/shared/Drawer';
-import { ChoiceCards } from '@/components/shared/FormParts';
+import { ChoiceCards, Hint } from '@/components/shared/FormParts';
 import { Bone } from '@/components/shared/Skeleton';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -96,9 +96,6 @@ const offsetLabel = (at: string, zone: string) =>
   new Intl.DateTimeFormat('en-GB', { timeZone: zone, hour: '2-digit', minute: '2-digit', timeZoneName: 'shortOffset' }).format(
     new Date(at),
   );
-
-/** A small note under a control: why it matters, in one line. */
-const Hint = ({ children }: { children: React.ReactNode }) => <p className="mt-1.5 text-xs text-muted-foreground">{children}</p>;
 
 /** A text action beside a row's title, for "apply this to the others". */
 const NoteButton = ({ onClick, children }: { onClick: () => void; children: React.ReactNode }) => (

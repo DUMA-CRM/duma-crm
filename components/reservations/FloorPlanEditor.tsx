@@ -3,7 +3,7 @@
 import { type UseQueryResult, useMutation, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useRef, useState } from 'react';
 
-import { InfoRow, InfoRows, PickerRow, RowMenu } from '@/components/cms/rows';
+import { InfoRow, InfoRows, PickerRow, RowMenu } from '@/components/shared/rows';
 import {
   ArrowLeftRight,
   Beer,

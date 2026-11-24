@@ -62,7 +62,7 @@ import { getLocationsByTenant } from '@/lib/modules/organization/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
-import { timeAgo } from '@/lib/utils/format';
+import { relativeTime } from '@/lib/utils/relative-time';
 import { type RestockJourneyStage, restockJourney } from '@/lib/utils/restock-journey';
 import { type StockContext, dayLabel, orderRequests, requestContext } from '@/lib/utils/restock-queue';
 import { formatInstant, workspaceDateKey } from '@/lib/utils/workspace-time';
@@ -334,7 +334,6 @@ export function RestockApprovals({
         {list.isError ? (
           <ErrorState
             title="Restock requests couldn’t be loaded"
-            description="Nothing was read, so this isn’t an empty list."
             onRetry={() => void list.refetch()}
           />
         ) : list.isPending ? (
@@ -666,7 +665,7 @@ function RequestRow({
         >
           {mountedAt - createdAt.getTime() < 86_400_000
             ? formatInstant(createdAt, { hour: '2-digit', minute: '2-digit' })
-            : timeAgo(request.createdAt)}
+            : relativeTime(request.createdAt)}
         </span>
         {pending && canDecide && (
           <span className="flex shrink-0 items-center gap-1" onClick={(event) => event.stopPropagation()}>

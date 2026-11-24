@@ -230,6 +230,3 @@ export const STATE_BADGE: Record<ConnectorState, { label: string; variant: 'succ
   disconnected: { label: 'Not connected', variant: 'muted' },
   unavailable: { label: 'Coming soon', variant: 'muted' },
 };
-
-/** Which filter chip a card belongs under. `unavailable` never counts as set up. */
-export type ConnectorFilter = 'all' | 'connected' | 'configured' | 'attention' | 'disconnected';

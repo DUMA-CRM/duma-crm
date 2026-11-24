@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { InfoRow, InfoRows } from '@/components/cms/rows';
+import { InfoRow, InfoRows } from '@/components/shared/rows';
 import { AlertTriangle, Bell, CheckCircle2, Clock, type IconComponent, Settings, Timer, Trash2 } from '@/components/icons';
 import { SettingsSection } from '@/components/settings/SettingsSection';
 import { ChangeRow, Switch, ValueMissing } from '@/components/settings/controls';

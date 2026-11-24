@@ -2,7 +2,7 @@
 
 import { useEffect, useRef, useState } from 'react';
 
-import { RowMenu } from '@/components/cms/rows';
+import { RowMenu } from '@/components/shared/rows';
 import {
   ArrowDown,
   ArrowUp,

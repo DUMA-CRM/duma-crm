@@ -7,7 +7,7 @@
   "folder": "solutions/cafes",
   "local_sources": [
     "app/(marketing)/solutions/cafes/page.tsx",
-    "lib/marketing/cafes.ts"
+    "lib/marketing/solutions/cafes.tsx"
   ],
   "reference_basis": "Local marketing page source and registry; public fetch unavailable.",
   "scene": "A barista pours a flat white, serves a croissant, and hands the coffee to a customer at a small British caf\u00e9."

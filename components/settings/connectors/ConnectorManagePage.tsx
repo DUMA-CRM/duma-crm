@@ -2,7 +2,7 @@
 
 import { useState } from 'react';
 
-import { BrandTile, RowMenu, type RowMenuItem, RowWarning } from '@/components/cms/rows';
+import { BrandTile, RowMenu, type RowMenuItem, RowWarning } from '@/components/shared/rows';
 import { Activity, type IconComponent, Loader2, Trash2 } from '@/components/icons';
 import { ChangeRow } from '@/components/settings/controls';
 import { ConfirmModal } from '@/components/shared/ConfirmModal';

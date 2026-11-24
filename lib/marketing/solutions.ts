@@ -1,7 +1,7 @@
 /**
- * Shapes shared by the /solutions pages (cafés, shops, any business), so each
- * page is words in its own lib/marketing/<page>.ts and the layout lives once in
- * components/marketing/solution.tsx.
+ * Shapes and words shared by the /solutions pages. Each page is a
+ * SolutionContent in lib/marketing/solutions/<slug>.tsx, and the layout lives
+ * once in components/marketing/SolutionPage.tsx and solution.tsx.
  */
 
 export type ListItem = { title: string; body: string };
@@ -35,3 +35,12 @@ export const AUDIENCE_LINKS = {
   blogs: { path: '/solutions/blogs', label: 'A headless content system for blogs and creators' },
   anyBusiness: { path: '/solutions/any-business', label: 'Forms, team notes and an API, each on its own' },
 } as const satisfies Record<string, { path: `/solutions/${string}`; label: string }>;
+
+/** The card-machine answer, word for word on the bakeries, bars and retail pages. */
+export const KEEP_CARD_MACHINE_FAQ = {
+  question: 'Can I keep my card machine?',
+  answer: 'Yes. Square, SumUp and Stripe connect to DUMA directly. With any other card machine, key the amount in and mark the sale as card — it still lands in your reports.',
+};
+
+/** The offline-till card's line, word for word on the bakeries and bars pages. */
+export const OFFLINE_TILL_BODY = 'Sell on any tablet or phone. When the Wi-Fi drops, orders queue on the device and send themselves later.';

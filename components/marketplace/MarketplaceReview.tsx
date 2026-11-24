@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useId, useState } from 'react';
 
 import { TEXTAREA_CLASS } from '@/components/cms/shared';
-import { type RowMenuItem, RowMenu } from '@/components/cms/rows';
+import { type RowMenuItem, RowMenu } from '@/components/shared/rows';
 import { Ban, CheckCircle2, ExternalLink, Eye, EyeOff, MessageSquarePlus, Package, Pencil, RotateCcw, UserPlus } from '@/components/icons';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
@@ -19,6 +19,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { FieldLabel } from '@/components/ui/label';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import {
   APP_PLACEMENTS, type AppManifest, type PublisherApp, type Release, decideRelease, getReviewQueue, invitePublisher, marketplaceRootKey,
@@ -78,7 +79,7 @@ function ReviewRelease({ app, release }: { app: ReviewApp; release: Release }) {
   ].filter((entry): entry is [string, string] => Boolean(entry[1]));
 
   return (
-    <article aria-labelledby={`review-${release.id}`} className="overflow-hidden rounded-lg border border-border bg-card shadow-sm">
+    <article aria-labelledby={`review-${release.id}`} className={CARD_SURFACE}>
       <header className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
         <ListingIcon appId={app.id} imageId={app.storeListing?.icon} />
         <div className="min-w-0 flex-1">

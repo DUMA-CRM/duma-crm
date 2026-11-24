@@ -10,6 +10,7 @@ import {
   type IconComponent,
   XCircle,
 } from '@/components/icons';
+import { initialsOf } from '@/components/shared/Avatar';
 import type { Tone } from '@/components/shared/tone';
 
 import type { HelpdeskTicket, TicketCategory, TicketPriority, TicketStatus } from '@/lib/modules/support/client';
@@ -139,8 +140,7 @@ const AVATAR_TINTS = [
 
 /** Deterministic initials bubble for a comment author. */
 export function AuthorAvatar({ name, size = 'md' }: { name: string; size?: 'sm' | 'md' }) {
-  const parts = name.trim().split(/\s+/).filter(Boolean);
-  const initials = (parts.length >= 2 ? `${parts[0][0]}${parts[parts.length - 1][0]}` : (parts[0] ?? '?').slice(0, 2)).toUpperCase();
+  const initials = initialsOf(name).toUpperCase();
   const tint = AVATAR_TINTS[[...name].reduce((sum, char) => sum + char.charCodeAt(0), 0) % AVATAR_TINTS.length];
   return (
     <span

@@ -4,7 +4,7 @@ import { useQueries, useQuery } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import { useEffect, useState } from 'react';
 
-import { RowWarning, SectionInfo } from '@/components/cms/rows';
+import { RowWarning, SectionInfo } from '@/components/shared/rows';
 import { Check, Flame, Pencil, Plus, RotateCcw, Scale, SlidersHorizontal } from '@/components/icons';
 import { ModifierRecipeDrawer } from '@/components/menu/ModifierRecipeEditor';
 import { RecipeIngredientEditor } from '@/components/menu/RecipeIngredientEditor';

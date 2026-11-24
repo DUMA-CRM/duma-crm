@@ -1,6 +1,6 @@
 'use client';
 
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import { X } from '@/components/icons';
 import { NumberStepper } from '@/components/shared/FormParts';
 import { SegmentedControl } from '@/components/shared/SegmentedControl';

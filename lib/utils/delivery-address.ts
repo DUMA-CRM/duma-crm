@@ -65,11 +65,6 @@ export function homeCountries(input: { languages?: readonly string[]; currency?:
   return found;
 }
 
-/** The first home country, else the United Kingdom. Kept for single-language callers. */
-export function defaultCountry(language?: string, currency?: string | null): string {
-  return homeCountries({ languages: language ? [language] : [], currency })[0] ?? 'GB';
-}
-
 /** A blank address, addressed to the customer when there is one. */
 export function emptyAddress(input: { name?: string | null; phone?: string | null; country: string }): OrderShippingAddress {
   return { recipientName: input.name?.trim() ?? '', phone: input.phone ?? '', line1: '', line2: '', city: '', region: '', postcode: '', country: input.country };

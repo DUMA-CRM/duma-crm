@@ -1,6 +1,6 @@
 'use client';
 
-import { BrandTile } from '@/components/cms/rows';
+import { BrandTile } from '@/components/shared/rows';
 import { ListRow } from '@/components/shared/ListRow';
 import { Bone } from '@/components/shared/Skeleton';
 import type { Tone } from '@/components/shared/tone';

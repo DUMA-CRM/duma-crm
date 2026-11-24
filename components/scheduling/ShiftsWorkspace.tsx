@@ -48,6 +48,7 @@ import { Bone } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Select } from '@/components/ui/select';
+import { CARD_SURFACE } from '@/components/shared/surface';
 
 import { type PlannerStaff, getRotaPlanner } from '@/lib/api/rota.service';
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -1205,7 +1206,7 @@ function RotaSkeleton() {
       role="status"
       aria-busy="true"
       aria-label="Loading the rota"
-      className="overflow-hidden rounded-lg border border-border bg-card shadow-sm"
+      className={CARD_SURFACE}
     >
       <div aria-hidden="true">
         <div className="flex items-center gap-3 border-b border-border px-3 py-3">

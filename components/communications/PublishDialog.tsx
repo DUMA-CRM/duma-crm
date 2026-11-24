@@ -125,8 +125,8 @@ export function PublishDialog({
                     : 'The customer or order the event belongs to.'}
               </p>
               <p className="mt-1 text-xs text-muted-foreground">
-                Volume depends on trading, so there is no honest number to show before it runs. The first runs will appear in this
-                automation&rsquo;s run history.
+                How many it sends depends on trading, so there&rsquo;s no estimate yet. The first runs show in this automation&rsquo;s run
+                history.
               </p>
             </Row>
           ))}
@@ -184,8 +184,8 @@ export function PublishDialog({
           <p className="flex items-start gap-2 rounded-sm border border-warning/30 bg-warning/6 px-3 py-2.5 text-sm text-warning">
             <TriangleAlert size={15} className="mt-0.5 shrink-0" aria-hidden="true" />
             <span>
-              Email sending is not verified, so this will queue messages that cannot leave the building. Publishing is still safe — nothing
-              is lost — but nothing arrives until the connection is set up.
+              Email sending isn&rsquo;t set up yet. You can still publish — messages wait in the queue and go out once the email connection
+              is set up.
             </span>
           </p>
         )}

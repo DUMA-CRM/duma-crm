@@ -4,7 +4,7 @@ import { type UseQueryResult, useQuery } from '@tanstack/react-query';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { InfoRow, InfoRows } from '@/components/cms/rows';
+import { InfoRow, InfoRows } from '@/components/shared/rows';
 import {
   CalendarCheck,
   CalendarClock,
@@ -71,6 +71,7 @@ import { CoversHeatGrid } from './overview/CoversHeatGrid';
 import { ShareBars } from './overview/ShareBars';
 import { WeekCovers } from './overview/WeekCovers';
 import { useMinuteClock } from './useMinuteClock';
+import { plural } from '@/lib/utils/format';
 
 /** Where an Overview card or day sends the host: a Host tab, and a day on it. */
 export interface HostTarget {
@@ -80,8 +81,6 @@ export interface HostTarget {
 }
 
 const guests = (count: number) => (count === 1 ? '1 guest' : `${count} guests`);
-const plural = (count: number, one: string, many: string) => `${count} ${count === 1 ? one : many}`;
-
 /**
  * The manager's Reservations overview: today at a glance, the next 7 days,
  * service quality and the busiest hours. One bookings call covers it all —

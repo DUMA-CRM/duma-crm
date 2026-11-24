@@ -7,7 +7,7 @@ import { useEffect, useState } from 'react';
 import {
   ChevronLeft, ChevronRight, ExternalLink, FlaskConical, KeyRound, LifeBuoy, type IconComponent, Package, Power, Shield, Trash2,
 } from '@/components/icons';
-import { ActionRow, ActionRows, RowTile } from '@/components/cms/rows';
+import { ActionRow, ActionRows, RowTile } from '@/components/shared/rows';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';

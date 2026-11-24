@@ -5,7 +5,7 @@ import Image from 'next/image';
 import Link from 'next/link';
 import { useState } from 'react';
 
-import { InfoRow, PickerRow, RowTile } from '@/components/cms/rows';
+import { InfoRow, PickerRow, RowTile } from '@/components/shared/rows';
 import {
   AlertTriangle,
   CalendarDays,

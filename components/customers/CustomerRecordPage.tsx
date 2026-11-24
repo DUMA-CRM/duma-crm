@@ -49,6 +49,7 @@ import { EditorShell } from '@/components/shared/EditorShell';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { Bone, LoadingState } from '@/components/shared/Skeleton';
+import { TONE_TINT } from '@/components/shared/tone';
 import { useWorkspaceMoney } from '@/components/shared/useWorkspaceMoney';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -113,7 +114,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const money = useWorkspaceMoney();
   const [modal, setModal] = useState<'email' | 'points' | 'edit' | 'unmerge' | 'delete' | null>(null);
   const [granting, setGranting] = useState<CustomerLoyaltyProgram | null>(null);
-  const [privacyOpen, setPrivacyOpen] = useState<'marketing' | 'requests' | null>(null);
+  const [privacyPicked, setPrivacyOpen] = useState<'marketing' | 'requests' | null>(null);
 
   // The open tab lives in the URL: a colleague can be sent straight to the
   // compliance history, and the back button steps out of it the way it should.
@@ -128,6 +129,21 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   const posOn = useModuleEnabled('pos');
   const reservationsOn = useModuleEnabled('reservations');
   const hasComplianceTab = commsOn || complianceOn;
+
+  // ?privacy= opens a rail drawer from elsewhere — a consent row in the
+  // activity, say. Closing the drawer clears the link.
+  const privacyParam = searchParams.get('privacy');
+  const linkedPrivacy =
+    (privacyParam === 'marketing' && commsOn) || (privacyParam === 'requests' && complianceOn) ? privacyParam : null;
+  const privacyOpen = privacyPicked ?? linkedPrivacy;
+  const closePrivacy = () => {
+    setPrivacyOpen(null);
+    if (!privacyParam) return;
+    const params = new URLSearchParams(searchParams.toString());
+    params.delete('privacy');
+    const query = params.toString();
+    router.replace(query ? `${pathname}?${query}` : pathname, { scroll: false });
+  };
 
   const requested = searchParams.get('tab');
   const asked: Section = SECTION_VALUES.includes(requested as Section) ? (requested as Section) : 'guest';
@@ -588,12 +604,12 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
       )}
 
       {privacyOpen === 'marketing' && customer && (
-        <Drawer icon={Mail} title="Marketing consent" onClose={() => setPrivacyOpen(null)}>
+        <Drawer icon={Mail} title="Marketing consent" onClose={closePrivacy}>
           <MarketingPreferencesPanel customerId={customer.id} email={customer.email} />
         </Drawer>
       )}
       {privacyOpen === 'requests' && customer && (
-        <Drawer icon={ShieldCheck} title="Privacy requests" onClose={() => setPrivacyOpen(null)}>
+        <Drawer icon={ShieldCheck} title="Privacy requests" onClose={closePrivacy}>
           <PrivacyRequestsPanel customerId={customer.id} tenantId={customer.tenantId} chrome="drawer" />
         </Drawer>
       )}
@@ -806,8 +822,8 @@ function PrivacyRow({
 // ── Notices ──────────────────────────────────────────────────────────────────
 
 const NOTICE_TILE = {
-  muted: 'bg-band text-muted-foreground',
-  warning: 'bg-measured/10 text-measured',
+  muted: TONE_TINT.muted,
+  warning: TONE_TINT.warning,
 } as const;
 
 /** A record-level fact as one row on the page — the staff record's "needs you" strip. */

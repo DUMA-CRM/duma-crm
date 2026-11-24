@@ -1,4 +1,4 @@
-import '../(marketing)/marketing.css';
+import '@/components/marketing/marketing.css';
 
 /**
  * Full-screen frame for the sign-up questionnaire. Deliberately not the (auth)

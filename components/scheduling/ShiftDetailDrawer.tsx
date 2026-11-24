@@ -1,6 +1,7 @@
 'use client';
 
 import { CalendarClock, CheckCircle2, Clock, Coffee, FileText, MapPin } from '@/components/icons';
+import { DetailPanel, DetailPanelRow, DetailSectionTitle } from '@/components/shared/DetailPanel';
 import { Drawer } from '@/components/shared/Drawer';
 import { Button } from '@/components/ui/button';
 
@@ -69,7 +70,7 @@ export function ShiftDetailDrawer({
       >
         <div className="space-y-6">
           <section>
-            <SectionTitle>On the clock</SectionTitle>
+            <DetailSectionTitle>On the clock</DetailSectionTitle>
             <ClockList entries={run} now={now} />
           </section>
           <p className="text-xs leading-relaxed text-muted-foreground">
@@ -130,20 +131,20 @@ export function ShiftDetailDrawer({
         )}
 
         <section>
-          <SectionTitle>The shift</SectionTitle>
-          <Panel>
-            <Row label="When">
+          <DetailSectionTitle>The shift</DetailSectionTitle>
+          <DetailPanel>
+            <DetailPanelRow stack label="When">
               <span className="font-mono font-semibold tabular-nums">
                 {fmtTime(shift.startsAt)}–{fmtTime(shift.endsAt)}
               </span>
               <span className="text-muted-foreground">· {formatDuration(planned)}</span>
-            </Row>
-            <Row label="Where">
+            </DetailPanelRow>
+            <DetailPanelRow stack label="Where">
               <MapPin size={13} className="self-center text-muted-foreground" aria-hidden="true" />
               {shift.location?.name ?? 'Location not listed'}
-            </Row>
-            {shift.role && <Row label="As">{shift.role}</Row>}
-            <Row label="Break">
+            </DetailPanelRow>
+            {shift.role && <DetailPanelRow stack label="As">{shift.role}</DetailPanelRow>}
+            <DetailPanelRow stack label="Break">
               {breakFrom && breakTo && gap ? (
                 <>
                   <Coffee size={13} className="self-center text-stock" aria-hidden="true" />
@@ -155,20 +156,20 @@ export function ShiftDetailDrawer({
               ) : (
                 <span className="text-muted-foreground">None on a shift this long</span>
               )}
-            </Row>
-            <Row label="Paid time">{formatDuration(paid)}</Row>
+            </DetailPanelRow>
+            <DetailPanelRow stack label="Paid time">{formatDuration(paid)}</DetailPanelRow>
             {hourlyRate !== null && (
-              <Row label="Est. pay">
+              <DetailPanelRow stack label="Est. pay">
                 <span className="font-semibold tabular-nums">{money((paid / 60) * hourlyRate)}</span>
                 <span className="text-xs text-muted-foreground">before deductions</span>
-              </Row>
+              </DetailPanelRow>
             )}
-          </Panel>
+          </DetailPanel>
         </section>
 
         {shift.notes && (
           <section>
-            <SectionTitle>Note from your manager</SectionTitle>
+            <DetailSectionTitle>Note from your manager</DetailSectionTitle>
             <p className="flex items-start gap-2.5 rounded-lg border border-border bg-field px-3.5 py-3 text-sm leading-relaxed text-foreground">
               <FileText size={15} className="mt-0.5 shrink-0 text-muted-foreground" aria-hidden="true" />
               <span className="whitespace-pre-wrap">{shift.notes}</span>
@@ -177,7 +178,7 @@ export function ShiftDetailDrawer({
         )}
 
         <section>
-          <SectionTitle>On the clock</SectionTitle>
+          <DetailSectionTitle>On the clock</DetailSectionTitle>
           {worked.length > 0 ? (
             <>
               <ClockList entries={worked} now={now} />
@@ -260,22 +261,5 @@ function CloseButton({ onClose }: { onClose: () => void }) {
     <Button variant="outline" size="default" className="w-full" onClick={onClose}>
       Close
     </Button>
-  );
-}
-
-function SectionTitle({ children }: { children: React.ReactNode }) {
-  return <h3 className="mb-2 text-sm font-semibold text-heading">{children}</h3>;
-}
-
-function Panel({ children }: { children: React.ReactNode }) {
-  return <dl className="overflow-hidden rounded-lg border border-border bg-field">{children}</dl>;
-}
-
-function Row({ label, children }: { label: string; children: React.ReactNode }) {
-  return (
-    <div className="flex flex-col gap-1 sm:flex-row sm:items-baseline sm:gap-3 border-b border-border px-3.5 py-2.5 last:border-b-0">
-      <dt className="w-20 shrink-0 text-xs text-muted-foreground">{label}</dt>
-      <dd className="flex min-w-0 flex-1 flex-wrap items-baseline gap-1.5 text-sm text-foreground">{children}</dd>
-    </div>
   );
 }

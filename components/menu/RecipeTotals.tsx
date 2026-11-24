@@ -1,6 +1,6 @@
 'use client';
 
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import { Flame } from '@/components/icons';
 import { AllergenChip } from '@/components/menu/shared';
 import { RecordGroup } from '@/components/shared/RecordGroup';

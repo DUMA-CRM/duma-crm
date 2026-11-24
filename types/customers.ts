@@ -1,7 +1,6 @@
 export type Tier = 'vip' | 'gold' | 'silver' | 'bronze';
-export type FilterOption = 'all' | Tier;
 
-/** UK FSA allergen slugs — the same vocabulary as stock item allergens. */
+/** UK FSA's 14 regulated allergens, as lowercase slugs — customers' allergies and stock item allergens share them. */
 export const FSA_ALLERGENS = [
   'celery',
   'gluten',

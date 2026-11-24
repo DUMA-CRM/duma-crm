@@ -5,7 +5,7 @@ import { useState } from 'react';
 
 import { useCmsTenantId, useContentPaths } from '@/components/cms/ContentScope';
 import { StorageMeter } from '@/components/cms/StorageMeter';
-import { BrandTile, RowMenu, type RowMenuItem, RowTile } from '@/components/cms/rows';
+import { BrandTile, RowMenu, type RowMenuItem, RowTile } from '@/components/shared/rows';
 import { cmsKeys, invalidateCms } from '@/components/cms/shared';
 import {
   AlertTriangle,

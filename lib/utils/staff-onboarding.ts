@@ -204,10 +204,6 @@ const indexOf = (step: StaffStepId) => STAFF_STEPS.findIndex((entry) => entry.id
 export const nextStaffStep = (step: StaffStepId): StaffStepId | null => STAFF_STEPS[indexOf(step) + 1]?.id ?? null;
 export const previousStaffStep = (step: StaffStepId): StaffStepId | null => STAFF_STEPS[indexOf(step) - 1]?.id ?? null;
 
-/** The first question still missing an answer — where a "Change" or a failed create should land. */
-export const firstIncompleteStep = (draft: StaffDraft, ctx: StaffContext): StaffStepId =>
-  STAFF_STEPS.find((entry) => entry.id !== 'review' && !isStaffStepComplete(entry.id, draft, ctx))?.id ?? 'review';
-
 /** A step past an unanswered required question resolves back to that question. */
 export function resolveStaffStep(requested: StaffStepId, draft: StaffDraft, ctx: StaffContext): StaffStepId {
   const target = indexOf(requested);

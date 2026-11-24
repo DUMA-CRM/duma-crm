@@ -28,7 +28,8 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import { IconTag } from '@/components/shared/IconTag';
 import { ListRow, ListRowGroup } from '@/components/shared/ListRow';
 import { RecordGroup } from '@/components/shared/RecordGroup';
-import { Bone, ListSkeleton } from '@/components/shared/Skeleton';
+import { ListSkeleton } from '@/components/shared/Skeleton';
+import { SettingRowSkeleton } from '@/components/shared/TileSkeleton';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
@@ -300,16 +301,7 @@ export function RoleManager() {
         >
           {isPending ? (
             <div role="status" aria-label="Loading permissions" className="space-y-5">
-              {Array.from({ length: 6 }, (_, index) => (
-                <div key={index} className="flex items-center gap-3">
-                  <Bone className="size-10 shrink-0" />
-                  <span className="min-w-0 flex-1 space-y-1.5">
-                    <Bone className="h-2.5 w-20" />
-                    <Bone className="h-3.5 w-44 max-w-full" />
-                  </span>
-                  <Bone className="h-8 w-20 shrink-0" />
-                </div>
-              ))}
+              <SettingRowSkeleton rows={6} />
             </div>
           ) : isError ? (
             <ErrorState title="Permissions could not load" onRetry={() => void refetch()} className="py-6" />

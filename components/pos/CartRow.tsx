@@ -6,7 +6,7 @@ import { FileText, Trash2 } from '@/components/icons';
 import { QuantityStepper } from '@/components/pos/QuantityStepper';
 import { Button } from '@/components/ui/button';
 
-import { SwipeAction, SwipeActions, SwipeContent, SwipeItem } from '@/components/swipe-actions';
+import { SwipeAction, SwipeActions, SwipeContent, SwipeItem } from '@/components/ui/swipe-actions';
 
 import { cn } from '@/lib/utils/cn';
 import { cartItemTotal, formatPrice } from '@/lib/utils/pos';

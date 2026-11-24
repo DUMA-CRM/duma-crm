@@ -12,7 +12,7 @@ import { ErrorState } from '@/components/shared/ErrorState';
 import { ChoiceCards } from '@/components/shared/FormParts';
 import { RecordGroup } from '@/components/shared/RecordGroup';
 import { Bone } from '@/components/shared/Skeleton';
-import { SectionSkeleton } from '@/components/shared/TileSkeleton';
+import { SectionSkeleton, SettingRowSkeleton } from '@/components/shared/TileSkeleton';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
@@ -311,22 +311,11 @@ function TradingForm({
 
 /** The two sections of rows and the receipt beside them, without their words. */
 function TradingSkeleton() {
-  const rows = (count: number) =>
-    Array.from({ length: count }, (_, index) => (
-      <div key={index} className="flex items-center gap-3">
-        <Bone className="size-10 shrink-0" />
-        <span className="min-w-0 flex-1 space-y-1.5">
-          <Bone className="h-2.5 w-20" />
-          <Bone className="h-3.5 w-44 max-w-full" />
-        </span>
-        <Bone className="h-8 w-20 shrink-0" />
-      </div>
-    ));
   return (
     <div role="status" aria-label="Loading trading settings">
       <SettingsTabBody narrowAside aside={<Bone className="mx-auto mt-7 h-[34rem] w-full max-w-xs rounded-md" />}>
-        <SectionSkeleton>{rows(3)}</SectionSkeleton>
-        <SectionSkeleton>{rows(2)}</SectionSkeleton>
+        <SectionSkeleton><SettingRowSkeleton rows={3} /></SectionSkeleton>
+        <SectionSkeleton><SettingRowSkeleton rows={2} /></SectionSkeleton>
       </SettingsTabBody>
     </div>
   );

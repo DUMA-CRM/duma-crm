@@ -4,15 +4,13 @@ import { Popover } from 'radix-ui';
 import { type ReactNode, useEffect, useState } from 'react';
 
 import { Gift, Loader2, Search, SlidersHorizontal, X } from '@/components/icons';
-import { FilterChip } from '@/components/shared/FilterChip';
+import { FilterChip, FilterField } from '@/components/shared/FilterChip';
 import { useCurrencySymbol } from '@/components/shared/useWorkspaceMoney';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { FIELD_LABEL_CLASS } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
 import { TIER_FILTERS } from '@/lib/constants/customers';
-import { cn } from '@/lib/utils/cn';
 import { DIETARY_PREFERENCES, FSA_ALLERGENS } from '@/types/customers';
 import type { Allergen, CustomerFilters, DietaryPreference } from '@/types/customers';
 
@@ -87,15 +85,6 @@ const oneOf = (values: string[] | undefined, any: string, options: { value: stri
   ...((values?.length ?? 0) > 1 ? [{ value: MANY, label: `${values!.length} chosen` }] : []),
   ...options,
 ];
-
-function FilterField({ label, children }: { label: string; children: ReactNode }) {
-  return (
-    <div>
-      <p className={cn(FIELD_LABEL_CLASS, 'mb-1.5')}>{label}</p>
-      {children}
-    </div>
-  );
-}
 
 interface Props {
   filters: CustomerFilters;

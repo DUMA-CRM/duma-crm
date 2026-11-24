@@ -3,7 +3,7 @@
 import { useMutation, useQueryClient } from '@tanstack/react-query';
 import { useState } from 'react';
 
-import { RowTile } from '@/components/cms/rows';
+import { RowTile } from '@/components/shared/rows';
 import { Drawer } from '@/components/customers/CustomerDialogs';
 import { Check, Mail, Plus, UserCircle2, X } from '@/components/icons';
 import { Switch } from '@/components/settings/controls';

@@ -69,16 +69,3 @@ export function pricedIn(catalog: CatalogLike, currency: string): { priced: numb
   const priced = catalog.variants.filter((variant) => productPriced || rows.some((row) => row.variantId === variant.id)).length;
   return { priced, of: catalog.variants.length };
 }
-
-/** The lowest price a shopper would see in a currency — "from ₴1,200" — or null when it can't be sold in it yet. */
-export function fromPrice(catalog: CatalogLike, currency: string): string | null {
-  const { priced, of } = pricedIn(catalog, currency);
-  if (priced < of) return null;
-  const rows = catalog.prices.filter((row) => row.currency === currency);
-  const product = rows.find((row) => row.variantId === null)?.price;
-  const amounts =
-    catalog.variants.length === 0
-      ? [Number(product)]
-      : catalog.variants.map((variant) => Number(rows.find((row) => row.variantId === variant.id)?.price ?? product));
-  return Math.min(...amounts).toFixed(2);
-}

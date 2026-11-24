@@ -26,8 +26,8 @@ export function OfflineStatus() {
     >
       <WifiOff className="shrink-0 text-warning" size={18} aria-hidden="true" />
       <p>
-        <span className="font-semibold">Offline.</span> Previously opened screens and data remain available. POS sales will sync
-        automatically; other saves resume after reconnection.
+        <span className="font-semibold">Offline.</span> Screens you&rsquo;ve opened still work. Till sales are kept and sent when
+        you&rsquo;re back online; other changes wait until then.
       </p>
     </div>
   );

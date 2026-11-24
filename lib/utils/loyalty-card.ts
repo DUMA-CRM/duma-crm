@@ -24,15 +24,6 @@ export function getLoyaltyCardProgress(balance: number, rewardCost: number, maxS
   };
 }
 
-/**
- * How many stamps sit in a row: a short card on one line, a longer one in two
- * even rows — the way a printed punch card is laid out (10 is 5 × 2).
- */
-export function stampColumns(slots: number): number {
-  const safe = Math.max(1, Math.floor(slots));
-  return safe <= 6 ? safe : Math.ceil(safe / 2);
-}
-
 export interface RewardScopeRule {
   kind: 'free_item' | 'free_modifier' | 'percentage_off';
   menuItemIds: string[];

@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useEffect, useMemo, useRef, useState } from 'react';
 
-import { RowMenu } from '@/components/cms/rows';
+import { RowMenu } from '@/components/shared/rows';
 import { copyText } from '@/components/cms/shared';
 import {
   Archive,

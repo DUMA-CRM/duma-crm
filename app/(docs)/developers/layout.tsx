@@ -8,7 +8,7 @@ import { Logo } from '@/components/shared/Logo';
 import { docsNav } from '@/lib/marketing/developers';
 import { organizationSchema, websiteSchema } from '@/lib/marketing/schema';
 
-import '../../(marketing)/marketing.css';
+import '@/components/marketing/marketing.css';
 
 /**
  * The developer docs frame, after seline.com/api: no marketing header or

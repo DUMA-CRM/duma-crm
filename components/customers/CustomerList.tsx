@@ -15,7 +15,7 @@ import type { Tone } from '@/components/shared/tone';
 import { TIER_CONFIG } from '@/lib/constants/customers';
 import { cn } from '@/lib/utils/cn';
 import { type VisitTone, customerDisplayName, visitStatus } from '@/lib/utils/customer-card';
-import { timeAgo } from '@/lib/utils/format';
+import { relativeTime } from '@/lib/utils/relative-time';
 import { tierLadder } from '@/lib/utils/loyalty-tiers';
 import type { Customer, CustomerSort, SortDirection } from '@/types/customers';
 
@@ -225,7 +225,7 @@ function CustomerRow({
       </span>
       <span className="hidden w-24 shrink-0 items-center justify-end gap-1.5 text-xs tabular-nums text-muted-foreground lg:flex">
         <StatusDot tone={VISIT_TONE[visit.tone]} dashed={visit.tone === 'never'} label={visit.label} />
-        {customer.lastVisitAt ? timeAgo(customer.lastVisitAt) : 'Never'}
+        {customer.lastVisitAt ? relativeTime(customer.lastVisitAt) : 'Never'}
       </span>
     </li>
   );

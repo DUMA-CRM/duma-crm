@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query';
 
-import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile } from '@/components/cms/rows';
+import { ActionRow, ActionRows, InfoRow, InfoRows, RowTile } from '@/components/shared/rows';
 import {
   CalendarCheck,
   CheckCircle2,
@@ -40,7 +40,6 @@ import { TRIGGER_LABELS } from './shared';
 
 // A run's status reads the same on the Runs list, its summary and here.
 export const RUN_STATUS_ICON: Record<RunStatus, IconComponent> = { running: Clock, completed: CheckCircle2, failed: TriangleAlert };
-export const RUN_STATUS_TONE = { running: 'default', completed: 'success', failed: 'danger' } as const;
 export const RUN_STATUS_BADGE = { running: 'muted', completed: 'success', failed: 'destructive' } as const;
 export const triggerLabel = (trigger: string) => (TRIGGER_LABELS as Record<string, string>)[trigger] ?? trigger.replaceAll('_', ' ');
 

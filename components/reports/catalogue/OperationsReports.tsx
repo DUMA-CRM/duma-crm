@@ -841,7 +841,7 @@ function PurchaseOrderDrawer({ order, onClose }: { order: PurchaseOrder; onClose
       title={order.reference}
       description={`${order.supplier?.name ?? 'Unknown supplier'}${order.location?.name ? ` · ${order.location.name}` : ''}`}
       leading={<DrawerMark icon={Truck} />}
-      links={[{ label: 'Open Purchasing', href: '/inventory/purchasing', icon: Truck }]}
+      links={[{ label: 'Open Purchasing', href: '/inventory?tab=demand', icon: Truck }]}
       onClose={onClose}
     >
       <DrawerFacts

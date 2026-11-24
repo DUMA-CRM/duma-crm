@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useMemo, useState } from 'react';
 
-import { InfoRow, InfoRows, RowWarning } from '@/components/cms/rows';
+import { InfoRow, InfoRows, RowWarning } from '@/components/shared/rows';
 import {
   Ban,
   Building2,

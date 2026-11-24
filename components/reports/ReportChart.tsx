@@ -167,9 +167,7 @@ export function ReportTrendChart({
         </div>
       </div>
 
-      {/* The plot sits on chart stock with the world's 8px lattice, the same
-          field TraceChart draws on, so a report and the dashboard read as the
-          same instrument. */}
+      {/* The plot sits on chart stock with the world's 8px lattice. */}
       <div ref={chartRef} className="plot-field mt-1 w-full px-1 py-1">
         <svg
           viewBox={`0 0 ${chartWidth} ${HEIGHT}`}

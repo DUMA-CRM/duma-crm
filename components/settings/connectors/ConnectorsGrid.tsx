@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 
-import { RowWarning } from '@/components/cms/rows';
+import { RowWarning } from '@/components/shared/rows';
 import { Plug } from '@/components/icons';
 import { useSettingsTenantId } from '@/components/settings/SettingsScope';
 import { EmptyState } from '@/components/shared/EmptyState';

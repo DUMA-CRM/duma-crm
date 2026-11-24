@@ -121,7 +121,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDefinition[] = [
     sensitive: 'financial',
     audiences: ['owner', 'location_manager'],
     freshness: 'minute',
-    deepLink: '/staff/shifts',
+    deepLink: '/staff/rota',
   }),
   widget({
     key: 'analytics.refunds',
@@ -250,7 +250,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDefinition[] = [
     sensitive: 'people',
     audiences: ['owner', 'location_manager', 'hr_manager'],
     freshness: 'minute',
-    deepLink: '/staff/shifts',
+    deepLink: '/staff/rota',
   }),
   widget({
     key: 'purchasing.overview',
@@ -260,7 +260,7 @@ export const DASHBOARD_WIDGETS: readonly DashboardWidgetDefinition[] = [
     requiredCapabilities: ['purchasing:read'],
     sensitive: 'financial',
     audiences: ['owner', 'location_manager'],
-    deepLink: '/inventory/purchasing',
+    deepLink: '/inventory?tab=demand',
   }),
   widget({
     key: 'payments.tenders',
@@ -347,17 +347,6 @@ export const widgetDefinition = (key: string) => DASHBOARD_WIDGETS.find((widget)
 
 export const ANALYTICS_WIDGET_KEYS = new Set(
   DASHBOARD_WIDGETS.filter((widget) => widget.moduleId === 'analytics').map((widget) => widget.key),
-);
-/** The single-figure tiles: net sales, orders, average order, labour, refunds. */
-export const STAT_WIDGET_KEYS = new Set([
-  'analytics.net-sales',
-  'analytics.orders',
-  'analytics.average-order',
-  'analytics.labour',
-  'analytics.refunds',
-]);
-export const LAUNCH_WIDGET_KEYS = new Set(
-  DASHBOARD_WIDGETS.filter((widget) => !['analytics', 'workforce'].includes(widget.moduleId)).map((widget) => widget.key),
 );
 
 export function widgetsForModule(moduleId: ModuleId): string[] {

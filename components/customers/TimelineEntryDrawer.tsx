@@ -4,7 +4,7 @@ import { useQuery } from '@tanstack/react-query';
 import { useRouter } from 'next/navigation';
 import { useState } from 'react';
 
-import { RowTile } from '@/components/cms/rows';
+import { RowTile } from '@/components/shared/rows';
 import { Drawer } from '@/components/customers/CustomerDialogs';
 import { PILL_TONE, TIMELINE_KIND_META } from '@/components/customers/timelineKinds';
 import {
@@ -77,10 +77,10 @@ export function TimelineEntryDrawer({ entry, customerId, tenantId, onRetryEmail,
   const meta = TIMELINE_KIND_META[entry.kind];
   const Icon = meta.icon;
   const row = timelineRowText(entry, money, now);
-  // Consent and privacy are owned by the Compliance tab, which can change them.
-  const toCompliance = () => {
+  // Consent and privacy are changed in the record's rail drawers, which can be linked to.
+  const toPrivacy = () => {
     onClose();
-    router.push(`/customers/${customerId}?tab=compliance`);
+    router.push(`/customers/${customerId}?privacy=${entry.kind === 'consent' ? 'marketing' : 'requests'}`);
   };
 
   return (
@@ -107,9 +107,9 @@ export function TimelineEntryDrawer({ entry, customerId, tenantId, onRetryEmail,
             {retryPending ? 'Queueing…' : 'Try sending again'}
           </Button>
         ) : entry.kind === 'consent' || entry.kind === 'privacy' ? (
-          <Button size="default" variant="outline" onClick={toCompliance} className="w-full">
+          <Button size="default" variant="outline" onClick={toPrivacy} className="w-full">
             <ShieldCheck data-icon="inline-start" />
-            Open the Compliance tab
+            {entry.kind === 'consent' ? 'Open marketing consent' : 'Open privacy requests'}
           </Button>
         ) : undefined
       }
@@ -275,8 +275,8 @@ function ConsentDetailBody({ entry }: { entry: TimelineEntry }) {
         </Panel>
       </section>
       <p className="text-xs leading-relaxed text-muted-foreground">
-        Consent history is kept permanently and cannot be edited — that is what makes it evidence. Record a correction as a new change on
-        the Compliance tab.
+        Consent history is kept permanently and can’t be edited — that’s what makes it evidence. To correct it, record a new change in
+        Marketing consent.
       </p>
     </div>
   );

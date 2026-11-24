@@ -4,9 +4,8 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import { motion, useReducedMotion } from 'motion/react';
 import { useState } from 'react';
 
-import { FieldRow, InfoRow, InfoRows } from '@/components/cms/rows';
+import { FieldRow, InfoRow, InfoRows, RowWarning } from '@/components/shared/rows';
 import {
-  AlertTriangle,
   Clock3,
   Database,
   ExternalLink,
@@ -119,7 +118,7 @@ function HealthSection() {
         ) : health.isError ? (
           <ErrorState
             title="Health couldn’t be checked"
-            description="The API may be down — which is itself the answer."
+            description="The API may be down."
             onRetry={() => void health.refetch()}
           />
         ) : (
@@ -132,7 +131,7 @@ function HealthSection() {
             />
             <StatusRow icon={Zap} title="Cache" note={`Reports “${health.data.cache.status}”`} status={cache!} />
             {health.data.workers.workers.length === 0 ? (
-              <InfoRow icon={Clock3} title="Background workers" description="None run in this API process.">
+              <InfoRow icon={Clock3} title="Background workers" description="None are running in this API.">
                 <Badge variant="muted">None</Badge>
               </InfoRow>
             ) : (
@@ -260,7 +259,7 @@ function DatabaseSection() {
             />
           </StatCardGrid>
           {database.data.stale && (
-            <Warning>This measurement is over an hour old. Measure now for today’s figures.</Warning>
+            <RowWarning className="mt-4">This measurement is over an hour old. Measure now for today’s figures.</RowWarning>
           )}
           {history.length > 1 && (
             <p className="mt-4 rounded-md bg-band/60 px-3 py-2 text-xs text-muted-foreground">
@@ -405,15 +404,5 @@ export function AdminSystem() {
         </SettingsTabBody>
       </motion.div>
     </EditorShell>
-  );
-}
-
-/** Something that makes a figure unreliable, with what to do about it. */
-function Warning({ children }: { children: React.ReactNode }) {
-  return (
-    <p className="mt-4 flex items-start gap-2 rounded-md bg-measured/10 px-3 py-2 text-xs font-medium text-measured">
-      <AlertTriangle size={14} className="mt-px shrink-0" aria-hidden="true" />
-      <span>{children}</span>
-    </p>
   );
 }

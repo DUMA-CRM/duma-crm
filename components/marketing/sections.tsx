@@ -1,6 +1,6 @@
 import Link from 'next/link';
 
-import { ArrowUpRight, ChevronDown } from '@/components/icons';
+import { ArrowUpRight, Check, ChevronDown } from '@/components/icons';
 import { buttonVariants } from '@/components/ui/button';
 
 import type { Tone } from '@/lib/marketing/home';
@@ -12,7 +12,7 @@ import { cn } from '@/lib/utils/cn';
  * near-white canvas, a 1024px reading column, two-tone headings, white cards
  * on a hairline, a highlighter on the phrase that matters, the app's own
  * buttons and
- * handwritten notes. Materials live in app/(marketing)/marketing.css (.mkt-*).
+ * handwritten notes. Materials live in components/marketing/marketing.css (.mkt-*).
  * Server Components, apart from the small client islands they import.
  */
 
@@ -59,6 +59,29 @@ export function Section({
 /** The phrase that matters, run over with a highlighter. */
 export function Mark({ children }: { children: React.ReactNode }) {
   return <span className="mkt-mark">{children}</span>;
+}
+
+/** A page's h1 at hero size: the claim, then its highlighted phrase. */
+export function HeroTitle({ lead, mark }: { lead: React.ReactNode; mark: React.ReactNode }) {
+  return (
+    <h1 className="text-[2.6rem] leading-[1.1] font-semibold tracking-display text-[var(--mkt-heading)] sm:text-6xl">
+      {lead} <span className="mkt-mark mkt-mark-green rounded-md px-2">{mark}</span>
+    </h1>
+  );
+}
+
+/** The row of ticked facts under a hero. */
+export function HeroTicks({ ticks }: { ticks: readonly string[] }) {
+  return (
+    <p className="mt-6 flex flex-wrap gap-x-4 gap-y-1 text-sm text-[var(--mkt-ink-2)]">
+      {ticks.map((fact) => (
+        <span key={fact} className="flex items-center gap-1.5">
+          <Check className="size-4 text-primary" aria-hidden="true" />
+          {fact}
+        </span>
+      ))}
+    </p>
+  );
 }
 
 /**

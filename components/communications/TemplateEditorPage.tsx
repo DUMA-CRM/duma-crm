@@ -7,7 +7,7 @@ import { useEffect, useMemo, useRef, useState } from 'react';
 import { Mascot } from '@/components/ai/Mascot';
 import { MediaPicker } from '@/components/cms/MediaPicker';
 import { createRenditions } from '@/components/cms/renditions';
-import { RowMenu } from '@/components/cms/rows';
+import { RowMenu } from '@/components/shared/rows';
 import { invalidateCms } from '@/components/cms/shared';
 import { Eye, Mail, PlugZap, Send, Trash2, TriangleAlert } from '@/components/icons';
 import { SaveBar } from '@/components/settings/controls';

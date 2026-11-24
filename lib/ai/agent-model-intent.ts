@@ -105,13 +105,6 @@ export function describePreference(current: AgentProviderPreference, providers?:
   return primary ? `Automatic (${primary.name} first)` : 'Automatic';
 }
 
-/** The compact label for the switcher in the composer footer. */
-export function modelChipLabel(current: AgentProviderPreference, providers?: AgentProviderInfo[]): string {
-  if (current !== 'auto') return providerName(current, providers);
-  const primary = providers?.[0];
-  return primary ? `Auto · ${primary.name}` : 'Auto';
-}
-
 /**
  * The reply, and the preference to store with it.
  *
