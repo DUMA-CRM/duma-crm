@@ -1,4 +1,4 @@
-import type { Listing, Release, StoreApp } from '@/lib/api/marketplace.service';
+import type { Listing, PublisherApp, Release, StoreApp } from '@/lib/api/marketplace.service';
 
 /* The App Store's rules, kept out of the components so they can be tested:
    which release a card shows, what state it is in, and the one action it
@@ -30,7 +30,7 @@ export function appState(app: StoreApp): { label: string; tone: AppTone } | null
     if (updateAvailable(app)) return { label: 'Update available', tone: 'warning' };
     return { label: 'Installed', tone: 'success' };
   }
-  if (!app.latest && app.testRelease) return { label: 'In review', tone: 'info' };
+  if (!app.latest && app.testRelease) return app.testRelease.draft ? RELEASE_STATUS.draft : RELEASE_STATUS.submitted;
   return null;
 }
 
@@ -67,9 +67,9 @@ export const ACTION_LABEL: Record<AppAction, string> = {
 };
 
 /** Where an installed app shows up in DUMA, in the store's words. */
-export function appPlaces(item: Pick<Listing, 'builtin' | 'pageOrigin' | 'extensions' | 'webhookOrigin' | 'scopes'>): string[] {
+export function appPlaces(item: Pick<Listing, 'builtin' | 'pageOrigin' | 'hosted' | 'extensions' | 'webhookOrigin' | 'scopes'>): string[] {
   const places: string[] = [];
-  if (item.builtin || item.pageOrigin) places.push('Apps page');
+  if (item.builtin || item.pageOrigin || item.hosted) places.push('Apps page');
   for (const { surface } of item.extensions ?? []) places.push(PLACE_LABEL[surface]);
   if (item.webhookOrigin || item.scopes.includes('cms.published:read')) places.push('Content');
   return places;
@@ -99,6 +99,7 @@ export function storeTabs(apps: StoreApp[]) {
 }
 
 export const RELEASE_STATUS: Record<Release['status'], { label: string; tone: AppTone }> = {
+  draft: { label: 'Draft', tone: 'muted' },
   submitted: { label: 'In review', tone: 'info' },
   changes_requested: { label: 'Changes requested', tone: 'warning' },
   published: { label: 'Live', tone: 'success' },
@@ -112,4 +113,19 @@ export function publisherAppState(app: { suspensionReason: string | null; releas
   if (!newest) return { label: 'Draft', tone: 'muted' };
   if (newest.status === 'superseded') return { label: 'Live', tone: 'success' };
   return RELEASE_STATUS[newest.status];
+}
+
+/** Keep publisher overrides, then use the live release or the latest draft. */
+export function publisherListingDefaults(app: PublisherApp) {
+  const manifest = (app.releases.find(({ status }) => status === 'published') ?? app.releases[0])?.manifest;
+  const displayName = app.slug.split('-').map((word) => word.charAt(0).toUpperCase() + word.slice(1)).join(' ');
+  return {
+    name: app.storeListing?.name ?? manifest?.name ?? displayName,
+    description: app.storeListing?.description ?? manifest?.description ?? '',
+    supportUrl: app.storeListing?.supportUrl ?? manifest?.supportUrl ?? '',
+    supportText: app.storeListing ? app.storeListing.supportText : manifest?.supportText,
+    privacyUrl: app.storeListing?.privacyUrl ?? manifest?.privacyUrl ?? '',
+    privacyText: app.storeListing ? app.storeListing.privacyText : manifest?.privacyText,
+    builtin: manifest?.builtin,
+  };
 }

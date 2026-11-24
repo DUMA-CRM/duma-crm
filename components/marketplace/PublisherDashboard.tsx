@@ -4,7 +4,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query';
 import Link from 'next/link';
 import { useId, useState } from 'react';
 
-import { AlertTriangle, BookOpen, Package, Pencil, Plus, Send, Store } from '@/components/icons';
+import { AlertTriangle, BookOpen, ChevronDown, Package, Pencil, Plus, Send, Store } from '@/components/icons';
 import { EmptyState } from '@/components/shared/EmptyState';
 import { ErrorState } from '@/components/shared/ErrorState';
 import { ModalActions } from '@/components/shared/FormParts';
@@ -19,12 +19,11 @@ import { CARD_SURFACE } from '@/components/shared/surface';
 
 import { type PublisherApp, getPublisher, publisherKey, registerApp } from '@/lib/api/marketplace.service';
 import { toast } from '@/lib/toast';
-import { RELEASE_STATUS, publisherAppState } from '@/lib/utils/marketplace';
+import { RELEASE_STATUS, publisherAppState, publisherListingDefaults } from '@/lib/utils/marketplace';
 
 import { ListingEditor } from './ListingEditor';
 import { ListingIcon } from './ListingMedia';
 import { TONE_BADGE } from './MarketplaceStore';
-import { ReleaseForm } from './ReleaseForm';
 
 function RegisterApp({ onClose }: { onClose: () => void }) {
   const formId = useId();
@@ -66,18 +65,18 @@ function RegisterApp({ onClose }: { onClose: () => void }) {
 
 function AppPanel({ app, publisher }: { app: PublisherApp; publisher: string }) {
   const [editing, setEditing] = useState(false);
-  const [submitting, setSubmitting] = useState(false);
   const live = app.releases.find((release) => release.status === 'published');
-  const newest = app.releases[0];
-  const name = app.storeListing?.name ?? newest?.manifest.name ?? app.slug;
+  const { name, builtin } = publisherListingDefaults(app);
   const state = publisherAppState(app);
+  const draft = app.releases.find((release) => release.status === 'draft');
   const pending = app.releases.some((release) => release.status === 'submitted');
   const suspended = Boolean(app.suspensionReason);
+  const releaseHref = `/app-publisher/${encodeURIComponent(app.id)}/release`;
 
   return (
     <section aria-labelledby={`app-${app.id}`} className={CARD_SURFACE}>
       <header className="flex flex-wrap items-center gap-3 px-5 py-4">
-        <ListingIcon appId={app.id} imageId={app.storeListing?.icon} />
+        <ListingIcon appId={app.id} imageId={app.storeListing?.icon} builtin={builtin} />
         <div className="min-w-0 flex-1">
           <div className="flex min-w-0 items-center gap-2">
             <h2 id={`app-${app.id}`} className="truncate text-base font-semibold text-heading">{name}</h2>
@@ -91,10 +90,14 @@ function AppPanel({ app, publisher }: { app: PublisherApp; publisher: string }) 
         {!suspended && (
           <div className="flex gap-2">
             <Button variant="outline" size="sm" onClick={() => setEditing(true)}><Pencil aria-hidden="true" />Edit listing</Button>
-            <Button size="sm" disabled={pending} title={pending ? 'Wait for the release in review to finish.' : undefined} onClick={() => setSubmitting(true)}>
-              <Send aria-hidden="true" />
-              {app.releases.length ? 'New release' : 'Submit release'}
-            </Button>
+            {pending ? (
+              <Button size="sm" disabled>Review pending</Button>
+            ) : (
+              <Button asChild size="sm"><Link href={releaseHref}>
+                <Send aria-hidden="true" />
+                {draft ? 'Edit draft' : app.releases.length ? 'New release' : 'Prepare release'}
+              </Link></Button>
+            )}
           </div>
         )}
       </header>
@@ -105,43 +108,64 @@ function AppPanel({ app, publisher }: { app: PublisherApp; publisher: string }) 
           <span>Suspended by DUMA: {app.suspensionReason}</span>
         </p>
       )}
+      {draft && (
+        <div className="mx-5 mb-4 flex flex-wrap items-center justify-between gap-2 rounded-md bg-band px-3 py-2 text-sm">
+          <p>To test this draft, switch to a demo workspace you manage and install the test release from Apps.</p>
+          <Button asChild variant="outline" size="sm"><Link href={`/apps/${encodeURIComponent(app.slug)}/about`}>Find test release</Link></Button>
+        </div>
+      )}
       {pending && (
         <p className="mx-5 mb-4 rounded-md bg-reference/8 px-3 py-2 text-sm text-reference">
           In review. Install it from the App Store in a demo workspace you manage to test it meanwhile.
         </p>
       )}
 
-      {app.releases.length > 0 ? (
-        <ol className="border-t border-border" aria-label="Releases">
-          {app.releases.map((release) => {
-            const status = RELEASE_STATUS[release.status];
-            return (
-              <li key={release.id} className="flex items-start gap-3 border-b border-border px-5 py-3 last:border-b-0">
-                <span className="w-16 shrink-0 pt-0.5 font-mono text-sm font-semibold text-foreground">v{release.version}</span>
-                <div className="min-w-0 flex-1">
-                  <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
-                    <Badge variant={TONE_BADGE[status.tone]}>{status.label}</Badge>
-                    <span className="text-xs text-muted-foreground">
-                      Submitted <RelativeTime iso={release.submittedAt} />
-                      {release.reviewedAt && <> · reviewed <RelativeTime iso={release.reviewedAt} /></>}
-                    </span>
-                  </div>
-                  {release.reviewNote && (
-                    <p className="mt-1.5 whitespace-pre-wrap break-words text-sm text-foreground">{release.reviewNote}</p>
-                  )}
-                </div>
-              </li>
-            );
-          })}
-        </ol>
-      ) : (
-        <p className="border-t border-border px-5 py-4 text-sm text-muted-foreground">
-          No releases yet. Submit one to send it to DUMA for review.
-        </p>
-      )}
+      <section className="border-t border-border" aria-label="Version history">
+        <h3 className="px-5 pb-2 pt-4 text-sm font-semibold text-heading">Version history</h3>
+        {app.releases.length ? (
+          <ol>
+            {app.releases.map((release) => {
+              const status = RELEASE_STATUS[release.status];
+              const source = release.manifest.hostedBundleId ? 'DUMA-hosted ZIP'
+                : release.manifest.pageUrl ? 'HTTPS workspace page'
+                : release.manifest.builtin ? 'Built into DUMA' : 'Extensions and integrations';
+              return (
+                <li key={release.id} className="border-b border-border last:border-b-0">
+                  <details className="group">
+                    <summary className="flex cursor-pointer list-none flex-wrap items-center gap-x-3 gap-y-1 px-5 py-3 hover:bg-band/40 focus-visible:outline-2 focus-visible:outline-ring [&::-webkit-details-marker]:hidden">
+                      <span className="shrink-0 font-mono text-sm font-semibold text-heading">v{release.version}</span>
+                      <Badge variant={TONE_BADGE[status.tone]}>{status.label}</Badge>
+                      <span className="text-xs text-muted-foreground">{source}</span>
+                      <span className="ml-auto text-xs text-muted-foreground">
+                        {release.status === 'draft' ? 'Saved' : 'Submitted'} <RelativeTime iso={release.submittedAt} />
+                      </span>
+                      <ChevronDown size={14} className="text-muted-foreground transition-transform group-open:rotate-180" aria-hidden="true" />
+                    </summary>
+                    <div className="space-y-3 px-5 pb-4 pt-1 text-sm">
+                      <p className="whitespace-pre-wrap break-words">{release.manifest.description}</p>
+                      {release.reviewedAt && <p className="text-xs text-muted-foreground">Reviewed <RelativeTime iso={release.reviewedAt} /></p>}
+                      {release.reviewNote && <div className="rounded-md bg-band p-3">
+                        <h4 className="mb-1 text-xs font-semibold text-heading">Reviewer feedback</h4>
+                        <p className="whitespace-pre-wrap break-words">{release.reviewNote}</p>
+                      </div>}
+                      {release.testInstructions && <div>
+                        <h4 className="mb-1 text-xs font-semibold text-heading">Review instructions</h4>
+                        <p className="whitespace-pre-wrap break-words text-muted-foreground">{release.testInstructions}</p>
+                      </div>}
+                      {release.status === 'draft' && !suspended &&
+                        <Button asChild size="sm" variant="outline"><Link href={releaseHref}>Edit this draft</Link></Button>}
+                    </div>
+                  </details>
+                </li>
+              );
+            })}
+          </ol>
+        ) : (
+          <p className="px-5 pb-4 text-sm text-muted-foreground">Prepare your first release to save a testable draft or submit it for review.</p>
+        )}
+      </section>
 
       {editing && <ListingEditor app={app} publisher={publisher} onClose={() => setEditing(false)} />}
-      {submitting && <ReleaseForm app={app} onClose={() => setSubmitting(false)} />}
     </section>
   );
 }

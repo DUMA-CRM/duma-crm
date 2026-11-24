@@ -1,0 +1,17 @@
+:root {
+  color-scheme: light;
+  --background: #fffef9;
+  --foreground: #203831;
+  --card: #fffdf6;
+  --border: #d2dbd0;
+  --muted-foreground: #465c53;
+  font: 16px/1.5 system-ui, sans-serif;
+  background: #f3f5ed;
+  color: var(--foreground);
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+body { margin: 0; }
+#app { max-width: 1180px; margin: auto; padding: clamp(.75rem, 3vw, 2rem); }
+h1, h2, h3, h4, h5, p { margin: 0; }
+button { border: 0; }

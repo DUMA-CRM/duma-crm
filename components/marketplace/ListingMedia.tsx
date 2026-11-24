@@ -5,7 +5,7 @@ import { useState } from 'react';
 import { listingImageUrl } from '@/lib/api/marketplace.service';
 import { cn } from '@/lib/utils/cn';
 
-import { appAppearance } from './app-appearance';
+import { appAppearance, builtinAppIcon } from './app-appearance';
 
 export function ListingImageView({ src, alt, className, onError }: {
   src: string;
@@ -35,11 +35,15 @@ export function ListingIcon({ appId, imageId, builtin, size = 'md', className }:
   const [failed, setFailed] = useState<string>();
   const { icon: Icon, tile } = appAppearance(builtin);
   const { box, glyph } = SIZES[size];
-  const image = imageId && failed !== imageId;
+  const uploaded = imageId ? listingImageUrl(appId, imageId) : undefined;
+  const fallback = builtinAppIcon(builtin);
+  const [failedFallback, setFailedFallback] = useState<string>();
+  const image = uploaded && failed !== uploaded ? uploaded : fallback !== failedFallback ? fallback : undefined;
   return (
     <span className={cn('grid shrink-0 place-items-center overflow-hidden', box, image ? 'border border-border bg-card' : tile, className)}>
       {image ? (
-        <ListingImageView src={listingImageUrl(appId, imageId)} alt="" className="size-full object-cover" onError={() => setFailed(imageId)} />
+        <ListingImageView src={image} alt="" className="size-full object-cover"
+          onError={() => image === uploaded ? setFailed(image) : setFailedFallback(image)} />
       ) : <Icon aria-hidden="true" size={glyph} />}
     </span>
   );

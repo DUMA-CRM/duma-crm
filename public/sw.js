@@ -207,8 +207,10 @@ self.addEventListener('fetch', (event) => {
     return;
   }
 
-  // Auth must never be replayed from offline cache.
-  if (url.pathname.startsWith('/be/v1/auth/')) return;
+  // Authentication and private agreement copies always require a live request.
+  if (url.pathname.startsWith('/be/v1/auth/')
+    || /^\/be\/v1\/marketplace\/creator-agreements(?:\/|$)/.test(url.pathname)
+    || url.pathname === '/shared-agreement') return;
 
   if (url.pathname.startsWith('/be/')) {
     respondWithLifetime(

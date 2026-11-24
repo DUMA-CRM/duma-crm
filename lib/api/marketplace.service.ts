@@ -16,6 +16,8 @@ export type AppManifest = {
   description: string;
   supportUrl: string;
   privacyUrl: string;
+  supportText?: string;
+  privacyText?: string;
   pageUrl?: string;
   extensions?: AppExtension[];
   scopes: 'cms.published:read'[];
@@ -24,16 +26,18 @@ export type AppManifest = {
 export type Listing = Omit<AppManifest, 'pageUrl' | 'webhook' | 'extensions'> & {
   id: string;
   version: string;
-  builtin?: 'margin-calculator' | 'reorder-planner';
+  builtin?: 'margin-calculator' | 'reorder-planner' | 'creator-agreements';
   pageOrigin: string | null;
+  hosted?: boolean;
   webhookOrigin: string | null;
   events: AppEvent[];
   extensions?: (Omit<AppExtension, 'url'> & { origin: string })[];
 };
-type ListingText = Pick<AppManifest, 'name' | 'description' | 'supportUrl' | 'privacyUrl'>;
+type ListingText = Pick<AppManifest, 'name' | 'description' | 'supportUrl' | 'privacyUrl' | 'supportText' | 'privacyText'>;
 export type StoreListing = ListingText & { revision: number; icon: string | null; screenshots: string[] };
 export type ListingImage = { id: string } | { mimeType: string; data: string };
-export type ListingUpdate = ListingText & { expectedRevision: number; icon: ListingImage | null; screenshots: ListingImage[] };
+export type PublisherDocumentInput = Partial<Pick<ListingText, 'supportUrl' | 'privacyUrl' | 'supportText' | 'privacyText'>>;
+export type ListingUpdate = Pick<ListingText, 'name' | 'description'> & PublisherDocumentInput & { expectedRevision: number; icon: ListingImage | null; screenshots: ListingImage[] };
 
 export function listingImageUrl(appId: string, imageId: string) {
   return `${BROWSER_API_PREFIX}/v1/marketplace/media/${encodeURIComponent(appId)}/${encodeURIComponent(imageId)}`;
@@ -46,7 +50,7 @@ export type StoreApp = {
   suspended: boolean;
   storeListing?: StoreListing | null;
   latest: Listing | null;
-  testRelease: Listing | null;
+  testRelease: (Listing & { draft?: boolean }) | null;
   installation: {
     id: string;
     release: Listing;
@@ -60,9 +64,9 @@ export type StoreApp = {
 export type Release = {
   id: string;
   version: string;
-  manifest: AppManifest;
+  manifest: AppManifest & Pick<Listing, 'builtin'> & { hostedBundleId?: string };
   testInstructions: string;
-  status: 'submitted' | 'changes_requested' | 'published' | 'superseded';
+  status: 'draft' | 'submitted' | 'changes_requested' | 'published' | 'superseded';
   reviewNote: string | null;
   submittedAt: string;
   reviewedAt: string | null;
@@ -103,8 +107,15 @@ export const changeInstallation = (workspaceId: string, slug: string, change: In
 export const getPublisher = () =>
   apiFetch<{ publisher: string | null; apps: PublisherApp[] }>('/platform/app-publishers', { workspaceId: 'platform' });
 export const registerApp = (slug: string) => apiFetch('/platform/app-publishers', post({ slug }, 'platform'));
-export const submitRelease = (appId: string, version: string, manifest: AppManifest, testInstructions: string) =>
-  apiFetch(`/platform/app-publishers/${appId}/releases`, post({ version, manifest, testInstructions }, 'platform'));
+export const savePublisherRelease = (appId: string, input: {
+  version: string;
+  manifest: Omit<AppManifest, 'supportUrl' | 'privacyUrl'> & PublisherDocumentInput;
+  testInstructions: string;
+  saveAsDraft: boolean;
+  draftId?: string | undefined;
+  draftSavedAt?: string | undefined;
+  hostedArchive?: string | undefined;
+}) => apiFetch<Release>(`/platform/app-publishers/${appId}/releases`, post(input, 'platform'));
 
 export const getReviewQueue = () =>
   apiFetch<{ apps: (PublisherApp & { publisher: string; hidden: boolean })[] }>('/platform/app-review', { workspaceId: 'platform' });

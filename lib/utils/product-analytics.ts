@@ -12,7 +12,7 @@ export const ANALYTICS_PATH = '/ingest';
  * by a business's customers, not by DUMA's operators, and nobody there has
  * agreed to be measured by us. Analytics never starts on them.
  */
-const GUEST_PREFIXES = ['/order', '/book', '/f'];
+const GUEST_PREFIXES = ['/order', '/book', '/f', '/shared-agreement'];
 
 export function isTrackedPath(pathname: string) {
   return !GUEST_PREFIXES.some((prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`));

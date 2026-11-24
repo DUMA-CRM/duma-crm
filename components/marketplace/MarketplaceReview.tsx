@@ -74,14 +74,14 @@ function ReviewRelease({ app, release }: { app: ReviewApp; release: Release }) {
     ['Workspace page', manifest.pageUrl],
     ...(manifest.extensions ?? []).map(({ surface, url }) => [APP_PLACEMENTS[surface].label, url]),
     ['Webhook', manifest.webhook?.url],
-    ['Support', manifest.supportUrl],
-    ['Privacy policy', manifest.privacyUrl],
+    ['Support', manifest.supportText ? undefined : manifest.supportUrl],
+    ['Privacy policy', manifest.privacyText ? undefined : manifest.privacyUrl],
   ].filter((entry): entry is [string, string] => Boolean(entry[1]));
 
   return (
     <article aria-labelledby={`review-${release.id}`} className={CARD_SURFACE}>
       <header className="flex flex-wrap items-center gap-3 border-b border-border px-5 py-4">
-        <ListingIcon appId={app.id} imageId={app.storeListing?.icon} />
+        <ListingIcon appId={app.id} imageId={app.storeListing?.icon} builtin={manifest.builtin} />
         <div className="min-w-0 flex-1">
           <h2 id={`review-${release.id}`} className="truncate text-base font-semibold text-heading">
             {manifest.name} <span className="font-mono text-sm font-normal text-muted-foreground">v{release.version}</span>
@@ -107,6 +107,9 @@ function ReviewRelease({ app, release }: { app: ReviewApp; release: Release }) {
         <div className="min-w-0 space-y-5">
           <section>
             <h3 className="mb-2 text-sm font-semibold text-heading">Endpoints</h3>
+            {manifest.hostedBundleId && <p className="mb-2 text-sm text-muted-foreground">
+              DUMA-hosted ZIP. Install the test release in a demo workspace to inspect this build.
+            </p>}
             <dl className="space-y-2 text-sm">
               {endpoints.map(([label, url]) => (
                 <div key={label} className="min-w-0">
@@ -122,6 +125,12 @@ function ReviewRelease({ app, release }: { app: ReviewApp; release: Release }) {
               ))}
             </dl>
           </section>
+          {([['Support', manifest.supportText], ['Privacy policy', manifest.privacyText]] as const).map(([label, text]) => text && (
+            <section key={label} className="rounded-md bg-band/50 p-3">
+              <h3 className="mb-1 text-sm font-semibold text-heading">{label} page</h3>
+              <p className="max-h-72 overflow-auto whitespace-pre-wrap break-words text-sm">{text}</p>
+            </section>
+          ))}
           <section className="rounded-md bg-band/50 p-3">
             <h3 className="mb-1 text-sm font-semibold text-heading">Review instructions</h3>
             <p className="whitespace-pre-wrap break-words text-sm">{release.testInstructions}</p>
@@ -263,7 +272,7 @@ function AppRow({ app, onEdit, onSuspend }: { app: ReviewApp; onEdit: () => void
 
   return (
     <ListRow
-      leading={<ListingIcon appId={app.id} imageId={app.storeListing?.icon} size="sm" />}
+      leading={<ListingIcon appId={app.id} imageId={app.storeListing?.icon} builtin={(live ?? app.releases[0])?.manifest.builtin} size="sm" />}
       title={name}
       meta={[app.publisher, app.slug, live ? `v${live.version} live` : 'Not published', app.suspensionReason ? `Suspended: ${app.suspensionReason}` : null].filter(Boolean).join(' · ')}
       trailing={(

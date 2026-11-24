@@ -8,6 +8,8 @@ function escapeAttribute(value: string) {
 
 // Only the wrapper can forward a port to the CRM. The publisher frame
 // remains opaque and the port closes with the document that opened it.
+const loopback = new Set(['localhost', '127.0.0.1', '[::1]']);
+
 const bridge = `
 window.addEventListener('message', (event) => {
   if (event.source !== document.getElementById('duma-app')?.contentWindow ||
@@ -48,15 +50,19 @@ export async function GET(request: Request, { params }: { params: Promise<{ slug
   if (surface) query.set('surface', surface);
   if (revision) query.set('revision', revision);
   try {
-    const launch = await apiFetch<{ name: string; url: string }>(`/marketplace/${slug}/launch?${query}`, {
+    const launch = await apiFetch<{ name: string; url: string; hosted?: boolean }>(`/marketplace/${slug}/launch?${query}`, {
       method: 'POST', cookieHeader: cookies, workspaceId, cache: 'no-store', timeoutMs: 10_000,
     });
     const url = new URL(launch.url);
-    if (!/^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+(?::[0-9]+)?$/i.test(url.origin) || url.username || url.password) {
+    const requestOrigin = new URL(request.url);
+    const localHosted = process.env.NODE_ENV !== 'production' && launch.hosted
+      && loopback.has(requestOrigin.hostname) && loopback.has(url.hostname)
+      && url.hostname !== requestOrigin.hostname && url.protocol === 'http:' && url.pathname.startsWith('/marketplace-assets/');
+    if ((!localHosted && !/^https:\/\/[a-z0-9-]+(?:\.[a-z0-9-]+)+(?::[0-9]+)?$/i.test(url.origin)) || url.username || url.password) {
       return frameDocument('<p>Invalid app address.</p>', 502);
     }
     return frameDocument(
-      `<iframe id="duma-app" sandbox="allow-scripts allow-forms" referrerpolicy="no-referrer" title="${escapeAttribute(launch.name)}" src="${escapeAttribute(url.href)}"></iframe>`,
+      `<iframe id="duma-app" sandbox="allow-scripts allow-forms${launch.hosted ? ' allow-modals allow-downloads' : ''}" referrerpolicy="no-referrer" title="${escapeAttribute(launch.name)}" src="${escapeAttribute(url.href)}"></iframe>`,
       200,
       url.origin,
       surface ? randomBytes(24).toString('base64url') : undefined,

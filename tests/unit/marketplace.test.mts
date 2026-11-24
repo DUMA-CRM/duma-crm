@@ -1,8 +1,8 @@
 import assert from 'node:assert/strict';
 import test from 'node:test';
 
-import type { Listing, StoreApp } from '../../lib/api/marketplace.service';
-import { appState, primaryAction, storeTabs, updateAvailable } from '../../lib/utils/marketplace.ts';
+import type { Listing, PublisherApp, Release, StoreApp } from '../../lib/api/marketplace.service';
+import { appState, primaryAction, publisherListingDefaults, storeTabs, updateAvailable } from '../../lib/utils/marketplace.ts';
 
 const release = (id: string): Listing => ({
   id, version: '1.0.0', name: 'App', description: 'An app for tests.', supportUrl: 'https://x.test', privacyUrl: 'https://x.test',
@@ -52,4 +52,26 @@ test('a release only in review can be test-installed by a manager', () => {
   assert.equal(primaryAction(review, true), 'test');
   assert.equal(primaryAction(review, false), null);
   assert.equal(appState(review)?.label, 'In review');
+});
+
+test('listing defaults preserve saved copy and use published metadata before a pending release', () => {
+  const draft: PublisherApp = { id: 'app', slug: 'photo-editor', suspensionReason: null, releases: [] };
+  assert.equal(publisherListingDefaults(draft).name, 'Photo Editor');
+  assert.equal(publisherListingDefaults(draft).privacyUrl, '');
+
+  const published: Release = {
+    id: 'live', version: '1.0.0', status: 'published', manifest: { ...release('live'), extensions: [] },
+    testInstructions: '', reviewNote: null, submittedAt: '', reviewedAt: null,
+  };
+  const pending: Release = {
+    ...published, id: 'pending', status: 'submitted',
+    manifest: { ...published.manifest, name: 'Pending name' },
+  };
+  const app = { ...draft, releases: [pending, published] };
+  assert.equal(publisherListingDefaults(app).name, published.manifest.name);
+  assert.equal(publisherListingDefaults(app).supportUrl, published.manifest.supportUrl);
+  assert.equal(publisherListingDefaults({
+    ...app,
+    storeListing: { ...published.manifest, name: 'Listing override', revision: 1, icon: null, screenshots: [] },
+  }).name, 'Listing override');
 });

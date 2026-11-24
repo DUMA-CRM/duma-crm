@@ -202,15 +202,15 @@ export function AppDetails({ slug }: { slug: string }) {
           {showTest && app.testRelease && (
             <RecordGroup
               id="app-test"
-              title="Release in review"
+              title={app.testRelease.draft ? 'Draft release' : 'Release in review'}
               card
-              actions={!installation?.test || installation.release.id !== app.testRelease.id ? (
+              actions={!installation?.test || installation.status === 'disabled' || installation.release.id !== app.testRelease.id ? (
                 <Button size="sm" variant="outline" disabled={flow.pending} onClick={() => flow.start({ app, kind: 'test' })}>
                   <FlaskConical aria-hidden="true" />
                   Test it
                 </Button>
               ) : undefined}
-              footnote="Test installs run only in demo workspaces, for the publisher and DUMA reviewers."
+              footnote={app.testRelease.draft ? 'Only the publisher can test this draft in a demo workspace.' : 'Test installs run only in demo workspaces, for the publisher and DUMA reviewers.'}
             >
               <p className="text-sm">
                 <span className="font-mono font-semibold">v{app.testRelease.version}</span>

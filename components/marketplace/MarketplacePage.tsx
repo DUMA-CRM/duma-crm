@@ -14,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import type { StoreApp } from '@/lib/api/marketplace.service';
 import { useWorkspaceContext } from '@/lib/hooks/useWorkspaceContext';
 
+import { CreatorAgreementsWorkspace } from './CreatorAgreementsWorkspace';
 import { ListingIcon } from './ListingMedia';
 import { aboutHref, useMarketplace } from './MarketplaceStore';
 import { MarketplaceMarginCalculator, StockReorderPlanner } from './StarterApps';
@@ -21,6 +22,7 @@ import { MarketplaceMarginCalculator, StockReorderPlanner } from './StarterApps'
 const builtinPages = {
   'margin-calculator': MarketplaceMarginCalculator,
   'reorder-planner': StockReorderPlanner,
+  'creator-agreements': CreatorAgreementsWorkspace,
 };
 
 /** Why an installed app can't open here, in one line the reader can act on. */
@@ -65,7 +67,7 @@ export function MarketplacePage({ slug }: { slug: string }) {
         <EmptyState icon={Package} kind="gone" title={`${name} can’t open here`} description={unavailableReason(app)}
           action={{ label: app ? 'View in App Store' : 'Back to Apps', href: app ? aboutHref(slug) : '/apps' }} />
       ) : BuiltinPage ? (
-        <div className="mx-auto w-full max-w-5xl"><BuiltinPage key={installation.revision} /></div>
+        <div className="mx-auto w-full max-w-5xl"><BuiltinPage key={`${workspaceId}:${installation.revision}`} /></div>
       ) : (
         <div className="relative h-[calc(100dvh-9rem)] min-h-[32rem] overflow-hidden rounded-lg border border-border bg-card shadow-sm">
           {loadedRevision !== installation.revision && (

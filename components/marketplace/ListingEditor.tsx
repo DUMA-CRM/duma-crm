@@ -15,8 +15,11 @@ import {
   type ListingImage, type PublisherApp, listingImageUrl, marketplaceRootKey, publisherKey, reviewKey, saveListing,
 } from '@/lib/api/marketplace.service';
 import { toast } from '@/lib/toast';
+import { publisherListingDefaults } from '@/lib/utils/marketplace';
 import { cn } from '@/lib/utils/cn';
 
+import { PublisherDocumentFields, publisherDocumentsFromForm } from './PublisherDocumentFields';
+import { builtinAppIcon } from './app-appearance';
 import { ListingImageView } from './ListingMedia';
 
 const formats = ['image/png', 'image/jpeg', 'image/webp'];
@@ -41,18 +44,19 @@ async function prepareImage(file: File, icon: boolean): Promise<ListingImage> {
 }
 
 /** One image slot: the picture (or an add tile) as the file button, a remove button over it. */
-function ImageSlot({ appId, label, image, icon = false, onChange, onBusy }: {
+function ImageSlot({ appId, label, image, icon = false, fallback, onChange, onBusy }: {
   appId: string;
   label: string;
   image: ListingImage | null;
   icon?: boolean;
+  fallback?: string;
   onChange: (value: ListingImage | null) => void;
   onBusy: (busy: boolean) => void;
 }) {
   const input = useRef<HTMLInputElement>(null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
-  const src = image ? ('id' in image ? listingImageUrl(appId, image.id) : `data:${image.mimeType};base64,${image.data}`) : null;
+  const src = image ? ('id' in image ? listingImageUrl(appId, image.id) : `data:${image.mimeType};base64,${image.data}`) : fallback;
   async function pick(file: File) {
     setBusy(true);
     onBusy(true);
@@ -92,7 +96,7 @@ function ImageSlot({ appId, label, image, icon = false, onChange, onBusy }: {
             </span>
           )}
         </button>
-        {src && !busy && (
+        {image && !busy && (
           <button
             type="button"
             onClick={() => onChange(null)}
@@ -130,7 +134,7 @@ export function ListingEditor({ app, publisher, admin = false, onClose }: {
   const formId = useId();
   const query = useQueryClient();
   const [current] = useState(app.storeListing);
-  const [initial] = useState(() => current ?? (app.releases.find((release) => release.status === 'published') ?? app.releases[0])?.manifest);
+  const [initial] = useState(() => publisherListingDefaults(app));
   const [icon, setIcon] = useState<ListingImage | null>(current?.icon ? { id: current.icon } : null);
   const [screenshots, setScreenshots] = useState<(ListingImage | null)[]>(() =>
     Array.from({ length: 4 }, (_, index) => {
@@ -146,7 +150,7 @@ export function ListingEditor({ app, publisher, admin = false, onClose }: {
       const value = (key: string) => String(data.get(key) ?? '').trim();
       return saveListing(app.id, {
         expectedRevision: current?.revision ?? 0,
-        name: value('name'), description: value('description'), supportUrl: value('supportUrl'), privacyUrl: value('privacyUrl'),
+        name: value('name'), description: value('description'), ...publisherDocumentsFromForm(data),
         icon, screenshots: screenshots.filter((image) => image !== null),
       }, admin);
     },
@@ -173,22 +177,21 @@ export function ListingEditor({ app, publisher, admin = false, onClose }: {
         event.preventDefault();
         if (!processing && !save.isPending) save.mutate(new FormData(event.currentTarget));
       }}>
-        <FormSection title="Listing" framed={false}>
+        <FormSection title="Listing" framed={false} note={!current && !app.releases.length
+          ? 'Add a description and either link to your support and privacy pages or write them here. You can save the listing before submitting your first release.'
+          : undefined}>
           <div className="flex items-start gap-4">
-            <ImageSlot appId={app.id} label="App icon" icon image={icon} onChange={setIcon} onBusy={setBusy} />
+            <ImageSlot appId={app.id} label="App icon" icon image={icon} fallback={builtinAppIcon(initial.builtin)} onChange={setIcon} onBusy={setBusy} />
             <div className="min-w-0 flex-1">
-              <Input label="App name" name="name" required minLength={2} maxLength={120} defaultValue={initial?.name} />
+              <Input label="App name" name="name" required minLength={2} maxLength={120} defaultValue={initial.name} />
             </div>
           </div>
           <div className="space-y-1.5">
             <FieldLabel htmlFor={`${formId}-description`} required>Description</FieldLabel>
             <textarea id={`${formId}-description`} className={TEXTAREA_CLASS} name="description" required rows={5} minLength={10} maxLength={2000}
-              defaultValue={initial?.description} />
+              defaultValue={initial.description} />
           </div>
-          <div className="grid gap-3 sm:grid-cols-2">
-            <Input label="Support URL" name="supportUrl" type="url" required placeholder="https://" defaultValue={initial?.supportUrl} />
-            <Input label="Privacy policy URL" name="privacyUrl" type="url" required placeholder="https://" defaultValue={initial?.privacyUrl} />
-          </div>
+          <PublisherDocumentFields initial={initial} />
         </FormSection>
         <FormSection title="Screenshots" framed={false} note="Up to four, 16:9 works best. Images are compressed in your browser before upload.">
           <div className="grid grid-cols-2 gap-3">
