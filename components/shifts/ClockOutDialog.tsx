@@ -30,7 +30,6 @@ export function ClockOutDialog({ locationId, onClose, onClockedOut }: ClockOutDi
         moduleQueryKeys.inventory.key('location-stock'),
         moduleQueryKeys.inventory.key('inventory-overview'),
         moduleQueryKeys.inventory.key('inventory-forecast'),
-        moduleQueryKeys.inventory.key('low-stock-alerts'),
       ];
       for (const queryKey of affectedQueries) {
         void queryClient.invalidateQueries({ queryKey });

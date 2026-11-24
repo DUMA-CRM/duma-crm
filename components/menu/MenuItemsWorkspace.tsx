@@ -25,6 +25,7 @@ import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
 
 import { proxiedImage } from '@/lib/api/client';
+import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { type MenuItemCost, useMenuItemCosts } from '@/lib/hooks/useMenuItemCosts';
 import { getMenuCategories, getMenuItems, updateMenuItem } from '@/lib/modules/catalog/client';
@@ -42,6 +43,7 @@ import {
   parseMenuShow,
   setupGaps,
 } from '@/lib/utils/menu-list';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 import type { MenuCategory, MenuItem } from '@/types/menu';
 
@@ -106,6 +108,9 @@ export function MenuItemsWorkspace() {
     'no-photo': 'No photo',
   };
 
+  // Menu opens on menu:read (an auditor reads it); every edit stays on menu:write.
+  const canWrite = useAuthStore((state) => hasCapability(state.capabilities, 'menu:write'));
+
   const availability = useMutation({
     mutationFn: ({ id, isAvailable }: { id: string; isAvailable: boolean }) => updateMenuItem(id, { isAvailable }),
     onSuccess: (_, { isAvailable }) => {
@@ -121,7 +126,7 @@ export function MenuItemsWorkspace() {
       icon={<MenuShellIcon />}
       subheader={<MenuSectionTabs />}
       actions={
-        tenantId ? (
+        tenantId && canWrite ? (
           <div className="flex items-center gap-2">
             {/* A whole catalogue — sizes and stock — from a sheet or a Shopify export. */}
             <Button variant="outline" onClick={() => setImporting(true)} aria-label="Import products">
@@ -165,7 +170,7 @@ export function MenuItemsWorkspace() {
               ? 'Name it and price it, then add modifiers and a recipe from the same screen.'
               : 'Add products one by one, or import your catalogue from a sheet — your own or a Shopify export.'
           }
-          action={{ label: words.newItem, href: '/menu/items/new', icon: Plus }}
+          action={canWrite ? { label: words.newItem, href: '/menu/items/new', icon: Plus } : undefined}
         />
       ) : (
         <motion.div
@@ -243,7 +248,7 @@ export function MenuItemsWorkspace() {
                       cost={costs.get(item.id)}
                       kitchen={kitchen}
                       availableLabel={words.available}
-                      togglePending={availability.isPending && availability.variables?.id === item.id}
+                      togglePending={!canWrite || (availability.isPending && availability.variables?.id === item.id)}
                       onToggle={(isAvailable) => availability.mutate({ id: item.id, isAvailable })}
                     />
                   ))}

@@ -64,6 +64,8 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
   // Balances need the read capability; a reviewer without it still reviews, just without the number.
   const canSeeBalances = hasCapability(capabilities, 'hr.leave:read');
   const canSeeRota = hasCapability(capabilities, 'scheduling:read');
+  // Reading the queue is hr.leave:read; Approve and Decline are hr.leave:review.
+  const canReview = hasCapability(capabilities, 'hr.leave:review');
   const [expanded, setExpanded] = useState<string | null>(null);
 
   const requests = useQuery({
@@ -167,7 +169,7 @@ export function LeaveInbox({ status, setStatus }: { status: string; setStatus: (
           onToggle={() => setExpanded((current) => (current === request.id ? null : request.id))}
           deciding={deciding === request.id}
           locked={!!deciding}
-          onDecide={(next, note) => review.mutate({ id: request.id, next, note })}
+          onDecide={canReview ? (next, note) => review.mutate({ id: request.id, next, note }) : undefined}
         />
       ))}
     </ListRowGroup>
@@ -264,7 +266,8 @@ function RequestRow({
   onToggle: () => void;
   deciding: boolean;
   locked: boolean;
-  onDecide: (next: 'approved' | 'declined', note?: string) => void;
+  /** Absent without hr.leave:review — the row reads, it doesn't decide. */
+  onDecide?: (next: 'approved' | 'declined', note?: string) => void;
 }) {
   const [declining, setDeclining] = useState(false);
   const [reason, setReason] = useState('');
@@ -351,7 +354,7 @@ function RequestRow({
         ]}
       />
 
-      {isPending && (
+      {isPending && onDecide && (
         <div className="flex flex-wrap items-center gap-2">
           {declining ? (
             <>

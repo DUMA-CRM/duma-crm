@@ -17,7 +17,7 @@ Keep the existing public website's `app/(marketing)` route group separate from t
 - Create, edit, duplicate, schedule, reschedule, and cancel unpublished posts.
 - Upload/select media once; override caption, media, and time per destination.
 - YouTube videos and Shorts; Facebook Page text/image/video posts and Reels; Instagram images, carousels, and Reels; TikTok videos, subject to provider approval.
-- Connected accounts in existing Settings → Connectors; support multiple accounts per platform per workspace.
+- Connected accounts in existing Settings → Connections; support multiple accounts per platform per workspace.
 - Per-destination processing, published, blocked, and failed states, with provider links and actionable errors.
 - Publishing history and explicit retry of eligible failed destinations.
 

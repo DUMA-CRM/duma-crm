@@ -1,8 +1,8 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useCallback, useEffect } from 'react';
 
-import { DumaAgent } from '@/components/ai/DumaAgent';
 import { PanelRight } from '@/components/icons';
 
 import { useWorkspaceModules } from '@/lib/hooks/useWorkspaceContext';
@@ -12,6 +12,14 @@ import { usePageSidebarStore } from '@/stores/pageSidebarStore';
 import { AccountMenu } from './AccountMenu';
 import { HeaderIconButton } from './HeaderIconButton';
 import { SidebarToggle } from './SidebarToggle';
+
+// Ask DUMA (and the diagram renderer behind its answers) is a large chunk that
+// the till, kitchen and every other CRM page would otherwise carry. It loads in
+// the browser after hydration; the placeholder holds the launcher's 44px slot.
+const DumaAgent = dynamic(() => import('@/components/ai/DumaAgent').then((module) => module.DumaAgent), {
+  ssr: false,
+  loading: () => <span className="size-11 shrink-0" aria-hidden="true" />,
+});
 
 export function Header() {
   // Ask DUMA works in a workspace; DUMA Admin has none, so it has no assistant.

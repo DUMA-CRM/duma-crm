@@ -156,7 +156,7 @@ export function FormRenderer({
         if (firstPage >= 0) goTo(firstPage);
         setFormError(Object.keys(mapped).length ? null : error.message);
       } else {
-        setFormError(error instanceof Error ? error.message : 'Something went wrong. Please try again.');
+        setFormError(error instanceof Error ? error.message : 'Your answers weren’t sent. Check your connection, then send them again.');
       }
     } finally {
       setSubmitting(false);

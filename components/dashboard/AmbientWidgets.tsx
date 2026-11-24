@@ -23,6 +23,7 @@ import { getNotes } from '@/lib/modules/notes/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { dailyPick } from '@/lib/utils/dashboard-cards';
+import { subscribeToMinute } from '@/lib/utils/minute-tick';
 import { relativeTime } from '@/lib/utils/relative-time';
 import { resolvedTimeZone, workspaceDateKey, zonedParts } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
@@ -40,12 +41,9 @@ const CARD = 'relative h-full min-h-0 overflow-hidden rounded-lg border border-b
 
 /**
  * The minute on the clock, shared by every clock on the page; null on the server, so its time never
- * reaches the page. Checked each second so the minute turns on time, re-rendering only when it does.
+ * reaches the page. Ticks once, on the minute — the clock shows no seconds.
  */
-const subscribeToClock = (onTick: () => void) => {
-  const timer = window.setInterval(onTick, 1000);
-  return () => window.clearInterval(timer);
-};
+const subscribeToClock = subscribeToMinute;
 const currentMinute = () => Math.floor(Date.now() / 60_000);
 
 function useNow(): Date | null {

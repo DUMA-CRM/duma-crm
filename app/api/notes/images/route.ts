@@ -4,6 +4,8 @@ import { NextResponse } from 'next/server';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { getCurrentStaffProfile } from '@/lib/auth/current-staff';
 
+import { readCappedBody } from '../../_lib/request-guards';
+
 // ---------------------------------------------------------------------------
 // POST /api/notes/images — a picture pasted or dropped into a note. Anyone who
 // can write notes may add one (unlike Communications' manager-only upload).
@@ -30,11 +32,10 @@ export async function POST(request: Request) {
 
   const contentType = request.headers.get('content-type')?.split(';')[0] ?? '';
   if (!ACCEPTED.has(contentType)) return NextResponse.json({ error: 'Use a PNG, JPG, WebP or GIF image.' }, { status: 415 });
-  const declared = Number(request.headers.get('content-length') ?? 0);
-  if (declared > MAX_IMAGE_BYTES) return NextResponse.json({ error: 'Images must be 8 MB or smaller.' }, { status: 413 });
-  const bytes = await request.arrayBuffer();
-  if (!bytes.byteLength) return NextResponse.json({ error: 'The image is empty.' }, { status: 400 });
-  if (bytes.byteLength > MAX_IMAGE_BYTES) return NextResponse.json({ error: 'Images must be 8 MB or smaller.' }, { status: 413 });
+  const body = await readCappedBody(request, MAX_IMAGE_BYTES);
+  if (!body.ok && body.reason === 'too-large') return NextResponse.json({ error: 'Images must be 8 MB or smaller.' }, { status: 413 });
+  if (!body.ok) return NextResponse.json({ error: 'The image is empty.' }, { status: 400 });
+  const bytes = body.bytes;
 
   const filename = new URL(request.url).searchParams.get('filename') ?? 'image';
   try {

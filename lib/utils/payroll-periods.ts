@@ -54,11 +54,30 @@ export function periodContaining(period: PayrollPeriod, date: Date): PayPeriodRa
     const sunday = addDays(monday, 6);
     return { from: iso(monday), to: iso(sunday), label: `${DAY.format(monday)} – ${DAY.format(sunday)} ${sunday.getFullYear()}` };
   }
-  // A fortnight starts on an even ISO week — the same fortnights the API's job
-  // takes (on an even week's pay day it covers the two weeks just ended).
-  const start = isoWeekNumber(monday) % 2 === 0 ? monday : addDays(monday, -7);
+  const start = isFortnightStart(monday) ? monday : addDays(monday, -7);
   const end = addDays(start, 13);
   return { from: iso(start), to: iso(end), label: `${DAY.format(start)} – ${DAY.format(end)} ${end.getFullYear()}` };
+}
+
+/**
+ * The Monday every fortnight is counted from. It is in an even ISO week, so
+ * every 2026 fortnight is unchanged from the old "even ISO week" rule — which
+ * broke at a 53-week year: 28 Dec 2026 (week 53) and 4 Jan 2027 (week 1) are
+ * both odd, so the two fortnights around new year overlapped by a week.
+ * Must match duma-api `src/lib/payroll-schedule.ts`.
+ */
+export const FORTNIGHT_ANCHOR = { year: 2026, month: 1, day: 5 } as const;
+
+/** Whether this Monday starts a fortnight: an even number of whole weeks from the anchor, either side of it. */
+export function isFortnightStart(monday: Date): boolean {
+  const days = Math.round(
+    (Date.UTC(monday.getFullYear(), monday.getMonth(), monday.getDate()) -
+      Date.UTC(FORTNIGHT_ANCHOR.year, FORTNIGHT_ANCHOR.month - 1, FORTNIGHT_ANCHOR.day)) /
+      86_400_000,
+  );
+  const weeks = Math.floor(days / 7);
+  // A true modulo: -1 % 2 is -1 in JavaScript, and the weeks before the anchor are negative.
+  return ((weeks % 2) + 2) % 2 === 0;
 }
 
 /** The last `count` periods, most recent first, starting with the one containing `today`. */

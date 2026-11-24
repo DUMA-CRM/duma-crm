@@ -108,8 +108,8 @@ where correctness lives.
    `400 invalid_layout`.
 4. At resolve time, run a normalise step (snap to a registered size, then
    compact) so layouts saved under the old sizes still render.
-5. Refresh `openapi.json` in the CRM. `tests/api-contract.test.mts` must still
-   pass.
+5. Check every CRM call against `duma-api/src/routes/` (no contract test
+   exists — audit 2026-11-24).
 6. Update the vault: API dashboard note, plus a Cross-Repo entry for the layer
    semantics change.
 

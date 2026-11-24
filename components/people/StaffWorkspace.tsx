@@ -56,7 +56,8 @@ export function StaffWorkspace({ tab, initialTicket = null }: { tab: StaffTab; i
   // leave review from `store_manager`, who holds `hr.leave:review`.
   const canTeam = hasAnyCapability(capabilities, 'staff:read', 'hr.people:read');
   const canRota = hasAnyCapability(capabilities, 'scheduling:read', 'shifts:read');
-  const canLeave = hasCapability(capabilities, 'hr.leave:review');
+  // The queue is hr.leave:read (what the list endpoint checks); deciding is hr.leave:review, gated per row.
+  const canLeave = hasCapability(capabilities, 'hr.leave:read');
   const canHelpdesk = hasCapability(capabilities, 'helpdesk:manage');
   const canPayroll = hasCapability(capabilities, 'hr.payroll:read');
 

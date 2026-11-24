@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server';
 
+import { SITE_URL } from '@/lib/marketing/site';
 import { MARKDOWN_RENDER_HEADER, estimateTokens, htmlToMarkdown, servesMarkdown } from '@/lib/utils/markdown-for-agents';
 
 /**
@@ -13,8 +14,13 @@ import { MARKDOWN_RENDER_HEADER, estimateTokens, htmlToMarkdown, servesMarkdown 
 // generates it, and CI type-checks before building.
 export async function GET(req: NextRequest, ctx: { params: Promise<{ path?: string[] }> }) {
   const { path = [] } = await ctx.params;
-  const pageUrl = new URL(`/${path.join('/')}${req.nextUrl.search}`, req.nextUrl.origin);
-  if (!servesMarkdown(pageUrl.pathname)) {
+  // The page is fetched from this site's configured origin, never from the
+  // request's Host header — that is attacker-controlled, and trusting it made
+  // this route fetch (and convert) any host it was pointed at. Development has
+  // no public origin, so it keeps using its own.
+  const origin = process.env.NODE_ENV === 'production' ? SITE_URL : req.nextUrl.origin;
+  const pageUrl = new URL(`/${path.join('/')}${req.nextUrl.search}`, origin);
+  if (pageUrl.origin !== new URL(origin).origin || !servesMarkdown(pageUrl.pathname)) {
     return new Response('Not found\n', { status: 404, headers: { 'Content-Type': 'text/plain; charset=utf-8' } });
   }
 

@@ -1,6 +1,6 @@
 'use client';
 
-import { useQueries, useQuery } from '@tanstack/react-query';
+import { useQuery } from '@tanstack/react-query';
 import { Fragment, useEffect, useRef, useState } from 'react';
 
 import { X } from '@/components/icons';
@@ -8,12 +8,13 @@ import { appAppearance } from '@/components/marketplace/app-appearance';
 import { Logo } from '@/components/shared/Logo';
 
 import { getMarketplace, marketplaceKey } from '@/lib/api/marketplace.service';
+import { getOrderStatusCounts } from '@/lib/api/orders-live.service';
 import { adminNavItems } from '@/lib/constants/admin-nav';
 import { filterNavByCapability, filterNavGroups, footerNavItems, mainNavGroups, type NavGroup } from '@/lib/constants/nav';
 import { useWorkspaceContext } from '@/lib/hooks/useWorkspaceContext';
-import { getOrders } from '@/lib/modules/ordering/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
+import { ACTIVE_ORDER_STATUSES, activeOrderCount } from '@/lib/utils/live-orders';
 import { useAuthStore } from '@/stores/authStore';
 import { useLoginIntroStore } from '@/stores/loginIntroStore';
 import { useSidebarStore } from '@/stores/sidebarStore';
@@ -118,9 +119,9 @@ export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
         item.href === '/apps' && appPages?.length ? { ...item, children: appPages } : item)
     : [];
 
-  // Badge the kitchen queue with the exact active count. Three count-only
-  // responses are much smaller than downloading 200 complete orders globally
-  // on every CRM screen.
+  // Badge the kitchen queue with the exact active count: one count-only
+  // request a minute, under the one key the kitchen board invalidates when it
+  // moves a ticket — not three lists of 100 orders on every CRM screen.
   const showOrders = mainItems.some((item) => item.href === '/orders');
   const [badgeEnabled, setBadgeEnabled] = useState(false);
   useEffect(() => {
@@ -132,21 +133,14 @@ export function Sidebar({ capabilities }: { capabilities: readonly string[] }) {
     const id = globalThis.setTimeout(() => setBadgeEnabled(true), 1_500);
     return () => globalThis.clearTimeout(id);
   }, [showOrders]);
-  const activeOrderQueries = useQueries({
-    queries: (['pending', 'preparing', 'ready'] as const).map((status) => ({
-      queryKey: moduleQueryKeys.ordering.key('orders-nav-count', status, tenantId, locationId),
-      queryFn: () => getOrders({ limit: 100, status, paymentStatus: 'paid', locationId: locationId ?? undefined }),
-      enabled: showOrders && badgeEnabled,
-      staleTime: 60_000,
-      refetchInterval: 60_000,
-    })),
+  const activeOrderCounts = useQuery({
+    queryKey: moduleQueryKeys.ordering.key('orders-nav-count', tenantId, locationId),
+    queryFn: () => getOrderStatusCounts({ statuses: ACTIVE_ORDER_STATUSES, paymentStatus: 'paid', locationId }),
+    enabled: showOrders && badgeEnabled,
+    staleTime: 60_000,
+    refetchInterval: 60_000,
   });
-  const activeOrders = activeOrderQueries.reduce(
-    (total, query) =>
-      total +
-      (query.data?.data.filter((order) => !order.kitchenReleaseAt || new Date(order.kitchenReleaseAt).getTime() <= Date.now()).length ?? 0),
-    0,
-  );
+  const activeOrders = activeOrderCount(activeOrderCounts.data);
   // One badge for one fact: the kitchen queue is what the count is waiting on,
   // so it sits on KDS. Orders carries it only when KDS is not in the nav.
   const showKds = mainItems.some((item) => item.href === '/kds');

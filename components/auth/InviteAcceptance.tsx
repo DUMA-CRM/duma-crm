@@ -94,7 +94,7 @@ export function InviteAcceptance({
     try {
       await action();
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Something went wrong. Try again.');
+      setError(err instanceof Error ? err.message : 'The invitation wasn’t accepted. Try again, or ask for a new invitation.');
       setBusy(null);
     }
   };

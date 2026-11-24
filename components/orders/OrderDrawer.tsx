@@ -60,6 +60,7 @@ import { cn } from '@/lib/utils/cn';
 import { formatDateTime } from '@/lib/utils/date';
 import {
   type ActivityEvent,
+  REFUND_NEEDS_PAYMENT,
   STATUS_EVENT,
   canEditDelivery,
   canRecordPayment,
@@ -70,6 +71,7 @@ import {
   orderCode,
   paymentSourceLabel,
   paymentSummary,
+  refundPosition,
   shippingAddressLines,
   turnaround,
 } from '@/lib/utils/orders-list';
@@ -179,9 +181,9 @@ export function OrderDrawer({
 
   // The refund lives in this drawer: the hook runs always (hooks can't be
   // conditional) and only fetches what's refundable once refund mode opens.
-  const refundedSoFar = (data?.refunds ?? []).reduce((sum, refund) => sum + Number(refund.amount), 0);
-  const refundableNow = data ? Math.max(0, Number(data.totalAmount) - refundedSoFar) : 0;
-  const draft = useRefundDraft(data ?? PLACEHOLDER_ORDER, refundableNow, !!data && showRefund, () => setShowRefund(false));
+  // In pence (`refundPosition`), so a fully refunded order reads as exactly nothing left.
+  const position = refundPosition(data ?? PLACEHOLDER_ORDER);
+  const draft = useRefundDraft(data ?? PLACEHOLDER_ORDER, position.refundable, !!data && showRefund, () => setShowRefund(false));
 
   const nav = (
     <>
@@ -208,11 +210,12 @@ export function OrderDrawer({
 
   const source = SOURCE_META[data.source];
   const payment = paymentSummary({ paymentMethod: data.paymentMethod, paymentStatus: data.paymentStatus });
-  const refunded = refundedSoFar;
-  const refundable = refundableNow;
-  const refundedFull = refunded > 0 && refundable === 0;
+  const { refunded, refundable, refundedFull } = position;
   const step = nextStep(data);
-  const canCancel = nextStatuses(data).includes('cancelled');  const mayRefund = canRefund && data.status === 'done' && refundable > 0;
+  const canCancel = nextStatuses(data).includes('cancelled');
+  // A refund gives back money that was taken; on an unpaid order the API refuses (409), so the button says why instead.
+  const refundEligible = canRefund && data.status === 'done' && refundable > 0;
+  const mayRefund = refundEligible && position.paid;
   // Refund mode: the same drawer, its body and footer swapped for the refund.
   const refunding = mayRefund && showRefund;
   const discount = Number(data.discountAmount ?? 0);
@@ -324,11 +327,23 @@ export function OrderDrawer({
               <Receipt data-icon="inline-start" />
               Receipt
             </Button>
-            {mayRefund && (
+            {mayRefund ? (
               <Button type="button" variant="outline" onClick={() => setShowRefund(true)}>
                 <RotateCcw data-icon="inline-start" />
                 Refund
               </Button>
+            ) : (
+              refundEligible && (
+                <span title={REFUND_NEEDS_PAYMENT}>
+                  <Button type="button" variant="outline" disabled aria-describedby="order-refund-unpaid">
+                    <RotateCcw data-icon="inline-start" />
+                    Refund
+                  </Button>
+                  <span id="order-refund-unpaid" className="sr-only">
+                    {REFUND_NEEDS_PAYMENT}
+                  </span>
+                </span>
+              )
             )}
             {step && (
               <Button

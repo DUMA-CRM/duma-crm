@@ -107,7 +107,7 @@ function mondayOfIso(date: string) {
 /** "partially_received" → "Partially received", for card titles and empty states. */
 const sentence = (value: string) => value.replaceAll('_', ' ').replace(/^./, (character) => character.toUpperCase());
 
-const orderSourceLabel = (source: Order['source']) => (source === 'pos' ? 'POS' : source === 'qr_code' ? 'QR code' : 'Mobile');
+const orderSourceLabel = (source: Order['source']) => (source === 'pos' ? 'Till' : source === 'qr_code' ? 'QR code' : 'Mobile');
 
 function page(label: string, href: string, description: string, locationId?: string): AgentShortcut {
   return { label, href, description, ...(locationId ? { locationId, kind: 'filtered' as const } : { kind: 'page' as const }) };
@@ -1269,7 +1269,7 @@ const getOperationsCommandCentre: ToolDefinition = {
 const listOrders: ToolDefinition = {
   name: 'list_orders',
   description:
-    'List recent orders with their status, source, total and time. Can isolate QR code, mobile or POS orders. Use before proposing a status change or investigating a specific sale.',
+    'List recent orders with their status, source, total and time. Can isolate QR code, mobile or till orders. Use before proposing a status change or investigating a specific sale.',
   capability: 'orders:read',
   step: 'Reading orders',
   parameters: schema({
@@ -2570,7 +2570,7 @@ const getMyWorkspace: ToolDefinition = {
     const now = new Date();
     const rotaFrom = new Date(now);
     rotaFrom.setHours(0, 0, 0, 0);
-    // The same horizon My rota uses for "Next shift": a question about the next
+    // The same horizon My work uses for "Next shift": a question about the next
     // shift must not come back empty because it falls in a later week.
     const rotaTo = new Date(rotaFrom);
     rotaTo.setDate(rotaTo.getDate() + 35);
@@ -2745,7 +2745,7 @@ const getMyProfile: ToolDefinition = {
   },
 };
 
-// ── My HR: attendance and pay ────────────────────────────────────────────────
+// ── My work: attendance and pay ────────────────────────────────────────────────
 
 const getMyAttendance: ToolDefinition = {
   module: 'people',

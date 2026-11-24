@@ -1,7 +1,7 @@
 # Till hardware — first implementation
 
 Till hardware is an optional connector contributed by the `pos` module. Find it in
-Settings → Connectors → Till hardware or Settings → Configuration → Till.
+Settings → Connections → Till hardware or Settings → Operations → Till.
 Configuration and physical test actions require `settings:write`. Cash payments
 continue working with no connector.
 

@@ -30,7 +30,7 @@ function Result() {
           <p className="text-micro font-semibold uppercase tracking-micro text-destructive">Link not used</p>
           <h1 className="text-2xl font-semibold">We couldn’t confirm this email</h1>
           <p role="alert" className="mt-2 text-sm text-muted-foreground">
-            {ERRORS[error] ?? 'Something went wrong with this link. Request a new one and try again.'}
+            {ERRORS[error] ?? 'This link couldn’t confirm your email — it may be out of date or already used. Request a new one and try again.'}
           </p>
         </div>
         <p className="text-sm text-muted-foreground">

@@ -1,10 +1,17 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { usePathname, useRouter, useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
 
-import { type EditorTab, FormEditor } from '@/components/forms/FormEditor';
+import type { EditorTab } from '@/components/forms/FormEditor';
 import { FormsList } from '@/components/forms/FormsList';
+
+// The builder (questions, logic, responses, charts) is most of this route's code; the list loads
+// without it, and it arrives when a form is opened.
+const FormEditor = dynamic(() => import('@/components/forms/FormEditor').then((module) => module.FormEditor), {
+  loading: () => <div className="min-h-96 flex-1" role="status" aria-busy="true" aria-label="Opening the form" />,
+});
 
 const TABS: readonly EditorTab[] = ['build', 'settings', 'share', 'responses', 'summary'];
 

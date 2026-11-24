@@ -200,15 +200,17 @@ export function NewOrderModal({
           queryFn: () => getMenuItemModifiers(item.id),
           staleTime: MENU_STALE_MS,
         }),
-        qc
-          .fetchQuery({
-            queryKey: moduleQueryKeys.catalog.key('menu-item-modifier-groups', item.id),
-            queryFn: () => getMenuItemModifierGroups(item.id),
-            staleTime: MENU_STALE_MS,
-          })
-          .catch(() => []),
-        // Only a product with variants has a catalogue to read; a menu item without one answers empty.
-        getItemCatalog(item.id, tenantId ?? undefined).catch(() => null),
+        // No catch on either read. A failed group read used to become "no rules",
+        // so a required choice (a size, a milk) was skipped; a failed catalogue
+        // read became "no variants", so a sized product went in at its base
+        // price. Either failure now stops the item being added at all.
+        qc.fetchQuery({
+          queryKey: moduleQueryKeys.catalog.key('menu-item-modifier-groups', item.id),
+          queryFn: () => getMenuItemModifierGroups(item.id),
+          staleTime: MENU_STALE_MS,
+        }),
+        // Only a product with variants has a catalogue to read; a menu item without one answers 200 with none.
+        getItemCatalog(item.id, tenantId ?? undefined),
       ]);
       if (request.current !== mine) return;
       const options = modifiers.filter((m) => m.isAvailable).map(toOption);
@@ -220,7 +222,7 @@ export function NewOrderModal({
     } catch {
       if (request.current !== mine) return;
       setLeft({ kind: 'browse' });
-      toast('error', `${item.name} couldn’t be added. Try again.`);
+      toast('error', `${item.name} wasn’t added: its sizes and options couldn’t load. Try again.`);
     }
   }
 

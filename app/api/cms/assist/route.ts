@@ -15,6 +15,8 @@ import { hasCapability } from '@/lib/auth/capabilities';
 import type { CmsAsset } from '@/lib/modules/cms/client';
 import { getMyStaffProfile } from '@/lib/modules/identity/client';
 import { normaliseModelDraft } from '@/lib/utils/cms-model-draft';
+
+import { allowedAssetUrl, isUuid, requestWorkspaceId } from '../../_lib/request-guards';
 import { DESCRIPTION_IDEAL_MIN, SEO_SCHEMA_TYPES, SERP_TITLE_MAX, TITLE_MIN, fitDescription, fitTitle } from '@/lib/utils/cms-seo';
 
 // ---------------------------------------------------------------------------
@@ -29,15 +31,33 @@ const MODEL_IMAGE_TYPES = new Set(['image/jpeg', 'image/png', 'image/webp']);
 
 const fail = (message: string, status: number) => Response.json({ error: message }, { status });
 
+const API_ORIGIN = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:7777';
+/** Storage may answer with one redirect (API delivery → bucket); each hop is re-checked. */
+const MAX_REDIRECTS = 2;
+
+/** Fetch a rendition only from an allowed host, re-checking every redirect hop. Null when it isn't allowed. */
+async function fetchAllowedAsset(raw: string): Promise<Response | null> {
+  let url = allowedAssetUrl(raw, API_ORIGIN);
+  for (let hop = 0; url && hop <= MAX_REDIRECTS; hop += 1) {
+    const response = await fetch(url, { redirect: 'manual', signal: AbortSignal.timeout(15_000) });
+    const location = response.status >= 300 && response.status < 400 ? response.headers.get('location') : null;
+    if (!location) return response;
+    url = allowedAssetUrl(new URL(location, url).toString(), API_ORIGIN);
+  }
+  return null;
+}
+
 /** The smallest copy of the image a model can read well: a rendition when there is one. */
 async function imageDataUrl(assetId: string, tenantId: string | undefined, cookieHeader: string): Promise<string> {
   const query = tenantId ? `?tenantId=${encodeURIComponent(tenantId)}` : '';
   const asset = await apiFetch<CmsAsset>(`/cms/assets/${assetId}${query}`, { cookieHeader, timeoutMs: 15_000 });
   const rendition = asset.renditions.find((candidate) => candidate.width >= 480) ?? asset.renditions.at(-1);
+  // A rendition on a host the server may not fetch (a workspace's own bucket)
+  // falls back to the original through the API rather than being fetched.
+  const response = rendition ? await fetchAllowedAsset(rendition.url) : null;
   let blob: Blob;
   let type: string;
-  if (rendition) {
-    const response = await fetch(rendition.url, { signal: AbortSignal.timeout(15_000) });
+  if (rendition && response) {
     if (!response.ok) throw new Error('The image could not be read.');
     blob = await response.blob();
     type = rendition.mimeType;
@@ -92,7 +112,7 @@ export async function POST(request: Request) {
   if (!profile) return fail('Your session has expired. Sign in again.', 401);
   if (!hasCapability(profile, 'cms:write')) return fail('You need permission to edit content to use writing help.', 403);
 
-  const budget = await consumeAgentBudget(cookieHeader);
+  const budget = await consumeAgentBudget(cookieHeader, requestWorkspaceId(request.headers, body.tenantId, profile.tenantId));
   if (!budget.allowed) return fail('You’ve used today’s AI allowance. It resets tomorrow.', 429);
 
   try {
@@ -174,9 +194,11 @@ export async function POST(request: Request) {
         },
       });
     }
+    if (task === 'alt-text' && !isUuid(body.assetId)) return fail('Choose an image first.', 400);
+    if (body.tenantId != null && !isUuid(body.tenantId)) return fail('Invalid workspace.', 400);
     const input =
       task === 'alt-text'
-        ? { imageDataUrl: await imageDataUrl(String(body.assetId ?? ''), body.tenantId, cookieHeader), title: body.title }
+        ? { imageDataUrl: await imageDataUrl(body.assetId as string, body.tenantId ?? undefined, cookieHeader), title: body.title }
         : { title: body.title, text: body.text };
     if (task !== 'alt-text' && !input.text?.trim()) return fail('Write some text first — there is nothing to work from.', 400);
     const raw = await completeText(assistMessages(task, input) as never, { maxTokens: task === 'summary' ? 400 : 200 });

@@ -67,13 +67,20 @@ export function useRefundDraft(order: OrderDetail, refundable: number, active: b
   const amount = mode === 'amount' ? (custom.ok ? custom.value : 0) : Math.min(itemsWorth, refundable);
   const lines = refundLines(items, chosen, restock);
   const isEverything = items.length > 0 && Math.abs(itemsWorth - refundAmount(items, everything)) < 0.001;
+  // Money taken can be given back; an unpaid order has none, and the API refuses
+  // it (409). A part-refunded order stays `paid` — the part is `refundStatus`.
+  const paid = ['paid', 'partially_refunded'].includes(order.paymentStatus ?? '');
+  // One key for this draft, kept across retries (a timeout that did land comes
+  // back as the same refund, not a second payout) and replaced once it succeeds.
+  const [idempotencyKey, setIdempotencyKey] = useState(() => crypto.randomUUID());
 
   const submit = useMutation({
     mutationFn: () =>
       mode === 'amount' && custom.ok
-        ? createRefund(order.id, { amount: custom.amount, reason: reason ?? 'other', notes: notes.trim() })
-        : createRefund(order.id, { lines, reason: reason ?? 'other', notes: notes.trim() || undefined }),
+        ? createRefund(order.id, { amount: custom.amount, reason: reason ?? 'other', notes: notes.trim() }, idempotencyKey)
+        : createRefund(order.id, { lines, reason: reason ?? 'other', notes: notes.trim() || undefined }, idempotencyKey),
     onSuccess: () => {
+      setIdempotencyKey(crypto.randomUUID());
       invalidateOrder(qc, order.id);
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.payments.key('refund-options', order.id) });
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.customers.key('customer-visits') });
@@ -131,6 +138,7 @@ export function useRefundDraft(order: OrderDetail, refundable: number, active: b
     customProblem: custom.ok ? null : custom.problem,
     // An amount isn't tied to anything the record can show later, so it needs its note.
     canSubmit:
+      paid &&
       reason !== null &&
       !submit.isPending &&
       (mode === 'amount' ? custom.ok && notes.trim().length > 0 : lines.length > 0 && amount > 0 && amount <= refundable + 0.001),

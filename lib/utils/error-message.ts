@@ -178,3 +178,73 @@ export function describeError(error: { name?: string; message?: string } | null 
   const haystack = `${error?.name ?? ''} ${error?.message ?? ''}`.toLowerCase();
   return RULES.find((rule) => rule.match.test(haystack))?.description ?? UNKNOWN;
 }
+
+/**
+ * The shape of an `ApiError` this module needs, without importing the client
+ * (which pulls in browser-only code). `capability` is the one the API named;
+ * `capabilities` is the list it sends for a route gated on any of several.
+ */
+export interface RequestErrorLike {
+  name?: string;
+  message?: string;
+  status?: number;
+  capability?: string;
+  capabilities?: readonly string[];
+}
+
+/** Whether this is a load that failed, or a change that wasn't saved — the copy differs. */
+export type RequestAction = 'load' | 'save';
+
+function permissionWords(error: RequestErrorLike): string | null {
+  const named = [error.capability, ...(error.capabilities ?? [])].filter(
+    (value, index, all): value is string => typeof value === 'string' && value.length > 0 && all.indexOf(value) === index,
+  );
+  if (named.length === 0) return null;
+  if (named.length === 1) return `the ${named[0]} permission`;
+  return `one of these permissions: ${named.join(', ')}`;
+}
+
+/**
+ * One sentence for a failed API request — the toast the query and mutation
+ * caches raise when a screen didn't handle the failure itself.
+ *
+ * Follows COPY.md: say what did not happen, then a safe next step. A 403 names
+ * the capability the API reported, so the reader can ask for exactly that
+ * instead of "you don't have permission".
+ */
+export function requestErrorMessage(error: unknown, action: RequestAction, options: { online?: boolean } = {}): string {
+  const failed = action === 'load' ? 'This information couldn’t load' : 'The change wasn’t saved';
+  if (options.online === false) {
+    return action === 'load'
+      ? 'You’re offline, so this couldn’t load. Reconnect, then try again.'
+      : 'You’re offline, so the change wasn’t saved. Reconnect, then try again.';
+  }
+  const e = (error && typeof error === 'object' ? error : {}) as RequestErrorLike;
+  const status = typeof e.status === 'number' ? e.status : undefined;
+
+  if (status === 401)
+    return `Your session has expired. ${action === 'load' ? 'Sign in again to refresh this workspace.' : 'The change wasn’t saved — sign in again, then retry.'}`;
+  if (status === 403) {
+    const needs = permissionWords(e);
+    if (needs) return `${failed}: it needs ${needs}. An owner can grant it in Settings → Staff.`;
+    return action === 'load'
+      ? 'You don’t have permission to load this information.'
+      : 'You don’t have permission to make this change, so it wasn’t saved.';
+  }
+  if (status === 404)
+    return action === 'load'
+      ? 'This information is no longer available.'
+      : 'The change wasn’t saved: the record no longer exists. Reload the page to see the latest.';
+  if (status === 429) return `${failed}: DUMA is receiving too many requests. Wait a moment, then try again.`;
+  if (status !== undefined && status >= 500) {
+    return action === 'load'
+      ? 'DUMA’s service is temporarily unavailable. Your existing data is unchanged.'
+      : 'DUMA’s service is temporarily unavailable, so the change wasn’t saved. Try again in a moment.';
+  }
+  // A 4xx the API explained (a validation failure, a conflict) — its sentence is the specific one.
+  if (status !== undefined && status >= 400 && e.message) return e.message;
+  if (e.name === 'AbortError' || e.name === 'TimeoutError')
+    return `${failed}: the request took too long. Check your connection, then try again.`;
+  if (e.name === 'TypeError') return `${failed}: DUMA couldn’t reach the service. Check your connection, then try again.`;
+  return action === 'load' ? 'The latest data couldn’t load. Try again.' : 'The change wasn’t saved. Try again.';
+}

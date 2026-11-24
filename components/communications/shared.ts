@@ -57,7 +57,7 @@ export const TRIGGER_HELP: Record<Trigger, string> = {
   reservation_changed: 'Runs when staff save changes to a booking’s details, time or tables. Status changes have their own events.',
   stock_low:
     'Runs when a stock movement takes the quantity below its location’s low-stock threshold. It can run again after restocking above the threshold. Use a Create task action.',
-  order_created: 'Sent once per order, as soon as the order is created in the POS.',
+  order_created: 'Sent once per order, as soon as the order is placed.',
   order_paid:
     'Sent once per order, when its payment is confirmed — at the till, on cash approval, when an order taken by hand is marked paid, or as an online order comes in paid.',
   order_ready: 'Sent once per order, the moment its status changes to ready.',

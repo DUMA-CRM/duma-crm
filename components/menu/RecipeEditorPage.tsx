@@ -29,6 +29,7 @@ import { cn } from '@/lib/utils/cn';
 import { type ComboRule, FALLBACK_RULE, ruleLabel, satisfied, toggleOption } from '@/lib/utils/combo';
 import { FOOD_COST_TARGET, foodCostBand, foodCostPct, priceForTargetMargin } from '@/lib/utils/margin-calculator';
 import { isSizeModifier, modifierCategory, modifierLabel } from '@/lib/utils/modifiers';
+import { decimalLineTotal } from '@/lib/utils/pos';
 import type { AttachedModifier } from '@/types/menu';
 
 /** Compact macro list (skips kcal — shown separately — and absent fields). */
@@ -166,7 +167,11 @@ export function RecipeEditor({ menuItemId, price, vatRate, saveRef, onStatusChan
     nutrition: comboNutrition,
     allergens: [...new Set(comboAll.flatMap((p) => p.allergens))].sort(),
     missing: comboAll.reduce((s, p) => s + p.missingCost + p.missingNutrition, 0),
-    price: (Number(price) || 0) + selected.reduce((s, id) => s + Number(attached.find((m) => m.id === id)?.priceAdjust ?? 0), 0),
+    // The till's line arithmetic (`cartItemTotal`, in pence), so the combo's price matches what it rings up.
+    price: decimalLineTotal(
+      price,
+      selected.map((id) => attached.find((m) => m.id === id)?.priceAdjust ?? 0),
+    ),
   };
   // Modifier price adjustments are part of the taxable amount, exactly as the
   // till treats them, so VAT comes off the combined price rather than the base.

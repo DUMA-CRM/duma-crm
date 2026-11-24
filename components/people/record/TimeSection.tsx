@@ -31,6 +31,7 @@ import { DatePicker } from '@/components/ui/date-picker';
 import { FieldLabel } from '@/components/ui/label';
 import { Select } from '@/components/ui/select';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import { type EmployeeHours, type TimesheetShift, getWorkPattern, updateWorkPattern } from '@/lib/modules/people/client';
 import {
   type LeaveEntitlement,
@@ -51,7 +52,9 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { workingDaysLabel } from '@/lib/utils/employee-record';
+import { ALLOWANCE_BLOCK_MESSAGE, allowanceSaveBlock } from '@/lib/utils/leave-allowance';
 import { formatInstant, workspaceDateKey, zonedParts } from '@/lib/utils/workspace-time';
+import { useAuthStore } from '@/stores/authStore';
 
 import { ChoiceCards, type Employee, ModalActions, NumberStepper, RecordBlock, RecordList, RecordListRow, monthRange } from './shared';
 
@@ -69,6 +72,8 @@ import { ChoiceCards, type Employee, ModalActions, NumberStepper, RecordBlock, R
 
 export function AbsenceCard({ userId }: { userId: string }) {
   const qc = useQueryClient();
+  // Recording and removing absence is the API's hr.absence:write; reading it is not enough.
+  const canWrite = useAuthStore((state) => hasCapability(state.capabilities, 'hr.absence:write'));
   const [adding, setAdding] = useState(false);
   const [initialDate] = useState(() => workspaceDateKey());
   const [form, setForm] = useState({ date: initialDate, leaveTypeId: '', isHalfDay: false, reason: '' });
@@ -117,10 +122,12 @@ export function AbsenceCard({ userId }: { userId: string }) {
       id="record-absence"
       title="Sickness & absence"
       action={
-        <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
-          <Plus data-icon="inline-start" />
-          Record
-        </Button>
+        canWrite ? (
+          <Button variant="outline" size="sm" onClick={() => setAdding(true)}>
+            <Plus data-icon="inline-start" />
+            Record
+          </Button>
+        ) : undefined
       }
     >
       {isError ? (
@@ -147,25 +154,27 @@ export function AbsenceCard({ userId }: { userId: string }) {
                 detail={absence.leaveType?.name}
                 trailing={absence.isHalfDay ? <IconTag icon={Clock3} label="Half day" tone="warning" /> : undefined}
                 actions={
-                  <Button
-                    type="button"
-                    variant="ghost"
-                    size="icon-sm"
-                    className="hover:text-exception"
-                    title="Remove"
-                    aria-label={`Remove the absence on ${fmtDate(absence.date)}`}
-                    disabled={remove.isPending}
-                    onClick={() => remove.mutate(absence.id)}
-                  >
-                    <Trash2 aria-hidden="true" />
-                  </Button>
+                  canWrite ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="icon-sm"
+                      className="hover:text-exception"
+                      title="Remove"
+                      aria-label={`Remove the absence on ${fmtDate(absence.date)}`}
+                      disabled={remove.isPending}
+                      onClick={() => remove.mutate(absence.id)}
+                    >
+                      <Trash2 aria-hidden="true" />
+                    </Button>
+                  ) : undefined
                 }
               />
             ))
           )}
         </RecordList>
       )}
-      {adding && (
+      {adding && canWrite && (
         <Modal
           title="Record an absence"
           description="Sickness or other unplanned time off. It shows on their attendance calendar and goes to payroll."
@@ -384,6 +393,8 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
   const [currentYear] = useState(() => new Date().getFullYear());
   const [year, setYear] = useState(currentYear);
   const [editing, setEditing] = useState<LeaveEntitlement | 'new' | null>(null);
+  // Setting an allowance is hr.leave:write; reading balances is hr.leave:read.
+  const canWrite = useAuthStore((state) => hasCapability(state.capabilities, 'hr.leave:write'));
   const { data: workPattern } = useQuery({
     queryKey: moduleQueryKeys.workforce.key('work-pattern', userId),
     queryFn: () => getWorkPattern(userId),
@@ -431,10 +442,12 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
             ariaLabel="Entitlement year"
             className="w-24"
           />
-          <Button variant="outline" size="sm" onClick={() => setEditing('new')}>
-            <Plus data-icon="inline-start" />
-            Add
-          </Button>
+          {canWrite && (
+            <Button variant="outline" size="sm" onClick={() => setEditing('new')}>
+              <Plus data-icon="inline-start" />
+              Add
+            </Button>
+          )}
         </>
       }
     >
@@ -447,7 +460,7 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
           {entitlements.length === 0 ? (
             <RecordListRow
               icon={CalendarDays}
-              label={`Add annual leave so they can request time off in ${year}`}
+              label={canWrite ? `Add annual leave so they can request time off in ${year}` : 'They can’t request time off until one is set'}
               missing={`No allowance for ${year}`}
             />
           ) : (
@@ -459,7 +472,7 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
               return (
                 <RecordListRow
                   key={item.id}
-                  onSelect={() => setEditing(item)}
+                  onSelect={canWrite ? () => setEditing(item) : undefined}
                   icon={leaveIcon(item.leaveType.name)}
                   tone={remaining <= 0 ? 'missing' : 'team'}
                   value={`${remaining} of ${total} days left`}
@@ -469,7 +482,7 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
                   trailing={
                     <span className="flex items-center gap-2">
                       <MiniBar value={used} max={total} label={`${used} of ${total} days used`} className="w-16" />
-                      <Pencil size={13} aria-hidden="true" />
+                      {canWrite && <Pencil size={13} aria-hidden="true" />}
                     </span>
                   }
                 />
@@ -479,7 +492,7 @@ export function LeaveAllowanceCard({ userId, employmentType }: { userId: string;
         </RecordList>
       )}
       {advice && <p className="mt-2 rounded-md bg-measured/10 px-3 py-2 text-xs leading-relaxed text-measured">{advice}</p>}
-      {editing && (
+      {editing && canWrite && (
         <LeaveAllowanceModal
           userId={userId}
           year={year}
@@ -511,7 +524,11 @@ function LeaveAllowanceModal({
   onClose: () => void;
   onDone: () => void;
 }) {
-  const { data: leaveTypes = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('leave-types'), queryFn: getLeaveTypes });
+  const { data: leaveTypes = [], status: typesStatus } = useQuery({
+    queryKey: moduleQueryKeys.people.key('leave-types'),
+    queryFn: getLeaveTypes,
+  });
+  const canConfigureLeave = useAuthStore((state) => hasCapability(state.capabilities, 'hr.leave:config'));
   const annualType = leaveTypes.find((type) => type.name.toLowerCase().includes('annual'));
   const [leaveTypeId, setLeaveTypeId] = useState(entitlement?.leaveType.id ?? annualType?.id ?? 'annual-default');
   const [totalDays, setTotalDays] = useState(entitlement?.totalDays ?? annualType?.defaultAllowanceDays ?? '28');
@@ -551,6 +568,13 @@ function LeaveAllowanceModal({
   const left = total - used;
   const tooLow = !!entitlement && total < used;
   const pct = total > 0 ? Math.min(100, (used / total) * 100) : 0;
+  const block = allowanceSaveBlock({
+    editing: !!entitlement,
+    wantsDefaultAnnual: leaveTypeId === 'annual-default',
+    typesStatus,
+    annualTypeExists: !!annualType,
+    canConfigureLeave,
+  });
 
   return (
     <Modal
@@ -566,7 +590,7 @@ function LeaveAllowanceModal({
           form="leave-allowance-form"
           submitLabel={entitlement ? 'Save allowance' : 'Add allowance'}
           pending={save.isPending}
-          disabled={total <= 0 || tooLow}
+          disabled={total <= 0 || tooLow || block !== null}
           onCancel={onClose}
         />
       }
@@ -576,9 +600,14 @@ function LeaveAllowanceModal({
         className="space-y-4"
         onSubmit={(event) => {
           event.preventDefault();
-          save.mutate();
+          if (block === null) save.mutate();
         }}
       >
+        {block && (
+          <p role="status" className="rounded-md bg-measured/10 px-3 py-2 text-xs leading-relaxed text-measured">
+            {ALLOWANCE_BLOCK_MESSAGE[block]}
+          </p>
+        )}
         {!entitlement && (
           <div>
             <FieldLabel as="span" className="mb-1.5">

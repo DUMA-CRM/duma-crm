@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useId, useState } from 'react';
 
 import { inp, lbl, sel } from '@/components/people/shared';
 import { useDrawerForm } from '@/components/shared/DrawerFormContext';
@@ -29,6 +29,8 @@ export function AddressFields({
   labelClassName?: string;
 }) {
   const drawer = useDrawerForm();
+  // Each label names its input (a screen reader announces it, and a click on it focuses the field).
+  const id = useId();
   const [parts, setParts] = useState<AddressParts>(() => {
     const p = parseAddress(value);
     if (!p.country) p.country = DEFAULT_COUNTRY;
@@ -44,21 +46,50 @@ export function AddressFields({
   return (
     <div className="space-y-3">
       <div>
-        <FieldLabel className={drawer ? 'mb-1.5' : labelClassName}>Address line 1</FieldLabel>
-        <input className={inp} value={parts.line1} onChange={(e) => update({ line1: e.target.value })} placeholder="123 High Street" />
+        <FieldLabel htmlFor={`${id}-line1`} className={drawer ? 'mb-1.5' : labelClassName}>
+          Address line 1
+        </FieldLabel>
+        <input
+          id={`${id}-line1`}
+          autoComplete="address-line1"
+          className={inp}
+          value={parts.line1}
+          onChange={(e) => update({ line1: e.target.value })}
+          placeholder="123 High Street"
+        />
       </div>
       <div className="grid sm:grid-cols-2 gap-3">
         <div>
-          <FieldLabel className={drawer ? 'mb-1.5' : labelClassName}>City / town</FieldLabel>
-          <input className={inp} value={parts.city} onChange={(e) => update({ city: e.target.value })} placeholder="London" />
+          <FieldLabel htmlFor={`${id}-city`} className={drawer ? 'mb-1.5' : labelClassName}>
+            City / town
+          </FieldLabel>
+          <input
+            id={`${id}-city`}
+            autoComplete="address-level2"
+            className={inp}
+            value={parts.city}
+            onChange={(e) => update({ city: e.target.value })}
+            placeholder="London"
+          />
         </div>
         <div>
-          <FieldLabel className={drawer ? 'mb-1.5' : labelClassName}>Post / ZIP code</FieldLabel>
-          <input className={inp} value={parts.postcode} onChange={(e) => update({ postcode: e.target.value })} placeholder="SW1A 1AA" />
+          <FieldLabel htmlFor={`${id}-postcode`} className={drawer ? 'mb-1.5' : labelClassName}>
+            Post / ZIP code
+          </FieldLabel>
+          <input
+            id={`${id}-postcode`}
+            autoComplete="postal-code"
+            className={inp}
+            value={parts.postcode}
+            onChange={(e) => update({ postcode: e.target.value })}
+            placeholder="SW1A 1AA"
+          />
         </div>
       </div>
       <div>
-        <FieldLabel className={drawer ? 'mb-1.5' : labelClassName}>Country</FieldLabel>
+        <FieldLabel as="span" className={drawer ? 'mb-1.5' : labelClassName}>
+          Country
+        </FieldLabel>
         <Select
           value={parts.country}
           onValueChange={(country) => update({ country })}

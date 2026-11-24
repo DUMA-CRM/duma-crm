@@ -85,7 +85,7 @@ export const mainNavGroups: NavGroup[] = [
     items: [
       // A shop reads Products (see `retail`): setup records the catalog's vocabulary.
       // prettier-ignore
-      { module: 'catalog', label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:write', 'recipes:write'], retail: { label: 'Products', icon: Tag } },
+      { module: 'catalog', label: 'Menu', href: '/menu', icon: UtensilsCrossed, capabilities: ['menu:read', 'menu:write', 'recipes:write'], retail: { label: 'Products', icon: Tag } },
       // One entry: stock, restock demand, purchase orders, suppliers and
       // stocktakes are tabs of /inventory. `stock:read` rather than
       // `inventory:read` — till staff hold the latter so they can record waste,

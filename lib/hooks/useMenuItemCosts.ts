@@ -4,7 +4,7 @@ import { useQueries } from '@tanstack/react-query';
 import { useMemo } from 'react';
 
 import { useVatContext } from '@/lib/hooks/useVatContext';
-import { type Costing, computeCosting } from '@/lib/menu/costing';
+import { type Costing, computeCosting, recipeCost } from '@/lib/menu/costing';
 import { getMenuItemRecipe } from '@/lib/modules/inventory/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import type { MenuItem } from '@/types/menu';
@@ -49,19 +49,11 @@ export function useMenuItemCosts(items: MenuItem[]): Map<string, MenuItemCost> {
 
     items.forEach((item, index) => {
       const query = queries[index];
-      const lines = query?.data ?? [];
-      // Size overrides are alternatives to the default line, not additions, so
-      // the headline cost is the default configuration only.
-      const defaults = lines.filter((line) => line.sizeModifierId == null);
-      const hasRecipe = defaults.length > 0;
-      const costComplete = hasRecipe && defaults.every((line) => line.stockItem?.costPerUnit != null);
-
-      const cogs = costComplete
-        ? defaults.reduce((sum, line) => sum + Number(line.quantity) * Number(line.stockItem?.costPerUnit ?? 0), 0)
-        : 0;
+      // The headline cost is the default configuration only — see `recipeCost`.
+      const { hasRecipe, costComplete, cost } = recipeCost(query?.data);
 
       out.set(item.id, {
-        costing: costComplete ? computeCosting({ price: Number(item.price) || 0, cogs, itemVatRate: item.vatRate, ctx }) : null,
+        costing: cost !== null ? computeCosting({ price: Number(item.price) || 0, cogs: cost, itemVatRate: item.vatRate, ctx }) : null,
         hasRecipe,
         costComplete,
         loading: query?.isPending ?? true,

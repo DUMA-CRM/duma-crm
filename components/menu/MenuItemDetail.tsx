@@ -13,12 +13,15 @@ import { RecipeEditor } from '@/components/menu/RecipeEditorPage';
 import { VariantsEditor } from '@/components/menu/VariantsEditor';
 import { EditorShell } from '@/components/shared/EditorShell';
 import { EmptyState } from '@/components/shared/EmptyState';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
 import { LoadingState } from '@/components/shared/Skeleton';
 
+import { hasCapability } from '@/lib/auth/capabilities';
 import { useCatalogWords } from '@/lib/hooks/useCatalogWords';
 import { getMenuItems } from '@/lib/modules/catalog/client';
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
+import { useAuthStore } from '@/stores/authStore';
 import { useWorkspaceStore } from '@/stores/workspaceStore';
 
 const MENU_ITEM_FORM_ID = 'menu-item-detail-form';
@@ -49,6 +52,8 @@ const TAB_VALUES = DETAIL_TABS.map((entry) => entry.value);
 export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
   const router = useRouter();
   const { tenantId } = useWorkspaceStore();
+  // The page opens on menu:read; changing the item is menu:write.
+  const canWrite = useAuthStore((state) => hasCapability(state.capabilities, 'menu:write'));
   // `?tab=recipe` opens straight on the recipe — the Products page's "Add recipe" links here.
   const searchParams = useSearchParams();
   const requested = searchParams.get('tab') as Tab | null;
@@ -70,7 +75,12 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
   );
   const tab: Tab = tabs.some((entry) => entry.value === chosenTab) ? chosenTab : 'details';
 
-  const { data: items = [], isLoading } = useQuery({
+  const {
+    data: items = [],
+    isLoading,
+    isError,
+    refetch,
+  } = useQuery({
     queryKey: moduleQueryKeys.catalog.key('menu-items', tenantId),
     queryFn: () => getMenuItems(tenantId ?? undefined),
     enabled: !!tenantId,
@@ -80,11 +90,27 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
 
   if (!tenantId) return null;
 
+  if (!menuItemId && !canWrite) {
+    return (
+      <EditorShell title={`New ${words.item}`} onClose={() => router.push('/menu/items')}>
+        <EmptyState
+          icon={UtensilsCrossed}
+          kind="gone"
+          title={`You can’t add ${words.items}`}
+          description="Adding to the menu needs the menu:write permission. An owner can add it in Settings → Staff."
+        />
+      </EditorShell>
+    );
+  }
+
   if (menuItemId && !item) {
     return (
       <EditorShell title={words.Item} onClose={() => router.push('/menu/items')}>
         {isLoading ? (
           <LoadingState label={`Loading the ${words.item}`} className="flex-1" />
+        ) : isError ? (
+          // A failed load is not a deleted item — saying "no longer exists" here sent people looking for a deletion that never happened.
+          <ErrorState className="flex-1" icon={UtensilsCrossed} title={`The ${words.item} couldn’t load`} onRetry={() => void refetch()} />
         ) : (
           <EmptyState
             icon={UtensilsCrossed}
@@ -111,39 +137,42 @@ export function MenuItemDetail({ menuItemId }: { menuItemId?: string }) {
         item && tabs.length > 1 ? <SectionTabs tabs={tabs} value={tab} onChange={setTab} ariaLabel={`${words.Item} sections`} /> : undefined
       }
       // Saving is the SaveBar's job on every tab; the header keeps the one action on the record itself.
-      actions={item ? <DeleteMenuItemButton item={item} onDeleted={() => router.push('/menu/items')} /> : undefined}
+      actions={item && canWrite ? <DeleteMenuItemButton item={item} onDeleted={() => router.push('/menu/items')} /> : undefined}
     >
-      {tab === 'details' || !item ? (
-        <MenuItemForm
-          tenantId={tenantId}
-          item={item}
-          formId={MENU_ITEM_FORM_ID}
-          onPendingChange={setPending}
-          onDirtyChange={setDirty}
-          // Creating navigates to the new item's own URL, so the address bar
-          // and the Back button both stay honest.
-          // A product's next step is its sizes; a menu item's, its details and modifiers.
-          onCreated={(created) =>
-            router.replace(`/menu/items/${created.id}${words.tools.retail && !words.tools.kitchen ? '?tab=sizes' : ''}`)
-          }
-          onOpenTab={setTab}
-        />
-      ) : tab === 'sizes' ? (
-        <VariantsEditor menuItemId={item.id} productName={item.name} productPrice={item.price} tenantId={tenantId} />
-      ) : tab === 'photos' ? (
-        <ProductPhotos menuItemId={item.id} productName={item.name} tenantId={tenantId} />
-      ) : tab === 'languages' ? (
-        <ProductLanguages menuItemId={item.id} tenantId={tenantId} />
-      ) : (
-        <RecipeEditor
-          menuItemId={item.id}
-          price={item.price}
-          vatRate={item.vatRate}
-          saveRef={recipeSave}
-          onStatusChange={onRecipeStatus}
-          onSaved={noop}
-        />
-      )}
+      {/* Read-only for menu:read — a disabled fieldset disables every control in the tab at once. */}
+      <fieldset disabled={!canWrite} className="contents">
+        {tab === 'details' || !item ? (
+          <MenuItemForm
+            tenantId={tenantId}
+            item={item}
+            formId={MENU_ITEM_FORM_ID}
+            onPendingChange={setPending}
+            onDirtyChange={setDirty}
+            // Creating navigates to the new item's own URL, so the address bar
+            // and the Back button both stay honest.
+            // A product's next step is its sizes; a menu item's, its details and modifiers.
+            onCreated={(created) =>
+              router.replace(`/menu/items/${created.id}${words.tools.retail && !words.tools.kitchen ? '?tab=sizes' : ''}`)
+            }
+            onOpenTab={setTab}
+          />
+        ) : tab === 'sizes' ? (
+          <VariantsEditor menuItemId={item.id} productName={item.name} productPrice={item.price} tenantId={tenantId} />
+        ) : tab === 'photos' ? (
+          <ProductPhotos menuItemId={item.id} productName={item.name} tenantId={tenantId} />
+        ) : tab === 'languages' ? (
+          <ProductLanguages menuItemId={item.id} tenantId={tenantId} />
+        ) : (
+          <RecipeEditor
+            menuItemId={item.id}
+            price={item.price}
+            vatRate={item.vatRate}
+            saveRef={recipeSave}
+            onStatusChange={onRecipeStatus}
+            onSaved={noop}
+          />
+        )}
+      </fieldset>
     </EditorShell>
   );
 }

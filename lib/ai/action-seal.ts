@@ -49,6 +49,21 @@ interface Seal {
     max: number;
   };
   exp: number;
+  /** Who drafted it, in which workspace, at which location (see `SealBinding`). */
+  b: SealBinding;
+}
+
+/**
+ * The context an approval was drafted in. A sealed action is only valid for the
+ * same signed-in user, in the same workspace, at the same active location —
+ * otherwise a token could be carried to another location (or handed to another
+ * user) and approved there. Their own capabilities would still apply, but the
+ * draft's constraints (which ids, which bounds) were computed for this context.
+ */
+export interface SealBinding {
+  uid: string;
+  tid: string | null;
+  lid: string | null;
 }
 
 export interface ResolvedLine {
@@ -113,10 +128,11 @@ function sign(payload: string) {
 }
 
 /** Attach the signed constraint seal that an approval will be replayed against. */
-export function sealAction(action: AgentPendingAction, ttlMs = DEFAULT_TTL_MS): AgentPendingAction {
+export function sealAction(action: AgentPendingAction, binding: SealBinding, ttlMs = DEFAULT_TTL_MS): AgentPendingAction {
   const group = action.lineGroup;
   const seal: Seal = {
     jti: randomUUID(),
+    b: { uid: binding.uid, tid: binding.tid ?? null, lid: binding.lid ?? null },
     k: action.kind,
     f: sealFields(action.fields),
     ...(group
@@ -157,6 +173,28 @@ function openSeal(token: string | undefined): Seal {
   return seal;
 }
 
+/**
+ * Refuse an approval confirmed by someone other than the person who drafted it,
+ * or in a different workspace or location. A token without a binding (sealed
+ * before bindings existed) is refused too — it is at most 15 minutes old, and
+ * the operator only has to ask again.
+ */
+export function assertSealBinding(token: string | undefined, binding: SealBinding): void {
+  const seal = openSeal(token);
+  const drafted = seal.b;
+  if (
+    !drafted ||
+    typeof drafted.uid !== 'string' ||
+    drafted.uid !== binding.uid ||
+    (drafted.tid ?? null) !== (binding.tid ?? null) ||
+    (drafted.lid ?? null) !== (binding.lid ?? null)
+  ) {
+    throw new ApprovalError(
+      'This approval was prepared for a different user, workspace or location. Ask DUMA to prepare the action again here.',
+    );
+  }
+}
+
 /** Coerce one edited value into the shape the draft authorised, falling back to the drafted value. */
 function acceptValue(sealed: SealedField, raw: unknown): FieldValue {
   if (sealed.ro) return sealed.v;
@@ -184,7 +222,8 @@ function acceptValue(sealed: SealedField, raw: unknown): FieldValue {
 }
 
 /** Replay the operator's edits against the sealed draft. */
-export function resolveSealedSubmission(submission: AgentActionSubmission): ResolvedAction {
+export function resolveSealedSubmission(submission: AgentActionSubmission, binding?: SealBinding): ResolvedAction {
+  if (binding) assertSealBinding(submission.approvalToken, binding);
   const seal = openSeal(submission.approvalToken);
   const edits = submission.fields && typeof submission.fields === 'object' ? submission.fields : {};
 

@@ -45,6 +45,7 @@ import {
 import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { cn } from '@/lib/utils/cn';
 import { formatCurrency } from '@/lib/utils/currencies';
+import { decimalLineMinor, decimalLineTotal } from '@/lib/utils/pos';
 import { QR_PREVIEW_MESSAGE, QR_PREVIEW_READY, type QrPreviewDraft, applyQrPreview } from '@/lib/utils/qr-preview';
 
 interface CartLine {
@@ -59,9 +60,17 @@ type Stage = 'menu' | 'checkout' | 'tracking';
 // Prices in the workspace's own currency, from the menu; GBP until it loads.
 const MoneyContext = createContext((value: string | number) => formatCurrency(value, 'GBP'));
 
-function lineUnitTotal(line: CartLine) {
-  return Number(line.item.price) + line.selected.reduce((total, option) => total + Number(option.priceAdjust), 0);
+/** One line's total in pence — the till's own `cartItemTotal`, so the basket adds up exactly. */
+function lineMinor(line: CartLine) {
+  return decimalLineMinor(
+    line.item.price,
+    line.selected.map((option) => option.priceAdjust),
+    line.quantity,
+  );
 }
+
+/** The basket's total, as a decimal. */
+const basketTotal = (cart: CartLine[]) => cart.reduce((sum, line) => sum + lineMinor(line), 0) / 100;
 
 function ItemImage({ item, className }: { item: PublicMenuItem; className?: string }) {
   return item.imageUrl ? (
@@ -91,7 +100,7 @@ function OrderDocket({
   readOnly?: boolean;
 }) {
   const formatMoney = useContext(MoneyContext);
-  const total = cart.reduce((sum, line) => sum + lineUnitTotal(line) * line.quantity, 0);
+  const total = basketTotal(cart);
   const minimumRemaining = Math.max(0, minimum - total);
 
   return (
@@ -113,7 +122,7 @@ function OrderDocket({
                     </p>
                   )}
                 </div>
-                <p className="font-mono text-sm font-semibold">{formatMoney(lineUnitTotal(line) * line.quantity)}</p>
+                <p className="font-mono text-sm font-semibold">{formatMoney(lineMinor(line) / 100)}</p>
               </div>
               {!readOnly && (
                 <div className="mt-2 flex items-center gap-1">
@@ -175,7 +184,10 @@ function ItemCustomiser({
   );
   const [choices, setChoices] = useState<Record<string, string[]>>(defaults);
   const selected = item.modifierGroups.flatMap((group) => group.options.filter((option) => (choices[group.id] ?? []).includes(option.id)));
-  const total = Number(item.price) + selected.reduce((sum, option) => sum + Number(option.priceAdjust), 0);
+  const total = decimalLineTotal(
+    item.price,
+    selected.map((option) => option.priceAdjust),
+  );
   const valid = item.modifierGroups.every((group) => {
     const count = choices[group.id]?.length ?? 0;
     return count >= group.minSelections && (group.maxSelections === null || count <= group.maxSelections);
@@ -420,7 +432,7 @@ function QrOrderExperienceInner({
   }
 
   const data = previewDraft ? applyQrPreview(menu.data, previewDraft) : menu.data;
-  const total = cart.reduce((sum, line) => sum + lineUnitTotal(line) * line.quantity, 0);
+  const total = basketTotal(cart);
   const itemCount = cart.reduce((sum, line) => sum + line.quantity, 0);
   const minimum = Number(data.ordering.minimumOrderAmount);
   const groupedSlots = Object.entries(Object.groupBy(data.ordering.slots, (slot) => slot.dateLabel));

@@ -147,7 +147,6 @@ export function OrdersSettingsDrawer({ onClose }: { onClose: () => void }) {
       toast('success', 'Order settings saved.');
       await Promise.all([
         qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('current-tenant-modules') }),
-        qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenant-modules') }),
         qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('trading') }),
       ]);
     },

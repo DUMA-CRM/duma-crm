@@ -4,6 +4,8 @@ import { consumeAgentBudget } from '@/lib/api/agent-state.service';
 import { hasCapability } from '@/lib/auth/capabilities';
 import { getMyStaffProfile } from '@/lib/modules/identity/client';
 
+import { requestWorkspaceId } from '../../_lib/request-guards';
+
 // ---------------------------------------------------------------------------
 // POST /api/reservations/assist — Ask DUMA in a booking's drawer: one quick
 // question about that booking, answered from the facts the drawer sends (the
@@ -43,7 +45,7 @@ export async function POST(request: Request) {
   if (!profile) return fail('Your session has expired. Sign in again.', 401);
   if (!hasCapability(profile, 'reservations:read')) return fail('You need access to reservations to ask about a booking.', 403);
 
-  const budget = await consumeAgentBudget(cookieHeader);
+  const budget = await consumeAgentBudget(cookieHeader, requestWorkspaceId(request.headers, profile.tenantId));
   if (!budget.allowed) return fail('You’ve used today’s AI allowance. It resets tomorrow.', 429);
 
   try {

@@ -17,7 +17,10 @@ export function headingSlug(text: string): string {
 // ── Inline ─────────────────────────────────────────────────────────────────────
 
 const INLINE = /(`[^`]+`)|(\*\*[^*]+\*\*)|(\*[^*]+\*)|(\[[^\]]+\]\([^)]+\))/;
-const SAFE_RESOURCE_URL = /^(https?:|\/)/i;
+// A leading `/` is same-origin only when the next character is not `/` or `\`:
+// browsers read both `//host` and `/\host` as another site.
+const SAFE_RESOURCE_URL = /^(https?:|\/(?![/\\]))/i;
+const SAFE_LINK_URL = /^(https?:|mailto:|\/(?![/\\]))/i;
 
 function renderInline(text: string, keyBase: string): ReactNode[] {
   const out: ReactNode[] = [];
@@ -55,7 +58,7 @@ function renderInline(text: string, keyBase: string): ReactNode[] {
       const href = token.slice(token.indexOf('(') + 1, -1);
       // Only allow safe link schemes — authored content must not produce
       // javascript:/data: URLs. Unsafe links render as plain text.
-      const safe = /^(https?:|mailto:|\/)/i.test(href.trim());
+      const safe = SAFE_LINK_URL.test(href.trim());
       const external = /^https?:/i.test(href.trim());
       out.push(
         safe ? (

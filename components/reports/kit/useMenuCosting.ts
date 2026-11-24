@@ -3,7 +3,7 @@
 import { useQuery } from '@tanstack/react-query';
 
 import { useVatContext } from '@/lib/hooks/useVatContext';
-import { computeCosting } from '@/lib/menu/costing';
+import { computeCosting, recipeCost } from '@/lib/menu/costing';
 import { type TopItemAnalytics, getTopItems } from '@/lib/modules/analytics/client';
 import { getMenuCategories, getMenuItems } from '@/lib/modules/catalog/client';
 import { getMenuItemRecipes } from '@/lib/modules/inventory/client';
@@ -76,12 +76,7 @@ export function useMenuCosting(filters: ReportFilterState) {
 
   const cost = (list: TopItemAnalytics[]): CostedItem[] =>
     list.map((item) => {
-      const recipe = recipes.data?.[item.menuItemId] ?? [];
-      const lines = recipe.filter((line) => line.sizeModifierId == null);
-      const costComplete = lines.length > 0 && lines.every((line) => line.stockItem?.costPerUnit != null);
-      const unitCost = costComplete
-        ? lines.reduce((sum, line) => sum + Number(line.quantity) * Number(line.stockItem?.costPerUnit ?? 0), 0)
-        : null;
+      const unitCost = recipeCost(recipes.data?.[item.menuItemId]).cost;
       const units = num(item.totalQuantity);
       const revenue = num(item.totalRevenue);
       const menuItem = menuById.get(item.menuItemId);

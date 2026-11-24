@@ -1,3 +1,5 @@
+import { memo } from 'react';
+
 import { AlertTriangle, Search, UtensilsCrossed } from '@/components/icons';
 import { ProductCard } from '@/components/pos/ProductCard';
 import { Bone } from '@/components/shared/Skeleton';
@@ -40,7 +42,8 @@ export const COMPACT_GRID = 'grid grid-cols-[repeat(auto-fill,minmax(8.5rem,1fr)
 /** Arranged keys: a wide or big key spans its cells, and the keys after it fill any gap it leaves (dense flow). */
 export const KEY_FLOW = 'grid-flow-row-dense';
 
-export function MenuGrid({
+/** Memoised: the till re-renders on every ticket change; the grid only when its own props do. */
+export const MenuGrid = memo(function MenuGrid({
   items,
   counts,
   selectedId,
@@ -115,7 +118,7 @@ export function MenuGrid({
       ))}
     </div>
   );
-}
+});
 
 const NAME_W = ['w-3/4', 'w-1/2', 'w-2/3', 'w-4/5'];
 
@@ -136,7 +139,7 @@ function ProductCardSkeleton({ index, photo }: { index: number; photo: boolean }
 }
 
 /** The categories-first layout: one big key per category, in its colour, opening into its items. */
-export function CategoryGrid({
+export const CategoryGrid = memo(function CategoryGrid({
   tiles,
   colours,
   onOpen,
@@ -165,7 +168,7 @@ export function CategoryGrid({
       ))}
     </div>
   );
-}
+});
 
 function PanelState({
   icon: Icon,

@@ -1,11 +1,18 @@
 'use client';
 
+import dynamic from 'next/dynamic';
 import { useEffect, useState } from 'react';
 
-import { MermaidDiagram } from '@/components/ai/MermaidDiagram';
 import { Markdown } from '@/components/shared/Markdown';
 
 import { splitAgentContent } from '@/lib/ai/mermaid-content';
+
+// beautiful-mermaid and its layout engine are hundreds of KB; they load only
+// when an answer actually contains a diagram block.
+const MermaidDiagram = dynamic(() => import('@/components/ai/MermaidDiagram').then((module) => module.MermaidDiagram), {
+  ssr: false,
+  loading: () => <div className="my-3 min-h-24 rounded-lg border border-border bg-field" aria-busy="true" />,
+});
 
 /**
  * `active` fakes a typewriter for a message that arrived all at once.

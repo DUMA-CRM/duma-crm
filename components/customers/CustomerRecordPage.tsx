@@ -82,6 +82,25 @@ const SECTION_VALUES: Section[] = ['guest', 'timeline', 'compliance'];
 const fmtDate = (iso: string) => formatDate(iso);
 
 const VISIT_MONTHS = 6;
+/** The API returns at most 100 orders a page; this many pages covers any real guest's six months. */
+const VISIT_PAGE_SIZE = 100;
+const VISIT_MAX_PAGES = 10;
+
+/**
+ * Every order of theirs in the visit window, page by page. The old single
+ * `limit: 200` read was capped at 100 by the API, so a regular's calendar
+ * stopped part-way through the six months with nothing to say so.
+ */
+async function getVisitOrders(customerId: string) {
+  const since = new Date();
+  since.setMonth(since.getMonth() - VISIT_MONTHS, 1);
+  since.setHours(0, 0, 0, 0);
+  const params = { customerId, from: since.toISOString(), limit: VISIT_PAGE_SIZE };
+  const first = await getOrders({ ...params, page: 1 });
+  const pages = Math.min(first.pages, VISIT_MAX_PAGES);
+  const rest = await Promise.all(Array.from({ length: Math.max(0, pages - 1) }, (_, index) => getOrders({ ...params, page: index + 2 })));
+  return { data: [first.data, ...rest.map((page) => page.data)].flat(), truncated: first.pages > VISIT_MAX_PAGES };
+}
 
 const WEEKDAYS = ['Mondays', 'Tuesdays', 'Wednesdays', 'Thursdays', 'Fridays', 'Saturdays', 'Sundays'];
 
@@ -173,7 +192,7 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
   // "Usually orders" — the rail is on every tab, so this is read on every tab.
   const visitsQuery = useQuery({
     queryKey: moduleQueryKeys.customers.key('customer-visits', customerId),
-    queryFn: () => getOrders({ customerId, limit: 200 }),
+    queryFn: () => getVisitOrders(customerId),
     enabled: orderingOn,
   });
 
@@ -522,7 +541,11 @@ export function CustomerRecordPage({ customerId }: { customerId: string }) {
                           </span>
                         ) : undefined
                       }
-                      footnote={visitsQuery.isSuccess && visits.length >= 200 ? 'Drawn from their most recent 200 orders.' : undefined}
+                      footnote={
+                        visitsQuery.data?.truncated
+                          ? `Drawn from their most recent ${(VISIT_PAGE_SIZE * VISIT_MAX_PAGES).toLocaleString()} orders.`
+                          : undefined
+                      }
                     >
                       {visitsQuery.isPending ? (
                         <div role="status" aria-busy="true" aria-label="Loading visits">

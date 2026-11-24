@@ -6,6 +6,7 @@ import { createPortal } from 'react-dom';
 import { X } from '@/components/icons';
 
 import { cn } from '@/lib/utils/cn';
+import { isTopDrawer } from '@/lib/utils/drawer-focus';
 
 import { Button } from '../ui/button';
 
@@ -50,6 +51,13 @@ const FOCUSABLE = 'a[href], button:not([disabled]), textarea, input, select, [ta
 
 export function Modal({ title, description, onClose, footer, illustration, actions, size = 'md', children, className }: ModalProps) {
   const panelRef = useRef<HTMLDivElement>(null);
+  // Held in a ref so the focus effect runs once per opening, as in `Drawer`.
+  // Callers pass an inline onClose; depending on it re-ran the effect on every
+  // parent render, moving focus to the first control on each keystroke.
+  const onCloseRef = useRef(onClose);
+  useEffect(() => {
+    onCloseRef.current = onClose;
+  });
   // Portal to <body> so `fixed` positioning is relative to the viewport, not a
   // transformed ancestor (e.g. the slide-in page sidebar). Mount-gate for SSR.
   const mounted = useSyncExternalStore(
@@ -59,6 +67,7 @@ export function Modal({ title, description, onClose, footer, illustration, actio
   );
 
   useEffect(() => {
+    if (!mounted) return;
     const opener = document.activeElement as HTMLElement | null;
     const panel = panelRef.current;
 
@@ -67,8 +76,14 @@ export function Modal({ title, description, onClose, footer, illustration, actio
     (first ?? panel)?.focus();
 
     const onKey = (e: KeyboardEvent) => {
+      // Only the top-most dialog answers keys — Escape in a nested dialog must
+      // close that one, not every dialog underneath it.
+      if (e.defaultPrevented || !panel || !isTopDrawer(panel, Array.from(document.querySelectorAll('[role="dialog"][aria-modal="true"]'))))
+        return;
       if (e.key === 'Escape') {
-        onClose();
+        e.preventDefault();
+        e.stopImmediatePropagation();
+        onCloseRef.current();
         return;
       }
       // Trap Tab inside the dialog.
@@ -93,7 +108,7 @@ export function Modal({ title, description, onClose, footer, illustration, actio
       // Restore focus to whatever opened the dialog.
       opener?.focus?.();
     };
-  }, [onClose]);
+  }, [mounted]);
 
   if (!mounted) return null;
 

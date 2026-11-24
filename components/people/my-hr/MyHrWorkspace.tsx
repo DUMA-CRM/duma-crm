@@ -7,7 +7,9 @@ import { HelpdeskBoard } from '@/components/helpdesk/HelpdeskBoard';
 import { CalendarCheck, CalendarClock, CalendarDays, CircleHelp, FileText, LayoutDashboard, MessageSquarePlus, Plus } from '@/components/icons';
 import { EnrollEmployeeDrawer } from '@/components/people/PeopleModals';
 import { EditorShell } from '@/components/shared/EditorShell';
+import { ErrorState } from '@/components/shared/ErrorState';
 import { type SectionTab, SectionTabs } from '@/components/shared/SectionTabs';
+import { ListSkeleton } from '@/components/shared/Skeleton';
 import { Button } from '@/components/ui/button';
 
 import { hasCapability } from '@/lib/auth/capabilities';
@@ -81,16 +83,19 @@ export function MyHrWorkspace({
     retry: false,
   });
   const canCreateOwnEmployeeRecord = Boolean(user && tenantId && hasCapability(capabilities, 'hr.people:write'));
-  const { data: entitlements = [] } = useQuery({
+  const entitlementsQuery = useQuery({
     queryKey: moduleQueryKeys.people.key('leave-entitlements-me'),
     queryFn: () => getMyEntitlements(),
   });
-  const { data: requests = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('leave-requests-me'), queryFn: getMyLeaveRequests });
+  const requestsQuery = useQuery({ queryKey: moduleQueryKeys.people.key('leave-requests-me'), queryFn: getMyLeaveRequests });
+  const entitlements = useMemo(() => entitlementsQuery.data ?? [], [entitlementsQuery.data]);
+  const requests = useMemo(() => requestsQuery.data ?? [], [requestsQuery.data]);
   const ticketsQuery = useQuery({ queryKey: moduleQueryKeys.support.key('helpdesk-my'), queryFn: getMyTickets });
   // Memoised because `?? []` hands back a fresh array every render, which
   // would defeat the `actions` memo below.
   const tickets = useMemo(() => ticketsQuery.data ?? [], [ticketsQuery.data]);
-  const { data: documents = [] } = useQuery({ queryKey: moduleQueryKeys.people.key('documents-me'), queryFn: getMyDocuments });
+  const documentsQuery = useQuery({ queryKey: moduleQueryKeys.people.key('documents-me'), queryFn: getMyDocuments });
+  const documents = useMemo(() => documentsQuery.data ?? [], [documentsQuery.data]);
   const { data: payslips = [] } = useQuery({
     queryKey: moduleQueryKeys.payroll.key('payslips-me'),
     queryFn: getMyPayslips,
@@ -258,11 +263,32 @@ export function MyHrWorkspace({
           onCreateOwnEmployeeRecord={() => setCreateEmployeeOpen(true)}
         />
       )}
-      {tab === 'time-off' && <TimeOffPanel requests={requests} entitlements={entitlements} />}
+      {/* A failed read must not show as "no allowance" or "no requests" — the balance decides whether someone books a holiday. */}
+      {tab === 'time-off' &&
+        (entitlementsQuery.isError || requestsQuery.isError ? (
+          <ErrorState
+            icon={CalendarDays}
+            title="Your time off couldn’t load"
+            description="Nothing was read, so this isn’t your real balance. Check your connection, then try again."
+            onRetry={() => {
+              if (entitlementsQuery.isError) void entitlementsQuery.refetch();
+              if (requestsQuery.isError) void requestsQuery.refetch();
+            }}
+          />
+        ) : entitlementsQuery.isPending || requestsQuery.isPending ? (
+          <ListSkeleton rows={3} label="Loading your time off" />
+        ) : (
+          <TimeOffPanel requests={requests} entitlements={entitlements} />
+        ))}
       {tab === 'attendance' && <AttendancePanel onCorrection={requestCorrection} />}
-      {tab === 'documents' && (
-        <DocumentsPanel employee={employee} documents={documents} payrollEnabled={payrollEnabled} onDataRequest={requestData} />
-      )}
+      {tab === 'documents' &&
+        (documentsQuery.isError ? (
+          <ErrorState icon={FileText} title="Your documents couldn’t load" onRetry={() => void documentsQuery.refetch()} />
+        ) : documentsQuery.isPending ? (
+          <ListSkeleton rows={3} label="Loading your documents" />
+        ) : (
+          <DocumentsPanel employee={employee} documents={documents} payrollEnabled={payrollEnabled} onDataRequest={requestData} />
+        ))}
       {tab === 'helpdesk' && (
         <HelpdeskBoard
           mode="employee"

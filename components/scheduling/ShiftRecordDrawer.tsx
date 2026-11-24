@@ -522,7 +522,15 @@ function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftDrawerP
         await Promise.all(record.clocked.map((entry) => adjustShift(entry.id, { scheduledShiftId: created.id })));
       } catch (error) {
         // Avoid leaving a duplicate rota entry if linking the attendance fails.
-        await deleteScheduledShift(created.id).catch(() => undefined);
+        // If that clean-up fails too, the new shift is still on the rota — say
+        // so, rather than letting a stray duplicate inflate the planned hours.
+        await deleteScheduledShift(created.id).catch(() => {
+          invalidateRota(qc);
+          toast(
+            'warning',
+            `A rota shift for ${record.staffName} on ${formatDate(record.at)} was created but couldn’t be linked or removed. Delete it on the rota so it isn’t counted twice.`,
+          );
+        });
         throw error;
       }
       return created;
@@ -532,6 +540,8 @@ function WorkedRecordDrawer({ record, canClock, canPlan, onClose }: ShiftDrawerP
       qc.invalidateQueries({ queryKey: moduleQueryKeys.workforce.key('shifts') });
       toast('success', 'Matching rota shift created and linked.');
     },
+    onError: (error) =>
+      toast('error', error instanceof Error && error.message ? error.message : 'The rota shift wasn’t linked. Try again.'),
   });
 
   return (

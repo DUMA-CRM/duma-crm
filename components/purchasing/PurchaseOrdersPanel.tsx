@@ -58,7 +58,18 @@ import { moduleQueryKeys } from '@/lib/modules/query-keys';
 import { toast } from '@/lib/toast';
 import { cn } from '@/lib/utils/cn';
 import { formatDate } from '@/lib/utils/date';
-import { dueLabel, invoiceDifference, isOverdue, orderTotal, receivedShare, summaryReceivedShare } from '@/lib/utils/purchase-orders';
+import {
+  draftOrderTotal,
+  dueLabel,
+  invoiceDifference,
+  isOverdue,
+  lineValue,
+  orderTotal,
+  outstandingQuantity,
+  receivedShare,
+  sendableLines,
+  summaryReceivedShare,
+} from '@/lib/utils/purchase-orders';
 import { dayLabel } from '@/lib/utils/restock-queue';
 import { workspaceDateKey } from '@/lib/utils/workspace-time';
 import { useAuthStore } from '@/stores/authStore';
@@ -146,8 +157,8 @@ function CreatePoDrawer({
   const [expectedAt, setExpectedAt] = useState('');
   const [notes, setNotes] = useState(draft?.notes ?? '');
   const [lines, setLines] = useState<DraftLine[]>(draft?.lines ?? [{ stockItemId: '', quantity: '', unitCost: '' }]);
-  const validLines = lines.filter((l) => l.stockItemId && Number(l.quantity) > 0 && Number(l.unitCost) >= 0);
-  const total = validLines.reduce((sum, l) => sum + Number(l.quantity) * Number(l.unitCost), 0);
+  const validLines = sendableLines(lines);
+  const total = draftOrderTotal(lines);
   const activeSuppliers = suppliers.filter((supplier) => supplier.isActive);
   const itemMap = new Map(stockItems.map((item) => [item.id, item]));
   const setLine = (index: number, patch: Partial<DraftLine>) =>
@@ -250,7 +261,7 @@ function CreatePoDrawer({
           <ul>
             {lines.map((line, index) => {
               const item = itemMap.get(line.stockItemId);
-              const lineTotal = Number(line.quantity) * Number(line.unitCost);
+              const lineTotal = lineValue(line.quantity, line.unitCost);
               return (
                 <li key={index} className="space-y-3 border-b border-border py-3 first:pt-0 last:border-b-0">
                   <div className="flex items-end gap-2">
@@ -388,7 +399,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
       // what the form shows, or unedited lines would submit as 0.
       const lines = (po?.lines ?? [])
         .map((l) => {
-          const total = Number(receiveQty[l.id] ?? Math.max(0, Number(l.quantityOrdered) - Number(l.quantityReceived))) || 0;
+          const total = Number(receiveQty[l.id] ?? outstandingQuantity(l)) || 0;
           if (total <= 0) return null;
           const defaultContainer = Number(l.stockItem?.defaultContainerQuantity ?? 0);
           const enteredCount = Math.max(0, Math.floor(Number(receiveContainers[l.id] ?? 0)));
@@ -444,10 +455,8 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
   const difference = invoiceDifference(invoiceValue, total);
   const due = dueLabel(po, now);
   const late = isOverdue(po, now);
-  const outstanding = (l: NonNullable<PurchaseOrder['lines']>[number]) =>
-    Math.max(0, Number(l.quantityOrdered) - Number(l.quantityReceived));
   const open = po.status === 'submitted' || po.status === 'partially_received';
-  const complete = (po.lines ?? []).filter((l) => outstanding(l) === 0).length;
+  const complete = (po.lines ?? []).filter((l) => outstandingQuantity(l) === 0).length;
 
   return (
     <Drawer
@@ -504,7 +513,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
           </p>
           <ul className="space-y-2">
             {(po.lines ?? [])
-              .filter((l) => outstanding(l) > 0)
+              .filter((l) => outstandingQuantity(l) > 0)
               .map((l) => (
                 <li key={l.id} className="rounded-lg border border-border bg-field p-3.5">
                   <div className="flex items-baseline justify-between gap-3">
@@ -517,7 +526,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
                     <label className="block">
                       <FieldLabel as="span">Received</FieldLabel>
                       <input
-                        value={receiveQty[l.id] ?? String(outstanding(l))}
+                        value={receiveQty[l.id] ?? String(outstandingQuantity(l))}
                         onChange={(event) => setReceiveQty((prev) => ({ ...prev, [l.id]: event.target.value }))}
                         inputMode="decimal"
                         aria-label={`Received ${l.stockItem?.name}`}
@@ -618,7 +627,7 @@ function PoDrawer({ id, canWrite, onClose }: { id: string; canWrite: boolean; on
                         {po.status !== 'draft' && ` · ${fmtQty(l.quantityReceived)} received`}
                       </span>
                     </span>
-                    <span className="shrink-0 text-sm font-semibold text-foreground">{money(ordered * (Number(l.unitCost) || 0))}</span>
+                    <span className="shrink-0 text-sm font-semibold text-foreground">{money(lineValue(ordered, l.unitCost))}</span>
                   </li>
                 );
               })}

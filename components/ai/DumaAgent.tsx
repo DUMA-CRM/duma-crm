@@ -99,7 +99,7 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
       { label: 'Review active orders', prompt: 'Show me the orders that are still pending, preparing, or ready.' },
       { label: 'Investigate an order', prompt: 'Help me find and explain a specific order.' },
       { label: 'Check cancellations', prompt: 'Summarise recent cancelled orders and any patterns in their reasons.' },
-      { label: 'Review QR orders', prompt: 'Show recent QR code orders separately from POS and Mobile.' },
+      { label: 'Review QR orders', prompt: 'Show recent QR code orders separately from till and mobile orders.' },
       {
         label: 'Compare order performance',
         prompt: 'Compare order volume and average value this week with the same days last week.',
@@ -226,7 +226,7 @@ const PAGE_WELCOMES: Record<string, PageWelcome> = {
     title: 'What does the kitchen need?',
     prompts: [
       { label: 'Review the active queue', prompt: 'Show orders that are pending, preparing, or ready.' },
-      { label: 'Run the KDS workflow', prompt: 'Guide me through moving an order from pending to collected.' },
+      { label: 'Run the kitchen workflow', prompt: 'Guide me through moving an order from pending to collected.' },
       {
         label: 'Investigate a delayed order',
         prompt: 'Help me investigate an order that has been waiting too long.',

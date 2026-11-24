@@ -29,6 +29,8 @@ interface HeldTicketsStore {
   hold: (ticket: Omit<HeldTicket, 'id' | 'heldAt'>) => void;
   take: (id: string) => HeldTicket | undefined;
   discard: (id: string) => void;
+  /** Sign-out: a parked ticket names a customer, and the next person on this device is not entitled to it. */
+  clear: () => void;
 }
 
 /** A till with more than this many parked tickets is using holds as a tab system — cap it. */
@@ -48,6 +50,7 @@ export const useHeldTicketsStore = create<HeldTicketsStore>()(
         return ticket;
       },
       discard: (id) => set((state) => ({ tickets: state.tickets.filter((entry) => entry.id !== id) })),
+      clear: () => set({ tickets: [] }),
     }),
     { name: 'pos-held-tickets', version: 1 },
   ),

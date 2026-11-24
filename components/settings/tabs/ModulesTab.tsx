@@ -437,7 +437,6 @@ function Proposal({
       applyWorkspaceRecommendation(tenantId, selectedModulesFor(saved.recommendation!, added), saved.recommendationRevision),
     onSuccess: () => {
       void qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('current-tenant-modules', tenantId) });
-      void qc.invalidateQueries({ queryKey: moduleQueryKeys.organization.key('tenant-modules', tenantId) });
       void qc.invalidateQueries({ queryKey: ['workspace-setup', tenantId] });
       void qc.invalidateQueries({ queryKey: WORKSPACE_CONTEXT_KEY });
       toast('success', 'Setup updated.');

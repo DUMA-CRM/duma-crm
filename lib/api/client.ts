@@ -97,6 +97,12 @@ export class ApiError extends Error {
     public readonly capability?: string,
     /** Structured `warnings` from a refusal the caller may override (a rota request breaking a working-time rule). Unvalidated. */
     public readonly warnings: unknown[] = [],
+    /**
+     * Every capability that would have been accepted, for a route gated on any
+     * one of several (`requireAnyCapability` sends `capabilities[]`, not
+     * `capability`). A single-capability refusal lists just that one.
+     */
+    public readonly capabilities: string[] = capability ? [capability] : [],
   ) {
     super(message);
     this.name = 'ApiError';
@@ -134,6 +140,7 @@ async function extractErrorMessage(res: Response): Promise<{
   code?: string;
   issues: ApiFieldIssue[];
   capability?: string;
+  capabilities?: string[];
   warnings?: unknown[];
 }> {
   const fallback = `${res.status} ${res.statusText}`.trim();
@@ -147,13 +154,23 @@ async function extractErrorMessage(res: Response): Promise<{
         code?: unknown;
         issues?: unknown;
         capability?: unknown;
+        capabilities?: unknown;
         warnings?: unknown;
       };
+      const capabilities = Array.isArray(body.capabilities)
+        ? body.capabilities
+            .filter((value): value is string => typeof value === 'string')
+            .slice(0, 20)
+            .map((value) => value.slice(0, 100))
+        : [];
+      const capability = typeof body.capability === 'string' ? body.capability.slice(0, 100) : undefined;
       return {
         message: normaliseErrorMessage(body.message ?? body.error, fallback),
         code: typeof body.code === 'string' ? body.code.slice(0, 100) : undefined,
         issues: normaliseIssues(body.issues),
-        capability: typeof body.capability === 'string' ? body.capability.slice(0, 100) : undefined,
+        // One acceptable capability is the same as naming it; several stay a list.
+        capability: capability ?? (capabilities.length === 1 ? capabilities[0] : undefined),
+        capabilities: capability ? [capability] : capabilities,
         warnings: Array.isArray(body.warnings) ? body.warnings.slice(0, 50) : undefined,
       };
     } catch {
@@ -198,10 +215,10 @@ export async function apiFetch<T>(path: string, options: FetchOptions = {}): Pro
   });
 
   if (!res.ok) {
-    const { message, code, issues, capability, warnings } = await extractErrorMessage(res);
+    const { message, code, issues, capability, capabilities, warnings } = await extractErrorMessage(res);
     // Keep request internals on the error for diagnostics without putting API
     // paths into every customer-facing toast and inline validation message.
-    throw new ApiError(res.status, message, code, `${method} ${path}`, issues, capability, warnings ?? []);
+    throw new ApiError(res.status, message, code, `${method} ${path}`, issues, capability, warnings ?? [], capabilities);
   }
 
   // 204 No Content — return undefined cast as T

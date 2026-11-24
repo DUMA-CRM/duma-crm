@@ -59,14 +59,13 @@ not its notes. That is how every cross-layer defect in the vault was found.
 
 ```bash
 pnpm dev            # next dev (Turbopack)
-pnpm check          # lint + typecheck + test + build — what CI runs
-pnpm test           # node:test, ~199 tests, <1s
+pnpm check          # test + lint + typecheck + build — what CI runs
+pnpm test           # node:test, ~440 tests in tests/unit, ~2s
 pnpm typecheck      # tsc --noEmit
 ```
 
-`pnpm check` does **not** test the UI/API contract beyond a static scan. If you
-changed an API call, confirm the endpoint exists in
-`~/Documents/GitHub/duma-api/src/routes/`.
+`pnpm check` does **not** test the UI/API contract at all. If you changed an API
+call, confirm the endpoint exists in `~/Documents/GitHub/duma-api/src/routes/`.
 
 ## Repository-specific rules
 
@@ -75,8 +74,11 @@ changed an API call, confirm the endpoint exists in
 `ROLE_RANK` / `roleAtLeast` were deleted deliberately — ranking
 `marketing_manager` below `store_manager` hid the customer base from the role
 that owns it. Use `hasCapability` / `hasAnyCapability` from
-`lib/auth/capabilities.ts`; add the string to `FRONTEND_CAPABILITIES` first or it
-will not type-check. Route guards go in a `layout.tsx` via `requireCapability`.
+`lib/auth/capabilities.ts`; add the string to its module's list in
+`CRM_MODULE_CAPABILITIES` (`lib/modules/manifest.ts`, which builds
+`FRONTEND_CAPABILITIES`) first or it will not type-check. Gate a page on the
+*read* capability its data needs and each edit control on its *write*
+capability — Menu opens on `menu:read`, edits need `menu:write`. Route guards go in a `layout.tsx` via `requireCapability`.
 `role` is only for "what kind of account is this" (e.g. is it location-pinned).
 
 ### UI gating is not security
@@ -96,11 +98,13 @@ an API redirect; call the canonical path.
 
 ### The endpoint you call must exist
 
-Nothing type-checks an API path, so a wrong one compiles cleanly.
-`tests/api-contract.test.mts` catches renamed and removed paths against
-`openapi.json` — keep that file fresh or the test passes against a fossil. It
-scans `apiFetch(...)`; the agent's `runtime.get(...)` calls are covered
-separately by `tests/agent-contract.test.mts`.
+Nothing type-checks an API path, so a wrong one compiles cleanly — and **no
+test checks them either**. An earlier version of this file described
+`tests/api-contract.test.mts` and `tests/agent-contract.test.mts`; neither exists
+(audit 2026-11-24). `openapi.json` at the root is a snapshot that nothing reads.
+Until a contract test is written, grep `duma-api/src/routes/` (and `src/app.ts`
+for the mount prefix) for every path you add or change — `apiFetch(...)` and the
+agent's `runtime.get(...)` alike.
 
 `@duma-crm/api` — the published Hono RPC types — was **removed on 2026-09-10**.
 It had been declared and imported nowhere since the repository began
@@ -115,20 +119,30 @@ time.
 Decimal amounts stay `string`, parsed only for arithmetic. Margin goes through
 `lib/menu/costing.ts` — **the one place** it is calculated, and VAT-aware.
 
-**Do not "fix" the VAT divergence.** `costing.ts` honours `vatRegistered` and the
-API does not, on purpose and with a comment. The API is the wrong one.
+`costing.ts` and the API (`src/lib/order-tax.ts`) now agree: neither extracts
+VAT for a business that is not VAT-registered. The old "deliberate divergence"
+is gone — keep the two in step if either changes.
 
-### `POST /orders` is not idempotent
+### Offline sales are financial data
 
-Despite the `Idempotency-Key` the offline queue sends. Do not assume replay is
-safe. And **never delete a queued offline sale on failure** — classify it
-(`lib/utils/offline-order-sync.ts`). It is financial data.
+`POST /orders` honours the `Idempotency-Key` the offline queue sends (unique
+constraint; a replay returns the first order, a clash is a 409). Even so,
+**never delete a queued offline sale on failure** — classify it
+(`lib/utils/offline-order-sync.ts`). Refunds take an `Idempotency-Key` too: one
+per refund draft, reused on retry.
 
 ### Invalidate after every mutation
 
-Query keys are hand-written literals with no factory, so a renamed key silently
-stops invalidating. There are **no optimistic updates** anywhere — keep it that
-way for anything touching money or stock.
+Build keys with `moduleQueryKeys.<module>.key(...)`; an invalidation matches by
+prefix, so a key nobody writes any more silently invalidates nothing. There are
+**no optimistic updates** anywhere — keep it that way for anything touching
+money or stock.
+
+A failed mutation with no `onError` of its own gets a toast from the global
+`MutationCache` (`components/providers/QueryProvider.tsx`), as a failed query
+does from the `QueryCache`. Give a mutation its own `onError` — or
+`meta: { silentError: true }` — when it shows the failure itself; otherwise it
+toasts twice. A 403 toast names the capability the API reported.
 
 ### Put pure logic in `lib/utils/`
 
@@ -148,10 +162,20 @@ feature-flag service. Each absence is a decision — see `Decisions/` in the vau
 
 ## Things that will bite you
 
-- `POST /orders` ignores `Idempotency-Key` (API TD-069)
-- `/hr/payslips/*` and `/hr/expense-claims/*` **do not exist** — tables dropped
-  2026-07; the UI still calls them
-- `apiFetch` discards the API's `issues[]` and `capability` error fields
-- `/orders` gates on `orders:bulk`, locking `auditor` out of a read it holds
+- **No test checks an API path** (see above) — a renamed route compiles and
+  ships.
+- `GET /orders` caps `limit` at **100**. Asking for 200 silently returns 100, so
+  any total worked out from one page is wrong on a busy day. Use
+  `/orders/summary` for totals and page through lists.
+- The service worker (`public/sw.js`) caches API responses for offline use. A
+  new sensitive path must be added to its skip list, or personal data stays in
+  the cache on a shared till.
+- `/hr/expense-claims/*` does not exist (dropped 2026-07). Payslips come from
+  pay-run lines: `/hr/payslips/my` and `/hr/payslips?userId=`.
+- `ApiError` carries `issues[]`, `capability` and `capabilities[]` (any-of
+  routes); use them rather than parsing the message.
+- `/orders` gates on `orders:read` on both sides.
 - Server Components can authenticate; a bearer token in JS cannot — that is why
-  the `/be` proxy exists
+  the `/be` proxy exists.
+- `motion` animations respect reduce-motion through one `<MotionConfig
+  reducedMotion="user">` in `QueryProvider` — don't add another.

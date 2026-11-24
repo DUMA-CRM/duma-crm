@@ -63,7 +63,7 @@ function describeFailure(stage: Failure['stage'], cause: unknown): Failure {
     }
     if (cause.status === 400 || cause.status === 422) return { stage, editable: true, message: cause.message };
   }
-  const message = cause instanceof Error ? cause.message : 'Something went wrong.';
+  const message = cause instanceof Error ? cause.message : 'Try again in a moment.';
   return stage === 'account'
     ? { stage, editable: false, message: `We couldn’t create the workspace. ${message}` }
     : { stage, editable: false, message: `Your workspace exists, but its tools weren’t switched on. ${message}` };

@@ -1,6 +1,6 @@
 'use client';
 
-import jsQR from 'jsqr';
+import type jsQRType from 'jsqr';
 import { Loader2, RefreshCw, SwitchCamera, VideoOff } from '@/components/icons';
 import { useEffect, useRef, useState } from 'react';
 
@@ -47,11 +47,13 @@ export function QrScanner({ onScan, paused = false }: QrScannerProps) {
     let lastDecodeAt = 0;
     let lastValue = '';
     let lastValueAt = 0;
+    // The decoder loads with the camera, not with the till: most sales never open the scanner.
+    let decode: typeof jsQRType | null = null;
 
     function loop(t: number) {
       raf = requestAnimationFrame(loop);
       const video = videoRef.current;
-      if (!video || !ctx || pausedRef.current) return;
+      if (!video || !ctx || !decode || pausedRef.current) return;
       // ~6 decodes/sec is plenty and keeps the tablet cool.
       if (t - lastDecodeAt < 160 || video.readyState < 2 || video.videoWidth === 0) return;
       lastDecodeAt = t;
@@ -63,7 +65,7 @@ export function QrScanner({ onScan, paused = false }: QrScannerProps) {
       canvas.height = Math.round(video.videoHeight * scale);
       ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
       const img = ctx.getImageData(0, 0, canvas.width, canvas.height);
-      const code = jsQR(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
+      const code = decode(img.data, img.width, img.height, { inversionAttempts: 'dontInvert' });
       if (!code?.data) return;
 
       // Same code within 3s = still the same scan, not a new one.
@@ -75,6 +77,15 @@ export function QrScanner({ onScan, paused = false }: QrScannerProps) {
     }
 
     async function start() {
+      const decoder = import('jsqr').then((module) => module.default);
+      try {
+        decode = await decoder;
+      } catch {
+        if (cancelled) return;
+        setStarting(false);
+        setError('The scanner didn’t load. Check the connection and try again.');
+        return;
+      }
       try {
         stream = await navigator.mediaDevices.getUserMedia({
           video: { facingMode: facing, width: { ideal: 1280 }, height: { ideal: 720 } },
