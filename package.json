@@ -71,7 +71,7 @@
     "prettier": "^3.8.3",
     "shadcn": "^4.2.0",
     "tailwindcss": "^4",
-    "typescript": "^5"
+    "typescript": "^6"
   },
   "pnpm": {
     "overrides": {
